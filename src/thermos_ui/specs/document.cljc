@@ -23,8 +23,8 @@
 
 (s/def ::technologies
   (s/and
-   (redundant-key ::technology/technology-id)
-   (s/map-of ::technology/technology-id ::technology/technology)))
+   (redundant-key ::technology/id)
+   (s/map-of ::technology/id ::technology/technology)))
 
 (s/def ::candidates
   (s/and

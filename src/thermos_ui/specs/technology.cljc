@@ -4,7 +4,7 @@
 
 ;; Specification for technology choices. This is waiting for information from Kamal to be definite.
 
-(s/def ::technology-id string?)
+(s/def ::id string?)
 
 ;; what do we know about a technology?
 ;; it has size bounds, and a price related to the size
