@@ -1,6 +1,7 @@
 (ns thermos-ui.test.specs.document
   (:require [thermos-ui.specs.document :as doc]
             [thermos-ui.specs.candidate :as can]
+            [thermos-ui.specs.view :as view]
             [clojure.spec.alpha :as s]
             [clojure.test :refer :all]
             [thermos-ui.test.specs.util]
@@ -15,7 +16,13 @@
       ::doc/document
       {::doc/candidates {}
        ::doc/technologies {}
-       ::doc/view-state {}})
+       ::view/view-state
+       {::view/selection #{}
+        ::view/table-state {::view/sort-column ::can/candidate-type
+                            ::view/sort-direction :asc
+                            ::view/filters #{}}}
+
+       })
      )))
 
 (let [valid-supply
