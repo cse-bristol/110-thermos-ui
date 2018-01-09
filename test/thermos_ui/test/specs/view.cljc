@@ -12,7 +12,7 @@
     (is (valid?
          ::view/view-state
          {::view/selection {}
-          ::view/table-state {::view/sort-column ::can/candidate-id
+          ::view/table-state {::view/sort-column ::can/id
                               ::view/sort-direction :asc
                               ::view/filters {}}
           ::view/map-state {}}))))

@@ -4,13 +4,13 @@
             ))
 
 ;; at least at the moment, a candidate ID is a string
-(s/def ::candidate-id string?)
+(s/def ::id string?)
 
 ;; a candidate must either be a building or a road for now
 (s/def ::candidate
-  (s/or :is-a-supply ::candidate-supply
-        :is-a-demand ::candidate-demand
-        :is-a-path ::candidate-path))
+  (s/or :is-a-supply ::supply
+        :is-a-demand ::demand
+        :is-a-path ::path))
 
 ;; This is just to remind us that ::geometry should be geojson but we
 ;; haven't written a spec for that because it's huge
@@ -38,32 +38,32 @@
 
 (s/def ::allowed-technologies (s/* ::technology/technology-id))
 
-(s/def ::candidate-common
-  (s/keys :req [ ::candidate-type ::candidate-id ::geometry ::name ::postcode  ]))
+(s/def ::common
+  (s/keys :req [::type ::id ::geometry ::name ::postcode  ]))
 
-(s/def ::candidate-building
+(s/def ::building
   (s/merge
-   ::candidate-common
+   ::common
    (s/keys :req [ ::building-type ])))
 
-(s/def ::candidate-supply
+(s/def ::supply
   (s/and
-   #(= :supply (::candidate-type %))
+   #(= :supply (::type %))
    (s/merge
-    ::candidate-building
+    ::building
     (s/keys :req [ ::allowed-technologies ])
     )))
 
-(s/def ::candidate-demand
+(s/def ::demand
   (s/and
-   #(= :demand (::candidate-type %))
+   #(= :demand (::type %))
    (s/merge
-    ::candidate-building
+    ::building
     (s/keys :req [ ::demand ]))))
 
-(s/def ::candidate-path
+(s/def ::path
   (s/and
-   #(= :path (::candidate-type %))
+   #(= :path (::type %))
    (s/merge
     (s/keys :req [ ::length ])
-    ::candidate-common)))
+    ::common)))

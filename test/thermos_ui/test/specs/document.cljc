@@ -18,7 +18,8 @@
        ::doc/technologies {}
        ::view/view-state
        {::view/selection #{}
-        ::view/table-state {::view/sort-column ::can/candidate-type
+        ::view/map-state {}
+        ::view/table-state {::view/sort-column ::can/type
                             ::view/sort-direction :asc
                             ::view/filters #{}}}
 
@@ -26,8 +27,8 @@
      )))
 
 (let [valid-supply
-      {::can/candidate-id "a candidate"
-       ::can/candidate-type :supply
+      {::can/id "a candidate"
+       ::can/type :supply
        ::can/geometry 1
        ::can/name "1 Candidate street"
        ::can/postcode "BS3 1ED"
@@ -43,7 +44,7 @@
 
   (deftest works-with-integrity
     (is (valid? ::doc/candidates
-                  {"test-one" (assoc valid-supply ::can/candidate-id "test-one")})))
+                {"test-one" (assoc valid-supply ::can/id "test-one")})))
 
   (deftest validate-a-candidate
     (testing "That a supply is a valid candidate"
