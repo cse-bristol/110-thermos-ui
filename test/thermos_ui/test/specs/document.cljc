@@ -23,7 +23,7 @@
       ::doc/candidate-type :supply
       ::doc/geometry 1
       ::doc/name "1 Candidate street"
-      ::doc/postcode "BS3 ASDF"
+      ::doc/postcode "BS3 2AN"
       ::doc/building-type "Hospital"
       ::doc/allowed-technologies #{}
       }
