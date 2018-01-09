@@ -1,74 +1,25 @@
 (ns thermos-ui.specs.document
-  (:require [clojure.spec.alpha :as s]))
+  (:require [clojure.spec.alpha :as s]
+            [thermos-ui.specs.technology :as technology]
+            [thermos-ui.specs.candidate :as candidate]
+            ))
 
 ;; this is the spec for what you can see on the screen in the UI
 
 (s/def ::document (s/keys :req [ ::candidates ::technologies ::view-state ]))
 
-;; the candidate set should be map from IDs of candidates
-;; to information about candidates
-(s/def ::candidates (s/map-of ::candidate-id ::candidate))
+(defn redundant-key [key]
+  (s/every (fn [[id val]] (and (map? val)
+                               (= id (key val)))) :kind map? :into {}))
 
-;; at least at the moment, a candidate ID is a string
-(s/def ::candidate-id string?)
-
-;; a candidate must either be a building or a road for now
-(s/def ::candidate
-  (s/or :is-a-supply ::candidate-supply
-        :is-a-demand ::candidate-demand
-        :is-a-path ::candidate-path))
-
-;; This is just to remind us that ::geometry should be geojson but we
-;; haven't written a spec for that because it's huge
-(defn geojson? [_] true)
-(s/def ::geometry geojson?)
-
-;; These are used in the candidate definitions below
-(s/def ::length number?)
-
-(s/def ::demand number?) ;; TODO this is not correct; we expect this
-                         ;; to include duration information and to ;;
-                         ;; have several demands, kamal says: We
-                         ;; usually specify demands in power units
-                         ;; with a separate parameter indicating the
-                         ;; duration of the demand for all the demands
-                         ;; specified in a file
-
-
-(let [postcode-regex
-      #"(GIR 0AA)|((([A-Z-[QVX]][0-9][0-9]?)|(([A-Z-[QVX]][A-Z-[IJZ]][0-9][0-9]?)|(([A-Z-[QVX]][0-9][A-HJKPSTUW])|([A-Z-[QVX]][A-Z-[IJZ]][0-9][ABEHMNPRVWXY])))) [0-9][A-Z-[CIKMOV]]{2})"]
-  (s/def ::postcode #(re-matches postcode-regex %)))
-
-(s/def ::name string?)
-(s/def ::building-type string?)
-
-(s/def ::candidate-common
-  (s/keys :req [ ::candidate-type ::candidate-id ::geometry ::name ::postcode  ]))
-
-(s/def ::candidate-building
-  (s/merge
-   ::candidate-common
-   (s/keys :req [ ::building-type ])))
-
-(s/def ::candidate-supply
+(s/def ::technologies
   (s/and
-   #(= :supply (::candidate-type %))
-   (s/merge
-    ::candidate-building
-    (s/keys :req [ ::allowed-technologies ])
-    )))
+   (redundant-key ::candidate/technology-id)
+   (s/map-of ::technology/technology-id ::technology/technology)))
 
-(s/def ::candidate-demand
+(s/def ::candidates
   (s/and
-   #(= :demand (::candidate-type %))
-   (s/merge
-    ::candidate-building
-    (s/keys :req [ ::demand ]))))
+   (redundant-key ::candidate/candidate-id)
+   (s/map-of ::candidate/candidate-id ::candidate/candidate)))
 
-(s/def ::candidate-path
-  (s/and
-   #(= :path (::candidate-type %))
-   (s/merge
-    (s/keys :req [ ::length ])
-    ::candidate-common)))
-
+;; TODO: referential integrity checks for technology ids in candidates

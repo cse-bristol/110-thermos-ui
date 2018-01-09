@@ -1,5 +1,6 @@
 (ns thermos-ui.test.specs.document
   (:require [thermos-ui.specs.document :as doc]
+            [thermos-ui.specs.candidate :as can]
             [clojure.spec.alpha :as s]
             [clojure.test :refer :all]
             [thermos-ui.test.specs.util]
@@ -10,26 +11,34 @@
 (deftest validate-an-empty-document
   (testing "That a document matches the spec"
     (is
-     (conforms-to?
+     (valid?
       ::doc/document
       {::doc/candidates {}
        ::doc/technologies {}
        ::doc/view-state {}})
      )))
 
-(deftest validate-a-candidate
-  (testing "That a supply is a valid candidate"
-    (is
-     (conforms-to?
-      ::doc/candidate
-      {::doc/candidate-id "a candidate"
-       ::doc/candidate-type :supply
-       ::doc/geometry 1
-       ::doc/name "1 Candidate street"
-       ::doc/postcode "BS3 1ED"
-       ::doc/building-type "Hospital"
-       ::doc/allowed-technologies #{}
-       })
-     )
-    )
-  )
+(let [valid-supply
+      {::can/candidate-id "a candidate"
+       ::can/candidate-type :supply
+       ::can/geometry 1
+       ::can/name "1 Candidate street"
+       ::can/postcode "BS3 1ED"
+       ::can/building-type "Hospital"
+       ::can/allowed-technologies #{}
+       }
+      ]
+
+  (deftest fails-without-integrity
+    (is (not (s/valid?
+              ::doc/candidates
+              {"test-one" valid-supply}))))
+
+  (deftest works-with-integrity
+    (is (valid? ::doc/candidates
+                  {"test-one" (assoc valid-supply ::can/candidate-id "test-one")})))
+
+  (deftest validate-a-candidate
+    (testing "That a supply is a valid candidate"
+      (is
+       (valid? ::can/candidate valid-supply)))))
