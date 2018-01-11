@@ -51,3 +51,13 @@
     (testing "That a supply is a valid candidate"
       (is
        (valid? ::can/candidate valid-supply)))))
+
+(deftest topological-validity-works
+  (testing "Valid topology appears valid"
+    (is (doc/is-topologically-valid
+         {1 {::can/id 1 ::can/type :path ::can/path-start 2 ::can/path-end 3}
+          2 {::can/id 2 ::can/type :demand}})))
+
+  (testing "Invalid topology does not appear valid"
+    (is (not (doc/is-topologically-valid
+              {1 {::can/id 1 ::can/type :path ::can/path-start 1 ::can/path-end 2}})))))

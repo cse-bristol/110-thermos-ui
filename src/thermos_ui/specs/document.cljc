@@ -26,9 +26,35 @@
    (redundant-key ::technology/id)
    (s/map-of ::technology/id ::technology/technology)))
 
+(defn is-topologically-valid
+  "A candidate set is topologically valid when every path connects only to junctions or buildings.
+This means that anything with type :path has suitable path-start and path-end"
+  [candidates]
+
+  (let [paths
+        (filter
+         #(= (::candidate/type %) :path)
+         (vals candidates))
+
+        path-ids
+        (into #{} (map ::candidate/id paths))
+
+        endpoints
+        (->> paths
+             (mapcat #(vector (::candidate/path-start %)
+                              (::candidate/path-end %)))
+             (into #{}))
+        ]
+
+    ;; every endpoint must be a building ID or a junction ID
+    ;; but this is always true because junction IDs may be anything
+
+    ;; so the only real rule is that no endpoint may be a path ID:
+    (every? (comp not path-ids) endpoints)
+    ))
+
 (s/def ::candidates
   (s/and
    (redundant-key ::candidate/id)
+   is-topologically-valid
    (s/map-of ::candidate/id ::candidate/candidate)))
-
-;; TODO: referential integrity checks for technology ids in candidates
