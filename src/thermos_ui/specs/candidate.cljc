@@ -68,8 +68,7 @@
 ;; Allowed technologies lists the IDs of technologies that we are
 ;; considering for this building.
 ;; TODO we want them to be required / optional I guess?
-(s/def ::allowed-technologies (s/* ::technology/technology-id))
-
+(s/def ::allowed-technologies (s/* ::technology/id))
 
 ;; DEMAND points are just buildings which have demand information on them:
 
