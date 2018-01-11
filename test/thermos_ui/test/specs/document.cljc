@@ -34,6 +34,7 @@
        ::can/postcode "BS3 1ED"
        ::can/building-type "Hospital"
        ::can/allowed-technologies #{}
+       ::can/inclusion :required
        }
       ]
 

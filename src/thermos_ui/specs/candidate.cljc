@@ -36,10 +36,13 @@
 (s/def ::name string?)
 (s/def ::building-type string?)
 
+;; Constraints on candidates
+
+(s/def ::inclusion #{:required :optional :forbidden})
 (s/def ::allowed-technologies (s/* ::technology/technology-id))
 
 (s/def ::common
-  (s/keys :req [::type ::id ::geometry ::name ::postcode  ]))
+  (s/keys :req [::type ::id ::geometry ::name ::postcode ::inclusion ]))
 
 (s/def ::building
   (s/merge
