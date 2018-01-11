@@ -50,8 +50,13 @@ This means that anything with type :path has suitable path-start and path-end"
     ;; but this is always true because junction IDs may be anything
 
     ;; so the only real rule is that no endpoint may be a path ID:
-    (every? (comp not path-ids) endpoints)
+    (and (every? (comp not path-ids) endpoints)
+         ;; and also that no path may be a loop, as that would be silly
+         (every? #(not= (::candidate/path-start %)
+                        (::candidate/path-end %))
+                 paths))
     ))
+
 
 (s/def ::candidates
   (s/and

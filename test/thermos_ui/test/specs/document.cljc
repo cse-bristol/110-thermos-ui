@@ -58,6 +58,10 @@
          {1 {::can/id 1 ::can/type :path ::can/path-start 2 ::can/path-end 3}
           2 {::can/id 2 ::can/type :demand}})))
 
-  (testing "Invalid topology does not appear valid"
+  (testing "Paths may not end at the ID of another path"
     (is (not (doc/is-topologically-valid
-              {1 {::can/id 1 ::can/type :path ::can/path-start 1 ::can/path-end 2}})))))
+              {1 {::can/id 1 ::can/type :path ::can/path-start 1 ::can/path-end 2}}))))
+
+  (testing "Paths have to go from one place to another, different place"
+    (is (not (doc/is-topologically-valid
+              {1 {::can/id 1 ::can/type :path ::can/path-start 2 ::can/path-end 2}})))))
