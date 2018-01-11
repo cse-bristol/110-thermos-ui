@@ -3,22 +3,83 @@
             [thermos-ui.specs.technology :as technology]
             ))
 
-;; at least at the moment, a candidate ID is a string
-(s/def ::id string?)
+;; A CANDIDATE is something which can be in a heat network.
+;; At the moment there are three types of candidate:
 
-;; a candidate must either be a building or a road for now
+(s/def ::type #{:supply :demand :path})
+
+;; - A SUPPLY, which is a place where heat can be produced and injected into a network
+;; - A DEMAND, which is a place where heat can be consumed
+;; - A PATH, which is a way along which a heat pipe could be installed
+
 (s/def ::candidate
   (s/or :is-a-supply ::supply
         :is-a-demand ::demand
         :is-a-path ::path))
 
-;; This is just to remind us that ::geometry should be geojson but we
-;; haven't written a spec for that because it's huge
+;; All types of candidate have to have certain attributes
+(s/def ::common
+  (s/keys :req [::type ::id ::geometry ::name ::postcode ::inclusion ]))
+
+;; Every candidate has a unique ID, which is some text
+(s/def ::id string?)
+
+;; Candidates have some geometry, which is geojson. We have not specced
+;; What geojson looks like here.
 (defn geojson? [_] true)
 (s/def ::geometry geojson?)
 
-;; These are used in the candidate definitions below
-(s/def ::length number?)
+;; Candidates also have an address, which here is boiled down to a name
+;; and a postal code.
+;; TODO the postal code is too strong! It is for the UK.
+
+(s/def ::name string?)
+
+(let [postcode-regex
+      #"(GIR 0AA)|((([A-Z-[QVX]][0-9][0-9]?)|(([A-Z-[QVX]][A-Z-[IJZ]][0-9][0-9]?)|(([A-Z-[QVX]][0-9][A-HJKPSTUW])|([A-Z-[QVX]][A-Z-[IJZ]][0-9][ABEHMNPRVWXY])))) [0-9][A-Z-[CIKMOV]]{2})"]
+  (s/def ::postcode #(re-matches postcode-regex %)))
+
+;; Finally, every candidate has a contraint on inclusion in the solutions
+;; we generate:
+
+(s/def ::inclusion #{:required :optional :forbidden})
+
+;; Both supplies and demands are defined to exist within BUILDINGs
+
+(s/def ::building
+  (s/merge
+   ::common
+   (s/keys :req [ ::building-type ])))
+
+;; Buildings may have a bit of type information on them, but it is
+;; loosely specified at the moment
+(s/def ::building-type string?)
+
+;; A SUPPLY is a building which has ::type :supply
+
+(s/def ::supply
+  (s/and
+   #(= :supply (::type %))
+   (s/merge
+    ::building
+    (s/keys :req [ ::allowed-technologies ])
+    )))
+
+;; Allowed technologies lists the IDs of technologies that we are
+;; considering for this building.
+;; TODO we want them to be required / optional I guess?
+(s/def ::allowed-technologies (s/* ::technology/technology-id))
+
+
+;; DEMAND points are just buildings which have demand information on them:
+
+(s/def ::demand
+  (s/and
+   #(= :demand (::type %))
+   (s/merge
+    ::building
+    (s/keys :req [ ::demand ]))))
+
 
 (s/def ::demand number?) ;; TODO this is not correct; we expect this
                          ;; to include duration information and to ;;
@@ -29,44 +90,19 @@
                          ;; specified in a file
 
 
-(let [postcode-regex
-      #"(GIR 0AA)|((([A-Z-[QVX]][0-9][0-9]?)|(([A-Z-[QVX]][A-Z-[IJZ]][0-9][0-9]?)|(([A-Z-[QVX]][0-9][A-HJKPSTUW])|([A-Z-[QVX]][A-Z-[IJZ]][0-9][ABEHMNPRVWXY])))) [0-9][A-Z-[CIKMOV]]{2})"]
-  (s/def ::postcode #(re-matches postcode-regex %)))
+;; Finally PATHs; these connect pairs of points, and have length information.
 
-(s/def ::name string?)
-(s/def ::building-type string?)
-
-;; Constraints on candidates
-
-(s/def ::inclusion #{:required :optional :forbidden})
-(s/def ::allowed-technologies (s/* ::technology/technology-id))
-
-(s/def ::common
-  (s/keys :req [::type ::id ::geometry ::name ::postcode ::inclusion ]))
-
-(s/def ::building
-  (s/merge
-   ::common
-   (s/keys :req [ ::building-type ])))
-
-(s/def ::supply
-  (s/and
-   #(= :supply (::type %))
-   (s/merge
-    ::building
-    (s/keys :req [ ::allowed-technologies ])
-    )))
-
-(s/def ::demand
-  (s/and
-   #(= :demand (::type %))
-   (s/merge
-    ::building
-    (s/keys :req [ ::demand ]))))
+;; The TOPOLOGY of the space where networks can go is inferred by the identities
+;; referred to by the star and end of each path. These identities are either for
+;; buildings, or they are soley identities for junctions where paths connect.
 
 (s/def ::path
   (s/and
    #(= :path (::type %))
    (s/merge
-    (s/keys :req [ ::length ])
+    (s/keys :req [ ::length ::path-start ::path-end ])
     ::common)))
+
+(s/def ::length number?)
+(s/def ::path-start ::id)
+(s/def ::path-end ::id)
