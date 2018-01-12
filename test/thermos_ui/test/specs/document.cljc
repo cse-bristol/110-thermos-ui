@@ -23,8 +23,7 @@
                             ::view/sort-direction :asc
                             ::view/filters #{}}}
 
-       })
-     )))
+       }))))
 
 (let [valid-supply
       {::can/id "a candidate"
@@ -35,8 +34,7 @@
        ::can/building-type "Hospital"
        ::can/allowed-technologies #{}
        ::can/inclusion :required
-       }
-      ]
+       }]
 
   (deftest fails-without-integrity
     (is (not (s/valid?
