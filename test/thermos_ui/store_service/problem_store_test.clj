@@ -3,12 +3,23 @@
             [clojure.java.io :as io]
             [ring.mock.request :as mock]
             [thermos-ui.handler :refer :all]
-            [thermos-ui.store-service.store.problems :as problem]))
+            [thermos-ui.store-service.store.problems :as problem]
+            [environ.core :refer [env]]))
 
-(defonce problem-file (io/as-file "data/test-problem.edn"))
+(defonce store-location (env :problem-store))
+(defonce problem-file (clojure.string/join "/" [store-location "213123213" "name" "123123132.edn"]))
+
+(defn- delete-org-store [org]
+  (let [fname (clojure.string/join "/" [store-location org])
+        func (fn [func f]
+               (when (.isDirectory f)
+                 (doseq [f2 (.listFiles f)]
+                   (func func f2)))
+               (clojure.java.io/delete-file f))]
+    (func func (clojure.java.io/file fname))))
 
 (deftest getting-location-of-problem
-  (testing "Will return location of existing problem"
+  (testing "Can create a new problem"
     (let [response (app
                     (-> (mock/request :post "/problem/temp/name/")
                         (assoc :params {:file {:filename "test-problem.edn"
@@ -16,15 +27,14 @@
                                                :content-type nil
                                                :size 27
                                              }})))]
-      ;;(println response)
-      (is (= (:status response) 201)))))
+      (is (= (:status response) 201))))
+  (delete-org-store "temp"))
 
 (deftest storing-a-problem
    (let [org "org"
          problem-name "name"
-         problem problem-file
-         stored-problem (problem/store org problem-name problem)]
-     
+         stored-problem (problem/store org problem-name problem-file)]
+
      (testing "Can store new problem"
        (is (not (nil? stored-problem)))
        (is (not (nil? (:location stored-problem))))
@@ -33,7 +43,8 @@
      (testing "Can get existing problem"
        (let [problem (problem/getone org problem-name (:id stored-problem))]
          (is (not (nil? problem)))
-         (is (not (nil? (:location problem))))))))
+         (is (not (nil? (:location problem))))))
+  (delete-org-store org)))
 
 (deftest listing-problems-from-store
   (testing "Can list all problems for specific organisation"
@@ -63,4 +74,13 @@
     (testing "Get a 404 if file  not found"
       (let [response (app (mock/request :delete
                                         (str "/blah/blah/bla/")))]
-            (is (= (:status response 404)))))))
+        (is (= (:status response 404))))))
+  (delete-org-store "delete"))
+
+(defn test-ns-hook []
+  "Run the tests in this order"
+  (storing-a-problem)
+  (getting-location-of-problem)
+  (listing-problems-from-store)
+  (listing-problems-from-handler)
+  (can-delete-a-problem-version))

@@ -14,18 +14,20 @@
                  [reagent "0.7.0"]
                  [compojure "1.6.0"]
                  [ring/ring-defaults "0.3.1"]
-                 [ring/ring-json "0.4.0"]]
+                 [ring/ring-json "0.4.0"]
+
+                 [environ "1.1.0"]]
 
   :plugins [[lein-figwheel "0.5.14"]
             [lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]
-            [lein-ring "0.12.3"]]
+            [lein-ring "0.12.3"]
+            [lein-environ "1.1.0"]]
 
   :source-paths ["src"]
 
   :cljsbuild {:builds
               [{:id "dev"
                 :source-paths ["src"]
-
                 ;; The presence of a :figwheel configuration here
                 ;; will cause figwheel to inject the figwheel client
                 ;; into your build
@@ -110,4 +112,5 @@
                    :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}
                    ;; need to add the compliled assets to the :clean-targets
                    :clean-targets ^{:protect false} ["resources/public/js/compiled"
-                                                     :target-path]}})
+                                                     :target-path]
+                   :env {:problem-store "test-resources/data/problems"}}})

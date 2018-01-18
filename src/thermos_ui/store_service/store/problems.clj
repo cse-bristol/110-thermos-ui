@@ -1,10 +1,11 @@
 (ns thermos-ui.store-service.store.problems
    (:require [clojure.java.io :as io]
              [clojure.string :refer [join]]
-             [clojure.string :as s]))
+             [clojure.string :as s]
+             [environ.core :refer [env]]))
 
 ;;Storage of problems - id will be hash of stored thing a la github
-(defonce store-location "data/problems")
+(defonce store-location (env :problem-store));"data/problems")
 (defonce file-ext ".edn")
 
 (defn- create-problem-response [org name id problem]
