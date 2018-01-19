@@ -5,7 +5,7 @@
              [environ.core :refer [env]]))
 
 ;;Storage of problems - id will be hash of stored thing a la github
-(defonce store-location (env :problem-store));"data/problems")
+(defonce store-location (env :problem-store))
 (defonce file-ext ".edn")
 
 (defn- create-problem-response [org name id problem]
@@ -40,8 +40,11 @@
         fs (file-seq org-path)
         file-map (reduce (fn[accum f]
                            (if (.isFile f)
-                             (let [id (s/replace (.getName f) file-ext "")]
-                               (assoc accum (keyword id) {:location (.getPath f)
+                             (let [id (s/replace (.getName f) file-ext "")
+                                   location (-> (.getPath f)
+                                                (s/replace-first  #".+\/problems\/" "")
+                                                (#(s/join "/" ["problem" %])))]
+                               (assoc accum (keyword id) {:location location
                                                           :id id}))
                              accum))
                          {}
@@ -50,3 +53,6 @@
 
 (defn delete [org name id]
   (io/delete-file (create-problem-file org name id) false))
+
+(-> 1
+    (+ 1))
