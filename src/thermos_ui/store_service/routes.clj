@@ -14,6 +14,14 @@
    "/problem/:org/:name/:id" {:method "DELETE" :description "Delete specific problem version"}
    })
 
+(defn- problem-list-response
+  [problem-list]
+  (if (> (count problem-list) 0)
+    {:status 200
+     :headers json-headers
+     :body problem-list}
+    {:status 404})) 
+
 (defroutes all
   (POST "/problem/:org/:name/"
         {{org :org
@@ -30,12 +38,24 @@
   (GET "/problem/:org/"
        {{org :org}
         :params :as params}
-       (let [list (p/gather org)]
-         (if (> (count list) 0)
-           {:status 200
-            :headers json-headers
-            :body list}
-           {:status 404})))
+       (problem-list-response (p/gather org)))
+
+  (GET "/problem/:org/:name/"
+       {{org :org
+         name :name}
+        :params :as params}
+       (problem-list-response (p/gather org name)))
+
+  (GET "/problem/:org/:name/:id"
+       {{org :org
+         name :name
+         id :id}
+        :params :as params}
+       (if-let [problem (p/getone org name id)]
+         {:status 200
+          :headers json-headers
+          :body problem}
+         {:status 404}))
 
   (DELETE "/problem/:org/:name/:id"
           {{org :org

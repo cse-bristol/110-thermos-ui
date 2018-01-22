@@ -2,9 +2,11 @@
    (:require [clojure.java.io :as io]
              [clojure.string :refer [join]]
              [clojure.string :as s]
-             [environ.core :refer [env]]))
+             [environ.core :refer [env]]
+             [clojure.edn :as edn]))
 
 ;;Storage of problems - id will be hash of stored thing a la github
+(defonce server-url "http://localhost:3449")
 (defonce store-location (env :problem-store))
 (defonce file-ext ".edn")
 
@@ -32,27 +34,36 @@
     (create-problem-response org name hash file)))
 
 (defn getone [org name id]
-    (create-problem-response org name id (create-problem-file org name id)))
+  (let [problem-file (create-problem-file org name id)]
+    (let [f (.getPath problem-file)
+          edn  (with-open [pbr (java.io.PushbackReader. (io/reader f))]
+                 (read pbr false nil))]
+    (assoc
+     (create-problem-response org name id problem-file)
+     :problem edn))))
 
-(defn gather [org-key]
-  "Return problems under org-key."
-  (let [org-path (io/as-file (join "/" [store-location org-key]))
+(defn gather
+  ([org-key] (gather org-key nil))
+  ([org-key name]
+   (let [org-path (if (nil? name)
+                    (io/as-file (join "/" [store-location org-key]))
+                    (io/as-file (join "/" [store-location org-key name])))
         fs (file-seq org-path)
         file-map (reduce (fn[accum f]
                            (if (.isFile f)
                              (let [id (s/replace (.getName f) file-ext "")
                                    location (-> (.getPath f)
                                                 (s/replace-first  #".+\/problems\/" "")
-                                                (#(s/join "/" ["problem" %])))]
+                                                (#(s/join "/" [server-url "problem" %])))]
                                (assoc accum (keyword id) {:location location
                                                           :id id}))
                              accum))
                          {}
                          fs)]
-      file-map))
+      file-map)))
 
 (defn delete [org name id]
-  (io/delete-file (create-problem-file org name id) false))
-
-(-> 1
-    (+ 1))
+  (let [f (create-problem-file org name id)]
+    (if (.exists f)
+      (io/delete-file f true)
+      false)))
