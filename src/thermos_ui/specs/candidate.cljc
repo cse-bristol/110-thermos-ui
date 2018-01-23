@@ -19,7 +19,9 @@
 
 ;; All types of candidate have to have certain attributes
 (s/def ::common
-  (s/keys :req [::type ::id ::geometry ::name ::postcode ::inclusion ]))
+  (s/keys :req [ ::type ::id ::geometry ::name ::postcode ::inclusion ::selected ]))
+
+(s/def ::selected boolean?)
 
 ;; Every candidate has a unique ID, which is some text
 (s/def ::id string?)
