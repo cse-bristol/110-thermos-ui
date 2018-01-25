@@ -33,31 +33,47 @@
 (deftest storing-a-problem
    (let [org "org"
          problem-name "name"
-         stored-problem (problem/store org problem-name problem-file)]
+         stored-problem (problem/store org problem-name (io/as-file problem-file))]
 
      (testing "Can store new problem"
        (is (not (nil? stored-problem)))
        (is (not (nil? (:location stored-problem))))
        (is (not (nil? (:id stored-problem)))))
 
+     (println stored-problem)
+
      (testing "Can get existing problem"
        (let [problem (problem/getone org problem-name (:id stored-problem))]
-         (is (not (nil? problem)))
-         (is (not (nil? (:location problem))))))
-  (delete-org-store org)))
+        (is (not (nil? problem)))
+        (is (not (nil? (:location problem))))))
+     (delete-org-store org)))
 
 (deftest listing-problems-from-store
-  (testing "Can list all problems for specific organisation"
-    (let [org-key "213123213"
-          org-probs (problem/gather org-key)]
-      (is (not (nil? org-probs)))
-      (is (= 1 (count org-probs)))
-      (is (not (nil? (get org-probs :123123132)))))))
+  (let [org-key "213123213"]
+    (testing "Can list all problems for specific organisation"
+      (let [org-probs (problem/gather org-key)]
+        (is (not (nil? org-probs)))
+        (is (= 1 (count org-probs)))
+        (is (not (nil? (get org-probs :123123132))))))
+
+    (testing "Can list all problems for org and name"
+      (let [name "name"
+            org-probs (problem/gather org-key name)]
+        (is (not (nil? org-probs)))
+        (is (= 1 (count org-probs)))
+        (is (not (nil? (get org-probs :123123132))))))))
 
 (deftest listing-problems-from-handler
   (testing "Can list all problems for org"
     (let [response (app (mock/request :get "/problem/213123213/"))]
-      (is (= (:status response) 200))))
+      (is (= (:status response) 200))
+      ;;TODO Test contents of response
+      ))
+
+  (testing "Can list problems for org and name"
+    (let [response (app (mock/request :get "/problem/213123213/name/"))]
+      (is (= (:status response) 200))
+      (is (not (nil? (:body response))))))
 
   (testing "Test response if no problems found"
     (let [response (app (mock/request :get "/problem/unknown/"))]
@@ -72,10 +88,16 @@
         (is (= (:status response) 204))))
 
     (testing "Get a 404 if file  not found"
-      (let [response (app (mock/request :delete
-                                        (str "/blah/blah/bla/")))]
-        (is (= (:status response 404))))))
-  (delete-org-store "delete"))
+      (let [response (app (mock/request
+                           :delete (str "/problem/blah/blah/blah")))]
+        (is (= (:status response) 404))))
+  (delete-org-store "delete")))
+
+(deftest can-get-problem-from-handler
+  (testing "Correct response when problem exists"
+    (let [response (app (mock/request :get "/problem/213123213/name/123123132"))]
+      (is (= (:status response) 200)))))
+    
 
 (defn test-ns-hook []
   "Run the tests in this order"

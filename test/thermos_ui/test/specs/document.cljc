@@ -34,6 +34,7 @@
        ::can/building-type "Hospital"
        ::can/allowed-technologies #{}
        ::can/inclusion :required
+       ::can/selected false
        }]
 
   (deftest fails-without-integrity
