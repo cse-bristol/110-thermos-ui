@@ -1,10 +1,12 @@
 (ns thermos-ui.store-service.store.geometries
   (:require [clojure.java.jdbc :as j]
+            [clojure.string :refer [join]]
             [environ.core :refer [env]]))
 
 ;;TODO Spec for zoom level
 ;;TODO Spec for lat lon?
 
+(defonce geo-ssid 4326)
 (def pg-db {:dbtype "postgresql"
             :dbname (env :pg-db-geometries)
             :host (env :pg-host)
@@ -38,22 +40,37 @@
   "Create points for bounding box from lat,long and openstreet map zoom level, probaly only works for zooms > 4"
   ;;Anwser from stack overflow questions/7477003
   [lat lon z]
-  (let [r-earth-km 6378
+  (let [p-string (fn [x y] (join " " [x y]))
+        r-earth-km 6378
         distance (:r (get res-matrix z))
         kms-per-deg (* (/ distance r-earth-km)
                        (/ 180 Math/PI))
         new-lat (+ lat kms-per-deg)
         new-long (+ lon (/ kms-per-deg
                            (Math/cos (* lat
-                                        (/ Math/PI 180)))))]
-    [[lat lon]
-     [new-lat lon]
-     [new-lat new-long]
-     [lat new-long]
-     [lat lon]]))
+                                        (/ Math/PI 180)))))
+        points [[lat lon]
+                [new-lat lon]
+                [new-lat new-long]
+                [lat new-long]
+                [lat lon]]]
 
+    {:points points
+     :geom-string (str "POLYGON(("
+                       (join "," [(p-string lat lon)
+                                  (p-string new-lat lon)
+                                  (p-string new-lat new-long)
+                                  (p-string lat new-long)
+                                  (p-string lat lon)]) 
+                       "))")}))
+
+;;TODO Get into correct GeoJsonFormat a la the current geonjson files we have...
+;;TODO I expect the ssid is incorrect, so make sure we get the geonjson's into postgress correctly
 (defn get-buildings
   "x and y are lat/lng z is the zoom level"
   [x y z]
-  (j/query pg-db
-   ["select * from buildings"]))
+  (let [bb (create-bounding-box x y z)
+        query (str "SELECT  ST_AsGeoJSON(geom) FROM Connections "
+                   "WHERE ST_intersects(geom, ST_GeomFromText('" (:geom-string bb) "'," geo-ssid "))")
+        results (j/query pg-db query)]
+    results))

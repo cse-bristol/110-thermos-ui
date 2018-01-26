@@ -117,7 +117,7 @@
                    :clean-targets ^{:protect false} ["resources/public/js/compiled"
                                                      :target-path]
                    :env {:problem-store "test-resources/data/problems"
-                         :pg-host "172.21.0.2"
+                         :pg-host "172.21.0.3"
                          :pg-user "postgres"
                          :pg-password "therm0s"
                          :pg-db-geometries "thermos_geometries"}}})
