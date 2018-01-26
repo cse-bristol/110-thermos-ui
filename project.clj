@@ -16,6 +16,9 @@
                  [ring/ring-defaults "0.3.1"]
                  [ring/ring-json "0.4.0"]
 
+                 [org.clojure/java.jdbc "0.7.5"]
+                 [org.postgresql/postgresql "9.4.1212.jre7"]
+
                  [environ "1.1.0"]]
 
   :plugins [[lein-figwheel "0.5.14"]
@@ -113,4 +116,8 @@
                    ;; need to add the compliled assets to the :clean-targets
                    :clean-targets ^{:protect false} ["resources/public/js/compiled"
                                                      :target-path]
-                   :env {:problem-store "test-resources/data/problems"}}})
+                   :env {:problem-store "test-resources/data/problems"
+                         :pg-host "172.21.0.2"
+                         :pg-user "postgres"
+                         :pg-password "therm0s"
+                         :pg-db-geometries "thermos_geometries"}}})
