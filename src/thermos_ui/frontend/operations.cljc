@@ -68,8 +68,12 @@
   (select-candidates doc (all-candidates-ids doc) :replace))
 
 (defn set-candidates-inclusion
-  "Change the inclusion constraint for the given candidates"
-  [doc candidate-ids new-constraint])
+  "Change the inclusion constraint for candidates in CANDIDATE-IDS to NEW-CONSTRAINT"
+  [doc candidate-ids new-constraint]
+  (map-candidates doc
+                  #(assoc % ::candidate/constraint new-constraint)
+                  candidate-ids))
+
 
 (defn set-map-position
   "Show a particular boundingbox on the map"
@@ -78,3 +82,15 @@
 (defn set-map-colouring
   "Change the colour scheme for the map"
   [doc scheme])
+
+(defn map-candidates
+  "Go through a document and apply f to all the indicated candidates."
+  ([doc f]
+   (map-candidates f (all-candidates-ids doc)))
+
+  ([doc f ids]
+   (let [candidates (::document/candidates doc)]
+     (assoc doc ::document/candidates
+            (reduce
+             (fn [id] (update doc id f))
+             doc ids)))))
