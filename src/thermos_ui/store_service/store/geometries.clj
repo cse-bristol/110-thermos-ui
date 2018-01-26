@@ -64,7 +64,8 @@
                                   (p-string lat lon)]) 
                        "))")}))
 
-;;TODO Get into correct GeoJsonFormat a la the current geonjson files we have...
+;;TODO Get into correct GeoJsonFormat a la the current geonjson files we have... 
+;; - https://github.com/cse-bristol/110-thermos-heat-mapping/blob/master/osm-to-addressbase/src/thermos/data/io.clj
 ;;TODO I expect the ssid is incorrect, so make sure we get the geonjson's into postgress correctly
 (defn get-buildings
   "x and y are lat/lng z is the zoom level"
