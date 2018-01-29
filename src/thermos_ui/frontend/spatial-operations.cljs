@@ -1,6 +1,6 @@
 (ns thermos-ui.frontend.spatial-operations
   (:require [clojure.set :as set]
-            [thermos-ui.frontend.operations as :operations]
+            [thermos-ui.frontend.operations :as operations]
             [rbush :as rbush]
             ["jsts/dist/jsts" :as jsts]
             ))
