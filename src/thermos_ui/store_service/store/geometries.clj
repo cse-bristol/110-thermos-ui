@@ -16,6 +16,7 @@
 (defonce res-matrix
   ;;Matrix source https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Resolution_and_Scale
   ;;key is os zoom level, r = m/px, s = scale at 96dpi 
+  ;;Yes I know this could now be a vector...
   {0   {:r 156543.03   :s-96-dpi "1:554 678 932"}
    1   {:r 78271.52    :s-96-dpi "1:277 339 466"}
    2   {:r 39135.76    :s-96-dpi "1:138 669 733"}
@@ -71,7 +72,7 @@
   "x and y are lat/lng z is the zoom level"
   [x y z]
   (let [bb (create-bounding-box x y z)
-        query (str "SELECT  ST_AsGeoJSON(geom) FROM Connections "
-                   "WHERE ST_intersects(geom, ST_GeomFromText('" (:geom-string bb) "'," geo-ssid "))")
+        query (str "SELECT  ST_AsGeoJSON(geom) FROM connections "
+                   "WHERE connections.geom && ST_GeomFromText('" (:geom-string bb) "'," geo-ssid ")")
         results (j/query pg-db query)]
     results))
