@@ -1,7 +1,9 @@
 (ns thermos-ui.store-service.routes
   (:require [compojure.core :refer :all]
             [compojure.route :as route]
-            [thermos-ui.store-service.store.problems :as p]))
+            [thermos-ui.store-service.store.problems :as p]
+            [thermos-ui.store-service.geojson-io :refer [connections>geojson]]
+            [thermos-ui.store-service.store.geometries :as geoms]))
 
 (defonce json-headers {"Content-Type" "text/html"})
 
@@ -20,9 +22,20 @@
     {:status 200
      :headers json-headers
      :body problem-list}
-    {:status 404})) 
+    {:status 404}))
+
+
+(defroutes map-routes
+  (GET "/map/connections/:zoom/:x-tile/:y-tile/"
+       {{zoom :zoom
+         x-tile :x-tile
+         y-tile :y-tile} :params :as params}
+       (let [p-int (fn [s] (Integer. (re-find  #"\d+" s )))
+             connections (geoms/get-connections (p-int zoom) (p-int x-tile) (p-int y-tile))]
+         (problem-list-response (connections>geojson connections)))))
 
 (defroutes all
+  map-routes
   (POST "/problem/:org/:name/"
         {{org :org
           name :name
