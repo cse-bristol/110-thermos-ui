@@ -77,6 +77,10 @@
   ;; Please see:
   ;; https://github.com/bhauman/lein-figwheel/wiki/Using-the-Figwheel-REPL-within-NRepl
   :ring {:handler thermos-ui.handler/app}
+  
+  ; Allows us to mark tests with int.test meta-data an only run when requested
+  :test-selectors {:default (complement :integration)
+                   :integration :integration}
   :profiles {:dev {:dependencies [[javax.servlet/servlet-api "2.5"]
                                   [ring/ring-mock "0.3.0"]
                                   [binaryage/devtools "0.9.4"]

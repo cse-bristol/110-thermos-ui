@@ -40,8 +40,6 @@
        (is (not (nil? (:location stored-problem))))
        (is (not (nil? (:id stored-problem)))))
 
-     (println stored-problem)
-
      (testing "Can get existing problem"
        (let [problem (problem/getone org problem-name (:id stored-problem))]
         (is (not (nil? problem)))

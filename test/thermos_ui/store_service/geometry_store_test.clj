@@ -12,13 +12,11 @@
       (is (not (nil? points)) "Points vector")
       (is (= 5 (count points)) "Num points"))))
 
-(deftest database-connection
+(deftest ^:integration database-connection
   (testing "connecting..."
     (is (not (nil? (geoms/get-buildings 1 2 3))))))
 
-(deftest can-get-connections-in-grid
+(deftest ^:integration can-get-connections-in-grid
   (testing "Grid query"
     (let [connections (geoms/get-buildings -0.103539149033575 51.550551109132 18)]
-      (is (= 194 (count connections)))
-                                        ;(println connections)
-      )))
+      (is (= 194 (count connections))))))

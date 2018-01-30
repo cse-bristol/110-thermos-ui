@@ -16,6 +16,7 @@
 (defonce res-matrix
   ;;Matrix source https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Resolution_and_Scale
   ;;key is os zoom level, r = m/px, s = scale at 96dpi 
+  ;;Yes I know this could now be a vector...
   {0   {:r 156543.03   :s-96-dpi "1:554 678 932"}
    1   {:r 78271.52    :s-96-dpi "1:277 339 466"}
    2   {:r 39135.76    :s-96-dpi "1:138 669 733"}
@@ -64,6 +65,27 @@
                                   (p-string lat lon)]) 
                        "))")}))
 
+;;18/130993/87111.png
+(defn create-bounding-box-from-tile-numbers
+  [x-tile y-tile zoom]
+  (let [n (Math/pow 2 zoom)
+        to-lon-lat (fn [x y n]
+                     (let [lon-deg (- (* (/ x n) 360) 180)
+                          lat-rad (Math/atan
+                                   (Math/sinh
+                                    (* (Math/PI)
+                                       (- 1
+                                          (* 2 (/ y n))))))
+                          lat-deg (Math/toDegrees lat-rad)]
+                       [lat-deg lon-deg]))]
+        {:geom-string (str "POLYGON(("
+                           (join "," [(to-lon-lat x-tile y-tile n)
+                                      (to-lon-lat x-tile (+ 1 y-tile) n)])
+                           "))")}))
+                                 
+        
+        
+
 ;;TODO Get into correct GeoJsonFormat a la the current geonjson files we have... 
 ;; - https://github.com/cse-bristol/110-thermos-heat-mapping/blob/master/osm-to-addressbase/src/thermos/data/io.clj
 ;;TODO I expect the ssid is incorrect, so make sure we get the geonjson's into postgress correctly
@@ -71,7 +93,9 @@
   "x and y are lat/lng z is the zoom level"
   [x y z]
   (let [bb (create-bounding-box x y z)
-        query (str "SELECT  ST_AsGeoJSON(geom) FROM Connections "
-                   "WHERE ST_intersects(geom, ST_GeomFromText('" (:geom-string bb) "'," geo-ssid "))")
+        query (str "SELECT  ST_AsGeoJSON(geom) FROM connections "
+                   "WHERE connections.geom && ST_GeomFromText('" (:geom-string bb) "'," geo-ssid ")")
         results (j/query pg-db query)]
     results))
+
+;;query = "SELECT ST_AsMVT(tile) FROM (SELECT id, name, ST_AsMVTGeom(geom, ST_Makebox2d(ST_transform(ST_SetSrid(ST_MakePoint(%s,%s),4326),3857),ST_transform(ST_SetSrid(ST_MakePoint(%s,%s),4326),3857)), 4096, 0, false) AS geom FROM admin_areas) AS tile"
