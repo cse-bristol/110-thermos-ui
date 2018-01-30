@@ -8,6 +8,18 @@
 (s/def ::selection-method
   #{:replace :union :intersection :difference :xor})
 
+(defn map-candidates
+  "Go through a document and apply f to all the indicated candidates."
+  ([doc f]
+   (map-candidates f (all-candidates-ids doc)))
+
+  ([doc f ids]
+   (let [candidates (::document/candidates doc)]
+     (assoc doc ::document/candidates
+            (reduce
+             (fn [id] (update doc id f))
+             doc ids)))))
+
 (defn selected-candidates-ids
   "Get a set containing the candidate IDs of all the selected candidates in the doc"
   [doc]
@@ -82,15 +94,3 @@
 (defn set-map-colouring
   "Change the colour scheme for the map"
   [doc scheme])
-
-(defn map-candidates
-  "Go through a document and apply f to all the indicated candidates."
-  ([doc f]
-   (map-candidates f (all-candidates-ids doc)))
-
-  ([doc f ids]
-   (let [candidates (::document/candidates doc)]
-     (assoc doc ::document/candidates
-            (reduce
-             (fn [id] (update doc id f))
-             doc ids)))))
