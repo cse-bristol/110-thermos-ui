@@ -1,5 +1,7 @@
 (ns thermos-ui.frontend.spatial-operations
   (:require [clojure.set :as set]
+            [thermos-ui.specs.candidate :as candidate]
+            [thermos-ui.specs.document :as document]
             [thermos-ui.frontend.operations :as operations]
             [rbush :as rbush]
             ["jsts/dist/jsts" :as jsts]
@@ -19,10 +21,10 @@
 
     (let [jsts-geom (.read geometry-reader (::candidate/geometry candidate))
           envelope (.getEnvelopeInternal jsts-geom)
-          bbox {:minX (.getMinX bounding-box)
-                :maxX (.getMaxX bounding-box)
-                :minY (.getMinY bounding-box)
-                :maxY (.getMaxY bounding-box)}
+          bbox {:minX (.getMinX envelope)
+                :maxX (.getMaxX envelope)
+                :minY (.getMinY envelope)
+                :maxY (.getMaxY envelope)}
           ]
       (assoc candidate
              ::jsts-geometry jsts-geom
@@ -73,7 +75,7 @@
             ::indexed-candidates indexed-candidates)))
 
   ([document]
-   (let [all-candidates (set (keys ::document/candidates document))
+   (let [all-candidates (set (keys (::document/candidates document)))
          indexed-candidates (::indexed-candidates document)]
      (if (= all-candidates indexed-candidates)
        document
