@@ -2,7 +2,7 @@
   (:require [compojure.core :refer :all]
             [compojure.route :as route]
             [thermos-ui.store-service.store.problems :as p]
-            [thermos-ui.store-service.geojson-io :refer [connections>geojson]]
+            [thermos-ui.store-service.geojson-io :refer [geometry>geojson]]
             [thermos-ui.store-service.store.geometries :as geoms]))
 
 (defonce json-headers {"Content-Type" "text/html"})
@@ -16,7 +16,7 @@
    "/problem/:org/:name/:id" {:method "DELETE" :description "Delete specific problem version"}
    })
 
-(defn- problem-list-response
+(defn- json-list-response
   [problem-list]
   (if (> (count problem-list) 0)
     {:status 200
@@ -32,7 +32,7 @@
          y-tile :y-tile} :params :as params}
        (let [p-int (fn [s] (Integer. (re-find  #"\d+" s )))
              connections (geoms/get-connections (p-int zoom) (p-int x-tile) (p-int y-tile))]
-         (problem-list-response (connections>geojson connections))))
+         (json-list-response (geometry>geojson connections))))
 
 
   (GET "/map/demands/:zoom/:x-tile/:y-tile/"
@@ -41,7 +41,7 @@
          y-tile :y-tile} :params :as params}
        (let [p-int (fn [s] (Integer. (re-find  #"\d+" s )))
              connections (geoms/get-demands (p-int zoom) (p-int x-tile) (p-int y-tile))]
-         (problem-list-response (connections>geojson connections)))))
+         (json-list-response (geometry>geojson connections)))))
 
 (defroutes all
   map-routes
@@ -60,13 +60,13 @@
   (GET "/problem/:org/"
        {{org :org}
         :params :as params}
-       (problem-list-response (p/gather org)))
+       (json-list-response (p/gather org)))
 
   (GET "/problem/:org/:name/"
        {{org :org
          name :name}
         :params :as params}
-       (problem-list-response (p/gather org name)))
+       (json-list-response (p/gather org name)))
 
   (GET "/problem/:org/:name/:id"
        {{org :org

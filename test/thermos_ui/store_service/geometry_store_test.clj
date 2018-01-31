@@ -5,9 +5,6 @@
             [thermos-ui.store-service.store.geometries :as geoms]))
 
 (deftest bounding-box-calc
-  ;;51.288813, -2.820036 - axbrige
-  ;;51.288548, -2.820036 - axbridge
-  ;;-0.103539149033575,51.5505511091328 - dunno!
   (testing "Get Bounding box a res 18"
     (let [bb (geoms/create-bounding-box 18 130993 87111)
           points (:points bb)]
@@ -24,10 +21,9 @@
       (is (= 1 (count connections)))))
   (testing "Grid query at zoom 17"
     (let [connections (geoms/get-connections 17 65494 43553)]
-      (is (= 34 (count connections))))))
+      (is (= 49 (count connections)) "Number of connections"))))
 
 (deftest ^:integration connections-from-handler
   (testing "connections-call"
     (let [response (app (mock/request :get "/map/connections/18/130993/87111/"))]
-      (is (= (:status response) 200) "Status code of response")
-      (println response))))
+      (is (= (:status response) 200) "Status code of response"))))
