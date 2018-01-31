@@ -39,9 +39,15 @@
   "x and y are tile co-ordinates z is the zoom level"
   [z x y]
   (let [bb (create-bounding-box z x y)
-        query (str "SELECT  id, distname, roadnumber, classification, demand_id, nodes, ST_AsGeoJSON(geom) as geometry FROM connections "
-                   "WHERE connections.geom && ST_GeomFromText('" (:geom-string bb) "')")
+        query (str "SELECT  id, osm_id, class, node_from, node_to, name, length, ST_AsGeoJSON(geometry) as geometry FROM connections "
+                   "WHERE connections.geometry && ST_GeomFromText('" (:geom-string bb) "')")
         results (j/query pg-db query)]
     results))
 
-;;query = "SELECT ST_AsMVT(tile) FROM (SELECT id, name, ST_AsMVTGeom(geom, ST_Makebox2d(ST_transform(ST_SetSrid(ST_MakePoint(%s,%s),4326),3857),ST_transform(ST_SetSrid(ST_MakePoint(%s,%s),4326),3857)), 4096, 0, false) AS geom FROM admin_areas) AS tile"
+(defn get-demands
+  [z x y]
+   (let [bb (create-bounding-box z x y)
+        query (str "SELECT  id, name, address, postcode, demand, ST_AsGeoJSON(geometry) as geometry FROM demand "
+                   "WHERE demand.geometry && ST_GeomFromText('" (:geom-string bb) "')")
+        results (j/query pg-db query)]
+    results))

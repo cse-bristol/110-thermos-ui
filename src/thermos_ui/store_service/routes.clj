@@ -32,6 +32,15 @@
          y-tile :y-tile} :params :as params}
        (let [p-int (fn [s] (Integer. (re-find  #"\d+" s )))
              connections (geoms/get-connections (p-int zoom) (p-int x-tile) (p-int y-tile))]
+         (problem-list-response (connections>geojson connections))))
+
+
+  (GET "/map/demands/:zoom/:x-tile/:y-tile/"
+       {{zoom :zoom
+         x-tile :x-tile
+         y-tile :y-tile} :params :as params}
+       (let [p-int (fn [s] (Integer. (re-find  #"\d+" s )))
+             connections (geoms/get-demands (p-int zoom) (p-int x-tile) (p-int y-tile))]
          (problem-list-response (connections>geojson connections)))))
 
 (defroutes all
