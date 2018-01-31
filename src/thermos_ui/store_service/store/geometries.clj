@@ -34,13 +34,12 @@
                        (join "," (map (fn [ps] (join " " ps)) points))
                        "))")}))
                                  
-;;TODO Get into correct GeoJsonFormat a la the current geonjson files we have... 
 ;; - https://github.com/cse-bristol/110-thermos-heat-mapping/blob/master/osm-to-addressbase/src/thermos/data/io.clj
 (defn get-connections
   "x and y are tile co-ordinates z is the zoom level"
   [z x y]
   (let [bb (create-bounding-box z x y)
-        query (str "SELECT  id, distname, roadnumber, classification, demand_id, nodes,  ST_AsGeoJSON(geom) as geometry FROM connections "
+        query (str "SELECT  id, distname, roadnumber, classification, demand_id, nodes, ST_AsGeoJSON(geom) as geometry FROM connections "
                    "WHERE connections.geom && ST_GeomFromText('" (:geom-string bb) "')")
         results (j/query pg-db query)]
     results))
