@@ -32,9 +32,14 @@
   :plugins [[lein-figwheel "0.5.14"]
             [lein-cljsbuild "1.1.7" :exclusions [[org.clojure/clojure]]]
             [lein-ring "0.12.3"]
-            [lein-environ "1.1.0"]]
+            [lein-environ "1.1.0"]
+            [deraen/lein-less4j "0.6.2"]]
 
   :source-paths ["src"]
+
+  :less {:source-paths ["resources/less"]
+         :target-path "resources/public/css"
+         }
 
   :cljsbuild
   {:builds
