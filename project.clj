@@ -19,6 +19,8 @@
                  [org.clojure/test.check "0.9.0"]
                  [org.clojure/core.async  "0.3.443"]
 
+                 [cljsjs/leaflet "1.2.0-0"]
+
                  [reagent "0.7.0"]
                  [compojure "1.6.0"]
                  [ring/ring-defaults "0.3.1"]
