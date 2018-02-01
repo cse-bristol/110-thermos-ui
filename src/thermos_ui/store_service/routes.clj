@@ -1,7 +1,9 @@
 (ns thermos-ui.store-service.routes
   (:require [compojure.core :refer :all]
             [compojure.route :as route]
-            [thermos-ui.store-service.store.problems :as p]))
+            [thermos-ui.store-service.store.problems :as p]
+            [thermos-ui.store-service.geojson-io :refer [geometry>geojson]]
+            [thermos-ui.store-service.store.geometries :as geoms]))
 
 (defonce json-headers {"Content-Type" "text/html"})
 
@@ -14,15 +16,35 @@
    "/problem/:org/:name/:id" {:method "DELETE" :description "Delete specific problem version"}
    })
 
-(defn- problem-list-response
+(defn- json-list-response
   [problem-list]
   (if (> (count problem-list) 0)
     {:status 200
      :headers json-headers
      :body problem-list}
-    {:status 404})) 
+    {:status 404}))
+
+
+(defroutes map-routes
+  (GET "/map/connections/:zoom/:x-tile/:y-tile/"
+       {{zoom :zoom
+         x-tile :x-tile
+         y-tile :y-tile} :params :as params}
+       (let [p-int (fn [s] (Integer. (re-find  #"\d+" s )))
+             connections (geoms/get-connections (p-int zoom) (p-int x-tile) (p-int y-tile))]
+         (json-list-response (geometry>geojson connections))))
+
+
+  (GET "/map/demands/:zoom/:x-tile/:y-tile/"
+       {{zoom :zoom
+         x-tile :x-tile
+         y-tile :y-tile} :params :as params}
+       (let [p-int (fn [s] (Integer. (re-find  #"\d+" s )))
+             connections (geoms/get-demands (p-int zoom) (p-int x-tile) (p-int y-tile))]
+         (json-list-response (geometry>geojson connections)))))
 
 (defroutes all
+  map-routes
   (POST "/problem/:org/:name/"
         {{org :org
           name :name
@@ -38,13 +60,13 @@
   (GET "/problem/:org/"
        {{org :org}
         :params :as params}
-       (problem-list-response (p/gather org)))
+       (json-list-response (p/gather org)))
 
   (GET "/problem/:org/:name/"
        {{org :org
          name :name}
         :params :as params}
-       (problem-list-response (p/gather org name)))
+       (json-list-response (p/gather org name)))
 
   (GET "/problem/:org/:name/:id"
        {{org :org
