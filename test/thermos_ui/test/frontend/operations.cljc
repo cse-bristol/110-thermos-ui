@@ -8,14 +8,12 @@
 (deftest selected-candidates-ids-works
   (let [document
         {::document/candidates
-         {
-          "a" {::candidate/id "a" ::candidate/selected false}
+         {"a" {::candidate/id "a" ::candidate/selected false}
           "b" {::candidate/id "b" ::candidate/selected true}
           }}
         ]
     (is
      (= (ops/selected-candidates-ids document) #{"b"}))))
-
 
 (deftest select-all-selects-all
   (let [document
@@ -33,8 +31,8 @@
   (let [test-document
         (fn [a b]
           {::document/candidates
-         {"a" {::candidate/id "a" ::candidate/selected a}
-          "b" {::candidate/id "b" ::candidate/selected b}}})
+           {"a" {::candidate/id "a" ::candidate/selected a}
+            "b" {::candidate/id "b" ::candidate/selected b}}})
         ]
     (testing "replace"
       (is (= (ops/select-candidates (test-document true false) #{"a"} :replace)
@@ -65,3 +63,25 @@
     (testing "xor"
       (is (= (ops/select-candidates (test-document true false) #{"a" "b"} :xor)
              (test-document false true))))))
+
+
+(deftest map-candidates-works
+  (let [doc
+        {:splarge 1
+
+         ::document/candidates
+         {"a" {::candidate/id "a" ::candidate/selected false}
+          "b" {::candidate/id "b" ::candidate/selected true}
+          }}]
+    (is (= (ops/map-candidates
+            doc
+            #(assoc % ::candidate/selected :orange)
+            )
+           {:splarge 1
+            ::document/candidates
+         {"a" {::candidate/id "a" ::candidate/selected :orange}
+          "b" {::candidate/id "b" ::candidate/selected :orange}
+          }}
+           ))
+    )
+  )

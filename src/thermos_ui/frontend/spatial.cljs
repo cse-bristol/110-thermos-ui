@@ -1,4 +1,4 @@
-(ns thermos-ui.frontend.spatial-operations
+(ns thermos-ui.frontend.spatial
   (:require [clojure.set :as set]
             [thermos-ui.specs.candidate :as candidate]
             [thermos-ui.specs.document :as document]
@@ -41,8 +41,8 @@
   The arity-3 version you can tell what needs updating, in case you
   know what you just added or deleted."
   ([document added removed]
-   (let [document (operations/map-candidates add-jsts-geometry added)
-         spatial-index (::spatial-index document)
+   (let [document (operations/map-candidates document add-jsts-geometry added)
+         spatial-index (or (::spatial-index document) (rbush))
          indexed-candidates
          (-> (::indexed-candidates document)
              (set/union added)
@@ -100,3 +100,27 @@ the selection `mode` (passed on to operations/select) and maybe the index"
   [doc shape mode]
   (let [candidates-in-shape (find-intersecting-candidates-ids doc shape)]
     (operations/select-candidates doc candidates-in-shape mode)))
+
+
+;; TODO: when we move the map, we need to load & unload candidates
+;; that have become visible or gone offscreen, but not candidates that
+;; we care about.
+
+;; (we care about candidates which are ::selected or ::inclusion /= :forbidden)
+
+;; so
+
+;; we need a function like
+
+(defn merge-new-candidates
+  "Given `new-candidates` which have appeared because we moved, put them into the document
+  unless they are already there"
+  [doc new-candidates]
+
+  )
+
+(defn forget-invisible-candidates
+  "Forget about any candidates in `shape` which we aren't interested in due to
+  not being in the problem or selected."
+  [doc shape]
+  )

@@ -17,8 +17,7 @@
       {::doc/candidates {}
        ::doc/technologies {}
        ::view/view-state
-       {::view/selection #{}
-        ::view/map-state {}
+       {::view/bounding-box {:north 1 :south 1 :east 1 :west 1}
         ::view/table-state {::view/sort-column ::can/type
                             ::view/sort-direction :asc
                             ::view/filters #{}}}

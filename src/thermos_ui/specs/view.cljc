@@ -9,4 +9,6 @@
 
 (s/def ::table-state (s/keys :req [::sort-column ::sort-direction ::filters]))
 
-(s/def ::view-state (s/keys :req [::selection ::table-state ::map-state]))
+(s/def ::bounding-box (s/keys :req-un [::north ::south ::east ::west]))
+
+(s/def ::view-state (s/keys :req [::table-state ::bounding-box]))

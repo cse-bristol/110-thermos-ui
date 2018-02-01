@@ -2,6 +2,7 @@
   (:require [clojure.spec.alpha :as s]
             [thermos-ui.specs.document :as document]
             [thermos-ui.specs.candidate :as candidate]
+            [thermos-ui.specs.view :as view]
             ))
 
 
@@ -29,15 +30,13 @@
 
 (defn map-candidates
   "Go through a document and apply f to all the indicated candidates."
-  ([doc f]
-   (map-candidates f (all-candidates-ids doc)))
-
-  ([doc f ids]
-   (let [candidates (::document/candidates doc)]
-     (assoc doc ::document/candidates
-            (reduce
-             (fn [id] (update doc id f))
-             doc ids)))))
+  [doc f & [ids]]
+  (let [ids (or ids (all-candidates-ids doc))]
+    (update doc
+            ::document/candidates
+            #(reduce
+              (fn [cands id] (update cands id f))
+              % ids))))
 
 (defn select-candidates
   "Change the selection for all candidates with IDs in the CANDIDATE-IDS using the METHOD."
@@ -86,10 +85,11 @@
                   #(assoc % ::candidate/constraint new-constraint)
                   candidate-ids))
 
-
-(defn set-map-position
+(defn move-map
   "Show a particular boundingbox on the map"
-  [doc bbox])
+  [doc bbox]
+  (assoc-in doc [::view/view-state ::view/bounding-box]
+            bbox))
 
 (defn set-map-colouring
   "Change the colour scheme for the map"

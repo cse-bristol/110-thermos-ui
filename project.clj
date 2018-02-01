@@ -56,10 +56,10 @@
       (into []
             (map #(deep-merge common %)
                  '[{:id "dev"
-                    :figwheel {:on-jsload "thermos-ui.core/on-js-reload"
+                    :figwheel {:on-jsload "thermos-ui.frontend.editor/on-js-reload"
                                :open-urls ["http://localhost:3449/index.html"]}
 
-                    :compiler {:main thermos-ui.core
+                    :compiler {:main thermos-ui.frontend.editor
                                :asset-path "js/compiled/out"
                                :output-to "resources/public/js/compiled/thermos_ui.js"
                                :output-dir "resources/public/js/compiled/out"
@@ -68,7 +68,7 @@
 
                    {:id "min"
                     :compiler {:output-to "resources/public/js/compiled/thermos_ui.js"
-                               :main thermos-ui.core
+                               :main thermos-ui.frontend.editor
                                :optimizations :advanced
                                :pretty-print false}}])))
    }
