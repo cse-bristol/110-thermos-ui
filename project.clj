@@ -25,6 +25,9 @@
                  [compojure "1.6.0"]
                  [ring/ring-defaults "0.3.1"]
                  [ring/ring-json "0.4.0"]
+                 [secretary "1.2.3"]
+                 [venantius/accountant "0.2.3"
+                  :exclusions [org.clojure/tools.reader]]
 
                  [org.clojure/java.jdbc "0.7.5"]
                  [org.postgresql/postgresql "9.4.1212.jre7"]
