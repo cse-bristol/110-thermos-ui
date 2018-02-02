@@ -18,7 +18,7 @@
 (defn home-page []
   [:div.container-fluid
    [:h1 "Welcome to the the Thermos prototype"]
-   [:a {:href "/org/map/"} "asdasd"]
+   [:a {:href "/org/map/"} "View Map"]
     [:form
      [:div.row
       [:div.form-group

@@ -6,9 +6,23 @@
             [thermos-ui.store-service.routes :as problem-routes]
             ))
 
+(defn add-to-slash [route filename]
+  (fn [{uri :uri :as request}]
+    (if (.endsWith "/" uri)
+      (route (update request :uri #(str % filename)))
+      (route request))))
+
+(defroutes all
+  problem-routes/all
+  (add-to-slash
+   
+   (route/resources "/")
+   "index.html"
+   ))
+
 (def app
   (->
-   problem-routes/all
+   all
    (wrap-defaults (assoc-in site-defaults [:security :anti-forgery] false))
    wrap-json-body
    wrap-json-response))
