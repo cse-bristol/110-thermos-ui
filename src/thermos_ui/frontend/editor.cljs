@@ -29,7 +29,6 @@
 (defn map-page []
   [:div
    [:h1 "State:"]
-   [:pre (with-out-str (pprint @state/state))]
    [toolbar-component]
    [map/component state/state]])
 
