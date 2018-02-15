@@ -43,7 +43,12 @@
                                             :center [51.454514 -2.587910]
                                             }))
         candidates-layer (candidates-layer document)
-        candidates-layer (candidates-layer. (clj->js {:tileSize 128}))
+
+        ;; The tilesize of 256 is related to the x, y values when talking
+        ;; to the server for tile data, so if the tilesize changes, effectively
+        ;; the meaning of the zoom, or equivalently the x and y changes too.
+        ;; Halve this => increase zoom by 1 in queries below.
+        candidates-layer (candidates-layer. (clj->js {:tileSize 256}))
 
         layers-control (layers-control
                         #js {}
@@ -110,6 +115,9 @@
             (this-as this
               (set! (.. canvas -coords) coords)
               (tile/render-tile doc canvas this))
+
+            ;; request load of the tile into the document
+            (state/load-tile! doc (.-x coords) (.-y coords) (.-z coords))
             canvas))
 
         destroy-tile

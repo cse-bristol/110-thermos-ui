@@ -1,5 +1,5 @@
 (ns thermos-ui.frontend.io
-  (:require [goog.net.XhrIo :as xhr]
+  (:require [goog.net.XhrIo :as xhr] ;; https://developers.google.com/closure/library/docs/xhrio
             [cljs.reader :refer [read-string]]))
 
 (defn load-document
@@ -20,9 +20,13 @@
 
   )
 
-(defn load-geometry
+(defn request-geometry
   "Load geometry from the database for the tile at `x`, `y`, `z`, and
   call `handler` with what comes back."
   [x y z handler]
 
-  )
+  (let [url (str "/map/demands/" z "/" x "/" y "/")
+        on-success
+        (fn [e]
+          (handler (.. e -target getResponseJson)))]
+    (xhr/send url on-success)))

@@ -82,8 +82,7 @@
 
 (defn render-geometry
   [geom ctx project fill? close?]
-  (.log js/console geom)
-  (.log js/console ctx)
+
   (case (.getGeometryType geom)
     "Polygon"
     (do (.beginPath ctx)
@@ -102,15 +101,13 @@
   )
 
 (defn render-linestring [line-string ctx project close?]
-  (let [coords (js->clj (.getCoordinates line-string))
-        start (first coords)
-        tail (rest coords)]
+  (-> line-string
+      (.getCoordinates)
+      (.forEach
+       (fn [coord ix]
+         (let [[x y] (project (.-y coord) (.-x coord))]
+           (if (= 0 ix)
+             (.moveTo ctx x y)
+             (.lineTo ctx x y))))))
 
-    (let [[x y] (project (.-y start) (.-x start))]
-      (.moveTo ctx x y))
-
-    (doseq [coord tail]
-      (let [[x y] (project (.-y coord) (.-x coord))]
-        (.lineTo ctx x y)))
-
-    (when close? (.closePath ctx))))
+  (when close? (.closePath ctx)))

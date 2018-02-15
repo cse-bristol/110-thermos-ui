@@ -94,3 +94,23 @@
 (defn set-map-colouring
   "Change the colour scheme for the map"
   [doc scheme])
+
+(defn insert-candidates
+  "Insert some candidates into a document map, but preserve
+  candidates which have user changes on them"
+  [document new-candidates]
+
+  (update
+   document
+   ::document/candidates
+   (fn [current-candidates]
+     (reduce
+      (fn [candidates new-candidate]
+        (let [candidate-id (::candidate/id new-candidate)]
+          (if (get candidates candidate-id) ;; look up new candidate's ID
+                                        ;; in the existing candidates.
+            candidates ;; If it already exists, don't change anything
+            (assoc candidates candidate-id new-candidate))))
+      current-candidates
+      new-candidates
+      ))))
