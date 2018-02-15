@@ -3,13 +3,16 @@
             [leaflet :as leaflet]
             [thermos-ui.frontend.operations :as operations]
             [thermos-ui.frontend.editor-state :as state]
+            [thermos-ui.frontend.tile :as tile]
             ))
 
 ;; the map component
 
-(declare mount unmount candidates-layer render-tile)
+(declare mount unmount candidates-layer layers-control render-tile)
 
 (defn component
+  "Draw a cartographic map for the given `document`, which should be a reagent atom
+  containing a document map"
   [document]
   (let [watches (atom nil)
         map-node (atom nil)
@@ -39,8 +42,12 @@
                                             :zoom 13
                                             :center [51.454514 -2.587910]
                                             }))
-        candidates-layer (candidates-layer)
+        candidates-layer (candidates-layer document)
         candidates-layer (candidates-layer. (clj->js {:tileSize 128}))
+
+        layers-control (layers-control
+                        #js {}
+                        #js {"Candidates" candidates-layer})
 
         follow-map!
         #(let [bounds (.getBounds map)]
@@ -62,6 +69,7 @@
 
     (.addLayer map esri-sat-imagery)
     (.addLayer map candidates-layer)
+    (.addControl map layers-control)
 
     (.on map "moveend" follow-map!)
     (.on map "zoomend" follow-map!)
@@ -82,17 +90,17 @@
 
   There is a mismatch here between the OO style in leaflet and the functional
   style in react & clojure"
-  []
+  [doc]
   (let [;; this is a set of all the tiles which are visible
         tiles (atom #{})
-
         ;; when the map is redrawn, we re-render each tile
         ;; that is on-screen
         repaint
         (fn []
           (this-as the-map
-            (doseq [tile @tiles]
-              (render-tile tile the-map))))
+            (let [doc @doc]
+              (doseq [visible-tile @tiles]
+                (tile/render-tile doc visible-tile the-map)))))
 
         ;; tiles are just canvas DOM elements
         create-tile
@@ -101,7 +109,7 @@
             (swap! tiles conj canvas)
             (this-as this
               (set! (.. canvas -coords) coords)
-              (render-tile canvas this))
+              (tile/render-tile doc canvas this))
             canvas))
 
         destroy-tile
@@ -121,8 +129,11 @@
      (clj->js)
      (.extend leaflet/GridLayer))))
 
-;; most of the work is in here - how to paint an individual tile onto the map
-(defn render-tile [map tile]
-  (let [coords (.-coords tile)]
-    ;; TODO render tile!!
-    ))
+(defn layers-control [choices extras]
+  "Create a leaflet control to choose which layers are displayed on the map.
+  `choices` is a list of layers of which only one may be selected (radios).
+  `extras` is a list of layers of which any number may be selected (checkboxes)."
+  ((.. leaflet -control -layers)
+   choices
+   extras
+   #js{:collapsed false}))

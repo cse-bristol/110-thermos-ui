@@ -18,8 +18,8 @@
   TODO we could convert the geojson to jsts in-place and then convert it back?
   "
     [candidate]
-
-    (let [jsts-geom (.read geometry-reader (::candidate/geometry candidate))
+    (let [json-geom (::candidate/geometry candidate)
+          jsts-geom (.read geometry-reader json-geom)
           envelope (.getEnvelopeInternal jsts-geom)
           bbox {:minX (.getMinX envelope)
                 :maxX (.getMaxX envelope)
