@@ -1,7 +1,9 @@
 (ns thermos-ui.frontend.map
   (:require [reagent.core :as reagent]
             [leaflet :as leaflet]
+            ["jsts/dist/jsts" :as jsts]
             [thermos-ui.frontend.operations :as operations]
+            [thermos-ui.frontend.spatial :as spatial]
             [thermos-ui.frontend.editor-state :as state]
             [thermos-ui.frontend.tile :as tile]
             ))
@@ -64,12 +66,15 @@
 
         repaint! #(.repaintInPlace candidates-layer)
 
-        ;; this is probably the tricky bit
-        ;; we want to read the bounds out of the document
-        ;; (which will get set when we move map)
-        ;; and then request loading of the visible area
-        ;; something should diff out the unloaded area to help.
-        demand-tiles! #()
+        pixel-size
+        (fn []
+          (let [zoom (.getZoom map)
+                zz (.unproject map (leaflet/point 0 0) zoom)
+                oo (.unproject map (leaflet/point 1 1) zoom)]
+            (Math/sqrt
+             (+ (Math/pow (- (.-lat zz) (.-lat oo)) 2)
+                (Math/pow (- (.-lng zz) (.-lng oo)) 2)))
+            ))
         ]
 
     (.addLayer map esri-sat-imagery)
@@ -79,8 +84,14 @@
     (.on map "moveend" follow-map!)
     (.on map "zoomend" follow-map!)
 
+    (.on map "click" (fn [e] (let [ll (.-latlng e)
+                                   c (jsts/geom.Coordinate. (.-lng ll) (.-lat ll))
+                                   f (jsts/geom.GeometryFactory.)
+                                   p (.createPoint f c)
+                                   shape (.buffer p (* 3 (pixel-size)))]
+                               (state/edit! document spatial/select-intersecting-candidates shape :replace))))
+
     (track! repaint!) ;; repaint when the candidate dataset changes
-    (track! demand-tiles!) ;; ask for more tiles when we move the viewport
     ;; TODO we need the inverse of follow-map! here
     ))
 
@@ -114,7 +125,7 @@
             (swap! tiles conj canvas)
             (this-as this
               (set! (.. canvas -coords) coords)
-              (tile/render-tile doc canvas this))
+              (tile/render-tile @doc canvas this))
 
             ;; request load of the tile into the document
             (state/load-tile! doc (.-x coords) (.-y coords) (.-z coords))

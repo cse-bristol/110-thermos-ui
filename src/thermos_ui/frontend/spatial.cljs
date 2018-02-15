@@ -83,6 +83,12 @@
                      (set/difference all-candidates indexed-candidates)
                      (set/difference indexed-candidates all-candidates))))))
 
+(defn find-candidates-ids-in-bbox
+  [doc bbox]
+  (let [spatial-index (::spatial-index doc)
+        matches (if (nil? spatial-index) [] (js->clj (.search spatial-index (clj->js bbox)) :keywordize-keys true))]
+    (map :id matches)))
+
 (defn find-intersecting-candidates-ids
   "Given `doc`, a document, and `shape`, a shape, and possibly having
 a spatial index `index` (recommended), find the candidate IDs of candidates
