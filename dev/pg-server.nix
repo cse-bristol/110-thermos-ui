@@ -1,5 +1,8 @@
 # nixops configuration for a postgresql server, deployed into virtualbox
 # with some data already in it for dev purposes
+# You can make one with
+# nixops create -d pg-server pg-server.nix
+# nixops deploy -d pg-server
 
 {
   pg_server = {cfg, pkgs, ...}:
