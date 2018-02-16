@@ -1,0 +1,29 @@
+#+TITLE: Thermos UI
+
+* Work list
+- Devtools
+  - [X] Add zero cache expiry in dev mode on backend
+  - [ ] Work out why npm deps intermittenly fail, how to avoid
+  - [ ] Understand source mapping in chrome
+- Backend data
+  - [ ] Make backend query both paths and buildings together
+  - [ ] Add more fields from / to backend
+  - [ ] Populate dev backend db with more dummy data
+- [ ] Redo goldenlayout / investigate alternatives
+  - Understand how this affects leaflet
+- [ ] Add table component back in
+  - [ ] Do we need virtual table
+    - [ ] If yes, wrap virtual table API to be nicer
+  - [ ] Sorting
+  - [ ] Selection
+  - [ ] Excel-style autofilter
+- Map
+  - [ ] Area selection tool for map
+  - [ ] Colouring in for map
+  - [ ] Filter for map
+  - [ ] Pan to selection button
+- Inspector page
+  - [ ] Single element
+  - [ ] Multiple elements
+  - [ ] Selection manipulation features
+  - [ ] Other operations
