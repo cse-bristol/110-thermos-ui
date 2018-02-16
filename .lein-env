@@ -1,1 +1,1 @@
-{:problem-store "test-resources/data/problems", :pg-host "172.21.0.3", :pg-user "postgres", :pg-password "therm0s", :pg-db-geometries "thermos_geometries"}
+{:problem-store "test-resources/data/problems", :disable-cache "1", :pg-host "172.21.0.3", :pg-user "postgres", :pg-password "therm0s", :pg-db-geometries "thermos_geometries"}

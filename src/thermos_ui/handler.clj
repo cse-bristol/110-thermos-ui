@@ -4,6 +4,7 @@
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
             [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
             [thermos-ui.store-service.routes :as problem-routes]
+            [environ.core :refer [env]]
             ))
 
 (defn add-to-slash [route filename]
@@ -20,9 +21,15 @@
    "index.html"
    ))
 
+(defn wrap-no-cache [handler]
+  (fn [request]
+    (assoc-in (handler request)
+              [:headers "Cache-Control"] "no-store")))
+
 (def app
   (->
    all
    (wrap-defaults (assoc-in site-defaults [:security :anti-forgery] false))
    wrap-json-body
-   wrap-json-response))
+   wrap-json-response
+   ((if (env :disable-cache) wrap-no-cache identity))))
