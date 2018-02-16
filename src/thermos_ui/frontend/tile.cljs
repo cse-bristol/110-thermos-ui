@@ -7,6 +7,8 @@
             [thermos-ui.specs.document :as document]
             [thermos-ui.specs.candidate :as candidate]
             [thermos-ui.frontend.spatial :as spatial]
+
+            [thermos-ui.frontend.theme :as theme]
             ))
 
 (declare render-candidate render-geometry render-linestring)
@@ -35,6 +37,9 @@
               :maxX (max (.-lng north-west) (.-lng south-east))
               }
 
+        candidates-ids (spatial/find-candidates-ids-in-bbox document bbox)
+        all-candidates (::document/candidates document)
+
         ;; @TODO Put these things into the state
 
         ; contents (state/visible-candidates bbox)
@@ -59,10 +64,8 @@
 
     (.clearRect ctx 0 0 width height)
 
-    ;; @TODO At the moment this just loops over every candidate
-    ;; but we need it to only look at the candidates in the bbox
-    (doseq [candidate (vals (::document/candidates document))]
-      (render-candidate candidate ctx project))
+    (doseq [candidate-id candidates-ids]
+      (render-candidate (get all-candidates candidate-id) ctx project))
     ))
 
 (defn render-candidate
@@ -72,9 +75,11 @@
   `project` is a function to project from real space into the canvas pixel space"
   [candidate ctx project]
   ;; TODO set the colouring in for the next things
-  (set! (.. ctx -lineWidth) 1)
-  (set! (.. ctx -strokeStyle) "black")
-  (set! (.. ctx -fillStyle) "pink")
+  (set! (.. ctx -lineWidth) (if (::candidate/selected candidate) 4 1))
+  (set! (.. ctx -strokeStyle)
+    theme/grey
+    )
+  (set! (.. ctx -fillStyle) theme/light-grey)
 
   (render-geometry (::spatial/jsts-geometry candidate) ctx project
      true false)

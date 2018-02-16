@@ -5,7 +5,7 @@
 # nixops deploy -d pg-server
 
 {
-  pg_server = {cfg, pkgs, ...}:
+  pg-server = {cfg, pkgs, ...}:
   let pg = pkgs.postgresql;
       pgis = pkgs.postgis.override { postgresql = pg; } ;
   in
