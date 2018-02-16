@@ -82,7 +82,7 @@
   "Change the inclusion constraint for candidates in CANDIDATE-IDS to NEW-CONSTRAINT"
   [doc candidate-ids new-constraint]
   (map-candidates doc
-                  #(assoc % ::candidate/constraint new-constraint)
+                  #(assoc % ::candidate/inclusion new-constraint)
                   candidate-ids))
 
 (defn move-map

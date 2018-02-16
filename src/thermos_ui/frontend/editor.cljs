@@ -4,6 +4,7 @@
             [accountant.core :as accountant]
             [thermos-ui.frontend.map :as map]
             [thermos-ui.frontend.editor-state :as state]
+            [thermos-ui.frontend.operations :as operations]
             [clojure.pprint :refer [pprint]]
             ))
 
@@ -26,11 +27,35 @@
                         :type "text"
                         :name "orgName"}]]]]])
 
+;; @TODO Put this into the appropriate component once it exsits.
+(defn test-candidate-inclusion-selector []
+  [:div {:style {:margin-top "30px"}}
+   "Selections is:"
+   [:button {:on-click (fn []
+                         (let [selected-candidates-ids (operations/selected-candidates-ids @state/state)]
+                           (state/edit! state/state
+                                        operations/set-candidates-inclusion
+                                        selected-candidates-ids :forbidden)))}
+    "Forbidden"]
+   [:button {:on-click (fn []
+                         (let [selected-candidates-ids (operations/selected-candidates-ids @state/state)]
+                           (state/edit! state/state
+                                        operations/set-candidates-inclusion
+                                        selected-candidates-ids :required)))}
+    "Required"]
+   [:button {:on-click (fn []
+                         (let [selected-candidates-ids (operations/selected-candidates-ids @state/state)]
+                           (state/edit! state/state
+                                        operations/set-candidates-inclusion
+                                        selected-candidates-ids :optional)))}
+    "Optional"]])
+
 (defn map-page []
   [:div
    [:h1 "State:"]
    [toolbar-component]
-   [map/component state/state]])
+   [map/component state/state]
+   [test-candidate-inclusion-selector]])
 
 (defonce page (atom #'home-page))
 
