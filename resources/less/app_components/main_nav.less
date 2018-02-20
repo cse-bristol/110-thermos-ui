@@ -1,0 +1,41 @@
+.main-nav__header {
+  line-height: @nav-height;
+  font-size: 1.5em;
+  margin: 0 20px;
+  span {
+    margin-left: 12px;
+    font-size: 0.7em;
+    font-style: italic;
+  }
+}
+
+.main-nav__input-container {
+  vertical-align: top;
+  display: inline-block;
+  padding: calc(((@nav-height - @input-height) / 2) - 1) 20px;
+}
+
+.main-nav__file-name-input {
+  border: 1px solid #e1e1e1;
+  background: #e1e1e1;
+  font-weight: 600;
+  transition: border 0.2s linear;
+  &:hover, &:active, &:focus {
+    border-color: #999;
+  }
+}
+
+.main-nav__run-button {
+  margin: 0 40px;
+  span {
+    display: inline-block;
+    margin-left: 10px;
+  }
+}
+
+.button--save-button, .button--load-button {
+  color: @theme-darker-red;
+  &:hover {
+    color: @theme-darkest-red;
+  }
+}

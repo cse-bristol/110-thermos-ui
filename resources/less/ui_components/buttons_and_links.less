@@ -1,0 +1,38 @@
+button + button {
+  margin-left: 10px;
+}
+button {
+  font: inherit;
+}
+.button {
+  border: none;
+  background: @theme-darker-blue;
+  line-height: @input-height;
+  border-radius: @border-radius;
+  padding: 0 1em;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background linear 0.2s;
+  &:hover, &:active {
+    background: @theme-darkest-blue;
+  }
+}
+
+.button--link-style {
+  background: transparent;
+  color: @theme-darker-blue;
+  &:hover, &:active {
+    background: transparent;
+    color: @theme-darkest-blue;
+  }
+}
+.button--outline {
+  background: transparent;
+  color: @theme-darker-blue;
+  border: 1px solid;
+  &:hover, &:active {
+    background: transparent;
+    color: @theme-darkest-blue;
+  }
+}
