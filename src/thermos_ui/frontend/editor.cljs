@@ -5,16 +5,13 @@
             [thermos-ui.frontend.map :as map]
             [thermos-ui.frontend.editor-state :as state]
             [thermos-ui.frontend.operations :as operations]
+            [thermos-ui.frontend.main-nav :as main-nav]
+            [thermos-ui.frontend.network-candidates-panel :as network-candidates-panel]
+            [thermos-ui.frontend.selection-info-panel :as selection-info-panel]
             [clojure.pprint :refer [pprint]]
             ))
 
 (enable-console-print!)
-
-(defn toolbar-component []
-  [:div {:width "100%"}
-   [:button "Load"]
-   [:button "Save"]
-   [:button "Run"]])
 
 (defn home-page []
   [:div.container-fluid
@@ -27,35 +24,17 @@
                         :type "text"
                         :name "orgName"}]]]]])
 
-;; @TODO Put this into the appropriate component once it exsits.
-(defn test-candidate-inclusion-selector []
-  [:div {:style {:margin-top "30px"}}
-   "Selections is:"
-   [:button {:on-click (fn []
-                         (let [selected-candidates-ids (operations/selected-candidates-ids @state/state)]
-                           (state/edit! state/state
-                                        operations/set-candidates-inclusion
-                                        selected-candidates-ids :forbidden)))}
-    "Forbidden"]
-   [:button {:on-click (fn []
-                         (let [selected-candidates-ids (operations/selected-candidates-ids @state/state)]
-                           (state/edit! state/state
-                                        operations/set-candidates-inclusion
-                                        selected-candidates-ids :required)))}
-    "Required"]
-   [:button {:on-click (fn []
-                         (let [selected-candidates-ids (operations/selected-candidates-ids @state/state)]
-                           (state/edit! state/state
-                                        operations/set-candidates-inclusion
-                                        selected-candidates-ids :optional)))}
-    "Optional"]])
-
 (defn map-page []
   [:div
-   [:h1 "State:"]
-   [toolbar-component]
-   [map/component state/state]
-   [test-candidate-inclusion-selector]])
+   [main-nav/component state/state]
+   [:div.layout__container
+    [:div.layout__panel.layout__panel--left
+     [map/component state/state]]
+    [:div.layout__panel.layout__panel--right
+     [:div.layout__panel.layout__panel--top
+      [network-candidates-panel/component state/state]]
+     [:div.layout__panel.layout__panel--bottom
+      [selection-info-panel/component state/state]]]]])
 
 (defonce page (atom #'home-page))
 
