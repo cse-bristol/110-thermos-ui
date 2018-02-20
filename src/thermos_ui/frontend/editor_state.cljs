@@ -17,11 +17,21 @@
 (defn- feature->candidate
   "Convert a GEOJSON feature into a candidate map"
   [feature]
-  ;; TODO this is not right
   (let [geometry (.-geometry feature)
-        properties (js->clj (.-properties feature) :keywordize-keys true)]
-    {::candidate/id (:id properties)
-     ::candidate/geometry geometry}))
+        properties (js->clj (.-properties feature) :keywordize-keys true)
+        type (keyword (:type properties))
+        ]
+    (merge
+     {::candidate/id (:id properties)
+      ::candidate/name (:name properties)
+      ::candidate/postcode (:postcode properties)
+      ::candidate/geometry geometry
+      ::candidate/type type}
+     (case type
+       :path {::candidate/length (:length properties)}
+       :demand {::candidate/demand (:demand properties)}
+       :supply {} ;; not sure
+       ))))
 
 
 (defn load-tile! [document x y z]
