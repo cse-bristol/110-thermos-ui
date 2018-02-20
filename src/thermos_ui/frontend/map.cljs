@@ -1,7 +1,7 @@
 (ns thermos-ui.frontend.map
   (:require [reagent.core :as reagent]
             [leaflet :as leaflet]
-            ["jsts/dist/jsts" :as jsts]
+            [cljsjs.jsts :as jsts]
             [thermos-ui.frontend.operations :as operations]
             [thermos-ui.frontend.spatial :as spatial]
             [thermos-ui.frontend.editor-state :as state]
