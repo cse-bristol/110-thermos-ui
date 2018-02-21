@@ -23,6 +23,10 @@
   - [ ] Add more fields from / to backend
     - Ideally we want a spec for this?
   - [ ] Populate dev backend db with more dummy data / more areas
+    - [ ] Cut out each area we're interested in
+    - [ ] Make road stuff
+    - [ ] Make some very bogus demand
+    - [ ] Add uploading for shapefiles?
   - [ ] Agree interface with josh/toby for adding the key data
 - [ ] Redo goldenlayout / investigate alternatives
   - Understand how this affects leaflet
@@ -36,10 +40,11 @@
   - [ ] Excel-style autofilter
 - Map
   - [ ] Area selection tool for map
-  - [ ] Colouring in for map
+  - [X] Colouring in for map
   - [ ] Filter for map
   - [ ] Pan to selection button
   - [ ] Far out zoom speedup
+  - [ ] Look at having an atom for each tile?
   - [ ] Unloading invisible data
   - [ ] Avoid loading things we already have
 - Inspector page
