@@ -1,0 +1,47 @@
+/**
+ * This is a hard-coded layout based on one panel on the left and a panel on the right with two sub-panels
+ * vertically nested. We may want to make it more flexible in the future, but this seems fine for now.
+ *  ---------
+ *  |   |   |
+ *  |   |---|
+ *  |   |   |
+ *  ---------
+ */
+.layout__container {
+  height: 100vh;
+  // This is necessary to fit the nav in;
+  padding-top: @nav-height;
+  margin-top: -@nav-height;
+}
+.layout__panel {
+  display: inline-block;
+  height: 100%;
+  vertical-align: top;
+}
+.layout__panel--left {
+  width: 70%;
+  border-right: 1px solid #555;
+}
+.layout__panel--right {
+  width: 30%;
+}
+
+// This is the top panel *within* the right panel
+.layout__panel--top, .layout__panel--bottom {
+  width: 100%;
+  height: 50%;
+  // overflow-y: auto;
+  // &::-webkit-scrollbar
+  // {
+  // 	width: 8px;
+  // 	background-color: transparent;
+  // }
+  // &::-webkit-scrollbar-thumb
+  // {
+  // 	border-radius: 4px;
+  // 	background-color: #999;
+  // }
+}
+.layout__panel--top {
+  border-bottom: 1px solid #555;
+}

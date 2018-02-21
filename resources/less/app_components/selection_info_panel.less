@@ -1,0 +1,23 @@
+.table--selection-info {
+  th {
+    background: #fff;
+    line-height: @input-height;
+    text-align: left;
+    font-weight: normal;
+  }
+  // Make the first cell in each row bold
+  td:first-child {
+    font-weight: 600;
+    width: 100px;
+    height: 50px;
+  }
+  .select {
+    border-color: transparent;
+    padding: 0 4px;
+    transition: border 0.2s linear;
+    font-weight: 600;
+    &:hover, &:active, &:focus {
+      border-color: #999;
+    }
+  }
+}

@@ -4,16 +4,14 @@
             [accountant.core :as accountant]
             [thermos-ui.frontend.map :as map]
             [thermos-ui.frontend.editor-state :as state]
+            [thermos-ui.frontend.operations :as operations]
+            [thermos-ui.frontend.main-nav :as main-nav]
+            [thermos-ui.frontend.network-candidates-panel :as network-candidates-panel]
+            [thermos-ui.frontend.selection-info-panel :as selection-info-panel]
             [clojure.pprint :refer [pprint]]
             ))
 
 (enable-console-print!)
-
-(defn toolbar-component []
-  [:div {:width "100%"}
-   [:button "Load"]
-   [:button "Save"]
-   [:button "Run"]])
 
 (defn home-page []
   [:div.container-fluid
@@ -28,9 +26,15 @@
 
 (defn map-page []
   [:div
-   [:h1 "State:"]
-   [toolbar-component]
-   [map/component state/state]])
+   [main-nav/component state/state]
+   [:div.layout__container
+    [:div.layout__panel.layout__panel--left
+     [map/component state/state]]
+    [:div.layout__panel.layout__panel--right
+     [:div.layout__panel.layout__panel--top
+      [network-candidates-panel/component state/state]]
+     [:div.layout__panel.layout__panel--bottom
+      [selection-info-panel/component state/state]]]]])
 
 (defonce page (atom #'home-page))
 

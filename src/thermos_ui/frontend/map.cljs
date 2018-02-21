@@ -20,9 +20,8 @@
         map-node (atom nil)
         ]
     (reagent/create-class
-     {:reagent-render         (fn [document]
-                                [:div.map {:style {:height "500px"}
-                                           :ref (partial reset! map-node)}])
+     {:reagent-render (fn [document]
+                        [:div.map {:ref (partial reset! map-node)}])
       :component-did-mount    (partial mount document watches map-node)
       :component-will-unmount (partial unmount watches)
       })))

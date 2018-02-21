@@ -12,13 +12,20 @@
 (defn selected-candidates-ids
   "Get a set containing the candidate IDs of all the selected candidates in the doc"
   [doc]
-
   (->> doc
        (::document/candidates)
        (vals)
        (filter ::candidate/selected)
        (map ::candidate/id)
        (set)))
+
+(defn selected-candidates
+  "Get a set containing the candidate IDs of all the selected candidates in the doc"
+  [doc]
+  (->> doc
+       (::document/candidates)
+       (vals)
+       (filter ::candidate/selected)))
 
 (defn all-candidates-ids
   "Get a lazy sequence containing the ID of each candidate in doc"
@@ -82,7 +89,7 @@
   "Change the inclusion constraint for candidates in CANDIDATE-IDS to NEW-CONSTRAINT"
   [doc candidate-ids new-constraint]
   (map-candidates doc
-                  #(assoc % ::candidate/constraint new-constraint)
+                  #(assoc % ::candidate/inclusion new-constraint)
                   candidate-ids))
 
 (defn move-map
@@ -114,3 +121,10 @@
       current-candidates
       new-candidates
       ))))
+
+(defn deselect-candidates
+  "Removes the given candidates from the current selection."
+  [document candidate-ids]
+  (map-candidates document
+                  #(assoc % ::candidate/selected false)
+                  candidate-ids))
