@@ -34,20 +34,16 @@
                        (join "," (map (fn [ps] (join " " ps)) points))
                        "))")}))
                                  
-;; - https://github.com/cse-bristol/110-thermos-heat-mapping/blob/master/osm-to-addressbase/src/thermos/data/io.clj
-(defn get-connections
-  "x and y are tile co-ordinates z is the zoom level"
-  [z x y]
+(defn get-candidates [z x y]
   (let [bb (create-bounding-box z x y)
-        query (str "SELECT  id, osm_id, class, node_from, node_to, name, length, ST_AsGeoJSON(geometry) as geometry FROM connections "
-                   "WHERE connections.geometry && ST_GeomFromText('" (:geom-string bb) "')")
-        results (j/query pg-db query)]
-    results))
+        bb (:geom-string bb)
+        query (str "SELECT id, name, type, building_type, postcode, demand, ST_AsGeoJSON(geometry) as geometry FROM buildings "
+                   "WHERE buildings.geometry && ST_GeomFromText('" bb "')")
 
-(defn get-demands
-  [z x y]
-   (let [bb (create-bounding-box z x y)
-        query (str "SELECT  id, name, address, postcode, demand, ST_AsGeoJSON(geometry) as geometry FROM demand "
-                   "WHERE demand.geometry && ST_GeomFromText('" (:geom-string bb) "')")
-        results (j/query pg-db query)]
-    results))
+        buildings (j/query pg-db query)
+
+        query (str "SELECT id, 'path' as type, name, postcode, length, node_from, node_to, ST_AsGeoJSON(geometry) as geometry FROM ways "
+                   "WHERE ways.geometry && ST_GeomFromText('" bb "')")
+        ways (j/query pg-db query)
+        ]
+    (concat buildings ways)))

@@ -32,6 +32,8 @@
                  [org.clojure/java.jdbc "0.7.5"]
                  [org.postgresql/postgresql "9.4.1212.jre7"]
 
+                 [cljsjs/jsts "1.6.0-0"]
+                 [cljsjs/rbush "2.0.1-0"]
                  [environ "1.1.0"]]
 
   :plugins [[lein-figwheel "0.5.14"]
@@ -49,13 +51,9 @@
   :cljsbuild
   {:builds
    ~(let [common '{:source-paths ["src"]
-                   :compiler {:npm-deps {:rbush "2.0.1"
-                                         :jsts "1.4.0"}
-                              :install-deps true
-                              :asset-path "js/compiled/out"
-                              :infer-externs true
-                              }
-                   }]
+                   :compiler {:asset-path "js/compiled/out"
+                              :infer-externs true}}]
+
       (into []
             (map #(deep-merge common %)
                  '[{:id "dev"
@@ -105,6 +103,7 @@
                    :clean-targets ^{:protect false} ["resources/public/js/compiled"
                                                      :target-path]
                    :env {:problem-store "test-resources/data/problems"
+                         :disable-cache "1"
                          :pg-host "172.21.0.3"
                          :pg-user "postgres"
                          :pg-password "therm0s"

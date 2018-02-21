@@ -3,8 +3,8 @@
             [thermos-ui.specs.candidate :as candidate]
             [thermos-ui.specs.document :as document]
             [thermos-ui.frontend.operations :as operations]
-            [rbush :as rbush]
-            ["jsts/dist/jsts" :as jsts]
+            [cljsjs.rbush :as rbush]
+            [cljsjs.jsts :as jsts]
             ))
 
 (let [geometry-factory (jsts/geom.GeometryFactory.)

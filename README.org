@@ -1,0 +1,55 @@
+#+TITLE: Thermos UI
+
+* Work list
+- Devtools
+  - [X] Add zero cache expiry in dev mode on backend
+  - [X] Work out why npm deps intermittenly fail, how to avoid
+    Appears that running lein clean; lein figwheel usually works.
+    The implementation detail is inside the clojurescript compiler.
+    It depends on shelling out to npm to install a thing called 'module-deps'.
+    Then it uses this 'module-deps' tool to construct the extra dependency information.
+
+    I am not sure why this doesn't always happen.
+    Best guess is that figwheel does some incremental or partial compilation which doesn't trigger this process?
+
+    Possible solutions are:
+    - Vendor js dependencies directly
+    - Package up rbush, jsts & co with requires & externs, and then depend on them
+    - Add foreign-libs information into the compiler options??
+      Tried this on Mark's laptop and it didn't seem to do much.
+  - [ ] Understand source mapping in chrome
+- Backend data
+  - [X] Make backend query both paths and buildings together
+  - [ ] Add more fields from / to backend
+    - Ideally we want a spec for this?
+  - [ ] Populate dev backend db with more dummy data / more areas
+  - [ ] Agree interface with josh/toby for adding the key data
+- [ ] Redo goldenlayout / investigate alternatives
+  - Understand how this affects leaflet
+  - https://github.com/caplin/FlexLayout
+    looks like an alternative which may be better?
+- [ ] Add table component back in
+  - [ ] Do we need virtual table
+    - [ ] If yes, wrap virtual table API to be nicer
+  - [ ] Sorting
+  - [ ] Selection
+  - [ ] Excel-style autofilter
+- Map
+  - [ ] Area selection tool for map
+  - [ ] Colouring in for map
+  - [ ] Filter for map
+  - [ ] Pan to selection button
+  - [ ] Far out zoom speedup
+  - [ ] Unloading invisible data
+  - [ ] Avoid loading things we already have
+- Inspector page
+  - [ ] Single element
+  - [ ] Multiple elements
+  - [ ] Selection manipulation features
+  - [ ] Other operations
+- URL routing
+  - [ ] maybe split project list into being another page (ss rendered, why not?)
+- Optimiser interface
+  TODO
+- Results viewing
+  TODO

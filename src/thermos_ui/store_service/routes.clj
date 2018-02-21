@@ -24,23 +24,13 @@
      :body problem-list}
     {:status 404}))
 
-
 (defroutes map-routes
-  (GET "/map/connections/:zoom/:x-tile/:y-tile/"
+  (GET "/map/candidates/:zoom/:x-tile/:y-tile/"
        {{zoom :zoom
          x-tile :x-tile
          y-tile :y-tile} :params :as params}
        (let [p-int (fn [s] (Integer. (re-find  #"\d+" s )))
-             connections (geoms/get-connections (p-int zoom) (p-int x-tile) (p-int y-tile))]
-         (json-list-response (geometry>geojson connections))))
-
-
-  (GET "/map/demands/:zoom/:x-tile/:y-tile/"
-       {{zoom :zoom
-         x-tile :x-tile
-         y-tile :y-tile} :params :as params}
-       (let [p-int (fn [s] (Integer. (re-find  #"\d+" s )))
-             connections (geoms/get-demands (p-int zoom) (p-int x-tile) (p-int y-tile))]
+             connections (geoms/get-candidates (p-int zoom) (p-int x-tile) (p-int y-tile))]
          (json-list-response (geometry>geojson connections)))))
 
 (defroutes all
