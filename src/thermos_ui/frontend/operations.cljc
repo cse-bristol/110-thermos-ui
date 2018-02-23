@@ -120,7 +120,7 @@
              ;; in the existing candidates.
              candidates ;; If it already exists, don't change anything
              (assoc! candidates candidate-id new-candidate))))
-       (transient current-candidates)
+       (transient (or current-candidates {}))
        new-candidates)
       ))))
 
