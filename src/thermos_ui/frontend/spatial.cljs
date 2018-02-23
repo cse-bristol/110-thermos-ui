@@ -5,6 +5,7 @@
             [thermos-ui.frontend.operations :as operations]
             [cljsjs.rbush :as rbush]
             [cljsjs.jsts :as jsts]
+            [reagent.core :as reagent]
             ))
 
 (let [geometry-factory (jsts/geom.GeometryFactory.)
@@ -29,6 +30,10 @@
       (assoc candidate
              ::jsts-geometry jsts-geom
              ::bbox bbox))))
+
+(defn index-atom [document-atom]
+  (reagent/track
+   #(select-keys @document-atom [::spatial-index])))
 
 (defn update-index
   "To perform spatial queries, we need to store some more stuff
