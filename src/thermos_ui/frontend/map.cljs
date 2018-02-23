@@ -6,6 +6,8 @@
             [thermos-ui.frontend.spatial :as spatial]
             [thermos-ui.frontend.editor-state :as state]
             [thermos-ui.frontend.tile :as tile]
+            [thermos-ui.specs.document :as document]
+            [thermos-ui.specs.candidate :as candidate]
             ))
 
 ;; the map component
@@ -90,7 +92,7 @@
                                    shape (.buffer p (* 3 (pixel-size)))]
                                (state/edit! document spatial/select-intersecting-candidates shape :replace))))
 
-    (track! repaint!) ;; repaint when the candidate dataset changes
+    ;; (track! repaint!) ;; repaint when the candidate dataset changes
     ;; TODO we need the inverse of follow-map! here
     ))
 
@@ -108,14 +110,17 @@
   [doc]
   (let [;; this is a set of all the tiles which are visible
         tiles (atom #{})
+        tile-id (atom 0)
+
         ;; when the map is redrawn, we re-render each tile
         ;; that is on-screen
         repaint
         (fn []
-          (this-as the-map
-            (let [doc @doc]
-              (doseq [visible-tile @tiles]
-                (tile/render-tile doc visible-tile the-map)))))
+          ;; (this-as the-map
+          ;;   (let [doc @doc]
+          ;;     (doseq [visible-tile @tiles]
+          ;;       (tile/render-tile doc visible-tile the-map))))
+          )
 
         ;; tiles are just canvas DOM elements
         create-tile
@@ -123,15 +128,73 @@
           (let [canvas (js/document.createElement "canvas")]
             (swap! tiles conj canvas)
             (this-as this
-              (set! (.. canvas -coords) coords)
-              (tile/render-tile @doc canvas this))
+              (let [zoom (.-z coords)
 
-            ;; request load of the tile into the document
+                    tile-id (str "T" (swap! tile-id inc) "N")
+
+                    map-control (.-_map this)
+                    size (.getTileSize this)
+                    north-west (.unproject map-control (.scaleBy coords size) zoom)
+                    south-east (.unproject map-control (.scaleBy (.add coords (leaflet/point 1 1)) size) zoom)
+
+                    bbox {:minY (min (.-lat north-west) (.-lat south-east))
+                          :maxY (max (.-lat north-west) (.-lat south-east))
+                          :minX (min (.-lng north-west) (.-lng south-east))
+                          :maxX (max (.-lng north-west) (.-lng south-east))
+                          }
+
+                    ;; contains just the IDs of candidates in this box
+                    tile-candidates-ids
+                    (reagent/atom ())
+
+                    ;; Queries the spatial index in the document
+                    ;; to update the candidates ids. This uses a cursor
+                    ;; into the document to get the spatial index, so that
+                    ;; it only gets triggered when the spatial index is changed.
+                    just-index (spatial/index-atom doc)
+
+                    tile-candidates-ids
+                    (reagent/track
+                     #(spatial/find-candidates-ids-in-bbox @just-index bbox))
+
+                    ;; this is a cursor into the document, used so that we only trigger
+                    ;; update-tile-contents on changes to the candidate set
+                    just-candidates
+                    (reagent/cursor doc [::document/candidates])
+
+                    tile-contents
+                    (reagent/track
+                     #(map @just-candidates @tile-candidates-ids))
+                    ]
+
+                (set! (.. canvas -coords) coords)
+                (set! (.. canvas -tile-id) tile-id)
+                (set! (.. canvas -tracks)
+                      (list (reagent/track!
+                             (fn []
+                               (println "Painting tile" tile-id)
+                               (when (.. canvas -destroyed)
+                                 (println "Tile" tile-id "not destroyed properly"))
+
+                               (tile/render-tile @tile-contents canvas this)
+                               (let [ctx (.getContext canvas "2d")]
+                                 (set! (.. ctx -font) "40px Sans")
+                                 (set! (.. ctx -fillStyle) "#ff0000")
+                                 (.fillText ctx (str tile-id) 0 40)
+                                 )
+                               ))))
+                ))
+            ;; also request load of the tile into the document
             (state/load-tile! doc (.-x coords) (.-y coords) (.-z coords))
             canvas))
 
         destroy-tile
-        (fn [e] (swap! tiles disj (.. e -tile)))
+        (fn [e]
+          (println "Destroying tile" (.. e -tile -tile-id))
+          (set! (.. e -tile -destroyed) true)
+          (swap! tiles disj (.. e -tile))
+          (doseq [t (.. e -tile -tracks)]
+            (reagent/dispose! t)))
 
         initialize
         (fn [options]

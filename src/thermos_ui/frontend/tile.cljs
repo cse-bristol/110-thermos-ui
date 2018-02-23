@@ -14,7 +14,7 @@
 (declare render-candidate render-geometry render-linestring)
 
 ;; most of the work is in here - how to paint an individual tile onto the map
-(defn render-tile [document tile map]
+(defn render-tile [contents tile map]
   "Draw a tile.
   `document` should be a document map (not an atom containing a document map),
   `tile` a canvas element,
@@ -24,30 +24,8 @@
         ctx (.getContext tile "2d")
         width (.-x size)
         height (.-y size)
-
         zoom (.-z coords)
         map-control (.-_map map)
-
-        north-west (.unproject map-control (.scaleBy coords size) zoom)
-        south-east (.unproject map-control (.scaleBy (.add coords (leaflet/point 1 1)) size) zoom)
-
-        bbox {:minY (min (.-lat north-west) (.-lat south-east))
-              :maxY (max (.-lat north-west) (.-lat south-east))
-              :minX (min (.-lng north-west) (.-lng south-east))
-              :maxX (max (.-lng north-west) (.-lng south-east))
-              }
-
-        candidates-ids (spatial/find-candidates-ids-in-bbox document bbox)
-        all-candidates (::document/candidates document)
-
-        ;; @TODO Put these things into the state
-
-        ; contents (state/visible-candidates bbox)
-
-        ; geometries (map @geometries contents)
-
-        ; is-selected @selection
-
         project (fn [x y]
                   (let [pt (.project map-control
                                      (leaflet/latLng x y)
@@ -64,8 +42,8 @@
 
     (.clearRect ctx 0 0 width height)
 
-    (doseq [candidate-id candidates-ids]
-      (render-candidate (get all-candidates candidate-id) ctx project))
+    (doseq [candidate contents]
+      (render-candidate candidate ctx project))
     ))
 
 (defn render-candidate
