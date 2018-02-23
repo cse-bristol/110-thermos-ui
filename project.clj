@@ -28,6 +28,7 @@
                  [secretary "1.2.3"]
                  [venantius/accountant "0.2.3"
                   :exclusions [org.clojure/tools.reader]]
+                 [cljsjs/react-virtualized "9.11.1-1" :exclusions [cljsjs/react]]
 
                  [org.clojure/java.jdbc "0.7.5"]
                  [org.postgresql/postgresql "9.4.1212.jre7"]
@@ -85,7 +86,7 @@
   ;; Please see:
   ;; https://github.com/bhauman/lein-figwheel/wiki/Using-the-Figwheel-REPL-within-NRepl
   :ring {:handler thermos-ui.handler/app}
-  
+
   ; Allows us to mark tests with int.test meta-data an only run when requested
   :test-selectors {:default (complement :integration)
                    :integration :integration}
