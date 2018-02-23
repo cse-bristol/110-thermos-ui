@@ -5,7 +5,6 @@
             [thermos-ui.specs.view :as view]
             ))
 
-
 (s/def ::selection-method
   #{:replace :union :intersection :difference :xor})
 
@@ -78,9 +77,11 @@
 
     (update doc ::document/candidates
             (fn [candidates]
-              (reduce (fn [candidates id]
-                        (update candidates id update-fn))
-                      candidates (keys candidates))))))
+              (persistent!
+               (reduce (fn [candidates id]
+                         (assoc! candidates id (update-fn (get candidates id))))
+                       (transient candidates)
+                       (keys candidates)))))))
 
 (defn select-all-candidates [doc]
   (select-candidates doc (all-candidates-ids doc) :replace))
@@ -111,15 +112,16 @@
    document
    ::document/candidates
    (fn [current-candidates]
-     (reduce
-      (fn [candidates new-candidate]
-        (let [candidate-id (::candidate/id new-candidate)]
-          (if (get candidates candidate-id) ;; look up new candidate's ID
-                                        ;; in the existing candidates.
-            candidates ;; If it already exists, don't change anything
-            (assoc candidates candidate-id new-candidate))))
-      current-candidates
-      new-candidates
+     (persistent!
+      (reduce
+       (fn [candidates new-candidate]
+         (let [candidate-id (::candidate/id new-candidate)]
+           (if (get candidates candidate-id) ;; look up new candidate's ID
+             ;; in the existing candidates.
+             candidates ;; If it already exists, don't change anything
+             (assoc! candidates candidate-id new-candidate))))
+       (transient current-candidates)
+       new-candidates)
       ))))
 
 (defn deselect-candidates
