@@ -9,10 +9,16 @@
 (defonce state (atom {}))
 
 (defn edit!
+  "Update the document, but please do not change the spatial details this way!"
+  [document f & args]
+  (apply swap! document f args))
+
+(defn edit-geometry!
   "Change the state with f and any arguments.
   Also updates the spatial index data for the state."
   [document f & args]
   (apply swap! document (comp spatial/update-index f) args))
+
 
 (defn- feature->candidate
   "Convert a GEOJSON feature into a candidate map"
@@ -33,7 +39,6 @@
        :supply {} ;; not sure
        ))))
 
-
 (defn load-tile! [document x y z]
   (io/request-geometry
    x y z
@@ -47,7 +52,7 @@
      (let [features (.-features json)
            candidates (into () (.map features feature->candidate))]
        ;; 2: update the document to contain the new candidates
-       (edit! document
+       (edit-geometry! document
               operations/insert-candidates
               candidates)
        ))))
