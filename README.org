@@ -44,7 +44,7 @@
   - [ ] Filter for map
   - [ ] Pan to selection button
   - [ ] Far out zoom speedup
-  - [ ] Look at having an atom for each tile?
+  - [X] Look at having an atom for each tile?
   - [ ] Unloading invisible data
   - [ ] Avoid loading things we already have
 - Inspector page
