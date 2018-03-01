@@ -1,4 +1,10 @@
 #+TITLE: Thermos UI
+* Tooling
+
+This builds using [[https://boot-clj.com][boot]] now. It seemed hard to get leiningen to handle
+live-reloading of server side & frontend & less, etc.
+
+You can start a dev environment using 'boot dev'.
 
 * Work list
 - Devtools
