@@ -23,6 +23,8 @@
    [org.postgresql/postgresql "9.4.1212.jre7"]
    [hiccup                    "1.0.5"]
 
+   [javax.servlet/servlet-api "2.5" :scope "test"]
+   [ring/ring-mock "0.3.0"  :scope "test"]
 
    ;; Build tooling dependencies:
 
@@ -40,6 +42,7 @@
    [powerlaces/boot-cljs-devtools "0.2.0"   :scope "test"]
    [boot-environ                  "1.1.0"   :scope "test"]
    [deraen/boot-less              "0.6.1"   :scope "test"]
+   [adzerk/boot-test "1.2.0" :scope "test"]
    ])
 
 (require '[adzerk.boot-cljs              :refer [cljs]]
@@ -48,8 +51,15 @@
          '[powerlaces.boot-cljs-devtools :refer [dirac cljs-devtools]]
          '[pandeiro.boot-http            :refer [serve]]
          '[environ.boot                  :refer [environ]]
-         '[deraen.boot-less              :refer [less]])
+         '[deraen.boot-less              :refer [less]]
+         '[adzerk.boot-test :refer :all] )
 
+(deftask testing
+  "Profile setup for running tests."
+  []
+  (set-env! :source-paths #(conj % "test")
+            :resource-paths #(conj % "test-resources"))
+  identity)
 
 (deftask dev []
   (comp

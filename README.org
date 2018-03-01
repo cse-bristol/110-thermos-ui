@@ -6,6 +6,8 @@ live-reloading of server side & frontend & less, etc.
 
 You can start a dev environment using 'boot dev'.
 
+You can run tests with 'boot testing run-tests'
+
 * Work list
 - Devtools
   - [X] Add zero cache expiry in dev mode on backend
