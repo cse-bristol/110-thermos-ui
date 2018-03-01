@@ -25,7 +25,7 @@
   call `handler` with what comes back."
   [x y z handler]
 
-  (let [url (str "/map/candidates/" z "/" x "/" y "/")
+  (let [url (str "/api/map/candidates/" z "/" x "/" y "/")
         on-success
         (fn [e]
           (handler (.. e -target getResponseJson)))]

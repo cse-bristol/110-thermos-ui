@@ -1,9 +1,9 @@
-(ns thermos-ui.store-service.routes
+(ns thermos-ui.backend.store-service.routes
   (:require [compojure.core :refer :all]
             [compojure.route :as route]
-            [thermos-ui.store-service.store.problems :as p]
-            [thermos-ui.store-service.geojson-io :refer [geometry>geojson]]
-            [thermos-ui.store-service.store.geometries :as geoms]))
+            [thermos-ui.backend.store-service.problems :as p]
+            [thermos-ui.backend.store-service.geojson-io :refer [geometry>geojson]]
+            [thermos-ui.backend.store-service.geometries :as geoms]))
 
 (defonce json-headers {"Content-Type" "text/html"})
 

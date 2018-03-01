@@ -1,4 +1,4 @@
-(ns thermos-ui.store-service.store.geometries
+(ns thermos-ui.backend.store-service.geometries
   (:require [clojure.java.jdbc :as j]
             [clojure.string :refer [join]]
             [environ.core :refer [env]]))

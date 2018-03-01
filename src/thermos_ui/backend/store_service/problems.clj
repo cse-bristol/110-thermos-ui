@@ -1,4 +1,4 @@
-(ns thermos-ui.store-service.store.problems
+(ns thermos-ui.backend.store-service.problems
    (:require [clojure.java.io :as io]
              [clojure.string :refer [join]]
              [clojure.string :as s]
