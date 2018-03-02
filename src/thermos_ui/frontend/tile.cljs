@@ -52,8 +52,12 @@
   `ctx` is a Canvas graphics context (2D)
   `project` is a function to project from real space into the canvas pixel space"
   [candidate ctx project]
-  ;; TODO set the colouring in for the next things
-  (set! (.. ctx -lineWidth) (if (::candidate/selected candidate) 4 1))
+
+  (set! (.. ctx -lineWidth)
+        (cond
+          (::candidate/selected candidate) 4
+          (not (= (::candidate/inclusion candidate) :forbidden)) 2
+          true 1))
   (set! (.. ctx -strokeStyle) (case (::candidate/inclusion candidate)
                                 :required theme/red
                                 :optional theme/blue
