@@ -63,3 +63,17 @@ This means that anything with type :path has suitable path-start and path-end"
    (redundant-key ::candidate/id)
    is-topologically-valid
    (s/map-of ::candidate/id ::candidate/candidate)))
+
+(defn keep-interesting
+  "Return a version of document in which only the interesting bits are retained"
+  [document]
+  (update-in
+   (select-keys document [::candidates ::technologies ::view/view-state])
+   [::candidates]
+   (fn [candidates]
+     (into {}
+
+           )
+     )
+   )
+  )

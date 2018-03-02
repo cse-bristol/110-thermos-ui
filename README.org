@@ -63,6 +63,8 @@ You can run tests with 'boot testing run-tests'
   - [ ] Other operations
 - URL routing
   - [ ] maybe split project list into being another page (ss rendered, why not?)
+  - [ ] Make a place where all the URLs come from in the code
+    - need URL patterns and URL generators
 - Optimiser interface
   TODO
 - Results viewing

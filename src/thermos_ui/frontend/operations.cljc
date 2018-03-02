@@ -130,3 +130,8 @@
   (map-candidates document
                   #(assoc % ::candidate/selected false)
                   candidate-ids))
+
+(defn load-document
+  "Load a new document, but keep geometry and other state we happen to have from old-document"
+  [old-document new-document]
+  old-document)
