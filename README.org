@@ -52,6 +52,7 @@ You can run tests with 'boot testing run-tests'
   - [ ] Filter for map
   - [ ] Pan to selection button
   - [ ] Far out zoom speedup
+    [[http://locationtech.github.io/jts/javadoc/org/locationtech/jts/simplify/DouglasPeuckerSimplifier.html][What about this]]
   - [X] Look at having an atom for each tile?
   - [ ] Unloading invisible data
   - [ ] Avoid loading things we already have

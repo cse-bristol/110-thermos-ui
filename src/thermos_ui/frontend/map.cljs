@@ -7,6 +7,7 @@
             [thermos-ui.frontend.editor-state :as state]
             [thermos-ui.frontend.tile :as tile]
             [thermos-ui.specs.document :as document]
+            [thermos-ui.specs.view :as view]
             [thermos-ui.specs.candidate :as candidate]
             ))
 
@@ -54,8 +55,10 @@
         candidates-layer (candidates-layer. (clj->js {:tileSize 256}))
 
         layers-control (layers-control
-                        #js {}
-                        #js {"Candidates" candidates-layer})
+                        {"Satellite" esri-sat-imagery
+                         "None" (leaflet/tileLayer "")
+                         }
+                        {"Candidates" candidates-layer})
 
         follow-map!
         #(let [bounds (.getBounds map)]
@@ -64,6 +67,13 @@
                    :south (.getSouth bounds)
                    :west (.getWest bounds)
                    :east (.getEast bounds)}))
+
+        map-bounding-box (reagent/cursor document [::view/view-state ::view/bounding-box])
+
+        show-bounding-box!
+        #(let [{n :north s :south
+                w :west e :east} @map-bounding-box]
+           (.fitBounds map (leaflet/latLngBounds (clj->js [ [s w] [n e] ]))))
 
         repaint! #(.repaintInPlace candidates-layer)
 
@@ -90,10 +100,10 @@
                                    f (jsts/geom.GeometryFactory.)
                                    p (.createPoint f c)
                                    shape (.buffer p (* 3 (pixel-size)))]
+                               (js/console.log "Click at" ll)
                                (state/edit! document spatial/select-intersecting-candidates shape :replace))))
 
-    ;; (track! repaint!) ;; repaint when the candidate dataset changes
-    ;; TODO we need the inverse of follow-map! here
+    (track! show-bounding-box!)
     ))
 
 
@@ -177,11 +187,13 @@
                                  (println "Tile" tile-id "not destroyed properly"))
 
                                (tile/render-tile @tile-contents canvas this)
-                               (let [ctx (.getContext canvas "2d")]
-                                 (set! (.. ctx -font) "40px Sans")
-                                 (set! (.. ctx -fillStyle) "#ff0000")
-                                 (.fillText ctx (str tile-id) 0 40)
-                                 )
+                               ;; identify tiles with big red text
+                               ;; (let [ctx (.getContext canvas "2d")]
+                               ;;   (set! (.. ctx -font) "40px Sans")
+                               ;;   (set! (.. ctx -fillStyle) "#ff0000")
+                               ;;   (.fillText ctx (str tile-id) 0 40)
+                               ;;   )
+
                                ))))
                 ))
             ;; also request load of the tile into the document
@@ -215,6 +227,6 @@
   `choices` is a list of layers of which only one may be selected (radios).
   `extras` is a list of layers of which any number may be selected (checkboxes)."
   ((.. leaflet -control -layers)
-   choices
-   extras
+   (clj->js choices)
+   (clj->js extras)
    #js{:collapsed false}))
