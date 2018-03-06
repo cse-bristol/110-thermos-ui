@@ -48,6 +48,7 @@
      (edit-geometry! operations/load-document result))))
 
 (defn save-document! [org-name proj-name]
+  (println "Saving...")
   (let [state @state]
     (io/save-document
      org-name proj-name
