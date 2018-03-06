@@ -22,6 +22,7 @@
    [org.clojure/java.jdbc     "0.7.5"]
    [org.postgresql/postgresql "9.4.1212.jre7"]
    [hiccup                    "1.0.5"]
+   [digest "1.4.6"]
 
    [javax.servlet/servlet-api "2.5" :scope "test"]
    [ring/ring-mock "0.3.0"  :scope "test"]

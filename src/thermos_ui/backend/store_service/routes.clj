@@ -40,30 +40,21 @@
           name :name
           problem :file} :params :as params}
         (let [problem-file (problem :tempfile)
-              stored (p/store org name problem-file)]
-          (if (nil? (:location stored))
-            {:status 500}
+              stored (p/insert org name problem-file)]
+          (if (:file stored)
+
             {:status 201
              :headers (assoc json-headers
-                             "Location:" (str "http://localhost:3449/" (:location stored)))})))
-     
-  (GET "/problem/:org/"
-       {{org :org}
-        :params :as params}
-       (json-list-response (p/gather org)))
-
-  (GET "/problem/:org/:name/"
-       {{org :org
-         name :name}
-        :params :as params}
-       (json-list-response (p/gather org name)))
+                             "Location"
+                             (:id stored)
+                             "X-Problem-ID"
+                             (:id stored)
+                             )}
+            {:status 500})))
 
   (GET "/problem/:org/:name/:id"
-       {{org :org
-         name :name
-         id :id}
-        :params :as params}
-       (if-let [problem (p/getone org name id)]
+       [org name id]
+       (if-let [problem (p/get-file org name id)]
          {:status 200
           :headers json-headers
           :body problem}

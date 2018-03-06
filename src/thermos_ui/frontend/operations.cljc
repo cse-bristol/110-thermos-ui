@@ -132,6 +132,7 @@
                   candidate-ids))
 
 (defn load-document
-  "Load a new document, but keep geometry and other state we happen to have from old-document"
+  "Load a new document, but keep useful stuff from old-document"
   [old-document new-document]
-  old-document)
+  ;; TODO keep useful stuff!
+  new-document)

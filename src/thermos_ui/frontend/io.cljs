@@ -19,10 +19,12 @@
 
 (defn save-document
   "Save a `document` to the given `url`"
-  [org proj document]
+  [org proj document cb]
   (xhr/send
    (urls/document org proj)
-   (fn [e] (js/console.log e))
+   (fn [e]
+     (cb (.getResponseHeader (.. e -target) "X-Problem-ID")))
+
    "POST"
    (let [data (js/FormData.)
          doc (pr-str document)
@@ -40,7 +42,5 @@
            (str x y z)
            (urls/tile x y z)
            nil nil nil nil
-           (fn [e]
-             (println "Got tile" x y z)
-             (handler (.. e -target getResponseJson))))
+           #(handler (.. % -target getResponseJson)))
     ))

@@ -44,15 +44,15 @@
 (defn load-document! [org-name proj-name doc-version]
   (io/load-document
    org-name proj-name doc-version
-   (fn [result]
-     (edit-geometry! operations/load-document result))))
+   #(edit-geometry! state operations/load-document %)))
 
-(defn save-document! [org-name proj-name]
-  (println "Saving...")
+(defn save-document! [org-name proj-name cb]
   (let [state @state]
     (io/save-document
      org-name proj-name
-     (document/keep-interesting state))))
+     (document/keep-interesting state)
+     cb
+     )))
 
 (defn load-tile! [document x y z]
   (io/request-geometry
