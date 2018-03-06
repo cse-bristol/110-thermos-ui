@@ -56,6 +56,7 @@
   (set! (.. ctx -lineWidth)
         (cond
           (::candidate/selected candidate) 4
+          (= :path (::candidate/type candidate)) 1
           (not (= (::candidate/inclusion candidate) :forbidden)) 2
           true 1))
   (set! (.. ctx -strokeStyle) (case (::candidate/inclusion candidate)

@@ -56,14 +56,19 @@ You can run tests with 'boot testing run-tests'
   - [X] Look at having an atom for each tile?
   - [ ] Unloading invisible data
   - [ ] Avoid loading things we already have
+  - [ ] Don't break document on load
+    - [ ] Where should the save / load handlers live
+      I put one in specs/document and one in operations, I'm lost and confused.
 - Inspector page
   - [ ] Single element
   - [ ] Multiple elements
   - [ ] Selection manipulation features
   - [ ] Other operations
 - URL routing
-  - [ ] maybe split project list into being another page (ss rendered, why not?)
+  - [X] maybe split project list into being another page (ss rendered, why not?)
   - [ ] Make a place where all the URLs come from in the code
+    Started this, but not finished it. Not sure if we can put the patterns into
+    compojure routes as functoins, since the routes are macros
     - need URL patterns and URL generators
 - Optimiser interface
   TODO
