@@ -60,10 +60,11 @@
           :body problem}
          {:status 404}))
 
-  (DELETE "/problem/:org/:name/:id"
-          {{org :org
-            name :name
-            id :id} :params :as params}
-          (if (p/delete org name id)
-            {:status 204}
-            {:status 404})))
+  ;; (DELETE "/problem/:org/:name/:id"
+  ;;         {{org :org
+  ;;           name :name
+  ;;           id :id} :params :as params}
+  ;;         (if (p/delete org name id)
+  ;;           {:status 204}
+  ;;           {:status 404}))
+  )
