@@ -152,5 +152,6 @@
 (defn load-document
   "Load a new document, but keep useful stuff from old-document"
   [old-document new-document]
-  ;; TODO keep useful stuff!
-  new-document)
+  (update new-document
+          ::document/candidates
+          #(merge (::document/candidates old-document) %)))

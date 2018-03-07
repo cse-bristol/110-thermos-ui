@@ -65,10 +65,7 @@
 
 (deftask dev []
   (comp
-   (serve :handler 'thermos-ui.backend.handler/app
-          :port 8080
-          :reload true
-          :httpkit true)
+
    (environ :env {:problem-store "test-resources/data/problems"
                   :disable-cache "1"
                   :pg-host "172.21.0.3"
@@ -93,5 +90,9 @@
 
          )
    (less :source-map true)
+   (serve :handler 'thermos-ui.backend.handler/app
+          :port 8080
+          :reload true
+          :httpkit true)
    (target)
    ))
