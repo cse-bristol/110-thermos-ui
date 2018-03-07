@@ -9,7 +9,7 @@
 (declare component row-types on-close-tag-function spoof-type spoof-constraint spoof-postcode spoof-length spoof-heat-demand)
 
 (defn component
-  "DOCSTRING"
+  "The panel in the bottom right which displays some information about the currently selected candidates."
   [document]
   (let [selected-candidates (operations/selected-candidates @document)]
    [:div

@@ -20,7 +20,7 @@
        (set)))
 
 (defn selected-candidates
-  "Get a set containing the candidate IDs of all the selected candidates in the doc"
+  "Get a set containing all the selected candidates in the doc"
   [doc]
   (->> doc
        (::document/candidates)
