@@ -44,7 +44,7 @@
 
         map (leaflet/map map-node (clj->js {:preferCanvas true :fadeAnimation true
                                             :zoom 13
-                                            :center [51.454514 -2.587910]
+                                            :center [51.553356 -0.109271]
                                             }))
         candidates-layer (candidates-layer document)
 
