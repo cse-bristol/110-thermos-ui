@@ -34,6 +34,24 @@
        (vals)
        (map ::candidate/id)))
 
+(defn constrained-candidates-ids
+  "Get a set containing the candidate IDS of all the candidates that have a constraint."
+  [doc]
+  (->> doc
+       (::document/candidates)
+       (vals)
+       (filter ::candidate/inclusion)
+       (map ::candidate/id)
+       (set)))
+
+(defn constrained-candidates
+  "Get a collection containing all the candidates that have a constraint."
+  [doc]
+  (->> doc
+       (::document/candidates)
+       (vals)
+       (filter ::candidate/inclusion)))
+
 (defn map-candidates
   "Go through a document and apply f to all the indicated candidates."
   [doc f & [ids]]
