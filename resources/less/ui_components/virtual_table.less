@@ -1,0 +1,59 @@
+.virtual-table {
+	// The equivalent of <tbody>
+	.ReactVirtualized__Table__Grid {
+	  // Fancy scrollbar
+	  &::-webkit-scrollbar
+	  {
+	  	width: 8px;
+	  	// background-color: rgba(0,0,0, 0.1);
+	  }
+	  &::-webkit-scrollbar-thumb
+	  {
+	  	border-radius: 10px;
+	  	background-color: #999;
+	  }
+
+		// Get rid of the focus style, which seems unnecessary
+		&:focus {
+			outline: none;
+		}
+	}
+
+	// Equivalent of <thead>
+	.ReactVirtualized__Table__headerRow {
+		text-transform: none;
+		font-weight: 600;
+	}
+
+	// Add some little arrows to indicate you can sort by this column
+	.ReactVirtualized__Table__sortableHeaderColumn {
+		position: relative;
+		&::after {
+			content: "";
+			width: 0;
+			height: 0;
+			border-left: 4px solid transparent;
+			border-right: 4px solid transparent;
+			border-top: 4px solid #999;
+			position: absolute;
+			right: 3px;
+			top: calc(~"50%");
+		}
+		&::before {
+			content: "";
+			width: 0;
+			height: 0;
+			border-left: 4px solid transparent;
+			border-right: 4px solid transparent;
+			border-bottom: 4px solid #999;
+			position: absolute;
+			right: 3px;
+			top: calc(~"50% - 7px");
+		}
+	}
+
+	// Equivalent of <tr>
+	.ReactVirtualized__Table__row {
+		border-bottom: 1px solid #ccc;
+	}
+}
