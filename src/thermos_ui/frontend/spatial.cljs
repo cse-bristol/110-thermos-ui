@@ -33,7 +33,7 @@
 
 (defn index-atom [document-atom]
   (reagent/track
-   #(select-keys @document-atom [::spatial-index])))
+   #(select-keys @document-atom [::spatial-index ::update-counter])))
 
 (defn update-index
   "To perform spatial queries, we need to store some more stuff
@@ -76,6 +76,8 @@
 
      ;; we have updated all our spatial book-keeping, tell the world.
      (assoc document
+            ::update-counter (+ (::update-counter document)
+                                (if (and (empty? added) (empty? removed)) 0 1))
             ::spatial-index spatial-index
             ::indexed-candidates indexed-candidates)))
 

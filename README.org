@@ -54,6 +54,8 @@ You can run tests with 'boot testing run-tests'
   - [ ] Far out zoom speedup
     [[http://locationtech.github.io/jts/javadoc/org/locationtech/jts/simplify/DouglasPeuckerSimplifier.html][What about this]]
   - [X] Look at having an atom for each tile?
+    - [X] Not sure this is working right, sometimes we don't draw on
+      load. Maybe my reagent cursor is too lazy?
   - [ ] Unloading invisible data
   - [ ] Avoid loading things we already have
   - [ ] Don't break document on load
