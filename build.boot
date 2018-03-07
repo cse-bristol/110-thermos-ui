@@ -11,6 +11,8 @@
    [cljsjs/jsts  "1.6.0-0"]
    [cljsjs/rbush "2.0.1-0"]
    [cljsjs/react-virtualized "9.11.1-1" :exclusions [cljsjs/react cljsjs/react-dom]]
+   [cljsjs/leaflet-draw "0.4.12-0"]
+
    [reagent      "0.7.0"]
    [secretary    "1.2.3"]
    [venantius/accountant "0.2.3" :exclusions [org.clojure/tools.reader]]
@@ -65,17 +67,20 @@
 
 (deftask dev []
   (comp
-
+   (serve :handler 'thermos-ui.backend.handler/app
+          :port 8080
+          :reload true
+          :httpkit true)
+   (watch)
    (environ :env {:problem-store "test-resources/data/problems"
                   :disable-cache "1"
                   :pg-host "172.21.0.3"
                   :pg-user "postgres"
                   :pg-password "therm0s"
                   :pg-db-geometries "thermos_geometries"})
-   (watch)
+   (less :source-map true)
    (cljs-devtools)
    (reload)
-   (dirac)
    (cljs :source-map true
          :optimizations :none
          :compiler-options
@@ -85,14 +90,4 @@
           {:devtools/config {:features-to-install [:formatters :hints :async]
                              :fn-symbol "λ"
                              :print-config-overrides true}}
-          }
-
-
-         )
-   (less :source-map true)
-   (serve :handler 'thermos-ui.backend.handler/app
-          :port 8080
-          :reload true
-          :httpkit true)
-   (target)
-   ))
+          })))

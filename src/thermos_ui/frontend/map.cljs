@@ -1,6 +1,7 @@
 (ns thermos-ui.frontend.map
   (:require [reagent.core :as reagent]
             [leaflet :as leaflet]
+            [cljsjs.leaflet-draw] ;; this modifies leaflet/Control in-place
             [cljsjs.jsts :as jsts]
             [thermos-ui.frontend.operations :as operations]
             [thermos-ui.frontend.spatial :as spatial]
@@ -13,7 +14,15 @@
 
 ;; the map component
 
-(declare mount unmount candidates-layer layers-control render-tile)
+(declare mount
+         unmount
+         candidates-layer
+         layers-control
+         render-tile
+         draw-control
+         layer->jsts-shape
+         latlng->jsts-shape)
+
 
 (defn component
   "Draw a cartographic map for the given `document`, which should be a reagent atom
@@ -42,7 +51,8 @@
         edit!  (fn [f & a] (apply state/edit! document f a))
         track! (fn [f & a] (swap! watches conj (apply reagent/track! f a)))
 
-        map (leaflet/map map-node (clj->js {:preferCanvas true :fadeAnimation true
+        map (leaflet/map map-node (clj->js {:preferCanvas true
+                                            :fadeAnimation true
                                             :zoom 13
                                             :center [51.454514 -2.587910]
                                             }))
@@ -53,6 +63,14 @@
         ;; the meaning of the zoom, or equivalently the x and y changes too.
         ;; Halve this => increase zoom by 1 in queries below.
         candidates-layer (candidates-layer. (clj->js {:tileSize 256}))
+
+        draw-control (draw-control {:position :topleft
+                                    :draw {:polyline false
+                                           :polygon false
+                                           :marker false
+                                           :circlemarker false
+                                           :circle false
+                                           }})
 
         layers-control (layers-control
                         {"Satellite" esri-sat-imagery
@@ -92,21 +110,41 @@
     (.addLayer map esri-sat-imagery)
     (.addLayer map candidates-layer)
     (.addControl map layers-control)
+    (.addControl map draw-control)
 
     (.on map "moveend" follow-map!)
     (.on map "zoomend" follow-map!)
 
-    (.on map "click"
-         (fn [e] (let [ll (.-latlng e)
-                       c (jsts/geom.Coordinate. (.-lng ll) (.-lat ll))
-                       f (jsts/geom.GeometryFactory.)
-                       p (.createPoint f c)
-                       shape (.buffer p (* 3 (pixel-size)))]
-                   (state/edit! document spatial/select-intersecting-candidates shape :replace))))
+    (let [shape (atom nil)]
+      (.on map (.. leaflet/Draw -Event -CREATED)
+           (fn [e]
+             (let [s (layer->jsts-shape (.. e -layer))
+                   type (.. e -layerType)]
+               (reset! shape
+                       (if (= "circle" type)
+                         ;; radius needs projecting, which is morally wrong.
+                         (.buffer s (.. e -layer getRadius))
+                         s))))
 
-    (track! show-bounding-box!)
-    ))
+           #(reset! shape (layer->jsts-shape
+                           (.. % -layer))))
 
+
+      (.on map "click"
+           (fn [e]
+             (state/edit! document
+                          spatial/select-intersecting-candidates
+
+                          (or @shape
+                              (latlng->jsts-shape
+                               (.-latlng e)
+                               (* 3 (pixel-size))))
+
+                          :replace)
+
+             (reset! shape nil))))
+
+    (track! show-bounding-box!)))
 
 (defn unmount
   "Destroy a leaflet when its react component is going away"
@@ -221,7 +259,7 @@
      (clj->js)
      (.extend leaflet/GridLayer))))
 
-(defn layers-control [choices extras]
+(defn- layers-control [choices extras]
   "Create a leaflet control to choose which layers are displayed on the map.
   `choices` is a list of layers of which only one may be selected (radios).
   `extras` is a list of layers of which any number may be selected (checkboxes)."
@@ -229,3 +267,17 @@
    (clj->js choices)
    (clj->js extras)
    #js{:collapsed false}))
+
+(defn- draw-control [args]
+  (leaflet/Control.Draw. (clj->js args)))
+
+(let [geometry-factory (jsts/geom.GeometryFactory.)
+      jsts-reader (jsts/io.GeoJSONReader. geometry-factory)
+      ]
+  (defn latlng->jsts-shape [ll rad]
+    (let [c (jsts/geom.Coordinate. (.-lng ll) (.-lat ll))
+          p (.createPoint geometry-factory c)]
+      (.buffer p (* 3 rad))))
+
+  (defn layer->jsts-shape [layer]
+    (.-geometry (.read jsts-reader (.toGeoJSON layer) ))))
