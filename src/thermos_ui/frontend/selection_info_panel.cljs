@@ -6,7 +6,7 @@
             [thermos-ui.frontend.inclusion-selector :as inclusion-selector]
             [thermos-ui.frontend.tag :as tag]))
 
-(declare component row-types on-close-tag-function spoof-type spoof-constraint spoof-postcode spoof-length spoof-heat-demand)
+(declare component row-types on-close-tag-function)
 
 (defn component
   "The panel in the bottom right which displays some information about the currently selected candidates."
@@ -44,7 +44,7 @@
     :get-row-content (fn [candidates]
                        (let [by-type (group-by ::candidate/type candidates)]
                          (for [[type candidates] by-type]
-                           (let [type (or type (spoof-type))]
+                           (let [type (or type "Unknown")]
                              [tag/component {:key type
                                              :count (count candidates)
                                              :body (str type)
@@ -54,7 +54,7 @@
     :get-row-content (fn [candidates]
                        (let [by-constraint (group-by ::candidate/inclusion candidates)]
                          (for [[constraint candidates] by-constraint]
-                           (let [constraint (or constraint (spoof-constraint))]
+                           (let [constraint (or constraint "- None -")]
                              [tag/component {:key constraint
                                              :count (count candidates)
                                              :body (name constraint)
@@ -64,7 +64,7 @@
     :get-row-content (fn [candidates]
                        (let [by-postcode (group-by ::candidate/postcode candidates)]
                          (for [[postcode candidates] by-postcode]
-                           (let [postcode (or postcode (spoof-postcode))]
+                           (let [postcode (or postcode "Unknown")]
                              [tag/component {:key postcode
                                              :count (count candidates)
                                              :body (str postcode)
@@ -72,10 +72,10 @@
                                              :on-close (on-close-tag-function document ::candidate/postcode)}]))))}
    {:row-name "Length"
     :get-row-content (fn [candidates]
-                       (str (spoof-length) "km"))}
+                       "X km")}
    {:row-name "Heat demand"
     :get-row-content (fn [candidates]
-                       (str (spoof-heat-demand) "MWh"))}
+                       "X MWh")}
    ]
   )
 
@@ -89,19 +89,3 @@
       (state/edit! document
                    operations/deselect-candidates
                    (map ::candidate/id  candidates-to-remove)))))
-
-;; A bunch of functions to return some spoof data while the candidates don't have any real data.
-(defn spoof-type []
-  (rand-nth ["supply" "demand" "path"]))
-
-(defn spoof-constraint []
-  (rand-nth ["required" "optional" "forbidden"]))
-
-(defn spoof-postcode []
-  (rand-nth ["N1 123" "N1 234" "N1 345" "N1 456" "N1 567"]))
-
-(defn spoof-length []
-  (rand-int 20))
-
-(defn spoof-heat-demand []
-  (rand-int 10))
