@@ -57,7 +57,7 @@
         (cond
           (::candidate/selected candidate) 4
           (= :path (::candidate/type candidate)) 1
-          (not (= (::candidate/inclusion candidate) :forbidden)) 2
+          (not (= (::candidate/inclusion candidate) :forbidden)) 1.5
           true 1))
   (set! (.. ctx -strokeStyle) (case (::candidate/inclusion candidate)
                                 :required theme/red
