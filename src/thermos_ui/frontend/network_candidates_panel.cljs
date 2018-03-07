@@ -9,8 +9,7 @@
 (defn component
   "DOCSTRING"
   [document]
-  (let [items @(reagent/track (fn [] (operations/selected-candidates @document)))]
-    [:div {:style {:height "100%"}}
+  [:div {:style {:height "100%"}}
 
      ;; Attempt at virtual-table component
      [virtual-table/component
@@ -20,7 +19,9 @@
                  {:key ::candidate/postcode
                   :label "Postcode"
                   :sortable true}]
-       :items items
+       ;; TODO this needs speeding up a little, perhaps
+       :items (operations/selected-candidates @document)
        :props {}}]
 
-     ]))
+     ]
+  )
