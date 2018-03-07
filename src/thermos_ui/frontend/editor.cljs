@@ -1,67 +1,61 @@
 (ns thermos-ui.frontend.editor
   (:require [reagent.core :as r :refer [atom]]
-            [secretary.core :as secretary :include-macros true]
-            [accountant.core :as accountant]
             [thermos-ui.frontend.map :as map]
+            [thermos-ui.urls :as urls]
             [thermos-ui.frontend.editor-state :as state]
             [thermos-ui.frontend.operations :as operations]
             [thermos-ui.frontend.main-nav :as main-nav]
             [thermos-ui.frontend.network-candidates-panel :as network-candidates-panel]
             [thermos-ui.frontend.selection-info-panel :as selection-info-panel]
             [clojure.pprint :refer [pprint]]
+            [clojure.string :as s]
             ))
 
 (enable-console-print!)
 
-(defn home-page []
-  [:div.container-fluid
-   [:h1 "Welcome to the the Thermos prototype"]
-   [:a {:href "/org/map/"} "View Map"]
-    [:form
-     [:div.row
-      [:div.form-group
-       [:input#orgName {:placeholder "Organisation Name"
-                        :type "text"
-                        :name "orgName"}]]]]])
+(defn- url-decode [str]
+  (js/decodeURIComponent (s/replace str "+" "%20")))
 
-(defn map-page []
-  [:div
-   [main-nav/component state/state]
-   [:div.layout__container
-    [:div.layout__panel.layout__panel--left
-     [map/component state/state]]
-    [:div.layout__panel.layout__panel--right
-     [:div.layout__panel.layout__panel--top
-      [network-candidates-panel/component state/state]]
-     [:div.layout__panel.layout__panel--bottom
-      [selection-info-panel/component state/state]]]]])
+(let [[org-name proj-name version]
+      (->>
+       (-> js/window.location
+           (.-pathname)
+           (s/split "/"))
+       (remove empty?))
 
-(defonce page (atom #'home-page))
+      proj-name (url-decode proj-name)
+      ]
 
-(defn current-page []
-   [:div [@page]])
+  (defn do-save [name]
+    (state/save-document!
+     org-name name
+     (fn [new-id]
+       (js/window.history.pushState
+        nil
+        name
+        (urls/editor org-name name new-id)))))
 
-(secretary/defroute "/" []
-  (reset! page #'home-page))
+  (defn map-page []
+    [:div
+     [main-nav/component
+      {:on-save do-save
+       :name proj-name}]
 
+     [:div.layout__container
+      [:div.layout__panel.layout__panel--left
+       [map/component state/state]]
+      [:div.layout__panel.layout__panel--right
+       [:div.layout__panel.layout__panel--top
+        [network-candidates-panel/component state/state]]
+       [:div.layout__panel.layout__panel--bottom
+        [selection-info-panel/component state/state]]]]])
 
-(secretary/defroute "/:org/map/" []
-  (reset! page #'map-page))
+  (defn on-js-reload [])
 
-(defn on-js-reload [])
+  (defn mount-root []
+    (r/render [map-page] (.getElementById js/document "app")))
 
-(defn mount-root []
-    (r/render [current-page] (.getElementById js/document "app")))
+  (mount-root)
 
-(defn init! []
-  (accountant/configure-navigation!
-    {:nav-handler
-     (fn [path]
-       (secretary/dispatch! path))
-     :path-exists?
-     (fn [path]
-       (secretary/locate-route path))})
-  (accountant/dispatch-current!)
-  (mount-root))
-
-(init!)
+  (when version
+    (state/load-document! org-name proj-name version)))

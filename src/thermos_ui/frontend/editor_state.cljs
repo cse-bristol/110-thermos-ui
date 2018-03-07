@@ -2,6 +2,7 @@
   (:require [thermos-ui.frontend.spatial :as spatial]
             [thermos-ui.frontend.io :as io]
             [thermos-ui.specs.candidate :as candidate]
+            [thermos-ui.specs.document :as document]
             [thermos-ui.frontend.operations :as operations]
             [reagent.core :as reagent :refer [atom]]))
 
@@ -18,7 +19,6 @@
   Also updates the spatial index data for the state."
   [document f & args]
   (apply swap! document (comp spatial/update-index f) args))
-
 
 (defn- feature->candidate
   "Convert a GEOJSON feature into a candidate map"
@@ -38,6 +38,21 @@
        :demand {::candidate/demand (:demand properties)}
        :supply {} ;; not sure
        ))))
+
+;; TODO make URLs shared somehow
+
+(defn load-document! [org-name proj-name doc-version]
+  (io/load-document
+   org-name proj-name doc-version
+   #(edit-geometry! state operations/load-document %)))
+
+(defn save-document! [org-name proj-name cb]
+  (let [state @state]
+    (io/save-document
+     org-name proj-name
+     (document/keep-interesting state)
+     cb
+     )))
 
 (defn load-tile! [document x y z]
   (io/request-geometry

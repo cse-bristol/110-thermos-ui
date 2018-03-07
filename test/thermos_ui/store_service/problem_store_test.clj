@@ -2,8 +2,8 @@
   (:require [clojure.test :refer :all]
             [clojure.java.io :as io]
             [ring.mock.request :as mock]
-            [thermos-ui.handler :refer :all]
-            [thermos-ui.store-service.store.problems :as problem]
+            [thermos-ui.backend.handler :refer :all]
+            [thermos-ui.backend.store-service.problems :as problem]
             [environ.core :refer [env]]))
 
 (defonce store-location (env :problem-store))
@@ -21,7 +21,7 @@
 (deftest getting-location-of-problem
   (testing "Can create a new problem"
     (let [response (app
-                    (-> (mock/request :post "/problem/temp/name/")
+                    (-> (mock/request :post "/api/problem/temp/name/")
                         (assoc :params {:file {:filename "test-problem.edn"
                                                :tempfile problem-file
                                                :content-type nil
@@ -63,37 +63,37 @@
 
 (deftest listing-problems-from-handler
   (testing "Can list all problems for org"
-    (let [response (app (mock/request :get "/problem/213123213/"))]
+    (let [response (app (mock/request :get "/api/problem/213123213/"))]
       (is (= (:status response) 200))
       ;;TODO Test contents of response
       ))
 
   (testing "Can list problems for org and name"
-    (let [response (app (mock/request :get "/problem/213123213/name/"))]
+    (let [response (app (mock/request :get "/api/problem/213123213/name/"))]
       (is (= (:status response) 200))
       (is (not (nil? (:body response))))))
 
   (testing "Test response if no problems found"
-    (let [response (app (mock/request :get "/problem/unknown/"))]
+    (let [response (app (mock/request :get "/api/problem/unknown/"))]
       (is (= (:status response) 404)))))
 
 (deftest can-delete-a-problem-version
   (let [stored-problem (problem/store "delete" "me" problem-file)]
     (testing "Can delete a problem version"
       (let [response (app (mock/request
-                           :delete (str "/problem/delete/me/" (:id stored-problem))))]
+                           :delete (str "/api/problem/delete/me/" (:id stored-problem))))]
         (is (not (nil? response)))
         (is (= (:status response) 204))))
 
     (testing "Get a 404 if file  not found"
       (let [response (app (mock/request
-                           :delete (str "/problem/blah/blah/blah")))]
+                           :delete (str "/api/problem/blah/blah/blah")))]
         (is (= (:status response) 404))))
   (delete-org-store "delete")))
 
 (deftest can-get-problem-from-handler
   (testing "Correct response when problem exists"
-    (let [response (app (mock/request :get "/problem/213123213/name/123123132"))]
+    (let [response (app (mock/request :get "/api/problem/213123213/name/123123132"))]
       (is (= (:status response) 200)))))
     
 

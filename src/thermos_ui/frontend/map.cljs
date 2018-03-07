@@ -73,7 +73,8 @@
         show-bounding-box!
         #(let [{n :north s :south
                 w :west e :east} @map-bounding-box]
-           (.fitBounds map (leaflet/latLngBounds (clj->js [ [s w] [n e] ]))))
+           (when (and n s w e)
+             (.fitBounds map (leaflet/latLngBounds (clj->js [ [s w] [n e] ])))))
 
         repaint! #(.repaintInPlace candidates-layer)
 
@@ -95,13 +96,13 @@
     (.on map "moveend" follow-map!)
     (.on map "zoomend" follow-map!)
 
-    (.on map "click" (fn [e] (let [ll (.-latlng e)
-                                   c (jsts/geom.Coordinate. (.-lng ll) (.-lat ll))
-                                   f (jsts/geom.GeometryFactory.)
-                                   p (.createPoint f c)
-                                   shape (.buffer p (* 3 (pixel-size)))]
-                               (js/console.log "Click at" ll)
-                               (state/edit! document spatial/select-intersecting-candidates shape :replace))))
+    (.on map "click"
+         (fn [e] (let [ll (.-latlng e)
+                       c (jsts/geom.Coordinate. (.-lng ll) (.-lat ll))
+                       f (jsts/geom.GeometryFactory.)
+                       p (.createPoint f c)
+                       shape (.buffer p (* 3 (pixel-size)))]
+                   (state/edit! document spatial/select-intersecting-candidates shape :replace))))
 
     (track! show-bounding-box!)
     ))
@@ -182,7 +183,6 @@
                 (set! (.. canvas -tracks)
                       (list (reagent/track!
                              (fn []
-                               (println "Painting tile" tile-id)
                                (when (.. canvas -destroyed)
                                  (println "Tile" tile-id "not destroyed properly"))
 
@@ -202,7 +202,6 @@
 
         destroy-tile
         (fn [e]
-          (println "Destroying tile" (.. e -tile -tile-id))
           (set! (.. e -tile -destroyed) true)
           (swap! tiles disj (.. e -tile))
           (doseq [t (.. e -tile -tracks)]

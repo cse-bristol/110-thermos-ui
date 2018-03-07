@@ -1,4 +1,4 @@
-(ns thermos-ui.store-service.geojson-io)
+(ns thermos-ui.backend.store-service.geojson-io)
   
 (defn geometry>geojson
   "Takes a map that includes a geometry geonjson stored as a string under the key :geomety and returns a geojson map."

@@ -3,6 +3,8 @@
             [thermos-ui.specs.technology :as technology]
             [thermos-ui.specs.candidate :as candidate]
             [thermos-ui.specs.view :as view]
+            [clojure.string :as str]
+            [clojure.walk :refer [prewalk]]
             ))
 
 ;; this is the spec for what you can see on the screen in the UI
@@ -63,3 +65,34 @@ This means that anything with type :path has suitable path-start and path-end"
    (redundant-key ::candidate/id)
    is-topologically-valid
    (s/map-of ::candidate/id ::candidate/candidate)))
+
+(defn keep-interesting
+  "Return a version of document in which only the interesting bits are retained.
+  This strips off anything which is not part of one of the specs."
+
+  [document]
+
+  (let [filter-forbidden
+        (fn [candidates]
+          (into {}
+                (filter (fn [[_ cand]]
+                          (#{:optional :required} (::candidate/inclusion cand)))
+                        candidates)))
+
+        document
+        (update-in document [::candidates] filter-forbidden)
+
+        spec-key?
+        (fn [x]
+          (or (not (keyword? x))
+              (not (namespace x))
+              (str/starts-with? (namespace x) "thermos-ui.specs")))
+
+        remove-nonspec-keys
+        (fn [x]
+          (if (map? x)
+            (select-keys x (filter spec-key? (keys x)))
+            x))
+        ]
+
+    (prewalk remove-nonspec-keys document)))

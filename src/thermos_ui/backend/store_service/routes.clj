@@ -1,9 +1,9 @@
-(ns thermos-ui.store-service.routes
+(ns thermos-ui.backend.store-service.routes
   (:require [compojure.core :refer :all]
             [compojure.route :as route]
-            [thermos-ui.store-service.store.problems :as p]
-            [thermos-ui.store-service.geojson-io :refer [geometry>geojson]]
-            [thermos-ui.store-service.store.geometries :as geoms]))
+            [thermos-ui.backend.store-service.problems :as p]
+            [thermos-ui.backend.store-service.geojson-io :refer [geometry>geojson]]
+            [thermos-ui.backend.store-service.geometries :as geoms]))
 
 (defonce json-headers {"Content-Type" "text/html"})
 
@@ -40,39 +40,31 @@
           name :name
           problem :file} :params :as params}
         (let [problem-file (problem :tempfile)
-              stored (p/store org name problem-file)]
-          (if (nil? (:location stored))
-            {:status 500}
+              stored (p/insert org name problem-file)]
+          (if (:file stored)
+
             {:status 201
              :headers (assoc json-headers
-                             "Location:" (str "http://localhost:3449/" (:location stored)))})))
-     
-  (GET "/problem/:org/"
-       {{org :org}
-        :params :as params}
-       (json-list-response (p/gather org)))
-
-  (GET "/problem/:org/:name/"
-       {{org :org
-         name :name}
-        :params :as params}
-       (json-list-response (p/gather org name)))
+                             "Location"
+                             (:id stored)
+                             "X-Problem-ID"
+                             (:id stored)
+                             )}
+            {:status 500})))
 
   (GET "/problem/:org/:name/:id"
-       {{org :org
-         name :name
-         id :id}
-        :params :as params}
-       (if-let [problem (p/getone org name id)]
+       [org name id]
+       (if-let [problem (p/get-file org name id)]
          {:status 200
           :headers json-headers
           :body problem}
          {:status 404}))
 
-  (DELETE "/problem/:org/:name/:id"
-          {{org :org
-            name :name
-            id :id} :params :as params}
-          (if (p/delete org name id)
-            {:status 204}
-            {:status 404})))
+  ;; (DELETE "/problem/:org/:name/:id"
+  ;;         {{org :org
+  ;;           name :name
+  ;;           id :id} :params :as params}
+  ;;         (if (p/delete org name id)
+  ;;           {:status 204}
+  ;;           {:status 404}))
+  )
