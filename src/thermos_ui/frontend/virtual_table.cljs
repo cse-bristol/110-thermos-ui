@@ -1,5 +1,7 @@
 (ns thermos-ui.frontend.virtual-table
   (:require [reagent.core :as reagent]
+            [cljsjs.react]
+
             [cljsjs.react-virtualized]))
 
 (declare component table generate-column)
@@ -65,7 +67,7 @@
                                     (println arg)
                                     (reset! sorted-items (sort-by (fn [item] (aget item sortBy)) sort-fn @sorted-items))
                                     (println (map (fn [x] (x "postcode")) (js->clj @sorted-items)))
-                                    (forceUpdateGrid this)
+                                    (.forceUpdateGrid this)
                                     ; (swap! sort assoc :sortDirection (if (= sortDirection "ASC") "DESC" "ASC"))
                                     )) ;; @TODO 1. Figure out why it only allows ASC
                                        ;; 2. Figure out why it only re-renders when you scroll

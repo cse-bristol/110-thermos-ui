@@ -10,7 +10,7 @@
    [cljsjs/leaflet "1.2.0-0"]
    [cljsjs/jsts  "1.6.0-0"]
    [cljsjs/rbush "2.0.1-0"]
-   [cljsjs/react-virtualized "9.11.1-1" :exclusions [cljsjs/react]]
+   [cljsjs/react-virtualized "9.11.1-1" :exclusions [cljsjs/react cljsjs/react-dom]]
    [reagent      "0.7.0"]
    [secretary    "1.2.3"]
    [venantius/accountant "0.2.3" :exclusions [org.clojure/tools.reader]]
