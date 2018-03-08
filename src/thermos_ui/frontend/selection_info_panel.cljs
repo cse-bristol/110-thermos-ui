@@ -17,6 +17,7 @@
      [:h2.nav__header "Selection"]
      [:div.nav__input-container
       ]]
+    ;; TODO this calc() can probably be flexbox instead
     [:div {:style {:height "calc( calc(100vh - 50px) / 2 - 50px )" :overflow-y "auto"}}
      [:table.table.table--selection-info
       [:thead
@@ -49,7 +50,9 @@
                                              :count (count candidates)
                                              :body (str type)
                                              :close true
-                                             :on-close (on-close-tag-function document ::candidate/type)}]))))}
+                                             :on-close
+                                             #(state/edit! document operations/deselect-candidates (map ::candidate/id candidates))
+                                             }]))))}
    {:row-name "Constraint"
     :get-row-content (fn [candidates]
                        (let [by-constraint (group-by ::candidate/inclusion candidates)]
@@ -59,7 +62,8 @@
                                              :count (count candidates)
                                              :body (name constraint)
                                              :close true
-                                             :on-close (on-close-tag-function document ::candidate/inclusion)}]))))}
+                                             :on-close
+                                             #(state/edit! document operations/deselect-candidates (map ::candidate/id candidates))}]))))}
    {:row-name "Postcode"
     :get-row-content (fn [candidates]
                        (let [by-postcode (group-by ::candidate/postcode candidates)]
@@ -69,7 +73,8 @@
                                              :count (count candidates)
                                              :body (str postcode)
                                              :close true
-                                             :on-close (on-close-tag-function document ::candidate/postcode)}]))))}
+                                             :on-close
+                                             #(state/edit! document operations/deselect-candidates (map ::candidate/id candidates))}]))))}
    {:row-name "Length"
     :get-row-content (fn [candidates]
                        (str (spoof-length) "km"))}
