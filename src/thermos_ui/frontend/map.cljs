@@ -144,14 +144,14 @@
                    ]
 
                (state/edit! document
-                           spatial/select-intersecting-candidates
+                            spatial/select-intersecting-candidates
 
-                           (or @shape
-                               (latlng->jsts-shape
-                                (.-latlng e)
-                                (* 3 (pixel-size))))
+                            (or @shape
+                                (latlng->jsts-shape
+                                 (.-latlng e)
+                                 (* 3 (pixel-size))))
 
-                           method))
+                            method))
 
              (reset! shape nil))))
 
