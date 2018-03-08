@@ -54,7 +54,7 @@ The map needs:
 - [-] Spatial selection
   - [X] Click on things to select them
   - [ ] (At least) box drawing selection
-  - [ ] Control / alt modifiers for union etc.
+  - [X] Control / alt modifiers for union etc.
 - [ ] Right click edit panel
   This should let users change the constraint status of the clicked
   thing, and then:
