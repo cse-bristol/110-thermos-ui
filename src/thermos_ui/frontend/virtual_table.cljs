@@ -4,7 +4,7 @@
 
             [cljsjs.react-virtualized]))
 
-(declare component table generate-column)
+(declare component table generate-column sort-table)
 
 (defn component
   "Wrapper for the react-virtualized Table component.
@@ -41,43 +41,47 @@
 (defn table
   "Generates the table component."
   [columns items props height width]
-  (this-as this
-           (let [
-                 ; component-state ()]
-                 sorted-items (reagent/atom (clj->js items))
-                 sort (reagent/atom {:sortDirection "ASC"})]
-             (println "RENDERING")
-             (reagent/as-element
-              (into
-               [:> js/ReactVirtualized.Table
-                (merge
-                 ;; Default values for props
-                 {:className "virtual-table"
-                  :headerHeight 50
-                  :height height
-                  :overscanRowCount 5
-                  :rowCount (count @sorted-items)
-                  :rowGetter (fn [arg]
-                               (let [index (.-index arg)]
-                                 (nth @sorted-items index)))
-                  :rowHeight 50
-                  :sort (fn [arg] (let [sortBy (.-sortBy arg)
-                                        sortDirection (.-sortDirection arg)
-                                        sort-fn (if (= sortDirection "ASC") < >)]
-                                    (println arg)
-                                    (reset! sorted-items (sort-by (fn [item] (aget item sortBy)) sort-fn @sorted-items))
-                                    (println (map (fn [x] (x "postcode")) (js->clj @sorted-items)))
-                                    (.forceUpdateGrid this)
-                                    ; (swap! sort assoc :sortDirection (if (= sortDirection "ASC") "DESC" "ASC"))
-                                    )) ;; @TODO 1. Figure out why it only allows ASC
-                                       ;; 2. Figure out why it only re-renders when you scroll
-                  ; :sortBy "id"
-                  ; :sortDirection (@sort :sortDirection)
-                  :width width}
-                 ;; Custom props
-                 props
-                 )]
-               (map generate-column columns))))))
+  (let [;; Set up some component state here
+        sorted-items (reagent/atom (clj->js items))
+        ; sort-by (reagent/atom nil)
+        ; sort-direction (reagent/atom nil)
+        ]
+    (println "RENDERING")
+    (reagent/as-element
+     (into
+      [:> js/ReactVirtualized.Table
+       (merge
+        ;; Default values for props
+        {:className "virtual-table"
+         :headerHeight 50
+         :height height
+         :overscanRowCount 5
+         :rowCount (count @sorted-items)
+         :rowGetter (fn [arg]
+                      (let [index (.-index arg)]
+                        (nth @sorted-items index)))
+         :rowHeight 50
+         :sort (fn [arg] (let [new-sort-by (.-sortBy arg)
+                               new-sort-direction (.-sortDirection arg)
+                               ]
+                           (do
+                             (sort-table sorted-items new-sort-by new-sort-direction)
+                             )))
+         ; (println arg)
+         ; (reset! sorted-items (sort-by (fn [item] (aget item sortBy)) sort-fn @sorted-items))
+         ; (println (map (fn [x] (x "postcode")) (js->clj @sorted-items)))
+         ; ; (forceUpdateGrid this)
+         ; (swap! sort assoc :sortDirection (if (= sortDirection "ASC") "DESC" "ASC"))
+         ; )) ;; @TODO 1. Figure out why it only allows ASC
+         ;; 2. Figure out why it only re-renders when you scroll
+         ; :sortBy @sort-by
+         ; :sortDirection @sort-direction
+         :width width}
+        ;; Custom props
+        props
+        )]
+      (map generate-column columns)))
+    ))
 
 (defn generate-column
   "Generates a column from the config map."
@@ -97,3 +101,16 @@
     ;; Custom props
     props
     )])
+
+(defn sort-table
+  "Sort the table by a column in a given direction.
+  `new-sort-by`        The new column to sort by.
+  `new-sort-direction` The new sort direction (ASC or DESC)."
+  [items
+   new-sort-by
+   new-sort-direction]
+  (let [sort-fn (if (= new-sort-direction "ASC") < >)]
+    (println new-sort-direction)
+    (reset! items (sort-by (fn [item] (aget item new-sort-by)) sort-fn @items))
+    )
+  )
