@@ -12,28 +12,30 @@
   "The panel in the bottom right which displays some information about the currently selected candidates."
   [document]
   (let [selected-candidates (operations/selected-candidates @document)]
-   [:div
-    [:nav.nav.nav--sub-nav
-     [:h2.nav__header "Selection"]
-     [:div.nav__input-container
-      ]]
-    ;; TODO this calc() can probably be flexbox instead
-    [:div {:style {:height "calc( calc(100vh - 50px) / 2 - 50px )" :overflow-y "auto"}}
-     [:table.table.table--selection-info
-      [:thead
-       [:tr
-        [:th {:col-span "2"}
-         (str (count selected-candidates) (if (= 1 (count selected-candidates)) " candidate" " candidates") " selected")
-         [:span.pull-right
-          [inclusion-selector/component document]]]]]
-      [:tbody
-       (for [{row-name :row-name f :get-row-content} (row-types document)]
-         (let [row-content (f selected-candidates)]
-           (when-not (empty? row-content)
-            [:tr {:key row-name}
-             [:td row-name]
-             [:td row-content]
-             ])))]]]]))
+    [:div.component--selection-info
+     [:nav.nav.nav--sub-nav
+      [:h2.nav__header "Selection"]
+      [:div.nav__input-container
+       ]]
+     ;; TODO this calc() can probably be flexbox instead
+     [:div {:style {:height "100%" :overflow-y "auto"}}
+      ;; {:style {:height "calc( calc(100vh - 50px) / 2 - 50px )" :overflow-y "auto"}}
+
+      [:table.table.table--selection-info
+       [:thead
+        [:tr
+         [:th {:col-span "2"}
+          (str (count selected-candidates) (if (= 1 (count selected-candidates)) " candidate" " candidates") " selected")
+          [:span.pull-right
+           [inclusion-selector/component document]]]]]
+       [:tbody
+        (for [{row-name :row-name f :get-row-content} (row-types document)]
+          (let [row-content (f selected-candidates)]
+            (when-not (empty? row-content)
+              [:tr {:key row-name}
+               [:td row-name]
+               [:td row-content]
+               ])))]]]]))
 
 (defn row-types
   "Define a spec for all the rows to be displayed.

@@ -36,7 +36,7 @@
         (urls/editor org-name name new-id)))))
 
   (defn map-page []
-    [:div
+    [:div.editor__container
      [main-nav/component
       {:on-save do-save
        :name proj-name}]
