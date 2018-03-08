@@ -47,19 +47,18 @@
     :get-row-content (fn [candidates]
                        (let [by-type (group-by ::candidate/type candidates)]
                          (for [[type candidates] by-type]
-                           (let [type (or type (spoof-type))]
-                             [tag/component {:key type
-                                             :count (count candidates)
-                                             :body (str type)
-                                             :close true
-                                             :on-close
-                                             #(state/edit! document operations/deselect-candidates (map ::candidate/id candidates))
-                                             }]))))}
+                           [tag/component {:key type
+                                           :count (count candidates)
+                                           :body (str type)
+                                           :close true
+                                           :on-close
+                                           #(state/edit! document operations/deselect-candidates (map ::candidate/id candidates))
+                                           }])))}
    {:row-name "Constraint"
     :get-row-content (fn [candidates]
                        (let [by-constraint (group-by ::candidate/inclusion candidates)]
                          (for [[constraint candidates] by-constraint]
-                           (let [constraint (or constraint (spoof-constraint))]
+                           (let [constraint (or constraint :forbidden)]
                              [tag/component {:key constraint
                                              :count (count candidates)
                                              :body (name constraint)
@@ -79,10 +78,14 @@
                                              #(state/edit! document operations/deselect-candidates (map ::candidate/id candidates))}]))))}
    {:row-name "Length"
     :get-row-content (fn [candidates]
-                       (str (spoof-length) "km"))}
+                       (when-not (empty? candidates)
+                         (str (reduce + 0 (map ::candidate/length candidates)) "m")))
+    }
    {:row-name "Heat demand"
     :get-row-content (fn [candidates]
-                       (str (spoof-heat-demand) "MWh"))}
+                       (when-not (empty? candidates)
+                         (str (reduce + 0 (map ::candidate/demand candidates)) "kWh/year")))}
+
    ]
   )
 
