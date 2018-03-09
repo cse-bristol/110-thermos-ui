@@ -51,9 +51,9 @@ buildings and roads in the problem.
 
 The map needs:
 
-- [-] Spatial selection
+- [X] Spatial selection
   - [X] Click on things to select them
-  - [ ] (At least) box drawing selection
+  - [X] (At least) box drawing selection
   - [X] Control / alt modifiers for union etc.
 - [ ] Right click edit panel
   This should let users change the constraint status of the clicked
