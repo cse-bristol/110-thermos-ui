@@ -74,7 +74,7 @@
    (watch)
    (environ :env {:problem-store "test-resources/data/problems"
                   :disable-cache "1"
-                  :pg-host "172.21.0.3"
+                  :pg-host "192.168.56.101"
                   :pg-user "postgres"
                   :pg-password "therm0s"
                   :pg-db-geometries "thermos_geometries"})
