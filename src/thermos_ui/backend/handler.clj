@@ -22,6 +22,7 @@
   (route/not-found "<h1>404!</h1>"))
 
 (defn wrap-no-cache [handler]
+  (println "Disabling caching (dev mode)")
   (fn [request]
     (when-let [response (handler request)]
       (assoc-in response [:headers "Cache-Control"] "no-store"))))
@@ -31,5 +32,5 @@
       (wrap-defaults (assoc-in site-defaults [:security :anti-forgery] false))
       wrap-json-body
       wrap-json-response
-      ((if (env :no-cache) wrap-no-cache identity))
+      ((if (env :disable-cache) wrap-no-cache identity))
       ))
