@@ -42,7 +42,9 @@
 
         buildings (j/query pg-db query)
 
-        query (str "SELECT id, 'path' as type, name, postcode, length, node_from, node_to, ST_AsGeoJSON(geometry) as geometry FROM ways "
+        query (str "SELECT id, 'path' as type, name, postcode, length, node_from, node_to,
+ST_Length(geometry) as length,
+ST_AsGeoJSON(geometry) as geometry FROM ways "
                    "WHERE ways.geometry && ST_GeomFromText('" bb "')")
         ways (j/query pg-db query)
         ]

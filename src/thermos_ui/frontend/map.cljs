@@ -115,7 +115,12 @@
     (.on map "moveend" follow-map!)
     (.on map "zoomend" follow-map!)
 
-    (let [shape (atom nil)]
+
+    ;; Event handling for selection
+
+    (let [shape (atom nil) ;; holds the shape to select with, when drawing
+          ]
+
       (.on map (.. leaflet/Draw -Event -CREATED)
            (fn [e]
              (let [s (layer->jsts-shape (.. e -layer))
@@ -124,23 +129,29 @@
                        (if (= "circle" type)
                          ;; radius needs projecting, which is morally wrong.
                          (.buffer s (.. e -layer getRadius))
-                         s))))
-
-           #(reset! shape (layer->jsts-shape
-                           (.. % -layer))))
-
+                         s)))))
 
       (.on map "click"
            (fn [e]
-             (state/edit! document
-                          spatial/select-intersecting-candidates
 
-                          (or @shape
-                              (latlng->jsts-shape
-                               (.-latlng e)
-                               (* 3 (pixel-size))))
+             (let [oe (.-originalEvent e)
 
-                          :replace)
+                   method
+                   (cond
+                     (.-ctrlKey oe) :xor
+                     (.-shiftKey oe) :union
+                     :otherwise :replace)
+                   ]
+
+               (state/edit! document
+                            spatial/select-intersecting-candidates
+
+                            (or @shape
+                                (latlng->jsts-shape
+                                 (.-latlng e)
+                                 (* 3 (pixel-size))))
+
+                            method))
 
              (reset! shape nil))))
 

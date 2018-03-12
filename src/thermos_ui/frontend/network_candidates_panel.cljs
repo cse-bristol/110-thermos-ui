@@ -11,24 +11,14 @@
   [document]
   (.log js/console (clj->js (first (operations/constrained-candidates @document))))
   [:div {:style {:height "100%"}}
+
+   ;; TODO this will rerun whenever we modify anything in document we
+   ;; need a cursor instead, maybe there should be some operations
+   ;; things for this.
+   (let [items (operations/included-candidates @document)]
      [virtual-table/component
-      {:columns [{:key ::candidate/selected
-                  :label "Selected"
-                  :sortable true}
-                 {:key ::candidate/name
-                  :label "Address"
-                  :sortable true}
-                 {:key ::candidate/postcode
-                  :label "Postcode"
-                  :sortable true}
-                 {:key ::candidate/type
-                  :label "Type"
-                  :sortable true}
-                 {:key ::candidate/inclusion
-                  :label "Constraint"
-                  :sortable true}]
-       ;; TODO this needs speeding up a little, perhaps
-       :items (operations/constrained-candidates @document)
-       :props {}}]
-     ]
-  )
+      {:items items}
+      ;; columns
+      {:label "ID" :key ::candidate/id}
+      {:label "Postcode" :key ::candidate/postcode}
+      ])])

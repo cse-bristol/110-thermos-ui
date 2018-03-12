@@ -32,7 +32,8 @@
       ::candidate/name (:name properties)
       ::candidate/postcode (:postcode properties)
       ::candidate/geometry geometry
-      ::candidate/type type}
+      ::candidate/type type
+      ::candidate/inclusion :forbidden}
      (case type
        :path {::candidate/length (:length properties)}
        :demand {::candidate/demand (:demand properties)}

@@ -2,6 +2,7 @@
   (:require [reagent.core :as r :refer [atom]]
             [thermos-ui.frontend.map :as map]
             [thermos-ui.urls :as urls]
+            [thermos-ui.specs.candidate :as candidate]
             [thermos-ui.frontend.editor-state :as state]
             [thermos-ui.frontend.operations :as operations]
             [thermos-ui.frontend.main-nav :as main-nav]
@@ -35,8 +36,29 @@
         name
         (urls/editor org-name name new-id)))))
 
+  (defn- rotate-inclusion! []
+    (let [selected (operations/selected-candidates @state/state)]
+      (when-not (empty? selected)
+        (let [inclusion (::candidate/inclusion (first selected))]
+          (state/edit! state/state
+                       operations/set-candidates-inclusion
+                       (cljs.core/map ::candidate/id selected)
+                       (case inclusion
+                         :forbidden :optional
+                         :optional :required
+                         :required :forbidden
+
+                         :optional))))))
+
   (defn map-page []
-    [:div
+    [:div.editor__container
+     {:on-key-press
+      (fn [e]
+        (case (.-key e)
+          "c" (rotate-inclusion!)
+          :default)
+        )
+      }
      [main-nav/component
       {:on-save do-save
        :name proj-name}]
