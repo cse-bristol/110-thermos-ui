@@ -167,3 +167,19 @@
   (update new-document
           ::document/candidates
           #(merge (::document/candidates old-document) %)))
+
+(defn show-popover
+  [document]
+  (assoc-in document [::view/view-state ::view/popover ::view/showing] true))
+
+(defn hide-popover
+  [document]
+  (assoc-in document [::view/view-state ::view/popover ::view/showing] false))
+
+(defn set-popover-content
+  [document content]
+  (assoc-in document [::view/view-state ::view/popover ::view/popover-content] content))
+
+(defn set-popover-source-coords
+  [document source-coords]
+  (assoc-in document [::view/view-state ::view/popover ::view/source-coords] source-coords))

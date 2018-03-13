@@ -11,4 +11,6 @@
 
 (s/def ::bounding-box (s/keys :req-un [::north ::south ::east ::west]))
 
-(s/def ::view-state (s/keys :req [::table-state ::bounding-box]))
+(s/def ::popover (s/keys :req [::showing ::popover-content ::source-coords]))
+
+(s/def ::view-state (s/keys :req [::table-state ::bounding-box ::popover]))
