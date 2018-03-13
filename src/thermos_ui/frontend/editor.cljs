@@ -8,6 +8,7 @@
             [thermos-ui.frontend.main-nav :as main-nav]
             [thermos-ui.frontend.network-candidates-panel :as network-candidates-panel]
             [thermos-ui.frontend.selection-info-panel :as selection-info-panel]
+            [thermos-ui.frontend.popover :as popover]
             [clojure.pprint :refer [pprint]]
             [clojure.string :as s]
             ))
@@ -70,7 +71,8 @@
        [:div.layout__panel.layout__panel--top
         [network-candidates-panel/component state/state]]
        [:div.layout__panel.layout__panel--bottom
-        [selection-info-panel/component state/state]]]]])
+        [selection-info-panel/component state/state]]]]
+     [popover/component state/state]])
 
   (defn on-js-reload [])
 

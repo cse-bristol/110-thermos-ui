@@ -1,12 +1,15 @@
 (ns thermos-ui.frontend.map
   (:require [reagent.core :as reagent]
             [leaflet :as leaflet]
+            [clojure.set :as set]
             [cljsjs.leaflet-draw] ;; this modifies leaflet/Control in-place
             [cljsjs.jsts :as jsts]
             [thermos-ui.frontend.operations :as operations]
             [thermos-ui.frontend.spatial :as spatial]
             [thermos-ui.frontend.editor-state :as state]
             [thermos-ui.frontend.tile :as tile]
+            [thermos-ui.frontend.popover :as popover]
+            [thermos-ui.frontend.popover-menu :as popover-menu]
             [thermos-ui.specs.document :as document]
             [thermos-ui.specs.view :as view]
             [thermos-ui.specs.candidate :as candidate]
@@ -21,7 +24,8 @@
          render-tile
          draw-control
          layer->jsts-shape
-         latlng->jsts-shape)
+         latlng->jsts-shape
+         on-right-click-on-map)
 
 
 (defn component
@@ -133,9 +137,7 @@
 
       (.on map "click"
            (fn [e]
-
              (let [oe (.-originalEvent e)
-
                    method
                    (cond
                      (.-ctrlKey oe) :xor
@@ -153,7 +155,10 @@
 
                             method))
 
-             (reset! shape nil))))
+             (reset! shape nil)))
+
+      (.on map "contextmenu" (fn [e] (on-right-click-on-map e document pixel-size)))
+      )
 
     (track! show-bounding-box!)))
 
@@ -292,3 +297,97 @@
 
   (defn layer->jsts-shape [layer]
     (.-geometry (.read jsts-reader (.toGeoJSON layer) ))))
+
+(defn on-right-click-on-map
+  "Callback for when you right-click on the map.
+  If you are clicking on a selected candidate, open up a popover menu
+  allowing you to edit the selected candidates in situ."
+  [e document pixel-size]
+  (let [oe (.-originalEvent e)
+        click-range (latlng->jsts-shape
+                     (.-latlng e)
+                     (* 3 (pixel-size)))
+        intersecting-candidates-ids (spatial/find-intersecting-candidates-ids @document click-range)
+        selected-candidates-ids (operations/selected-candidates-ids @document)
+        intersecting-selected-candidates-ids (set/intersection intersecting-candidates-ids selected-candidates-ids)
+        ]
+    ;; If there are any selected candidates in the range of your click then show a
+    ;; menu allowing you to edit the selected candidates in situ.
+    (if (count intersecting-selected-candidates-ids)
+      (let [selected-candidates (operations/selected-candidates @document)
+            selected-paths (filter
+                            (fn [candidate] (= (::candidate/type candidate) :path))
+                            selected-candidates)
+            selected-paths-ids (map ::candidate/id selected-paths)
+            selected-buildings (filter
+                                (fn [candidate] (or (= (::candidate/type candidate) :demand)
+                                                    (= (::candidate/type candidate) :supply)))
+                                selected-candidates)
+            selected-buildings-ids (map ::candidate/id selected-buildings)]
+        (state/edit!
+         document
+         operations/set-popover-content
+         [popover-menu/component [{:value [:div.centre "EDIT CANDIDATES"]
+                                   :key "title"}
+                                  {:value [:b (str (count selected-paths) " roads selected")]
+                                   :key "selected-roads-header"}
+                                  {:value "Set inclusion"
+                                   :key "inclusion-roads"
+                                   :sub-menu [{:value "Required"
+                                               :key "required"
+                                               :on-select (fn [e] (operations/set-candidates-inclusion
+                                                                   @document
+                                                                   selected-paths-ids
+                                                                   :required))}
+                                              {:value "Optional"
+                                               :key "optional"
+                                               :on-select (fn [e] (operations/set-candidates-inclusion
+                                                                   @document
+                                                                   selected-paths-ids
+                                                                   :optional))}
+                                              {:value "Forbidden"
+                                               :key "forbidden"
+                                               :on-select (fn [e] (operations/set-candidates-inclusion
+                                                                   @document
+                                                                   selected-paths-ids
+                                                                   :forbidden))}]}
+                                  {:value "Set road type"
+                                   :key "road-type"
+                                   :sub-menu [{:value "Cheap"
+                                               :key "cheap"}
+                                              {:value "Expensive"
+                                               :key "expensive"}]}
+                                  {:value [:div.popover-menu__divider]
+                                   :key "divider"}
+                                  {:value [:b (str (count selected-buildings) " buildings selected")]
+                                   :key "selected-buildings-header"}
+                                   {:value "Set inclusion"
+                                    :key "inclusion-buildings"
+                                    :sub-menu [{:value "Required"
+                                                :key "required"
+                                                :on-select (fn [e] (operations/set-candidates-inclusion
+                                                                    @document
+                                                                    selected-buildings-ids
+                                                                    :required))}
+                                               {:value "Optional"
+                                                :key "optional"
+                                                :on-select (fn [e] (operations/set-candidates-inclusion
+                                                                    @document
+                                                                    selected-buildings-ids
+                                                                    :optional))}
+                                               {:value "Forbidden"
+                                                :key "forbidden"
+                                                :on-select (fn [e] (operations/set-candidates-inclusion
+                                                                    @document
+                                                                    selected-buildings-ids
+                                                                    :forbidden))}]}
+                                  {:value "Set type"
+                                   :key "type"
+                                   :sub-menu [{:value "Demand"
+                                               :key "demand"}
+                                              {:value "Supply"
+                                               :key "supply"}]}
+                                  ]])
+        (state/edit! document operations/set-popover-source-coords [oe.clientX oe.clientY])
+        (state/edit! document operations/show-popover)))
+    ))
