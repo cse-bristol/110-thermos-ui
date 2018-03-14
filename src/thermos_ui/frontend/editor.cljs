@@ -3,6 +3,7 @@
             [thermos-ui.frontend.map :as map]
             [thermos-ui.urls :as urls]
             [thermos-ui.specs.candidate :as candidate]
+            [thermos-ui.specs.view :as view]
             [thermos-ui.frontend.editor-state :as state]
             [thermos-ui.frontend.operations :as operations]
             [thermos-ui.frontend.main-nav :as main-nav]
@@ -52,27 +53,40 @@
                          :optional))))))
 
   (defn map-page []
-    [:div.editor__container
-     {:on-key-press
-      (fn [e]
-        (case (.-key e)
-          "c" (rotate-inclusion!)
-          :default)
-        )
-      }
-     [main-nav/component
-      {:on-save do-save
-       :name proj-name}]
+    (let [close-popover (fn [e]
+                          (let [popover-menu-node (js/document.querySelector ".popover-menu")
+                                click-is-outside-popover (and (some? popover-menu-node)
+                                                              (not (.contains popover-menu-node e.target)))
+                                popover-is-populated (some?
+                                                      (->> @state/state
+                                                          ::view/view-state
+                                                          ::view/popover
+                                                          ::view/popover-content))]
+                            (if (and click-is-outside-popover popover-is-populated)
+                                (state/edit! state/state operations/close-popover))))]
+      [:div.editor__container
+       {:on-key-press
+        (fn [e]
+          (case (.-key e)
+            "c" (rotate-inclusion!)
+            :default)
+          )
+        :on-click close-popover ;; Close the popover menu if it is open
+        :on-context-menu close-popover
+        }
+       [main-nav/component
+        {:on-save do-save
+         :name proj-name}]
 
-     [:div.layout__container
-      [:div.layout__panel.layout__panel--left
-       [map/component state/state]]
-      [:div.layout__panel.layout__panel--right
-       [:div.layout__panel.layout__panel--top
-        [network-candidates-panel/component state/state]]
-       [:div.layout__panel.layout__panel--bottom
-        [selection-info-panel/component state/state]]]]
-     [popover/component state/state]])
+       [:div.layout__container
+        [:div.layout__panel.layout__panel--left
+         [map/component state/state]]
+        [:div.layout__panel.layout__panel--right
+         [:div.layout__panel.layout__panel--top
+          [network-candidates-panel/component state/state]]
+         [:div.layout__panel.layout__panel--bottom
+          [selection-info-panel/component state/state]]]]
+       [popover/component state/state]]))
 
   (defn on-js-reload [])
 

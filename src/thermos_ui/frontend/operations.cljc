@@ -183,3 +183,7 @@
 (defn set-popover-source-coords
   [document source-coords]
   (assoc-in document [::view/view-state ::view/popover ::view/source-coords] source-coords))
+
+(defn close-popover
+  [document]
+  ((comp hide-popover (fn [doc] (set-popover-content doc nil))) document))
