@@ -168,13 +168,16 @@
           ::document/candidates
           #(merge (::document/candidates old-document) %)))
 
+;; @TODO
+;; The below 7 are all UI things, so maybe they should go somewhere else.
+
 (defn show-popover
   [document]
-  (assoc-in document [::view/view-state ::view/popover ::view/showing] true))
+  (assoc-in document [::view/view-state ::view/popover ::view/popover-showing] true))
 
 (defn hide-popover
   [document]
-  (assoc-in document [::view/view-state ::view/popover ::view/showing] false))
+  (assoc-in document [::view/view-state ::view/popover ::view/popover-showing] false))
 
 (defn set-popover-content
   [document content]
@@ -187,3 +190,75 @@
 (defn close-popover
   [document]
   ((comp hide-popover (fn [doc] (set-popover-content doc nil))) document))
+
+(defn close-table-filter
+  "Close the currently open filter pop-up."
+  [document]
+  (assoc-in document [::view/view-state ::view/table-state ::view/open-filter] nil))
+
+(defn open-table-filter
+  "Open a table filter pop-up.
+  `filter-key` should be the key for the property you want to filter by, e.g. ::candidate/postcode"
+  [document filter-key]
+    (assoc-in document [::view/view-state ::view/table-state ::view/open-filter] filter-key))
+
+(defn get-table-filters
+  "Fetch the selected filters for the given `filter-key`, e.g. ::candidate/postcode."
+  [document filter-key]
+  (->> document
+       ::view/view-state
+       ::view/table-state
+       ::view/filters
+       filter-key))
+
+(defn get-all-table-filters
+  "Fetch the selected filters for all filterable properties."
+  [document]
+  (->> document
+       ::view/view-state
+       ::view/table-state
+       ::view/filters))
+
+(defn add-table-filter-value
+  "Add a filter value to the table filter for a given candidate property.
+  `filter-key` should be the key for the property you want to filter by, e.g. ::candidate/postcode
+  `value` should be the value you want to add to the filter, e.g. BS1 234 if filtering by postcode."
+  [document filter-key value]
+  (let [current-filter-set (or (get-table-filters document filter-key) #{})]
+    (case filter-key
+      ;; For now we only need the default case,
+      ;; but we may need an additional case for dealing with, e.g., address
+      (assoc-in document
+                [::view/view-state ::view/table-state ::view/filters filter-key]
+                (conj current-filter-set value)))))
+
+(defn add-table-filter-values
+  "As above but with set of values to add."
+  [document filter-key values]
+  (let [current-filter-set (or (get-table-filters document filter-key) #{})]
+    (case filter-key
+      (assoc-in document
+                [::view/view-state ::view/table-state ::view/filters filter-key]
+                (apply conj current-filter-set values)))))
+
+(defn remove-table-filter-value
+  "Remove a filter value from the table filter for a given candidate property.
+  `filter-key` should be the key for the property you want to filter by, e.g. ::candidate/postcode
+  `value` should be the value you want to remove from the filter, e.g. BS1 234 if filtering by postcode."
+  [document filter-key value]
+  (let [current-filter-set (or (get-table-filters document filter-key) #{})]
+    (case filter-key
+      ;; For now we only need the default case,
+      ;; but we may need an additional case for dealing with, e.g., address
+      (assoc-in document
+                [::view/view-state ::view/table-state ::view/filters filter-key]
+                (set (if (false? value) ;; (remove #{value} current-filter-set) doesn't work when value=false
+                       (remove false? current-filter-set)
+                       (remove #{value} current-filter-set)))))))
+
+(defn remove-all-table-filter-values
+  [document filter-key]
+  (case filter-key
+    (assoc-in document
+              [::view/view-state ::view/table-state ::view/filters filter-key]
+              #{})))

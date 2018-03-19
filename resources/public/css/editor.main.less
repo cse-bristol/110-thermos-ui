@@ -1,6 +1,9 @@
 @import (less) "cljsjs/leaflet/common/leaflet.inc.css";
 @import (less) "cljsjs/leaflet-draw/common/leaflet-draw.inc.css";
 
+// Virtual table hack
+@import (less) "external/virtualized.less";
+
 // These are generic UI components like buttons and things
 @import (less) "ui_components/variables.less";
 @import (less) "ui_components/utilities.less";
@@ -18,9 +21,6 @@
 // I've tried to make it so that these correspond to individual Reagent components
 @import (less) "app_components/main_nav.less";
 @import (less) "app_components/selection_info_panel.less";
-
-// Virtual table hack
-@import (less) "external/virtualized.less";
 
 div.map {
     width:100%;

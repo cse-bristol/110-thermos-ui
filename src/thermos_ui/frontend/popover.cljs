@@ -4,7 +4,7 @@
 
 (defn component
   [document]
-  (let [showing (->> @document ::view/view-state ::view/popover ::view/showing)
+  (let [showing (->> @document ::view/view-state ::view/popover ::view/popover-showing)
         content (->> @document ::view/view-state ::view/popover ::view/popover-content)
         source-coords (->> @document ::view/view-state ::view/popover ::view/source-coords)]
     [:div {:style {:position "fixed"

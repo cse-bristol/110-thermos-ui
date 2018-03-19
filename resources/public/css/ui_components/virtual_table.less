@@ -1,59 +1,187 @@
-.virtual-table {
-	// The equivalent of <tbody>
-	.ReactVirtualized__Table__Grid {
-	  // Fancy scrollbar
-	  &::-webkit-scrollbar
-	  {
-	  	width: 8px;
-	  	// background-color: rgba(0,0,0, 0.1);
-	  }
-	  &::-webkit-scrollbar-thumb
-	  {
-	  	border-radius: 10px;
-	  	background-color: #999;
-	  }
 
-		// Get rid of the focus style, which seems unnecessary
-		&:focus {
-			outline: none;
+// The equivalent of <tbody>
+.ReactVirtualized__Table__Grid {
+  // Fancy scrollbar
+  &::-webkit-scrollbar
+  {
+  	width: 10px;
+  }
+  &::-webkit-scrollbar-thumb
+  {
+  	background-color: #999;
+		&:hover, &:active {
+			background-color: #888;
 		}
+  }
+
+	// Get rid of the focus style, which seems unnecessary
+	&:focus {
+		outline: none;
+	}
+}
+
+// Equivalent of <thead>
+.ReactVirtualized__Table__headerRow {
+	text-transform: none;
+	font-weight: 600;
+	border-bottom: 1px solid #888;
+}
+
+.ReactVirtualized__Table__headerColumn {
+	color: #555;
+	&:hover {
+		color: #333;
+	}
+	&:focus {
+		outline: none;
+	}
+}
+
+// Add some little arrows to indicate you can sort by this column
+.ReactVirtualized__Table__sortableHeaderColumn {
+	position: relative;
+
+	// Just a test
+	margin: 0;
+	height: 100%;
+	padding: 15px 0;
+	padding-left: 10px;
+	&:first-of-type {
+		padding-right: 10px;
+		margin-left: 0;
+	}
+	&:hover {
+		background: rgba(0,0,0,0.04);
 	}
 
-	// Equivalent of <thead>
-	.ReactVirtualized__Table__headerRow {
-		text-transform: none;
-		font-weight: 600;
+  // Little sorting arrows
+	&::after {
+		content: "";
+		width: 0;
+		height: 0;
+		border-left: 4px solid transparent;
+		border-right: 4px solid transparent;
+		border-top: 4px solid #aaa;
+		position: absolute;
+		right: 10px;
+		top: calc(~"50% + 1px");
 	}
-
-	// Add some little arrows to indicate you can sort by this column
-	.ReactVirtualized__Table__sortableHeaderColumn {
+	&::before {
+		content: "";
+		width: 0;
+		height: 0;
+		border-left: 4px solid transparent;
+		border-right: 4px solid transparent;
+		border-bottom: 4px solid #aaa;
+		position: absolute;
+		right: 10px;
+		top: calc(~"50% - 6px");
+	}
+	&:hover::after {
+		border-top-color: #888;
+	}
+	&:hover::before {
+		border-bottom-color: #888;
+	}
+	svg {
+		display: none;
+		float: right;
 		position: relative;
-		&::after {
-			content: "";
-			width: 0;
-			height: 0;
-			border-left: 4px solid transparent;
-			border-right: 4px solid transparent;
-			border-top: 4px solid #999;
-			position: absolute;
-			right: 3px;
-			top: calc(~"50%");
-		}
+		top: 2px;
+		fill: @theme-blue;
+	}
+	&[aria-sort]::before, &[aria-sort]::after {
+		// display: none;
+	}
+	&[aria-sort="ascending"]::before {
+		border-bottom-color: @theme-blue;
+	}
+	&[aria-sort="descending"]::after {
+		border-top-color: @theme-blue;
+	}
+}
+
+// Equivalent of <tr>
+.ReactVirtualized__Table__row {
+	border-bottom: 1px solid #ccc;
+}
+
+// Custom filterable table header icon
+.filter-icon {
+	display: inline-block;
+	position: absolute;
+	top: 17px;
+	right: 20px;
+	width: 14px;
+	height: 14px;
+	text-align: center;
+	&::before, &::after {
+		pointer-events: none;
+	}
+	&::before {
+		content: "";
+		width: 0;
+		height: 0;
+		position: absolute;
+		top: 0;
+		right: 0;
+		border-left: 7px solid transparent;
+		border-right: 7px solid transparent;
+		border-top: 10px solid #aaa;
+	}
+	&::after {
+		content: "";
+		position: absolute;
+		height: 7px;
+		border-bottom: 2px solid transparent;
+		border-right: 4px solid #aaa;
+		width: 0px;
+		top: 6px;
+		right: 5px;
+	}
+	&:hover {
 		&::before {
-			content: "";
-			width: 0;
-			height: 0;
-			border-left: 4px solid transparent;
-			border-right: 4px solid transparent;
-			border-bottom: 4px solid #999;
-			position: absolute;
-			right: 3px;
-			top: calc(~"50% - 7px");
+			border-top-color: #888;
+		}
+		&::after {
+			border-right-color: #888;
 		}
 	}
+}
 
-	// Equivalent of <tr>
-	.ReactVirtualized__Table__row {
-		border-bottom: 1px solid #ccc;
+.filter-icon--is-filtered, .filter-icon--is-filtered:hover {
+	&::before {
+		border-top-color: @theme-blue;
+	}
+	&::after {
+		border-right-color: @theme-blue;
+	}
+}
+
+
+// @TODO Consider putting this somewhere else
+.filter-dropdown {
+	padding: 15px;
+	font-weight: normal;
+	background: #fff;
+	border-radius: @border-radius;
+	border: 1px solid #bbb;
+	box-shadow: 0px 1px 2px 1px rgba(0,0,0,0.1);
+	max-height: 300px;
+	min-width: 120px;
+	max-width: 200px;
+	position: absolute;
+	top: calc(~"100% - 5px");
+	right: 0;
+	z-index: 1;
+	overflow: auto;
+	&::-webkit-scrollbar {
+		width: 6px;
+	}
+	&::-webkit-scrollbar-thumb {
+		background-color: #999;
+		&:hover, &:active {
+			background-color: #888;
+		}
 	}
 }

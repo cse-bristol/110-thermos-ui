@@ -63,7 +63,8 @@
                                                           ::view/popover
                                                           ::view/popover-content))]
                             (if (and click-is-outside-popover popover-is-populated)
-                                (state/edit! state/state operations/close-popover))))]
+                                (state/edit! state/state operations/close-popover))))
+          close-table-filter (fn [e] (state/edit! state/state operations/close-table-filter))]
       [:div.editor__container
        {:on-key-press
         (fn [e]
@@ -71,7 +72,7 @@
             "c" (rotate-inclusion!)
             :default)
           )
-        :on-click close-popover ;; Close the popover menu if it is open
+        :on-click (fn [e] (do (close-popover e) (close-table-filter e))) ;; Close the popover menu if it is open
         :on-context-menu close-popover
         }
        [main-nav/component

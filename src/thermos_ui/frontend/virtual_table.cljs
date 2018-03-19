@@ -1,8 +1,8 @@
 (ns thermos-ui.frontend.virtual-table
   (:require [reagent.core :as reagent :refer-macros [with-let]]
             [cljsjs.react]
-
-            [cljsjs.react-virtualized]))
+            [cljsjs.react-virtualized]
+            ))
 
 (declare component table generate-column sort-table)
 
@@ -18,7 +18,9 @@
 
   Stores the sort order as a bit of internal state.
   "
-  [{items :items :as props} & columns]
+  [{items :items
+   filters :filters}
+   & columns]
   ;; reagent/with-let allows us to define an atom whose lifecycle
   ;; follows that of the component, so it's not recreated when we re-render
   (reagent/with-let [sort-order (reagent/atom [nil nil])
@@ -34,21 +36,38 @@
                      ]
     ;; and now the actual component
     (let [[sort-col sort-dir] @sort-order
-          sorted-items (sort! items)]
+          sorted-items (sort! items)
+          filter! (fn [items] ;; Function to filter items if a filter is supplied, otherwise just returns items
+                    (if (not-empty filters)
+                      (filter
+                       (fn [item]
+                         (reduce-kv
+                          (fn [init k v]
+                            (if init
+                              ;; v is the set of selected filters. Check if (:k item) is one of v,
+                              ;; Or if v is empty return true since we want to return all items.
+                              (or (empty? v) (contains? v (k item)))
+                              false))
+                          true
+                          filters))
+                       items)
+                      items))
+          sorted-filtered-items (filter! sorted-items)
+          ]
       [:> js/ReactVirtualized.AutoSizer
        (fn [dims]
          (reagent/as-element
           [:> js/ReactVirtualized.Table
            (merge
-            {:rowCount (count sorted-items)
-             :rowGetter #(nth sorted-items (.-index %))
+            {:rowCount (count sorted-filtered-items)
+             :rowGetter #(nth sorted-filtered-items (.-index %))
              :rowHeight 50
              :headerHeight 50
              :sortBy sort-col
              :sortDirection sort-dir
              :sort #(reset! sort-order [(.-sortBy %) (.-sortDirection %)])
              }
-            props
+            {:items items}
             (js->clj dims :keywordize-keys true))
            (for [{key :key :as col} columns]
              ^{:key key} ;; this is to make reagent shut up about :key
