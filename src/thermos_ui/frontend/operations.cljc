@@ -226,8 +226,11 @@
   [document filter-key value]
   (let [current-filter-set (or (get-table-filters document filter-key) #{})]
     (case filter-key
-      ;; For now we only need the default case,
-      ;; but we may need an additional case for dealing with, e.g., address
+      ;; In the case of 'name' we are doing a text search, so just replace the value with the new string
+      ::candidate/name
+      (assoc-in document
+                [::view/view-state ::view/table-state ::view/filters filter-key] value)
+      ;; Default case, for the other fields which are all checkbox filters
       (assoc-in document
                 [::view/view-state ::view/table-state ::view/filters filter-key]
                 (conj current-filter-set value)))))
@@ -248,8 +251,11 @@
   [document filter-key value]
   (let [current-filter-set (or (get-table-filters document filter-key) #{})]
     (case filter-key
-      ;; For now we only need the default case,
-      ;; but we may need an additional case for dealing with, e.g., address
+      ;; For `name` field just set the filter value to nil
+      ::candidate/name
+      (assoc-in document
+                [::view/view-state ::view/table-state ::view/filters filter-key] nil)
+      ;; Default case, for the other fields which are all checkbox filters
       (assoc-in document
                 [::view/view-state ::view/table-state ::view/filters filter-key]
                 (set (if (false? value) ;; (remove #{value} current-filter-set) doesn't work when value=false
@@ -259,6 +265,11 @@
 (defn remove-all-table-filter-values
   [document filter-key]
   (case filter-key
+    ;; For `name` field just set the filter value to nil
+    ::candidate/name
+    (assoc-in document
+              [::view/view-state ::view/table-state ::view/filters filter-key] nil)
+    ;; Default case, for the other fields which are all checkbox filters
     (assoc-in document
               [::view/view-state ::view/table-state ::view/filters filter-key]
               #{})))

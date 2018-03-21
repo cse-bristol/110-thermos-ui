@@ -110,11 +110,12 @@
 .filter-icon {
 	display: inline-block;
 	position: absolute;
-	top: 17px;
+	top: 18px;
 	right: 20px;
 	width: 14px;
 	height: 14px;
 	text-align: center;
+	transform: scale(0.9); // Make it a tiny bit smaller while keeping the proportions
 	&::before, &::after {
 		pointer-events: none;
 	}
@@ -175,6 +176,7 @@
 	right: 0;
 	z-index: 1;
 	overflow: auto;
+	cursor: default;
 	&::-webkit-scrollbar {
 		width: 6px;
 	}
@@ -183,5 +185,29 @@
 		&:hover, &:active {
 			background-color: #888;
 		}
+	}
+}
+
+.filter-text-input {
+	width: 100%;
+}
+.filter-text-input__container {
+	position: relative
+}
+.filter-text-input__clear-button {
+	position: absolute;
+	top: 0;
+	right: 4px;
+	font-weight: bold;
+	font-size: 24px;
+	line-height: 30px;
+	background: none;
+	border: none;
+	color: #999;
+	cursor: pointer;
+	outline: none;
+	transition: color 0.1s linear;
+	&:hover {
+		color: #666;
 	}
 }

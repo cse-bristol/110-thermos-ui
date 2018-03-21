@@ -1,10 +1,11 @@
 (ns thermos-ui.frontend.virtual-table
   (:require [reagent.core :as reagent :refer-macros [with-let]]
+            [clojure.string :as s]
             [cljsjs.react]
             [cljsjs.react-virtualized]
             ))
 
-(declare component table generate-column sort-table)
+(declare component filter!)
 
 (defn component
   "A virtual table wrapper. Takes any of the virtualised table
@@ -19,7 +20,8 @@
   Stores the sort order as a bit of internal state.
   "
   [{items :items
-   filters :filters}
+    filters :filters}
+   count-filtered-items ;; This let's the parent component know how many items have been filtered
    & columns]
   ;; reagent/with-let allows us to define an atom whose lifecycle
   ;; follows that of the component, so it's not recreated when we re-render
@@ -37,23 +39,8 @@
     ;; and now the actual component
     (let [[sort-col sort-dir] @sort-order
           sorted-items (sort! items)
-          filter! (fn [items] ;; Function to filter items if a filter is supplied, otherwise just returns items
-                    (if (not-empty filters)
-                      (filter
-                       (fn [item]
-                         (reduce-kv
-                          (fn [init k v]
-                            (if init
-                              ;; v is the set of selected filters. Check if (:k item) is one of v,
-                              ;; Or if v is empty return true since we want to return all items.
-                              (or (empty? v) (contains? v (k item)))
-                              false))
-                          true
-                          filters))
-                       items)
-                      items))
-          sorted-filtered-items (filter! sorted-items)
-          ]
+          sorted-filtered-items (filter! sorted-items filters)]
+      (reset! count-filtered-items (count sorted-filtered-items))
       [:> js/ReactVirtualized.AutoSizer
        (fn [dims]
          (reagent/as-element
@@ -85,3 +72,26 @@
                 }
                col)])
            ]))])))
+
+(defn filter!
+  "Function to filter items if a filter is supplied, otherwise just returns items"
+ [items filters]
+  (if (not-empty filters)
+    (filter
+     (fn [item]
+       (reduce-kv
+        (fn [init k v]
+          (if init
+            (if (string? v)
+              ;; If the filter is a string then check if the item matches the string in a fuzzy way.
+              (let [regex-pattern (re-pattern (str "(?i)" (s/join ".*" (s/split v #"")) ".*"))]
+                (not-empty
+                 (re-seq regex-pattern (k item))))
+              ;; If the filter is a set of values the check if the item matches one of them exactly.
+              (or (empty? v) (contains? v (k item)))
+              )
+            false))
+        true
+        filters))
+     items)
+    items))
