@@ -11,4 +11,4 @@
 
 (s/def ::bounding-box (s/keys :req-un [::north ::south ::east ::west]))
 
-(s/def ::view-state (s/keys :req [::table-state ::bounding-box]))
+(s/def ::view-state (s/keys :req [::table-state ::bounding-box ::map-layers]))

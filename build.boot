@@ -24,7 +24,9 @@
    [org.clojure/java.jdbc     "0.7.5"]
    [org.postgresql/postgresql "9.4.1212.jre7"]
    [hiccup                    "1.0.5"]
-   [digest "1.4.6"]
+   [digest                    "1.4.6"]
+   ;; the actual server:
+   [http-kit                  "2.2.0"]
 
    [javax.servlet/servlet-api "2.5" :scope "test"]
    [ring/ring-mock "0.3.0"  :scope "test"]
@@ -62,6 +64,12 @@
             :resource-paths #(conj % "test-resources"))
   identity)
 
+(task-options!
+ pom {:project 'thermos
+      :version "0.1.0-SNAPSHOT"}
+ aot {:namespace #{'thermos-ui.backend.main}}
+ jar {:main 'thermos-ui.backend.main})
+
 (deftask dev []
   (comp
    (serve :handler 'thermos-ui.backend.handler/app
@@ -82,3 +90,33 @@
                              :fn-symbol "λ"
                              :print-config-overrides true}}
           })))
+
+(deftask package
+  "Create a runnable jar containing all the thermos stuff."
+  []
+  (comp
+   (less :compression true)
+   (cljs :compiler-options {:preloads nil
+                            :infer-externs true
+                            ;; the next two settings help when
+                            ;; debugging this stuff with advanced
+                            ;; optimisations. they make the compiler
+                            ;; output renamed but readable symbols,
+                            ;; and format the code. Process is
+                            ;; something like:
+                            ;; 1. Compile with advanced, everything breaks
+                            ;; 2. Turn these things on and recompile, reload
+                            ;; 3. Find where it broke and add an extern to e.g. leaflet-extra.js
+                            ;; 4. Recompile, round and round we go.
+                            :pretty-print false
+                            :pseudo-names false
+                            :externs ["externs/leaflet-extra.js"]
+                            }
+         :optimizations :advanced
+         )
+   (aot)
+   (pom)
+   (uber)
+   (jar :file "thermos.jar")
+   (sift :include #{#".*\.jar"})
+   (target)))

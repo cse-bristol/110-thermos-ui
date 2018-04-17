@@ -41,43 +41,42 @@
 (defn table
   "Generates the table component."
   [columns items props height width]
-  (this-as this
-           (let [
-                 ; component-state ()]
-                 sorted-items (reagent/atom (clj->js items))
-                 sort (reagent/atom {:sortDirection "ASC"})]
-             (println "RENDERING")
-             (reagent/as-element
-              (into
-               [:> js/ReactVirtualized.Table
-                (merge
-                 ;; Default values for props
-                 {:className "virtual-table"
-                  :headerHeight 50
-                  :height height
-                  :overscanRowCount 5
-                  :rowCount (count @sorted-items)
-                  :rowGetter (fn [arg]
-                               (let [index (.-index arg)]
-                                 (nth @sorted-items index)))
-                  :rowHeight 50
-                  :sort (fn [arg] (let [sortBy (.-sortBy arg)
-                                        sortDirection (.-sortDirection arg)
-                                        sort-fn (if (= sortDirection "ASC") < >)]
-                                    (println arg)
-                                    (reset! sorted-items (sort-by (fn [item] (aget item sortBy)) sort-fn @sorted-items))
-                                    (println (map (fn [x] (x "postcode")) (js->clj @sorted-items)))
-                                    (.forceUpdateGrid this)
-                                    ; (swap! sort assoc :sortDirection (if (= sortDirection "ASC") "DESC" "ASC"))
-                                    )) ;; @TODO 1. Figure out why it only allows ASC
-                                       ;; 2. Figure out why it only re-renders when you scroll
-                  ; :sortBy "id"
-                  ; :sortDirection (@sort :sortDirection)
-                  :width width}
-                 ;; Custom props
-                 props
-                 )]
-               (map generate-column columns))))))
+  (let [
+                                        ; component-state ()]
+        sorted-items (reagent/atom (clj->js items))
+        sort (reagent/atom {:sortDirection "ASC"})]
+    (println "RENDERING")
+    (reagent/as-element
+     (into
+      [:> js/ReactVirtualized.Table
+       (merge
+        ;; Default values for props
+        {:className "virtual-table"
+         :headerHeight 50
+         :height height
+         :overscanRowCount 5
+         :rowCount (count @sorted-items)
+         :rowGetter (fn [arg]
+                      (let [index (.-index arg)]
+                        (nth @sorted-items index)))
+         :rowHeight 50
+         :sort (fn [arg] (let [sortBy (.-sortBy arg)
+                               sortDirection (.-sortDirection arg)
+                               sort-fn (if (= sortDirection "ASC") < >)]
+                           (println arg)
+                           (reset! sorted-items (sort-by (fn [item] (aget item sortBy)) sort-fn @sorted-items))
+                           (println (map (fn [x] (x "postcode")) (js->clj @sorted-items)))
+                           (this-as this (.forceUpdateGrid this))
+                                        ; (swap! sort assoc :sortDirection (if (= sortDirection "ASC") "DESC" "ASC"))
+                           )) ;; @TODO 1. Figure out why it only allows ASC
+         ;; 2. Figure out why it only re-renders when you scroll
+                                        ; :sortBy "id"
+                                        ; :sortDirection (@sort :sortDirection)
+         :width width}
+        ;; Custom props
+        props
+        )]
+      (map generate-column columns)))))
 
 (defn generate-column
   "Generates a column from the config map."

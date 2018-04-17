@@ -1,7 +1,7 @@
 (ns thermos-ui.frontend.map
   (:require [reagent.core :as reagent]
-            [leaflet :as leaflet]
-            [cljsjs.leaflet-draw] ;; this modifies leaflet/Control in-place
+            [cljsjs.leaflet]
+            [cljsjs.leaflet-draw] ;; this modifies js/L.Control in-place
             [cljsjs.jsts :as jsts]
             [thermos-ui.frontend.operations :as operations]
             [thermos-ui.frontend.spatial :as spatial]
@@ -23,7 +23,6 @@
          layer->jsts-shape
          latlng->jsts-shape)
 
-
 (defn component
   "Draw a cartographic map for the given `document`, which should be a reagent atom
   containing a document map"
@@ -39,7 +38,7 @@
       })))
 
 (def esri-sat-imagery
-  (leaflet/tileLayer
+  (js/L.tileLayer
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     (clj->js {})))
 
@@ -51,7 +50,7 @@
         edit!  (fn [f & a] (apply state/edit! document f a))
         track! (fn [f & a] (swap! watches conj (apply reagent/track! f a)))
 
-        map (leaflet/map map-node (clj->js {:preferCanvas true
+        map (js/L.map map-node (clj->js {:preferCanvas true
                                             :fadeAnimation true
                                             :zoom 13
                                             :center [51.454514 -2.587910]
@@ -74,7 +73,7 @@
 
         layers-control (layers-control
                         {"Satellite" esri-sat-imagery
-                         "None" (leaflet/tileLayer "")
+                         "None" (js/L.tileLayer "")
                          }
                         {"Candidates" candidates-layer})
 
@@ -92,15 +91,15 @@
         #(let [{n :north s :south
                 w :west e :east} @map-bounding-box]
            (when (and n s w e)
-             (.fitBounds map (leaflet/latLngBounds (clj->js [ [s w] [n e] ])))))
+             (.fitBounds map (js/L.latLngBounds (clj->js [ [s w] [n e] ])))))
 
         repaint! #(.repaintInPlace candidates-layer)
 
         pixel-size
         (fn []
           (let [zoom (.getZoom map)
-                zz (.unproject map (leaflet/point 0 0) zoom)
-                oo (.unproject map (leaflet/point 1 1) zoom)]
+                zz (.unproject map (js/L.point 0 0) zoom)
+                oo (.unproject map (js/L.point 1 1) zoom)]
             (Math/sqrt
              (+ (Math/pow (- (.-lat zz) (.-lat oo)) 2)
                 (Math/pow (- (.-lng zz) (.-lng oo)) 2)))
@@ -121,7 +120,7 @@
     (let [shape (atom nil) ;; holds the shape to select with, when drawing
           ]
 
-      (.on map (.. leaflet/Draw -Event -CREATED)
+      (.on map (.. js/L.Draw -Event -CREATED)
            (fn [e]
              (let [s (layer->jsts-shape (.. e -layer))
                    type (.. e -layerType)]
@@ -192,10 +191,11 @@
 
                     tile-id (str "T" (swap! tile-id inc) "N")
 
-                    map-control (.-_map this)
+                    map-control (aget this "_map")
                     size (.getTileSize this)
+
                     north-west (.unproject map-control (.scaleBy coords size) zoom)
-                    south-east (.unproject map-control (.scaleBy (.add coords (leaflet/point 1 1)) size) zoom)
+                    south-east (.unproject map-control (.scaleBy (.add coords (js/L.point 1 1)) size) zoom)
 
                     bbox {:minY (min (.-lat north-west) (.-lat south-east))
                           :maxY (max (.-lat north-west) (.-lat south-east))
@@ -259,7 +259,7 @@
         initialize
         (fn [options]
           (this-as this
-            (.call (.. leaflet/GridLayer -prototype -initialize) this options)
+            (.call (.. js/L.GridLayer -prototype -initialize) this options)
             (.on this "tileunload" destroy-tile)))
         ]
     ;; create a leaflet class with these functions
@@ -268,19 +268,19 @@
       :createTile create-tile
       :repaintInPlace repaint}
      (clj->js)
-     (.extend leaflet/GridLayer))))
+     (.extend js/L.GridLayer))))
 
 (defn- layers-control [choices extras]
   "Create a leaflet control to choose which layers are displayed on the map.
   `choices` is a list of layers of which only one may be selected (radios).
   `extras` is a list of layers of which any number may be selected (checkboxes)."
-  ((.. leaflet -control -layers)
+  (js/L.control.layers
    (clj->js choices)
    (clj->js extras)
    #js{:collapsed false}))
 
 (defn- draw-control [args]
-  (leaflet/Control.Draw. (clj->js args)))
+  (js/L.Control.Draw. (clj->js args)))
 
 (let [geometry-factory (jsts/geom.GeometryFactory.)
       jsts-reader (jsts/io.GeoJSONReader. geometry-factory)
