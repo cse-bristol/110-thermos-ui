@@ -1,0 +1,7 @@
+{:problem-store "test-resources/data/problems"
+ :disable-cache "true"
+ :pg-host "192.168.56.101"
+ :pg-user "postgres"
+ :pg-password "therm0s"
+ :pg-db-geometries "thermos_geometries"
+ :server-port "8080"}

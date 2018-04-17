@@ -2,11 +2,11 @@
    (:require [clojure.java.io :as io]
              [clojure.string :refer [join]]
              [clojure.string :as s]
-             [environ.core :refer [env]]
+             [thermos-ui.backend.config :refer [config]]
              [digest]
              [clojure.edn :as edn]))
 
-(defonce store-location (io/file (env :problem-store)))
+(defonce store-location (io/file (config :problem-store)))
 (defonce file-ext ".edn")
 
 (defn- remove-ext [name]

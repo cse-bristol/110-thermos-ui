@@ -5,7 +5,7 @@
             [thermos-ui.backend.store-service.routes :as problem-routes]
             [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
-            [environ.core :refer [env]]
+            [thermos-ui.backend.config :refer [config]]
             ))
 
 (defn add-to-slash [route filename]
@@ -32,5 +32,5 @@
       (wrap-defaults (assoc-in site-defaults [:security :anti-forgery] false))
       wrap-json-body
       wrap-json-response
-      ((if (env :disable-cache) wrap-no-cache identity))
+      ((if (= "true" (config :disable-cache)) wrap-no-cache identity))
       ))

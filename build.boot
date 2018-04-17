@@ -19,7 +19,6 @@
 
    ;; Server-side dependencies
    [compojure                 "1.6.0"]
-   [environ                   "1.1.0"]
    [ring/ring-defaults        "0.3.1"]
    [ring/ring-json            "0.4.0"]
    [org.clojure/java.jdbc     "0.7.5"]
@@ -44,7 +43,6 @@
    [binaryage/dirac               "RELEASE" :scope "test"]
    [binaryage/devtools            "RELEASE" :scope "test"]
    [powerlaces/boot-cljs-devtools "0.2.0"   :scope "test"]
-   [boot-environ                  "1.1.0"   :scope "test"]
    [deraen/boot-less              "0.6.1"   :scope "test"]
    [adzerk/boot-test "1.2.0" :scope "test"]
    ])
@@ -54,7 +52,6 @@
          '[powerlaces.boot-figreload     :refer [reload]]
          '[powerlaces.boot-cljs-devtools :refer [dirac cljs-devtools]]
          '[pandeiro.boot-http            :refer [serve]]
-         '[environ.boot                  :refer [environ]]
          '[deraen.boot-less              :refer [less]]
          '[adzerk.boot-test :refer :all] )
 
@@ -72,12 +69,6 @@
           :reload true
           :httpkit true)
    (watch)
-   (environ :env {:problem-store "test-resources/data/problems"
-                  :disable-cache "1"
-                  :pg-host "192.168.56.101"
-                  :pg-user "postgres"
-                  :pg-password "therm0s"
-                  :pg-db-geometries "thermos_geometries"})
    (less :source-map true)
    (cljs-devtools)
    (reload)

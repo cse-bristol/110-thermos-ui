@@ -1,15 +1,15 @@
 (ns thermos-ui.backend.store-service.geometries
   (:require [clojure.java.jdbc :as j]
             [clojure.string :refer [join]]
-            [environ.core :refer [env]]))
+            [thermos-ui.backend.config :refer [config]]))
 
 ;;TODO Spec for zoom level
 ;;TODO Spec for lat lon?
 (def pg-db {:dbtype "postgresql"
-            :dbname (env :pg-db-geometries)
-            :host (env :pg-host)
-            :user (env :pg-user)
-            :password (env :pg-password)})
+            :dbname (config :pg-db-geometries)
+            :host (config :pg-host)
+            :user (config :pg-user)
+            :password (config :pg-password)})
 
 ;;18/130993/87111.png
 (defn create-bounding-box
