@@ -11,17 +11,13 @@
   [document]
   [:div {:style {:height "100%"}}
 
-     ;; Attempt at virtual-table component
+   ;; TODO this will rerun whenever we modify anything in document we
+   ;; need a cursor instead, maybe there should be some operations
+   ;; things for this.
+   (let [items (operations/included-candidates @document)]
      [virtual-table/component
-      {:columns [{:key ::candidate/id
-                  :label "ID"
-                  :sortable true}
-                 {:key ::candidate/postcode
-                  :label "Postcode"
-                  :sortable true}]
-       ;; TODO this needs speeding up a little, perhaps
-       :items (operations/selected-candidates @document)
-       :props {}}]
-
-     ]
-  )
+      {:items items}
+      ;; columns
+      {:label "ID" :key ::candidate/id}
+      {:label "Postcode" :key ::candidate/postcode}
+      ])])

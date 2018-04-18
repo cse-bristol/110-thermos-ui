@@ -26,6 +26,18 @@
        (vals)
        (filter ::candidate/selected)))
 
+(defn- included [{inclusion ::candidate/inclusion}]
+  (or (= :optional inclusion)
+      (= :required inclusion)))
+
+(defn included-candidates
+  "Get a set containing all the selected candidates in the doc"
+  [doc]
+  (->> doc
+       (::document/candidates)
+       (vals)
+       (filter included)))
+
 (defn all-candidates-ids
   "Get a lazy sequence containing the ID of each candidate in doc"
   [doc]
