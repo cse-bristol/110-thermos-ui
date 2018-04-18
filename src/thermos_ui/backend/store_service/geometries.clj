@@ -3,15 +3,12 @@
             [clojure.string :refer [join]]
             [thermos-ui.backend.config :refer [config]]))
 
-;;TODO Spec for zoom level
-;;TODO Spec for lat lon?
 (def pg-db {:dbtype "postgresql"
             :dbname (config :pg-db-geometries)
             :host (config :pg-host)
             :user (config :pg-user)
             :password (config :pg-password)})
 
-;;18/130993/87111.png
 (defn create-bounding-box
   [zoom x-tile y-tile]
   (let [n (Math/pow 2 zoom)

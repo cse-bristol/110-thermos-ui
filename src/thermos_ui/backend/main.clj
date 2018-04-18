@@ -5,4 +5,5 @@
   (:gen-class))
 
 (defn -main [& args]
-  (run-server #'app {:port (Integer/parseInt (config :server-port)) :join? true}))
+  (run-server #'app {:max-body (* 8388608 100) ;; 800mega
+                     :port (Integer/parseInt (config :server-port)) :join? true}))

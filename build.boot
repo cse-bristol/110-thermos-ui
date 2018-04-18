@@ -2,20 +2,18 @@
  :source-paths #{"src"}
  :resource-paths #{"resources"}
  :dependencies
- '[[org.clojure/clojure "1.9.0-beta4" :scope "provided"]
+ '[[org.clojure/clojure       "1.9.0-beta4" :scope "provided"]
    [org.clojure/clojurescript "1.9.946" :scope "test"]
-   [org.clojure/test.check "0.9.0" :scope "test"]
-   [org.clojure/core.async  "0.3.443"]
+   [org.clojure/test.check    "0.9.0" :scope "test"]
+   [org.clojure/core.async    "0.3.443"]
 
    [cljsjs/leaflet "1.2.0-0"]
-   [cljsjs/jsts  "1.6.0-0"]
-   [cljsjs/rbush "2.0.1-0"]
+   [cljsjs/jsts    "1.6.0-0"]
+   [cljsjs/rbush   "2.0.1-0"]
    [cljsjs/react-virtualized "9.11.1-1" :exclusions [cljsjs/react cljsjs/react-dom]]
    [cljsjs/leaflet-draw "0.4.12-0"]
 
    [reagent      "0.7.0"]
-   [secretary    "1.2.3"]
-   [venantius/accountant "0.2.3" :exclusions [org.clojure/tools.reader]]
 
    ;; Server-side dependencies
    [compojure                 "1.6.0"]
@@ -23,13 +21,16 @@
    [ring/ring-json            "0.4.0"]
    [org.clojure/java.jdbc     "0.7.5"]
    [org.postgresql/postgresql "9.4.1212.jre7"]
-   [hiccup                    "1.0.5"]
-   [digest                    "1.4.6"]
+   [hiccup                    "1.0.5"] ;; for HTML templating
+   [digest                    "1.4.6"] ;; for MD5 convenience
+   [honeysql                  "0.9.2"] ;; for SQL generation
+   [ragtime                   "0.7.2"] ;; for DB migrations
+   [org.clojure/data.json     "0.2.6"] ;; for parsing the geojson from the db.
    ;; the actual server:
    [http-kit                  "2.2.0"]
 
-   [javax.servlet/servlet-api "2.5" :scope "test"]
-   [ring/ring-mock "0.3.0"  :scope "test"]
+   [javax.servlet/servlet-api "2.5"    :scope "test"]
+   [ring/ring-mock            "0.3.0"  :scope "test"]
 
    ;; Build tooling dependencies:
 
@@ -46,7 +47,7 @@
    [binaryage/devtools            "RELEASE" :scope "test"]
    [powerlaces/boot-cljs-devtools "0.2.0"   :scope "test"]
    [deraen/boot-less              "0.6.1"   :scope "test"]
-   [adzerk/boot-test "1.2.0" :scope "test"]
+   [adzerk/boot-test              "1.2.0"   :scope "test"]
    ])
 
 (require '[adzerk.boot-cljs              :refer [cljs]]
@@ -55,7 +56,7 @@
          '[powerlaces.boot-cljs-devtools :refer [dirac cljs-devtools]]
          '[pandeiro.boot-http            :refer [serve]]
          '[deraen.boot-less              :refer [less]]
-         '[adzerk.boot-test :refer :all] )
+         '[adzerk.boot-test :refer :all])
 
 (deftask testing
   "Profile setup for running tests."
@@ -70,8 +71,13 @@
  aot {:namespace #{'thermos-ui.backend.main}}
  jar {:main 'thermos-ui.backend.main})
 
-(deftask dev []
+(deftask dev
+  "Run in development mode (live reload / repl)"
+  []
   (comp
+   ;; This is useful, but differs from the server we run in production
+   ;; and does not allow overriding of some important parameters
+   ;; specifically httpkit max post size
    (serve :handler 'thermos-ui.backend.handler/app
           :port 8080
           :reload true
@@ -112,8 +118,7 @@
                             :pseudo-names false
                             :externs ["externs/leaflet-extra.js"]
                             }
-         :optimizations :advanced
-         )
+         :optimizations :advanced)
    (aot)
    (pom)
    (uber)

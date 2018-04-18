@@ -3,6 +3,7 @@
             [compojure.route :as route]
             [thermos-ui.backend.pages :as pages]
             [thermos-ui.backend.store-service.routes :as problem-routes]
+            [thermos-ui.backend.maps.routes :as map-routes]
             [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
             [thermos-ui.backend.config :refer [config]]
@@ -18,7 +19,8 @@
   pages/all
   (context
    "/api" []
-   problem-routes/all)
+   problem-routes/all
+   map-routes/map-data-routes)
   (route/not-found "<h1>404!</h1>"))
 
 (defn wrap-no-cache [handler]

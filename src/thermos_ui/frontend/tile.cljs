@@ -34,7 +34,9 @@
                         pt (.subtract pt coords)
                         pt (.scaleBy pt size)
                         ]
-                    [(.-x pt) (.-y pt)]))
+                    pt
+                    ;; [(.-x pt) (.-y pt)]
+                    ))
         ]
 
     (.setAttribute tile "width" width)
@@ -94,9 +96,10 @@
       (.getCoordinates)
       (.forEach
        (fn [coord ix]
-         (let [[x y] (project (.-y coord) (.-x coord))]
+         (let [pt;; [x y]
+               (project (.-y coord) (.-x coord))]
            (if (= 0 ix)
-             (.moveTo ctx x y)
-             (.lineTo ctx x y))))))
+             (.moveTo ctx (.-x pt) (.-y pt))
+             (.lineTo ctx (.-x pt) (.-y pt)))))))
 
   (when close? (.closePath ctx)))

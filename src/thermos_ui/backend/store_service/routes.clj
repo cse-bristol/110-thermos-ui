@@ -1,9 +1,7 @@
 (ns thermos-ui.backend.store-service.routes
   (:require [compojure.core :refer :all]
             [compojure.route :as route]
-            [thermos-ui.backend.store-service.problems :as p]
-            [thermos-ui.backend.store-service.geojson-io :refer [geometry>geojson]]
-            [thermos-ui.backend.store-service.geometries :as geoms]))
+            [thermos-ui.backend.store-service.problems :as p]))
 
 (defonce json-headers {"Content-Type" "text/html"})
 
@@ -24,17 +22,7 @@
      :body problem-list}
     {:status 404}))
 
-(defroutes map-routes
-  (GET "/map/candidates/:zoom/:x-tile/:y-tile/"
-       {{zoom :zoom
-         x-tile :x-tile
-         y-tile :y-tile} :params :as params}
-       (let [p-int (fn [s] (Integer. (re-find  #"\d+" s )))
-             connections (geoms/get-candidates (p-int zoom) (p-int x-tile) (p-int y-tile))]
-         (json-list-response (geometry>geojson connections)))))
-
 (defroutes all
-  map-routes
   (POST "/problem/:org/:name/"
         {{org :org
           name :name
