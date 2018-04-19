@@ -10,6 +10,7 @@
             [thermos-ui.frontend.tile :as tile]
             [thermos-ui.frontend.popover :as popover]
             [thermos-ui.frontend.popover-menu :as popover-menu]
+            [thermos-ui.frontend.search-box :as search-box]
             [thermos-ui.specs.document :as document]
             [thermos-ui.specs.view :as view]
             [thermos-ui.specs.candidate :as candidate]
@@ -25,7 +26,8 @@
          draw-control
          layer->jsts-shape
          latlng->jsts-shape
-         on-right-click-on-map)
+         on-right-click-on-map
+         create-leaflet-control)
 
 
 (defn component
@@ -82,6 +84,8 @@
                          }
                         {"Candidates" candidates-layer})
 
+        search-control (create-leaflet-control search-box/component)
+
         follow-map!
         #(let [bounds (.getBounds map)]
            (edit! operations/move-map
@@ -113,6 +117,7 @@
 
     (.addLayer map esri-sat-imagery)
     (.addLayer map candidates-layer)
+    (.addControl map (search-control. (clj->js {:position :topright})))
     (.addControl map layers-control)
     (.addControl map draw-control)
 
@@ -383,3 +388,14 @@
         (state/edit! document operations/set-popover-source-coords [oe.clientX oe.clientY])
         (state/edit! document operations/show-popover)))
     ))
+
+(defn create-leaflet-control
+  [component]
+  (->> {:onAdd (fn [map]
+                 (let [box (.create leaflet/DomUtil "div")]
+                   (.disableClickPropagation leaflet/DomEvent box)
+                   (reagent/render [component map] box)
+                   box))
+        }
+       clj->js
+       (.extend leaflet/Control)))
