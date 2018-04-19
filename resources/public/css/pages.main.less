@@ -1,0 +1,214 @@
+/**
+ * Base stuff
+ */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+html {
+  font-family: 'Source Sans Pro', Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  color: #555;
+}
+body {
+  margin: 0;
+  background: #eee;
+}
+body, html {
+  height: 100vh;
+}
+// Resetting the base stylesheet so we can override later.
+h1, h2, h3, h4, h5 {
+  font-size: 1.1em;
+  font-weight: normal;
+  margin: 0;
+  display: inline-block;
+}
+
+@primary-blue: #00ace6;
+
+/**
+ * HEADER
+ */
+.page-header {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  height: 50px;
+  background: #fff;
+  box-shadow: 0px 0px 2px 2px rgba(0,0,0,0.2);
+  h1 {
+    line-height: 50px;
+    // margin: 0 20px;
+    font-size: 1.5em;
+  }
+}
+
+/**
+ * MAIN PAGE CONTENT
+ */
+.page-content {
+  padding-top: 50px;
+  padding-bottom: 100px;
+  min-height: 100vh;
+}
+
+/**
+ * FOOTER
+ */
+.page-footer {
+  margin-top: -100px;
+  height: 100px;
+  line-height: 100px; // @TODO get rid of this
+  background: #555;
+  font-weight: bold;
+  color: #fff;
+}
+
+.container {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.top-banner {
+  background: #00ace6;
+  color: #fff;
+  font-size: 20px;
+  height: 80px;
+  line-height: 80px;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: #fff;
+  padding: 20px;
+  box-shadow: 0px 1px 2px 2px rgba(0,0,0,0.1);
+  border-radius: 3px;
+  margin-bottom: 20px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  th {
+    text-align: left;
+    border-bottom: 2px solid #bbb;
+    line-height: 40px;
+    padding: 0 10px;
+  }
+  td {
+    line-height: 40px;
+    padding: 0 10px;
+    transition: background 0.1s ease;
+  }
+  tr:hover {
+    td {
+      background: rgba(0,0,0,0.05);
+    }
+  }
+}
+
+.button {
+  display: inline-block;
+  background: #00ace6;
+  height: 30px;
+  line-height: 30px;
+  padding: 0 20px;
+  font-weight: bold;
+  color: #fff;
+  border-radius: 3px;
+  text-decoration: none;
+  transition: background 0.1s ease;
+  border: none;
+  cursor: pointer;
+  &:hover {
+    background: darken(#00ace6, 4%);
+  }
+}
+
+.button--small {
+  height: 24px;
+  line-height: 26px;
+  padding: 0 12px;
+}
+
+.link {
+  color: darken(#00ace6, 8%);
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.center {
+  text-align: center;
+}
+
+/**
+ * MODAL
+ */
+.modal {
+  position: absolute;
+  top: 100px;
+  left: 0;
+  right: 0;
+  background: #fff;
+  box-shadow: 0px 1px 2px 2px rgba(0,0,0,0.1);
+  border-radius: 3px;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 600px;
+  display: none;
+  z-index: 1;
+}
+.modal__header {
+  height: 50px;
+  line-height: 50px;
+  padding: 0 20px;
+  font-weight: bold;
+  border-top: 5px solid lighten(@primary-blue, 10%);
+  border-radius: 3px;
+}
+.modal__content {
+  padding: 20px;
+  p {
+    margin-top: 0;
+  }
+}
+.modal--visible {
+  display: block;
+}
+.button--modal-confirm {
+  float: right;
+}
+.button--modal-cancel {
+  background: #d1d1d1;
+  color: #444;
+  &:hover {
+    background: #c1c1c1;
+  }
+}
+.modal__mask {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(50,50,50,0.5);
+}
+.button--modal-close {
+  float: right;
+  background: none;
+  border: none;
+  font-weight: bold;
+  color: #555;
+  font-size: 22px;
+  position: relative;
+  cursor: pointer;
+  top: 5px;
+  right: -10px;
+  &:hover {
+    color: #333;
+  }
+}

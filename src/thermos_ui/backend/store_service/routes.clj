@@ -1,5 +1,6 @@
 (ns thermos-ui.backend.store-service.routes
-  (:require [compojure.core :refer :all]
+  (:require [clojure.java.io :as io]
+            [compojure.core :refer :all]
             [compojure.route :as route]
             [thermos-ui.backend.store-service.problems :as p]
             [thermos-ui.backend.store-service.geojson-io :refer [geometry>geojson]]
@@ -59,6 +60,18 @@
           :headers json-headers
           :body problem}
          {:status 404}))
+
+  (DELETE "/problem/:org/:name/"
+          [org name]
+          (if-let [problem-dir (p/get-problem-dir org name)]
+            (do
+              ;; Delete all the files in the dir
+              (doseq [file (.listFiles problem-dir)]
+                (io/delete-file file))
+              ;; Delete the dir itself
+              (io/delete-file problem-dir)
+              {:status 204})
+            {:status 404}))
 
   ;; (DELETE "/problem/:org/:name/:id"
   ;;         {{org :org

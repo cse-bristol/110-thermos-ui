@@ -33,6 +33,15 @@
      data)
    ))
 
+(defn delete-problem
+  "Delete all a problem's documents."
+  [org problem callback]
+  (xhr/send
+   (urls/document org problem)
+   callback
+   "DELETE")
+  )
+
 (let [pool (goog.net.XhrManager.)]
   (defn request-geometry
     "Load geometry from the database for the tile at `x`, `y`, `z`, and
