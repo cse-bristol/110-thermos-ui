@@ -52,7 +52,7 @@
   (->> doc
        (::document/candidates)
        (vals)
-       (filter ::candidate/inclusion)
+       (filter #(> (.indexOf [:required :optional] (::candidate/inclusion %)) -1))
        (map ::candidate/id)
        (set)))
 
@@ -62,7 +62,7 @@
   (->> doc
        (::document/candidates)
        (vals)
-       (filter ::candidate/inclusion)))
+       (filter #(> (.indexOf [:required :optional] (::candidate/inclusion %)) -1))))
 
 (defn map-candidates
   "Go through a document and apply f to all the indicated candidates."

@@ -27,7 +27,8 @@
          layer->jsts-shape
          latlng->jsts-shape
          on-right-click-on-map
-         create-leaflet-control)
+         create-leaflet-control
+         unload-candidates)
 
 
 (defn component
@@ -165,6 +166,28 @@
       (.on map "contextmenu" (fn [e] (on-right-click-on-map e document pixel-size)))
       )
 
+    ;; When zooming or moving, unload the candidates which fall out of the current view
+    (let [;; We'll use this timeout to wait a bit before doing the unloading.
+          ;; But if you move, then move again before the candidates get unloaded,
+          ;; the timeout will get reset and the candidates won't get unloaded unnecessarily.
+          ;; @TODO Decide what the timeout should be - for now I've settled on 400ms but this is fairly arbitrary
+          timeout (atom nil)]
+      (.on map "movestart" (fn [] (if @timeout (js/clearTimeout @timeout))))
+      (.on map "zoomstart" (fn [] (if @timeout (js/clearTimeout @timeout))))
+      (.on map "moveend" (fn []
+                           (if @timeout (js/clearTimeout @timeout))
+                           (reset! timeout
+                                   (js/setTimeout
+                                    (fn [] (unload-candidates))
+                                    400))))
+      (.on map "zoomend" (fn []
+                           (if @timeout (js/clearTimeout @timeout))
+                           (reset! timeout
+                                   (js/setTimeout
+                                    (fn [] (unload-candidates))
+                                    400))))
+      )
+
     (track! show-bounding-box!)))
 
 (defn unmount
@@ -213,9 +236,6 @@
                           :maxX (max (.-lng north-west) (.-lng south-east))
                           }
 
-                    ;; contains just the IDs of candidates in this box
-                    tile-candidates-ids
-                    (reagent/atom ())
 
                     ;; Queries the spatial index in the document
                     ;; to update the candidates ids. This uses a cursor
@@ -223,6 +243,7 @@
                     ;; it only gets triggered when the spatial index is changed.
                     just-index (spatial/index-atom doc)
 
+                    ;; contains just the IDs of candidates in this box
                     tile-candidates-ids
                     (reagent/track
                      #(spatial/find-candidates-ids-in-bbox @just-index bbox))
@@ -234,7 +255,7 @@
 
                     tile-contents
                     (reagent/track
-                     #(map @just-candidates @tile-candidates-ids))
+                     #(filter identity (map @just-candidates @tile-candidates-ids)))
                     ]
 
                 (set! (.. canvas -coords) coords)
@@ -399,3 +420,28 @@
         }
        clj->js
        (.extend leaflet/Control)))
+
+(defn unload-candidates
+  []
+  (let [;; Get all the candidates in the bbox
+        bbox (get-in @state/state [::view/view-state ::view/bounding-box])
+        ;; Use the height and width of the box to naively add a buffer to the bbox
+        bbox-height (- (:north bbox) (:south bbox))
+        bbox-width (- (:east bbox) (:west bbox))
+        bbox {:minY (- (:south bbox) (/ bbox-height 2))
+              :maxY (+ (:north bbox) (/ bbox-height 2))
+              :minX (- (:west bbox) (/ bbox-width 2))
+              :maxX (+ (:east bbox) (/ bbox-width 2))}
+        candidates-in-bbox-ids (spatial/find-candidates-ids-in-bbox @state/state bbox)
+        ;; Get all the candidates that are either selected or constrained
+        selected-candidates-ids (operations/selected-candidates-ids @state/state)
+        constrained-candidates-ids (operations/constrained-candidates-ids @state/state)
+        candidates-to-keep-ids (clojure.core/set (concat candidates-in-bbox-ids
+                                          selected-candidates-ids
+                                          constrained-candidates-ids))
+        candidates-to-keep (select-keys (::document/candidates @state/state)
+                                        candidates-to-keep-ids)
+        ]
+    ;; Remove all the candidates that we don't want to keep
+    (state/edit-geometry! state/state assoc ::document/candidates candidates-to-keep)
+    ))
