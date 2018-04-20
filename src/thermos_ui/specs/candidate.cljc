@@ -19,7 +19,7 @@
 
 ;; All types of candidate have to have certain attributes
 (s/def ::common
-  (s/keys :req [ ::type ::id ::geometry ::name ::postcode ::inclusion ::selected ]))
+  (s/keys :req [ ::id ::type ::subtype ::geometry ::name ::inclusion ::selected ]))
 
 (s/def ::selected boolean?)
 
@@ -31,15 +31,7 @@
 (defn geojson? [_] true)
 (s/def ::geometry geojson?)
 
-;; Candidates also have an address, which here is boiled down to a name
-;; and a postal code.
-;; TODO the postal code is too strong! It is for the UK.
-
 (s/def ::name string?)
-
-(let [postcode-regex
-      #"(GIR 0AA)|((([A-Z-[QVX]][0-9][0-9]?)|(([A-Z-[QVX]][A-Z-[IJZ]][0-9][0-9]?)|(([A-Z-[QVX]][0-9][A-HJKPSTUW])|([A-Z-[QVX]][A-Z-[IJZ]][0-9][ABEHMNPRVWXY])))) [0-9][A-Z-[CIKMOV]]{2})"]
-  (s/def ::postcode #(re-matches postcode-regex %)))
 
 ;; Finally, every candidate has a contraint on inclusion in the solutions
 ;; we generate:
@@ -48,14 +40,12 @@
 
 ;; Both supplies and demands are defined to exist within BUILDINGs
 
-(s/def ::building
-  (s/merge
-   ::common
-   (s/keys :req [ ::building-type ])))
+(s/def ::building (s/merge ::common
+                           (s/keys :req [ ::connection ])))
 
-;; Buildings may have a bit of type information on them, but it is
-;; loosely specified at the moment
-(s/def ::building-type string?)
+(s/def ::connection ::id)
+
+(s/def ::subtype string?)
 
 ;; A SUPPLY is a building which has ::type :supply
 

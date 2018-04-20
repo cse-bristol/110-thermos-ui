@@ -54,6 +54,19 @@
                                            :on-close
                                            #(state/edit! document operations/deselect-candidates (map ::candidate/id candidates))
                                            }])))}
+
+   {:row-name "Classification"
+    :get-row-content (fn [candidates]
+                       (let [by-type (group-by ::candidate/subtype candidates)]
+                         (for [[type candidates] by-type]
+                           [tag/component {:key type
+                                           :count (count candidates)
+                                           :body (str type)
+                                           :close true
+                                           :on-close
+                                           #(state/edit! document operations/deselect-candidates (map ::candidate/id candidates))
+                                           }])))}
+
    {:row-name "Constraint"
     :get-row-content (fn [candidates]
                        (let [by-constraint (group-by ::candidate/inclusion candidates)]
@@ -65,14 +78,14 @@
                                              :close true
                                              :on-close
                                              #(state/edit! document operations/deselect-candidates (map ::candidate/id candidates))}]))))}
-   {:row-name "Postcode"
+   {:row-name "Name"
     :get-row-content (fn [candidates]
-                       (let [by-postcode (group-by ::candidate/postcode candidates)]
-                         (for [[postcode candidates] by-postcode]
-                           (let [postcode (or postcode (spoof-postcode))]
-                             [tag/component {:key postcode
+                       (let [by-name (group-by ::candidate/name candidates)]
+                         (for [[name candidates] by-name]
+                           (let [name (or name "unknown")]
+                             [tag/component {:key name
                                              :count (count candidates)
-                                             :body (str postcode)
+                                             :body (str name)
                                              :close true
                                              :on-close
                                              #(state/edit! document operations/deselect-candidates (map ::candidate/id candidates))}]))))}

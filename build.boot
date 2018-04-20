@@ -24,6 +24,7 @@
    [hiccup                    "1.0.5"] ;; for HTML templating
    [digest                    "1.4.6"] ;; for MD5 convenience
    [honeysql                  "0.9.2"] ;; for SQL generation
+   [nilenso/honeysql-postgres "0.2.3"] ;; postgres specific bits
    [ragtime                   "0.7.2"] ;; for DB migrations
    [org.clojure/data.json     "0.2.6"] ;; for parsing the geojson from the db.
    ;; the actual server:

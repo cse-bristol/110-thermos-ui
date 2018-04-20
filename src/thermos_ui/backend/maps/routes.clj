@@ -20,17 +20,10 @@
                  :features (map candidate->feature candidates)}}
          ))
 
-  (POST "/map/buildings" {{data :file} :params}
-       ;; add some buildings
+  (POST "/map/candidates" {{data :file} :params}
+       ;; add some candidates
         (if-let [data (data :tempfile)]
-          (if (db/insert-buildings! data)
+          (if (db/insert! data)
             {:status 200})))
-
-  (POST "/map/ways" {{data :file} :params}
-       ;; add some ways
-        (if-let [data (data :tempfile)]
-          (if (db/insert-ways! data)
-            {:status 200})))
-
 
   )

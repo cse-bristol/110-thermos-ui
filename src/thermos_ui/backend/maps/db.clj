@@ -5,6 +5,8 @@
             [honeysql.core :as sql]
             [honeysql.helpers :refer :all]
             [honeysql.format :as fmt]
+            [honeysql-postgres.format :refer :all]
+            [honeysql-postgres.helpers :refer :all]
             [thermos-ui.backend.config :refer [config]]
             [clojure.java.io :as io]
             [clojure.data.json :as json]
@@ -29,49 +31,11 @@
 
 (declare find-polygon find-tile make-bounding-points comma-separate space-separate)
 
-(def simplified-geometry
-  (sql/call
-   :ST_AsGeoJSON
-   ;; This 0.0001 is an experimentally determined mystery parameter
-   ;; which corresponds to around things you can see around zoom level
-   ;; 15
-   (sql/call :ST_SimplifyPreserveTopology :geometry 0.0001)))
-
-(def building-fields
-  [:id :address :postcode :type :building_type :demand :connect_id
-   [(sql/call :ST_AsGeoJSON :geometry) :geometry]
-   [simplified-geometry :simple_geometry]])
-
-(def building-defaults
-  {:id ""
-   :address ""
-   :postcode ""
-   :type "demand"
-   :building_type ""
-   :demand 0
-   :connect_id ""})
-
-(def way-fields
-  [:id :address :postcode :length :start_id :end_id
-   [(sql/call :ST_AsGeoJSON :geometry) :geometry]
-   [simplified-geometry :simple_geometry]
-   ])
-
-(def way-defaults
-  {:id "" :address "" :postcode "" :length 0 :start_id "" :end_id ""})
-
-(defn find-tile [zoom x-tile y-tile]
-  (let [bounding-points (make-bounding-points zoom x-tile y-tile)
-        buildings (find-polygon bounding-points :buildings building-fields)
-        ways (map
-              #(assoc % :type "path")
-              (find-polygon bounding-points :ways way-fields))]
-    (concat buildings ways)))
-
 (defn insert!
-  "BUILDINGS-DATA should be the path to a geojson file containing
-  information about some buildings"
-  [geojson-file table defaults]
+  "GEOJSON-FILE should be the path to a geojson file containing
+  information about some candidates. The candidates need to have a
+  type on them for this to work."
+  [geojson-file]
 
   (let [features (-> (io/file geojson-file)
                      (slurp)
@@ -84,42 +48,87 @@
            (sql/call :ST_GeomFromGeoJSON (json/write-str geom))
            (int 4326)))
 
-        clean-feature
-        (fn [{geometry :geometry
-              properties :properties}]
-          (merge
-           defaults
+        get-properties
+        (fn [feature defaults]
+          (merge defaults (select-keys (:properties feature) (conj (keys defaults) :id))))
 
-           (select-keys properties (keys defaults))
+        candidate-defaults
+        {:name "" :type "" :subtype ""}
 
-           {:geometry (sql-geometry geometry)}))
+        building-defaults
+        {:connection_id "" :demand 0}
+
+        path-defaults
+        {:start_id "" :end_id ""}
+
+        insert-common-data
+        (fn [candidates]
+          (-> (insert-into :candidates)
+              (values (for [candidate candidates]
+                        (clojure.core/update
+                         (merge (get-properties candidate candidate-defaults)
+                                {:geometry (sql-geometry (:geometry candidate))})
+                         :type
+                         #(sql/call :candidate_type %)
+                         )))
+              (upsert (-> (on-conflict :id)
+                          (do-update-set :name :subtype :geometry)
+                          ))))
+
+        insert-other-data
+        (fn [type candidates]
+          (case (keyword type)
+            (:supply :demand)
+            (-> (insert-into :buildings)
+                (values (for [candidate candidates]
+                          (clojure.core/update
+                           (get-properties candidate building-defaults)
+                           :connection_id
+                           #(sql/call :regexp_split_to_array % ",")
+                           )))
+                (upsert (-> (on-conflict :id)
+                            (do-update-set :connection_id))))
+            :path
+            (-> (insert-into :paths)
+                (values (for [candidate candidates]
+                          (get-properties candidate path-defaults)))
+                (upsert (-> (on-conflict :id)
+                            (do-update-set :start_id :end_id))))))
         ]
     (j/with-db-transaction [tx database]
-      (doseq [block (partition-all 1000 (map clean-feature features))]
-        (j/execute! tx (sql/format (-> (insert-into table)
-                                       (values block)))))
+      (doseq [[type features]  (group-by (comp :type :properties) features)]
+        (doseq [block (partition-all 1000 features)]
+          ;; We can insert all the candidate data in one go, but the
+          ;; building / path data is split and has to go in
+          ;; separately. Fortunately, because we are generating the
+          ;; keys outside the db we don't have to do anything to keep
+          ;; the keys consistent
+          (j/execute! tx (sql/format (insert-common-data block)))
+          (j/execute! tx (sql/format (insert-other-data type block)))))
       true)))
 
-(defn insert-buildings!
-  [geojson-file]
-  (insert! geojson-file :buildings building-defaults))
+(defn find-tile [zoom x-tile y-tile]
+  (-> (make-bounding-points zoom x-tile y-tile)
+      (find-polygon)))
 
-(defn insert-ways!
-  [geojson-file]
-  (insert! geojson-file :ways way-defaults))
-
-(defn find-polygon [points table fields]
+(defn find-polygon [points]
   (let [query
-        (-> (apply select fields)
-            (from table)
-            (where [:&& :geometry (sql/call :ST_SetSRID
-                                            (sql/call :ST_GeomFromText (sql/param :box))
-                                            (int 4326))]))
+        (-> (select :id :name :type :subtype :connection_id
+                    :demand :start_id :end_id
+                    :geometry :simple_geometry)
+
+            (from :joined_candidates) ;; this view is defined in the migration SQL
+            (where [:&& :real_geometry (sql/call :ST_GeomFromText (sql/param :box) (int 4326))]))
 
         box-string
         (format "POLYGON((%s))" (comma-separate (map space-separate points)))
+
+        tidy-fields
+        #(into {} (filter second %)) ;; keep only map entries with non-nil values
         ]
-    (j/query database (sql/format query {:box box-string}))
+    (->> (j/query database (sql/format query {:box box-string}))
+         (map tidy-fields)
+         )
     ))
 
 (def comma-separate (partial string/join ","))

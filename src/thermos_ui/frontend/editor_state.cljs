@@ -31,18 +31,19 @@
     (merge
      {::candidate/id (:id properties)
       ::candidate/name (:name properties)
-      ::candidate/postcode (:postcode properties)
+      ::candidate/type type
+      ::candidate/subtype (:subtype properties)
       ::candidate/geometry geometry
       ::candidate/simple-geometry simple-geometry
-      ::candidate/type type
       ::candidate/inclusion :forbidden}
      (case type
-       :path {::candidate/length (:length properties)}
-       :demand {::candidate/demand (:demand properties)}
-       :supply {} ;; not sure
+       :path {::candidate/length (:length properties)
+              ::candidate/path-start (:start-id properties)
+              ::candidate/path-end (:end-id properties)}
+       :demand {::candidate/demand (:demand properties)
+                ::candidate/connection (:connect_id properties)}
+       :supply {::candidate/connection (:connect_id properties)}
        ))))
-
-;; TODO make URLs shared somehow
 
 (defn load-document! [org-name proj-name doc-version]
   (io/load-document

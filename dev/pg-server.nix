@@ -29,7 +29,6 @@
         host all all all trust
       '';
 
-      # in production we would not do this here
       initialScript = ./create-database.sql;
     };
 
@@ -45,17 +44,6 @@
         [[ -f /var/lib/populated-db ]] && exit 0
 
         psql -U root -d thermos_geometries -a -f "${./enable-postgis.sql}"
-
-        load () {
-           echo "load $1"
-           ogr2ogr -f PostgreSQL 'pg:dbname=thermos_geometries user=postgres' "$1" -nln "$2" -overwrite
-        }
-
-        load "${./demand.geojson}" "old_demand"
-        load "${./connections.geojson}" "old_connections"
-
-        # run more SQL to transformulate it
-        psql -U root -d thermos_geometries -a -f "${./populate-tables.sql}"
 
         touch /var/lib/populated-db
       '';
