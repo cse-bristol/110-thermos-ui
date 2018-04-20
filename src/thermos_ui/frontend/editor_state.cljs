@@ -24,6 +24,7 @@
   "Convert a GEOJSON feature into a candidate map"
   [feature]
   (let [geometry (.-geometry feature)
+        simple-geometry (.. feature -properties -simple_geometry)
         properties (js->clj (.-properties feature) :keywordize-keys true)
         type (keyword (:type properties))
         ]
@@ -32,6 +33,7 @@
       ::candidate/name (:name properties)
       ::candidate/postcode (:postcode properties)
       ::candidate/geometry geometry
+      ::candidate/simple-geometry simple-geometry
       ::candidate/type type
       ::candidate/inclusion :forbidden}
      (case type

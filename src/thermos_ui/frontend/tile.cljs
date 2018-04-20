@@ -37,6 +37,11 @@
                     pt
                     ;; [(.-x pt) (.-y pt)]
                     ))
+
+        geometry-key
+        (if (> zoom 15)
+          ::spatial/jsts-geometry
+          ::spatial/jsts-simple-geometry)
         ]
 
     (.setAttribute tile "width" width)
@@ -45,7 +50,7 @@
     (.clearRect ctx 0 0 width height)
 
     (doseq [candidate contents]
-      (render-candidate candidate ctx project))
+      (render-candidate candidate ctx project geometry-key))
     ))
 
 (defn render-candidate
@@ -53,7 +58,7 @@
   `candidate` is a candidate map,
   `ctx` is a Canvas graphics context (2D)
   `project` is a function to project from real space into the canvas pixel space"
-  [candidate ctx project]
+  [candidate ctx project geometry-key]
 
   (set! (.. ctx -lineWidth)
         (cond
@@ -67,7 +72,7 @@
                                 theme/grey))
   (set! (.. ctx -fillStyle) theme/light-grey)
 
-  (render-geometry (::spatial/jsts-geometry candidate) ctx project
+  (render-geometry (candidate geometry-key) ctx project
      true false)
   )
 

@@ -29,9 +29,18 @@
 
 (declare find-polygon find-tile make-bounding-points comma-separate space-separate)
 
+(def simplified-geometry
+  (sql/call
+   :ST_AsGeoJSON
+   ;; This 0.0001 is an experimentally determined mystery parameter
+   ;; which corresponds to around things you can see around zoom level
+   ;; 15
+   (sql/call :ST_SimplifyPreserveTopology :geometry 0.0001)))
+
 (def building-fields
   [:id :address :postcode :type :building_type :demand :connect_id
-   [(sql/call :ST_AsGeoJSON :geometry) :geometry]])
+   [(sql/call :ST_AsGeoJSON :geometry) :geometry]
+   [simplified-geometry :simple_geometry]])
 
 (def building-defaults
   {:id ""
@@ -44,7 +53,9 @@
 
 (def way-fields
   [:id :address :postcode :length :start_id :end_id
-   [(sql/call :ST_AsGeoJSON :geometry) :geometry]])
+   [(sql/call :ST_AsGeoJSON :geometry) :geometry]
+   [simplified-geometry :simple_geometry]
+   ])
 
 (def way-defaults
   {:id "" :address "" :postcode "" :length 0 :start_id "" :end_id ""})
@@ -54,12 +65,8 @@
         buildings (find-polygon bounding-points :buildings building-fields)
         ways (map
               #(assoc % :type "path")
-              (find-polygon bounding-points :ways way-fields))
-        result (concat buildings ways)
-        ]
-    (println zoom x-tile y-tile (count result))
-    result
-    ))
+              (find-polygon bounding-points :ways way-fields))]
+    (concat buildings ways)))
 
 (defn insert!
   "BUILDINGS-DATA should be the path to a geojson file containing
@@ -70,6 +77,12 @@
                      (slurp)
                      (json/read-str :key-fn keyword)
                      :features)
+        sql-geometry
+        (fn [geom]
+          (sql/call
+           :ST_SetSRID
+           (sql/call :ST_GeomFromGeoJSON (json/write-str geom))
+           (int 4326)))
 
         clean-feature
         (fn [{geometry :geometry
@@ -79,14 +92,8 @@
 
            (select-keys properties (keys defaults))
 
-           {:geometry
-            (sql/call
-             :ST_SetSRID
-             (sql/call :ST_GeomFromGeoJSON (json/write-str geometry))
-             (int 4326)
-             )}))
+           {:geometry (sql-geometry geometry)}))
         ]
-    ;; seems we can't insert too many things at once, so we do them in blocks of a thousand
     (j/with-db-transaction [tx database]
       (doseq [block (partition-all 1000 (map clean-feature features))]
         (j/execute! tx (sql/format (-> (insert-into table)
@@ -112,7 +119,6 @@
         box-string
         (format "POLYGON((%s))" (comma-separate (map space-separate points)))
         ]
-
     (j/query database (sql/format query {:box box-string}))
     ))
 

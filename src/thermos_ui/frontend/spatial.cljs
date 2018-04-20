@@ -21,6 +21,8 @@
     [candidate]
     (let [json-geom (::candidate/geometry candidate)
           jsts-geom (.read geometry-reader json-geom)
+          jsts-simple-geom (.read geometry-reader
+                                  (::candidate/simple-geometry candidate))
           envelope (.getEnvelopeInternal jsts-geom)
           bbox {:minX (.getMinX envelope)
                 :maxX (.getMaxX envelope)
@@ -29,6 +31,7 @@
           ]
       (assoc candidate
              ::jsts-geometry jsts-geom
+             ::jsts-simple-geometry jsts-simple-geom
              ::bbox bbox))))
 
 (defn index-atom [document-atom]
