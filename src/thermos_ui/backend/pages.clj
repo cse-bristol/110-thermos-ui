@@ -39,6 +39,21 @@
   (GET "/:org-name/new" [org-name]
        editor)
 
+  (GET "/:org-name/:problem" [org-name problem]
+       "Redirect to the latest version if no version given."
+       (let [org-problems
+             (filter (comp (partial = org-name) :org)
+                     (problems/ls org-name))
+
+             org-problems (group-by :name org-problems)
+             problem-coll (org-problems problem)
+             latest-version-id (->> problem-coll
+                                 (sort-by :date)
+                                 last
+                                 :id)]
+         (ring.util.response/redirect (str "/" org-name "/" problem "/" latest-version-id "/"))
+         ))
+
   (GET "/:org-name/" [org-name]
        (let [org-problems
              (filter (comp (partial = org-name) :org)
