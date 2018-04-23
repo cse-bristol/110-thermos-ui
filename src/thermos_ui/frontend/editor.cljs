@@ -77,7 +77,7 @@
         }
        [main-nav/component
         {:on-save do-save
-         :name proj-name}]
+         :name (if (and (= proj-name "new") (not version)) "" proj-name)}]
 
        [:div.layout__container
         [:div.layout__panel.layout__panel--left

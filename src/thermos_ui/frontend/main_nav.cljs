@@ -16,7 +16,11 @@
         [:input.text-input.main-nav__file-name-input
          {:type "text" :placeholder "Untitled"
           :value (:name @state)
-          :on-change #(swap! state assoc :name (.. % -target -value))}]]
+          :on-change #(swap! state assoc :name (.. % -target -value))
+          ;; If this is a new problem, focus on the project name input
+          :ref (fn [element]
+                 (when (= (:name @state) "")
+                   (.focus element)))}]]
 
        [:div.pull-right.main-nav__input-container
         [:button.button.button--link-style.button--save-button
