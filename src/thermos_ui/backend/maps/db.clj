@@ -97,14 +97,18 @@
         ]
     (j/with-db-transaction [tx database]
       (doseq [[type features]  (group-by (comp :type :properties) features)]
-        (doseq [block (partition-all 1000 features)]
-          ;; We can insert all the candidate data in one go, but the
-          ;; building / path data is split and has to go in
-          ;; separately. Fortunately, because we are generating the
-          ;; keys outside the db we don't have to do anything to keep
-          ;; the keys consistent
-          (j/execute! tx (sql/format (insert-common-data block)))
-          (j/execute! tx (sql/format (insert-other-data type block)))))
+        (let [features (->> features ;; [feature]
+                            (group-by :id) ;; [id => [feature]]
+                            (map second) ;; [[feature]]
+                            (map first))] ;; should be [feature again]
+          (doseq [block (partition-all 1000 features)]
+            ;; We can insert all the candidate data in one go, but the
+            ;; building / path data is split and has to go in
+            ;; separately. Fortunately, because we are generating the
+            ;; keys outside the db we don't have to do anything to keep
+            ;; the keys consistent
+            (j/execute! tx (sql/format (insert-common-data block)))
+            (j/execute! tx (sql/format (insert-other-data type block))))))
       true)))
 
 (defn find-tile [zoom x-tile y-tile]
