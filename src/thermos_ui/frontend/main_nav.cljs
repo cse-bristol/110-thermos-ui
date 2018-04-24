@@ -1,5 +1,6 @@
 (ns thermos-ui.frontend.main-nav
-  (:require [reagent.core :as reagent]))
+  (:require [reagent.core :as reagent]
+            [clojure.string :as s]))
 
 (defn component
   "The main nav bar at the top of the page."
@@ -27,7 +28,7 @@
         [:button.button.button--link-style.button--save-button
          {:on-click #(let [name (:name @state)]
                        ;; If this is a new probem and a name has not been provided, prompt user to do so.
-                       (if (and (some? name) (not= name ""))
+                       (if (and (some? name) (not (s/blank? name)))
                         (on-save name)
                         (do (js/window.alert "Please provide a name for this project.")
                           (.focus (js/document.getElementById "file-name-input")))))
