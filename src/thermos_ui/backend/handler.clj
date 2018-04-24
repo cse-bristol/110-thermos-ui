@@ -1,6 +1,7 @@
 (ns thermos-ui.backend.handler
   (:require [compojure.core :refer :all]
             [compojure.route :as route]
+            [compojure.middleware :refer [wrap-canonical-redirect]]
             [thermos-ui.backend.pages :as pages]
             [thermos-ui.backend.store-service.routes :as problem-routes]
             [thermos-ui.backend.maps.routes :as map-routes]
@@ -9,11 +10,14 @@
             [thermos-ui.backend.config :refer [config]]
             ))
 
-(defn add-to-slash [route filename]
-  (fn [{uri :uri :as request}]
-    (if (.endsWith "/" uri)
-      (route (update request :uri #(str % filename)))
-      (route request))))
+(defn remove-trailing-slash
+  "Remove the trailing '/' from a URI string, if it exists."
+  [^String uri]
+  (if (and (not= uri "/") (.endsWith uri "/"))
+    (.substring uri 0 (dec (.length uri)))
+    uri))
+
+(println site-defaults)
 
 (defroutes all
   pages/all
@@ -35,4 +39,5 @@
       wrap-json-body
       wrap-json-response
       ((if (= "true" (config :disable-cache)) wrap-no-cache identity))
+      (wrap-canonical-redirect remove-trailing-slash)
       ))

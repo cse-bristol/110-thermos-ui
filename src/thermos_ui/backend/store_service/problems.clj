@@ -49,3 +49,9 @@
 (defn get-file [org name id]
   (let [out (io/file store-location org name (str id file-ext))]
     (when (.exists out) out)))
+
+(defn get-problem-dir
+  [org name]
+  (let [out (io/file store-location org name)]
+    (when (.isDirectory out)
+      out)))

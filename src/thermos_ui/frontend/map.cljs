@@ -1,12 +1,18 @@
 (ns thermos-ui.frontend.map
-  (:require [reagent.core :as reagent]
+  (:require [clojure.set :as set]
+
+            [reagent.core :as reagent]
             [cljsjs.leaflet]
             [cljsjs.leaflet-draw] ;; this modifies js/L.Control in-place
             [cljsjs.jsts :as jsts]
+
             [thermos-ui.frontend.operations :as operations]
             [thermos-ui.frontend.spatial :as spatial]
             [thermos-ui.frontend.editor-state :as state]
             [thermos-ui.frontend.tile :as tile]
+            [thermos-ui.frontend.popover :as popover]
+            [thermos-ui.frontend.popover-menu :as popover-menu]
+            [thermos-ui.frontend.search-box :as search-box]
             [thermos-ui.specs.document :as document]
             [thermos-ui.specs.view :as view]
             [thermos-ui.specs.candidate :as candidate]
@@ -21,7 +27,10 @@
          render-tile
          draw-control
          layer->jsts-shape
-         latlng->jsts-shape)
+         latlng->jsts-shape
+         on-right-click-on-map
+         create-leaflet-control
+         unload-candidates)
 
 (defn component
   "Draw a cartographic map for the given `document`, which should be a reagent atom
@@ -53,7 +62,7 @@
         map (js/L.map map-node (clj->js {:preferCanvas true
                                             :fadeAnimation true
                                             :zoom 13
-                                            :center [51.454514 -2.587910]
+                                            :center [51.553356 -0.109271]
                                             }))
         candidates-layer (candidates-layer document)
 
@@ -76,6 +85,8 @@
                          "None" (js/L.tileLayer "")
                          }
                         {"Candidates" candidates-layer})
+
+        search-control (create-leaflet-control search-box/component)
 
         follow-map!
         #(let [bounds (.getBounds map)]
@@ -108,6 +119,7 @@
 
     (.addLayer map esri-sat-imagery)
     (.addLayer map candidates-layer)
+    (.addControl map (search-control. (clj->js {:position :topright})))
     (.addControl map layers-control)
     (.addControl map draw-control)
 
@@ -132,9 +144,7 @@
 
       (.on map "click"
            (fn [e]
-
              (let [oe (.-originalEvent e)
-
                    method
                    (cond
                      (.-ctrlKey oe) :xor
@@ -152,7 +162,32 @@
 
                             method))
 
-             (reset! shape nil))))
+             (reset! shape nil)))
+
+      (.on map "contextmenu" (fn [e] (on-right-click-on-map e document pixel-size)))
+      )
+
+    ;; When zooming or moving, unload the candidates which fall out of the current view
+    (let [;; We'll use this timeout to wait a bit before doing the unloading.
+          ;; But if you move, then move again before the candidates get unloaded,
+          ;; the timeout will get reset and the candidates won't get unloaded unnecessarily.
+          ;; @TODO Decide what the timeout should be - for now I've settled on 400ms but this is fairly arbitrary
+          timeout (atom nil)]
+      (.on map "movestart" (fn [] (if @timeout (js/clearTimeout @timeout))))
+      (.on map "zoomstart" (fn [] (if @timeout (js/clearTimeout @timeout))))
+      (.on map "moveend" (fn []
+                           (if @timeout (js/clearTimeout @timeout))
+                           (reset! timeout
+                                   (js/setTimeout
+                                    (fn [] (unload-candidates))
+                                    400))))
+      (.on map "zoomend" (fn []
+                           (if @timeout (js/clearTimeout @timeout))
+                           (reset! timeout
+                                   (js/setTimeout
+                                    (fn [] (unload-candidates))
+                                    400))))
+      )
 
     (track! show-bounding-box!)))
 
@@ -203,9 +238,6 @@
                           :maxX (max (.-lng north-west) (.-lng south-east))
                           }
 
-                    ;; contains just the IDs of candidates in this box
-                    tile-candidates-ids
-                    (reagent/atom ())
 
                     ;; Queries the spatial index in the document
                     ;; to update the candidates ids. This uses a cursor
@@ -213,6 +245,7 @@
                     ;; it only gets triggered when the spatial index is changed.
                     just-index (spatial/index-atom doc)
 
+                    ;; contains just the IDs of candidates in this box
                     tile-candidates-ids
                     (reagent/track
                      #(spatial/find-candidates-ids-in-bbox @just-index bbox))
@@ -224,7 +257,7 @@
 
                     tile-contents
                     (reagent/track
-                     #(map @just-candidates @tile-candidates-ids))
+                     #(filter identity (map @just-candidates @tile-candidates-ids)))
                     ]
 
                 (set! (.. canvas -coords) coords)
@@ -292,3 +325,125 @@
 
   (defn layer->jsts-shape [layer]
     (.-geometry (.read jsts-reader (.toGeoJSON layer) ))))
+
+(defn on-right-click-on-map
+  "Callback for when you right-click on the map.
+  If you are clicking on a selected candidate, open up a popover menu
+  allowing you to edit the selected candidates in situ."
+  [e document pixel-size]
+  (let [oe (.-originalEvent e)
+        click-range (latlng->jsts-shape
+                     (.-latlng e)
+                     (* 3 (pixel-size)))
+        intersecting-candidates-ids (set (spatial/find-intersecting-candidates-ids @document click-range))
+        selected-candidates-ids (operations/selected-candidates-ids @document)
+        intersecting-selected-candidates-ids (set/intersection intersecting-candidates-ids selected-candidates-ids)
+        ]
+    ;; If there are any selected candidates in the range of your click then show a
+    ;; menu allowing you to edit the selected candidates in situ.
+    (if (> (count intersecting-selected-candidates-ids) 0)
+      (let [selected-candidates (operations/selected-candidates @document)
+            selected-paths (filter
+                            (fn [candidate] (= (::candidate/type candidate) :path))
+                            selected-candidates)
+            selected-paths-ids (map ::candidate/id selected-paths)
+            selected-buildings (filter
+                                (fn [candidate] (or (= (::candidate/type candidate) :demand)
+                                                    (= (::candidate/type candidate) :supply)))
+                                selected-candidates)
+            selected-buildings-ids (map ::candidate/id selected-buildings)
+            set-inclusion (fn [candidates-ids inclusion-value] (state/edit! document
+                                                                 operations/set-candidates-inclusion
+                                                                 candidates-ids
+                                                                 inclusion-value))]
+        (state/edit!
+         document
+         operations/set-popover-content
+         [popover-menu/component [{:value [:div.centre "EDIT CANDIDATES"]
+                                   :key "title"}
+                                  {:value [:b (str (count selected-paths) " roads selected")]
+                                   :key "selected-roads-header"}
+                                  {:value "Set inclusion"
+                                   :key "inclusion-roads"
+                                   :sub-menu [{:value "Required"
+                                               :key "required"
+                                               :on-select (fn [e] (set-inclusion selected-paths-ids :required)
+                                                            (state/edit! document operations/close-popover))}
+                                              {:value "Optional"
+                                               :key "optional"
+                                               :on-select (fn [e] (set-inclusion selected-paths-ids :optional)
+                                                            (state/edit! document operations/close-popover))}
+                                              {:value "Forbidden"
+                                               :key "forbidden"
+                                               :on-select (fn [e] (set-inclusion selected-paths-ids :forbidden)
+                                                            (state/edit! document operations/close-popover))}]}
+                                  {:value "Set road type [TODO]"
+                                   :key "road-type"
+                                   :sub-menu [{:value "Cheap"
+                                               :key "cheap"}
+                                              {:value "Expensive"
+                                               :key "expensive"}]}
+                                  {:value [:div.popover-menu__divider]
+                                   :key "divider"}
+                                  {:value [:b (str (count selected-buildings) " buildings selected")]
+                                   :key "selected-buildings-header"}
+                                   {:value "Set inclusion"
+                                    :key "inclusion-buildings"
+                                    :sub-menu [{:value "Required"
+                                                :key "required"
+                                                :on-select (fn [e] (set-inclusion selected-buildings-ids :required)
+                                                             (state/edit! document operations/close-popover))}
+                                               {:value "Optional"
+                                                :key "optional"
+                                                :on-select (fn [e] (set-inclusion selected-buildings-ids :optional)
+                                                             (state/edit! document operations/close-popover))}
+                                               {:value "Forbidden"
+                                                :key "forbidden"
+                                                :on-select (fn [e] (set-inclusion selected-buildings-ids :forbidden)
+                                                             (state/edit! document operations/close-popover))}]}
+                                  {:value "Set type [TODO]"
+                                   :key "type"
+                                   :sub-menu [{:value "Demand"
+                                               :key "demand"}
+                                              {:value "Supply"
+                                               :key "supply"}]}
+                                  ]])
+        (state/edit! document operations/set-popover-source-coords [oe.clientX oe.clientY])
+        (state/edit! document operations/show-popover)))
+    ))
+
+(defn create-leaflet-control
+  [component]
+  (->> {:onAdd (fn [map]
+                 (let [box (.create leaflet/DomUtil "div")]
+                   (.disableClickPropagation leaflet/DomEvent box)
+                   (reagent/render [component map] box)
+                   box))
+        }
+       clj->js
+       (.extend leaflet/Control)))
+
+(defn unload-candidates
+  []
+  (let [;; Get all the candidates in the bbox
+        bbox (get-in @state/state [::view/view-state ::view/bounding-box])
+        ;; Use the height and width of the box to naively add a buffer to the bbox
+        bbox-height (- (:north bbox) (:south bbox))
+        bbox-width (- (:east bbox) (:west bbox))
+        bbox {:minY (- (:south bbox) (/ bbox-height 2))
+              :maxY (+ (:north bbox) (/ bbox-height 2))
+              :minX (- (:west bbox) (/ bbox-width 2))
+              :maxX (+ (:east bbox) (/ bbox-width 2))}
+        candidates-in-bbox-ids (spatial/find-candidates-ids-in-bbox @state/state bbox)
+        ;; Get all the candidates that are either selected or constrained
+        selected-candidates-ids (operations/selected-candidates-ids @state/state)
+        constrained-candidates-ids (operations/constrained-candidates-ids @state/state)
+        candidates-to-keep-ids (clojure.core/set (concat candidates-in-bbox-ids
+                                          selected-candidates-ids
+                                          constrained-candidates-ids))
+        candidates-to-keep (select-keys (::document/candidates @state/state)
+                                        candidates-to-keep-ids)
+        ]
+    ;; Remove all the candidates that we don't want to keep
+    (state/edit-geometry! state/state assoc ::document/candidates candidates-to-keep)
+    ))
