@@ -11,8 +11,8 @@
 (defn routes-list []
   "List routes"
   ;;"I'd like this to be an auto generated list from defroutes, but that's a macro..."
-  {"/problem/:org/" {:method "GET" :description "List all problems for :org"}
-   "/problem/:org/:name/" {:method "POST" :description "Post a problem"
+  {"/problem/:org" {:method "GET" :description "List all problems for :org"}
+   "/problem/:org/:name" {:method "POST" :description "Post a problem"
                            :params {"file" "Problem file in .edn format"}}
    "/problem/:org/:name/:id" {:method "DELETE" :description "Delete specific problem version"}
    })
@@ -26,7 +26,7 @@
     {:status 404}))
 
 (defroutes map-routes
-  (GET "/map/candidates/:zoom/:x-tile/:y-tile/"
+  (GET "/map/candidates/:zoom/:x-tile/:y-tile"
        {{zoom :zoom
          x-tile :x-tile
          y-tile :y-tile} :params :as params}
@@ -36,7 +36,7 @@
 
 (defroutes all
   map-routes
-  (POST "/problem/:org/:name/"
+  (POST "/problem/:org/:name"
         {{org :org
           name :name
           problem :file} :params :as params}
@@ -61,7 +61,7 @@
           :body problem}
          {:status 404}))
 
-  (DELETE "/problem/:org/:name/"
+  (DELETE "/problem/:org/:name"
           [org name]
           (if-let [problem-dir (p/get-problem-dir org name)]
             (do

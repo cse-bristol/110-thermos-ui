@@ -5,12 +5,12 @@
 
 (defn document
   ([org doc]
-   (str (s/join "/" [api-prefix "problem" org doc]) "/"))
+   (str (s/join "/" [api-prefix "problem" org doc])))
   ([org doc id]
    (str (s/join "/" [api-prefix "problem" org doc id]))))
 
 (defn tile [x y z]
-  (str (s/join "/" [api-prefix "map/candidates" z x y]) "/"))
+  (str (s/join "/" [api-prefix "map/candidates" z x y])))
 
 (defn editor [org nam ver]
   (str (s/join "/" ["" org nam ver ""])))

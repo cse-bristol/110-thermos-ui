@@ -33,7 +33,7 @@
         [:h1 "THERMOS"]
         [:p "Nothing here, you need to go see the editor"]))
 
-  (GET "/:org-name/:problem/:version/" [org-name problem version]
+  (GET "/:org-name/:problem/:version" [org-name problem version]
        editor)
 
   (GET "/:org-name/new" [org-name]
@@ -51,10 +51,12 @@
                                  (sort-by :date)
                                  last
                                  :id)]
-         (ring.util.response/redirect (str "/" org-name "/" problem "/" latest-version-id "/"))
+         (if latest-version-id
+           (ring.util.response/redirect (str "/" org-name "/" problem "/" latest-version-id))
+           (ring.util.response/redirect (str "/" org-name)))
          ))
 
-  (GET "/:org-name/" [org-name]
+  (GET "/:org-name" [org-name]
        (let [org-problems
              (filter (comp (partial = org-name) :org)
                      (problems/ls org-name))
@@ -81,7 +83,7 @@
                                                 (java.util.Date. (:date latest-save)))
                       ]
                   [:tr
-                   [:td [:a.link {:href (str name "/" (:id latest-save) "/")} name]]
+                   [:td [:a.link {:href (str name "/" org-name "/" (:id latest-save) "/")} name]]
                    [:td {:data-saved-timestamp (:date latest-save)} latest-save-date]
                    [:td {:style "text-align:right;"}
                     [:button.button.button--small
@@ -89,7 +91,7 @@
                      "Delete"]]]))
               ]]
             [:br]
-            [:a.button {:href "new"} "NEW +"]
+            [:a.button {:href (str "/" org-name "/new")} "NEW +"]
             ]]
           (for [[name saves] org-problems]
             (delete-problem-modal-html name))
