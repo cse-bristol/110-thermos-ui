@@ -1,5 +1,6 @@
 (ns thermos-ui.frontend.network-candidates-panel
-  (:require [reagent.core :as reagent]
+  (:require [goog.object :as o]
+            [reagent.core :as reagent]
             [thermos-ui.specs.candidate :as candidate]
             [thermos-ui.specs.view :as view]
             [thermos-ui.frontend.editor-state :as state]
@@ -39,16 +40,20 @@
          :key ::candidate/selected
          :cellRenderer (fn [args] (selected-cell-renderer document args))
          :headerRenderer (fn [args] (filterable-header-renderer document items ::candidate/selected args "checkbox"))}
-        {:label "Address"
+        {:label "Name"
          :key ::candidate/name
          :headerRenderer (fn [args] (filterable-header-renderer document items ::candidate/name args "text"))}
+
         {:label "Type"
          :key ::candidate/type
          :cellRenderer (fn [arg]
-                         (name (.-cellData arg)))
+                         (name (o/get arg "cellData")))
          :headerRenderer (fn [args] (filterable-header-renderer document items ::candidate/type args "checkbox"))}
-        {:label "Postcode" :key ::candidate/postcode
-         :headerRenderer (fn [args] (filterable-header-renderer document items ::candidate/postcode args "checkbox"))}
+
+        {:label "Classification" :key ::candidate/subtype
+         :headerRenderer (fn [args] (filterable-header-renderer document items ::candidate/subtype args "checkbox"))}
+
+
         ]
        ;; Box displaying a summary of the filters if any have been applied
        (if-not (zero? num-applied-filters)

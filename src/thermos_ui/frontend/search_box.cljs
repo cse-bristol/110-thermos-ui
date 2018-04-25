@@ -110,14 +110,9 @@
                                               :limit 5
                                               :format "json"
                                               :addressdetails 1
-                                              :countrycodes "gb"
-                                              :viewbox viewbox
-                                              ;; @TODO setting the viewbox supposedly
-                                              ;; weights the results towards results in view
-                                              ;; but in practice it doesn't seem to do much,
-                                              ;; so I've set `bounded` which completely
-                                              ;; restricts results to the bbox.
-                                              :bounded 1}))
+                                         ;; :countrycodes "gb"
+                                         ;; :viewbox viewbox
+                                         }))
               (fn [response]
                 (let [request-results (.getResponseJson response.target)]
                   (reset! results (js->clj request-results :keywordize-keys true))))

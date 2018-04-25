@@ -92,6 +92,7 @@
          :compiler-options
          {:parallel-build true
           :preloads ['devtools.preload]
+
           :external-config
           {:devtools/config {:features-to-install [:formatters :hints :async]
                              :fn-symbol "λ"

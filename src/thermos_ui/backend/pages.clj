@@ -83,7 +83,7 @@
                                                 (java.util.Date. (:date latest-save)))
                       ]
                   [:tr
-                   [:td [:a.link {:href (str name "/" org-name "/" (:id latest-save) "/")} name]]
+                   [:td [:a.link {:href (str org-name "/" name "/" (:id latest-save) "/")} name]]
                    [:td {:data-saved-timestamp (:date latest-save)} latest-save-date]
                    [:td {:style "text-align:right;"}
                     [:button.button.button--small

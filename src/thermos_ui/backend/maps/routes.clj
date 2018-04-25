@@ -12,7 +12,7 @@
    :properties (dissoc candidate :geometry)})
 
 (defroutes map-data-routes
-  (GET "/map/candidates/:zoom/:x-tile/:y-tile/"
+  (GET "/map/candidates/:zoom/:x-tile/:y-tile"
        [zoom x-tile y-tile]
        (let [candidates (db/find-tile (as-int zoom) (as-int x-tile) (as-int y-tile))]
          {:status 200

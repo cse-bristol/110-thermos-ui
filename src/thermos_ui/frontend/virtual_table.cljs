@@ -3,6 +3,7 @@
             [clojure.string :as s]
             [cljsjs.react]
             [cljsjs.react-virtualized]
+            [goog.object :as o]
             ))
 
 (declare component filter!)
@@ -68,7 +69,7 @@
                 :width 100
                 :dataKey (str key)
                 :flexGrow 1
-                :cellDataGetter #(get (.-rowData %) key)
+                :cellDataGetter #(get (o/get % "rowData") key)
                 }
                col)])
            ]))])))

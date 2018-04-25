@@ -9,6 +9,8 @@
             [thermos-ui.frontend.spatial :as spatial]
 
             [thermos-ui.frontend.theme :as theme]
+
+            [goog.object :as o]
             ))
 
 (declare render-candidate render-geometry render-linestring)
@@ -25,10 +27,10 @@
         width (.-x size)
         height (.-y size)
         zoom (.-z coords)
-        map-control (.-_map map)
+        map-control (o/get map "_map")
         project (fn [x y]
                   (let [pt (.project map-control
-                                     (leaflet/latLng x y)
+                                     (js/L.latLng x y)
                                      zoom)
                         pt (.unscaleBy pt size)
                         pt (.subtract pt coords)

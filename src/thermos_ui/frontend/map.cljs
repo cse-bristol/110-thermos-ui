@@ -16,6 +16,8 @@
             [thermos-ui.specs.document :as document]
             [thermos-ui.specs.view :as view]
             [thermos-ui.specs.candidate :as candidate]
+
+            [goog.object :as o]
             ))
 
 ;; the map component
@@ -60,10 +62,10 @@
         track! (fn [f & a] (swap! watches conj (apply reagent/track! f a)))
 
         map (js/L.map map-node (clj->js {:preferCanvas true
-                                            :fadeAnimation true
-                                            :zoom 13
-                                            :center [51.553356 -0.109271]
-                                            }))
+                                         :fadeAnimation true
+                                         :zoom 13
+                                         :center [51.553356 -0.109271]
+                                         }))
         candidates-layer (candidates-layer document)
 
         ;; The tilesize of 256 is related to the x, y values when talking
@@ -134,21 +136,23 @@
 
       (.on map (.. js/L.Draw -Event -CREATED)
            (fn [e]
-             (let [s (layer->jsts-shape (.. e -layer))
-                   type (.. e -layerType)]
+             (let [s (layer->jsts-shape (o/get e "layer"))
+                   type (o/get e "layerType")]
                (reset! shape
                        (if (= "circle" type)
                          ;; radius needs projecting, which is morally wrong.
-                         (.buffer s (.. e -layer getRadius))
+                         (.buffer s
+                                  (-> (o/get e "layer")
+                                      (.getRadius)))
                          s)))))
 
       (.on map "click"
            (fn [e]
-             (let [oe (.-originalEvent e)
+             (let [oe (o/get e "originalEvent")
                    method
                    (cond
-                     (.-ctrlKey oe) :xor
-                     (.-shiftKey oe) :union
+                     (o/get oe "ctrlKey" false) :xor
+                     (o/get oe "shiftKey" false) :union
                      :otherwise :replace)
                    ]
 
@@ -157,7 +161,7 @@
 
                             (or @shape
                                 (latlng->jsts-shape
-                                 (.-latlng e)
+                                 (o/get e "latlng")
                                  (* 3 (pixel-size))))
 
                             method))
@@ -226,7 +230,7 @@
 
                     tile-id (str "T" (swap! tile-id inc) "N")
 
-                    map-control (aget this "_map")
+                    map-control (o/get this "_map")
                     size (.getTileSize this)
 
                     north-west (.unproject map-control (.scaleBy coords size) zoom)
@@ -262,12 +266,9 @@
 
                 (set! (.. canvas -coords) coords)
                 (set! (.. canvas -tile-id) tile-id)
-                (set! (.. canvas -tracks)
+                (o/set canvas "tracks"
                       (list (reagent/track!
                              (fn []
-                               (when (.. canvas -destroyed)
-                                 (println "Tile" tile-id "not destroyed properly"))
-
                                (tile/render-tile @tile-contents canvas this)
                                ;; identify tiles with big red text
                                ;; (let [ctx (.getContext canvas "2d")]
@@ -284,9 +285,10 @@
 
         destroy-tile
         (fn [e]
-          (set! (.. e -tile -destroyed) true)
           (swap! tiles disj (.. e -tile))
-          (doseq [t (.. e -tile -tracks)]
+          (doseq [t (-> e (o/get "tile")
+                        (o/get "tracks"))]
+
             (reagent/dispose! t)))
 
         initialize
@@ -324,16 +326,17 @@
       (.buffer p (* 3 rad))))
 
   (defn layer->jsts-shape [layer]
-    (.-geometry (.read jsts-reader (.toGeoJSON layer) ))))
+    (-> (.read jsts-reader (.toGeoJSON layer))
+        (o/get "geometry"))))
 
 (defn on-right-click-on-map
   "Callback for when you right-click on the map.
   If you are clicking on a selected candidate, open up a popover menu
   allowing you to edit the selected candidates in situ."
   [e document pixel-size]
-  (let [oe (.-originalEvent e)
+  (let [oe (o/get e "originalEvent")
         click-range (latlng->jsts-shape
-                     (.-latlng e)
+                     (o/get e "latlng")
                      (* 3 (pixel-size)))
         intersecting-candidates-ids (set (spatial/find-intersecting-candidates-ids @document click-range))
         selected-candidates-ids (operations/selected-candidates-ids @document)
@@ -408,20 +411,21 @@
                                               {:value "Supply"
                                                :key "supply"}]}
                                   ]])
-        (state/edit! document operations/set-popover-source-coords [oe.clientX oe.clientY])
+        (state/edit! document operations/set-popover-source-coords
+                     [(o/get oe "clientX") (o/get oe "clientY")])
         (state/edit! document operations/show-popover)))
     ))
 
 (defn create-leaflet-control
   [component]
   (->> {:onAdd (fn [map]
-                 (let [box (.create leaflet/DomUtil "div")]
-                   (.disableClickPropagation leaflet/DomEvent box)
+                 (let [box (.create js/L.DomUtil "div")]
+                   (.disableClickPropagation js/L.DomEvent box)
                    (reagent/render [component map] box)
                    box))
         }
        clj->js
-       (.extend leaflet/Control)))
+       (.extend js/L.Control)))
 
 (defn unload-candidates
   []

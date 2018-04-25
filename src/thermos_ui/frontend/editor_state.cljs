@@ -1,5 +1,7 @@
 (ns thermos-ui.frontend.editor-state
-  (:require [thermos-ui.frontend.spatial :as spatial]
+  (:require [goog.object :as o]
+
+            [thermos-ui.frontend.spatial :as spatial]
             [thermos-ui.frontend.io :as io]
             [thermos-ui.specs.candidate :as candidate]
             [thermos-ui.specs.document :as document]
@@ -20,14 +22,26 @@
   [document f & args]
   (apply swap! document (comp spatial/update-index f) args))
 
+(def printed-feature (atom false))
+
 (defn- feature->candidate
   "Convert a GEOJSON feature into a candidate map"
   [feature]
-  (let [geometry (.-geometry feature)
-        simple-geometry (.. feature -properties -simple_geometry)
-        properties (js->clj (.-properties feature) :keywordize-keys true)
+
+  (when-not @printed-feature
+    (reset! printed-feature true)
+    (js/console.log feature)
+    )
+
+  (let [geometry (o/get feature "geometry")
+        properties (o/get feature "properties")
+        simple-geometry (o/get properties "simple_geometry" geometry)
+
+        properties (dissoc (js->clj properties :keywordize-keys true) :simple_geometry)
+
         type (keyword (:type properties))
         ]
+
     (merge
      {::candidate/id (:id properties)
       ::candidate/name (:name properties)
@@ -68,7 +82,7 @@
 
      ;; 1: convert each feature into a candidate map
 
-     (let [features (.-features json)
+     (let [features (o/get json "features")
            candidates (into () (.map features feature->candidate))]
        ;; 2: update the document to contain the new candidates
        (edit-geometry! document
