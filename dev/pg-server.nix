@@ -22,7 +22,7 @@
     "CREATE EXTENSION postgis;";
   in
   {
-    deployment.targetEnv = "container";
+    deployment.targetEnv = "virtualbox";
 
     environment.systemPackages = [pkgs.rxvt_unicode.terminfo];
 
