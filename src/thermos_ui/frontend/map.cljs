@@ -18,6 +18,9 @@
             [thermos-ui.specs.candidate :as candidate]
 
             [goog.object :as o]
+            [goog.ui.SplitPane :refer [Component]]
+            [goog.events :refer [listen]]
+            [goog.functions :refer [debounce]]
             ))
 
 ;; the map component
@@ -193,7 +196,21 @@
                                     400))))
       )
 
-    (track! show-bounding-box!)))
+    (track! show-bounding-box!)
+
+    ;; When you move the splitpane, re-centre the map.
+    ;; This also ensures that when you increase the size of the map pane it renders any newly exposed tiles.
+    (js/setTimeout
+     (fn []
+       (let [splitpane (get-in @document [::view/view-state ::view/splitpane])]
+         (goog.events/listen
+          splitpane
+          goog.ui.Component.EventType.CHANGE
+          (debounce (fn [] (.invalidateSize map)) 200)
+          ))))
+
+    )
+  )
 
 (defn unmount
   "Destroy a leaflet when its react component is going away"

@@ -18,4 +18,4 @@
 
 (s/def ::popover (s/keys :req [::popover-showing ::popover-content ::source-coords]))
 
-(s/def ::view-state (s/keys :req [::table-state ::bounding-box ::popover]))
+(s/def ::view-state (s/keys :req [::table-state ::bounding-box ::popover ::splitpane]))
