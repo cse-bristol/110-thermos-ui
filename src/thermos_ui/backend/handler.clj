@@ -8,6 +8,7 @@
             [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
             [thermos-ui.backend.config :refer [config]]
+            [ring.logger :as logger]
             ))
 
 (defn remove-trailing-slash
@@ -16,8 +17,6 @@
   (if (and (not= uri "/") (.endsWith uri "/"))
     (.substring uri 0 (dec (.length uri)))
     uri))
-
-(println site-defaults)
 
 (defroutes all
   pages/all
@@ -40,4 +39,5 @@
       wrap-json-response
       ((if (= "true" (config :disable-cache)) wrap-no-cache identity))
       (wrap-canonical-redirect remove-trailing-slash)
+      (logger/wrap-with-logger)
       ))
