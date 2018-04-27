@@ -87,7 +87,7 @@
         [:div.goog-splitpane-first-container {:style {:width "calc(100% - 550px)"}}
          [map/component state/state]
          ]
-        [:div.goog-splitpane-second-container {:style {:width "550px"}}
+        [:div.goog-splitpane-second-container {:style {:width "550px" :margin-left "-3px"}}
          [:div.goog-splitpane {:id "splitpane2" :style {:height "100%"}}
           [:div.goog-splitpane-first-container
            [network-candidates-panel/component state/state]]
@@ -117,7 +117,7 @@
           splitpane2 (goog.ui.SplitPane. top bottom goog.ui.SplitPane/Orientation.VERTICAL)]
 
       (.setInitialSize splitpane initial-left-pane-size)
-      (.setHandleSize splitpane 2)
+      (.setHandleSize splitpane 3)
       (.decorate splitpane (js/document.getElementById "splitpane"))
 
       ;; Set a reference to the splitpane in the view state so we can access it elsewhere
@@ -136,7 +136,7 @@
 
       ;; Nest the second pane in the RHS pane
       (.setInitialSize splitpane2 "50%")
-      (.setHandleSize splitpane2 2)
+      (.setHandleSize splitpane2 3)
       (.decorate splitpane2 (js/document.getElementById "splitpane2"))
 
       ;; Listen for when the 1st splitpane is resized and do the following:
@@ -162,8 +162,8 @@
          (fn [e] (let [;; It's slightly easier to think of first component max height
                        ;; rather than second component min-height
                        first-component-max-height (apply - [js/window.innerHeight min-height 50])]
-                   (if (< (.getFirstComponentSize splitpane2) 50)
-                     (.setFirstComponentSize splitpane2 50))
+                   (if (< (.getFirstComponentSize splitpane2) (- min-height 3))
+                     (.setFirstComponentSize splitpane2 (- min-height 3)))
                    (if (> (.getFirstComponentSize splitpane2) first-component-max-height)
                      (.setFirstComponentSize splitpane2 first-component-max-height))
                    ))))
