@@ -1,10 +1,56 @@
 .component--selection-info {
-  display: flex;
-  flex-direction:column;
-  flex-shrink:0;
-  flex-grow:1;
-  flex-basis:50;
   height:100%;
+}
+
+.selection-header {
+  padding: 0 10px;
+  height: 50px;
+  background: #fff;
+  line-height: 50px;
+  border-bottom: 1px solid #888;
+  box-shadow: @standard-shadow;
+  font-weight: bold;
+}
+
+.selection-table {
+  height: calc(~"100% - 50px");
+  overflow-y: auto;
+  // Fancy scrollbar
+  &::-webkit-scrollbar {
+  	width: 10px;
+  }
+  &::-webkit-scrollbar-thumb {
+  	background-color: #999;
+		&:hover, &:active {
+			background-color: #888;
+		}
+  }
+}
+
+.selection-table__row {
+  border-bottom: 1px solid #ccc;
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.selection-table__cell {
+  padding: 10px;
+  display: inline-block;
+  vertical-align: top;
+}
+
+.selection-table__cell--first-col {
+  width: 140px;
+}
+
+.selection-table__cell--second-col {
+  width: calc(~"100% - 140px");
+}
+
+.selection-table-cell--tag-container {
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 
 .table--selection-info {

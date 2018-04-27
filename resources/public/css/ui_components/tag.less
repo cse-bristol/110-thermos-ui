@@ -6,19 +6,26 @@
   display: inline-block;
   font-size: 0.9em;
   font-weight: 600;
-  border-radius: 3px;
   line-height: 1.6em;
   height: 2em;
   padding: 0 6px;
   border-radius: 15px;
   color: #555;
   background: #bbb;
-  margin-right: 10px;
+  margin: 4px;
+  position: relative;
+  max-width: 100%;
 }
 .tag__body {
   padding: 0.2em 0.2em;
   display: inline-block;
-  margin: 0 10px;
+  margin: 0 20px 0 30px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  height: 2em;
+  line-height: 1.6em;
+  max-width: calc(~"100% - 50px");
 }
 .tag__counter {
   display: inline-block;
@@ -31,6 +38,8 @@
   line-height: 1em;
   background: #eee;
   border-radius: 10px;
+  position: absolute;
+  top: 4px;
 }
 .tag__close {
   display: inline-block;
@@ -40,8 +49,9 @@
   font-weight: 700;
   min-width: 1em;
   text-align: center;
-  position: relative;
-  bottom: -2px;
+  position: absolute;
+  top: 3px;
+  right: 3px;
   color: #555;
   transition: color 0.1s linear;
   &:hover {
