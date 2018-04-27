@@ -83,15 +83,15 @@
         {:on-save do-save
          :name (if (and (= proj-name "new") (not version)) "" proj-name)}]
 
-       [:div.layout__container.goog-splitpane {:id "splitpane" :style {:width "100%" :height "100vh"}}
-        [:div.goog-splitpane-first-container {:style {:width "calc(100% - 550px)"}}
+       [:div.layout__container.goog-splitpane {:id "splitpane"}
+        [:div.goog-splitpane-first-container.lhs-pane
          [map/component state/state]
          ]
-        [:div.goog-splitpane-second-container {:style {:width "550px" :margin-left "-3px"}}
+        [:div.goog-splitpane-second-container.rhs-pane
          [:div.goog-splitpane {:id "splitpane2" :style {:height "100%"}}
-          [:div.goog-splitpane-first-container
+          [:div.goog-splitpane-first-container.rhs-top-pane
            [network-candidates-panel/component state/state]]
-          [:div.goog-splitpane-second-container
+          [:div.goog-splitpane-second-container.rhs-bottom-pane
            [selection-info-panel/component state/state]]
           [:div.goog-splitpane-handle.goog-splitpane-handle--vertical]
           ]

@@ -5,9 +5,36 @@
   cursor: ew-resize;
   border-left: 1px solid #555;
   background: transparent;
+  transition: background 0.1s linear, border 0.1s linear;
+  &:hover {
+    border-left-color: @theme-blue;
+    background: @theme-blue;
+    border-right: 2px solid @theme-blue;
+  }
 }
 .goog-splitpane-handle--vertical {
   cursor: ns-resize;
   border-bottom: 1px solid #555;
   background: transparent;
+  transition: background 0.1s linear, border-bottom-color 0.1s linear;
+  &:hover {
+    border-bottom-color: @theme-blue;
+    background: @theme-blue;
+  }
+}
+
+// Some styles relevant to each pane
+// 550px has been chosen as an appropriate initial width for the right-hand-side pane
+.lhs-pane {
+  width: calc(~"100% - 550px")
+}
+.rhs-pane {
+  margin-left: -2px;
+  width: 550px;
+}
+.rhs-top-pane {
+
+}
+.rhs-bottom-pane {
+
 }
