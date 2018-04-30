@@ -373,61 +373,69 @@
                                 selected-candidates)
             selected-buildings-ids (map ::candidate/id selected-buildings)
             set-inclusion (fn [candidates-ids inclusion-value] (state/edit! document
-                                                                 operations/set-candidates-inclusion
-                                                                 candidates-ids
-                                                                 inclusion-value))]
+                                                                            operations/set-candidates-inclusion
+                                                                            candidates-ids
+                                                                            inclusion-value))
+            popover-menu-content [{:value [:div.centre "Edit candidates"]
+                                   :key "title"}]
+            popover-menu-content (if (not-empty selected-paths)
+                                   (conj popover-menu-content
+                                         {:value [:b (str (count selected-paths) " roads selected")]
+                                          :key "selected-roads-header"}
+                                         {:value "Set inclusion"
+                                          :key "inclusion-roads"
+                                          :sub-menu [{:value "Required"
+                                                      :key "required"
+                                                      :on-select (fn [e] (set-inclusion selected-paths-ids :required)
+                                                                   (state/edit! document operations/close-popover))}
+                                                     {:value "Optional"
+                                                      :key "optional"
+                                                      :on-select (fn [e] (set-inclusion selected-paths-ids :optional)
+                                                                   (state/edit! document operations/close-popover))}
+                                                     {:value "Forbidden"
+                                                      :key "forbidden"
+                                                      :on-select (fn [e] (set-inclusion selected-paths-ids :forbidden)
+                                                                   (state/edit! document operations/close-popover))}]}
+                                         {:value "Set road type [TODO]"
+                                          :key "road-type"
+                                          :sub-menu [{:value "Cheap"
+                                                      :key "cheap"}
+                                                     {:value "Expensive"
+                                                      :key "expensive"}]})
+                                   popover-menu-content)
+            popover-menu-content (if (and (not-empty selected-paths) (not-empty selected-buildings))
+                                   (conj popover-menu-content {:value [:div.popover-menu__divider]
+                                                               :key "divider"})
+                                   popover-menu-content)
+            popover-menu-content (if (not-empty selected-buildings)
+                                   (conj popover-menu-content
+                                         {:value [:b (str (count selected-buildings) " buildings selected")]
+                                          :key "selected-buildings-header"}
+                                         {:value "Set inclusion"
+                                          :key "inclusion-buildings"
+                                          :sub-menu [{:value "Required"
+                                                      :key "required"
+                                                      :on-select (fn [e] (set-inclusion selected-buildings-ids :required)
+                                                                   (state/edit! document operations/close-popover))}
+                                                     {:value "Optional"
+                                                      :key "optional"
+                                                      :on-select (fn [e] (set-inclusion selected-buildings-ids :optional)
+                                                                   (state/edit! document operations/close-popover))}
+                                                     {:value "Forbidden"
+                                                      :key "forbidden"
+                                                      :on-select (fn [e] (set-inclusion selected-buildings-ids :forbidden)
+                                                                   (state/edit! document operations/close-popover))}]}
+                                         {:value "Set type [TODO]"
+                                          :key "type"
+                                          :sub-menu [{:value "Demand"
+                                                      :key "demand"}
+                                                     {:value "Supply"
+                                                      :key "supply"}]})
+                                   popover-menu-content)]
         (state/edit!
          document
          operations/set-popover-content
-         [popover-menu/component [{:value [:div.centre "EDIT CANDIDATES"]
-                                   :key "title"}
-                                  {:value [:b (str (count selected-paths) " roads selected")]
-                                   :key "selected-roads-header"}
-                                  {:value "Set inclusion"
-                                   :key "inclusion-roads"
-                                   :sub-menu [{:value "Required"
-                                               :key "required"
-                                               :on-select (fn [e] (set-inclusion selected-paths-ids :required)
-                                                            (state/edit! document operations/close-popover))}
-                                              {:value "Optional"
-                                               :key "optional"
-                                               :on-select (fn [e] (set-inclusion selected-paths-ids :optional)
-                                                            (state/edit! document operations/close-popover))}
-                                              {:value "Forbidden"
-                                               :key "forbidden"
-                                               :on-select (fn [e] (set-inclusion selected-paths-ids :forbidden)
-                                                            (state/edit! document operations/close-popover))}]}
-                                  {:value "Set road type [TODO]"
-                                   :key "road-type"
-                                   :sub-menu [{:value "Cheap"
-                                               :key "cheap"}
-                                              {:value "Expensive"
-                                               :key "expensive"}]}
-                                  {:value [:div.popover-menu__divider]
-                                   :key "divider"}
-                                  {:value [:b (str (count selected-buildings) " buildings selected")]
-                                   :key "selected-buildings-header"}
-                                   {:value "Set inclusion"
-                                    :key "inclusion-buildings"
-                                    :sub-menu [{:value "Required"
-                                                :key "required"
-                                                :on-select (fn [e] (set-inclusion selected-buildings-ids :required)
-                                                             (state/edit! document operations/close-popover))}
-                                               {:value "Optional"
-                                                :key "optional"
-                                                :on-select (fn [e] (set-inclusion selected-buildings-ids :optional)
-                                                             (state/edit! document operations/close-popover))}
-                                               {:value "Forbidden"
-                                                :key "forbidden"
-                                                :on-select (fn [e] (set-inclusion selected-buildings-ids :forbidden)
-                                                             (state/edit! document operations/close-popover))}]}
-                                  {:value "Set type [TODO]"
-                                   :key "type"
-                                   :sub-menu [{:value "Demand"
-                                               :key "demand"}
-                                              {:value "Supply"
-                                               :key "supply"}]}
-                                  ]])
+         [popover-menu/component popover-menu-content])
         (state/edit! document operations/set-popover-source-coords
                      [(o/get oe "clientX") (o/get oe "clientY")])
         (state/edit! document operations/show-popover)))
