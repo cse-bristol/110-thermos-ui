@@ -71,7 +71,7 @@
   (set! (.. ctx -strokeStyle) (case (::candidate/inclusion candidate)
                                 :required theme/red
                                 :optional theme/blue
-                                theme/grey))
+                                theme/white))
   (set! (.. ctx -fillStyle) theme/light-grey)
 
   (render-geometry (candidate geometry-key) ctx project
