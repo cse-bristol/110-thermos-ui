@@ -52,7 +52,8 @@
     (.clearRect ctx 0 0 width height)
 
     (doseq [candidate contents]
-      (render-candidate candidate ctx project geometry-key))
+      (when (> zoom (::spatial/minimum-zoom candidate))
+        (render-candidate candidate ctx project geometry-key)))
     ))
 
 (defn render-candidate

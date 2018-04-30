@@ -22,16 +22,9 @@
   [document f & args]
   (apply swap! document (comp spatial/update-index f) args))
 
-(def printed-feature (atom false))
-
 (defn- feature->candidate
   "Convert a GEOJSON feature into a candidate map"
   [feature]
-
-  (when-not @printed-feature
-    (reset! printed-feature true)
-    (js/console.log feature)
-    )
 
   (let [geometry (o/get feature "geometry")
         properties (o/get feature "properties")

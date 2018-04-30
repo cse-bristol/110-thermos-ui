@@ -93,8 +93,8 @@
   "Custom cell renderer for `Selected` column.
   Puts in a checkbox allowing you to (de)select candidates."
   [document args]
-  (let [is-selected (if args (.-cellData args) false)
-        candidate-id (if args (::candidate/id (.. args -rowData)) false)]
+  (let [is-selected (if args (o/get args "cellData" false) false)
+        candidate-id (if args (::candidate/id (o/get args "rowData" nil)) false)]
     (reagent/as-element [:input
                          {:type "checkbox"
                           :key candidate-id

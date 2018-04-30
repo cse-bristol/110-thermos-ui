@@ -11,23 +11,24 @@
             [clojure.java.io :as io]
             [clojure.data.json :as json]
             [clojure.string :as string]
+            [clojure.tools.logging :as log]
             ))
 
 ;; Access to the database containing buildings and ways
 
 (def database
-  {:dbtype   "postgresql"
-   :dbname   (config :pg-db-geometries)
-   :host     (config :pg-host)
-   :user     (config :pg-user)
-   :password (config :pg-password)})
+  (future-call
+   #(let [db-config {:dbtype   "postgresql"
+                     :dbname   (config :pg-db-geometries)
+                     :host     (config :pg-host)
+                     :user     (config :pg-user)
+                     :password (config :pg-password)}
+          ragtime-config {:datastore (ragtime.jdbc/sql-database db-config)
+                          :migrations (ragtime.jdbc/load-resources "migrations")}
+          ]
 
-(def ragtime-config
-  {:datastore (ragtime.jdbc/sql-database database)
-   :migrations (ragtime.jdbc/load-resources "migrations")}
-  )
-
-(ragtime.repl/migrate ragtime-config)
+      (ragtime.repl/migrate ragtime-config)
+      db-config)))
 
 (declare find-polygon find-tile make-bounding-points comma-separate space-separate)
 
@@ -35,12 +36,15 @@
   "GEOJSON-FILE should be the path to a geojson file containing
   information about some candidates. The candidates need to have a
   type on them for this to work."
-  [geojson-file]
-
+  [geojson-file progress]
+  (log/info "Inserting candidates from" geojson-file)
   (let [features (-> (io/file geojson-file)
                      (slurp)
                      (json/read-str :key-fn keyword)
                      :features)
+
+        _ (log/info (count features) "candidates read from file")
+        
         sql-geometry
         (fn [geom]
           (sql/call
@@ -72,8 +76,8 @@
                          #(sql/call :candidate_type %)
                          )))
               (upsert (-> (on-conflict :id)
-                          (do-update-set :name :subtype :geometry)
-                          ))))
+                          (do-update-set :name :subtype :geometry)))
+              ))
 
         insert-other-data
         (fn [type candidates]
@@ -93,23 +97,34 @@
                 (values (for [candidate candidates]
                           (get-properties candidate path-defaults)))
                 (upsert (-> (on-conflict :id)
-                            (do-update-set :start_id :end_id))))))
+                            (do-update-set :start_id :end_id)))
+                )))
+
+        distinct-id
+        (fn [candidates]
+          (map (comp first second)
+               (group-by (comp :id :properties) candidates)))
         ]
-    (j/with-db-transaction [tx database]
+    (j/with-db-transaction [tx @database]
       (doseq [[type features]  (group-by (comp :type :properties) features)]
-        (let [features (->> features ;; [feature]
-                            (group-by :id) ;; [id => [feature]]
-                            (map second) ;; [[feature]]
-                            (map first))] ;; should be [feature again]
+        (let [features (distinct-id features)]
+          (progress [:put type (count features)])
           (doseq [block (partition-all 1000 features)]
             ;; We can insert all the candidate data in one go, but the
             ;; building / path data is split and has to go in
             ;; separately. Fortunately, because we are generating the
             ;; keys outside the db we don't have to do anything to keep
             ;; the keys consistent
-            (j/execute! tx (sql/format (insert-common-data block)))
-            (j/execute! tx (sql/format (insert-other-data type block))))))
-      true)))
+            (try
+              (do
+                (log/info "Inserting a block of" type)
+                (j/execute! tx (sql/format (insert-common-data block)))
+                (j/execute! tx (sql/format (insert-other-data type block)))
+                (progress [:done type (count block)]))
+              (catch Exception e
+                (println e)
+                (progress e))))
+          )))))
 
 (defn find-tile [zoom x-tile y-tile]
   (-> (make-bounding-points zoom x-tile y-tile)
@@ -130,7 +145,7 @@
         tidy-fields
         #(into {} (filter second %)) ;; keep only map entries with non-nil values
         ]
-    (->> (j/query database (sql/format query {:box box-string}))
+    (->> (j/query @database (sql/format query {:box box-string}))
          (map tidy-fields)
          )
     ))

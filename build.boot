@@ -16,9 +16,11 @@
    [reagent      "0.7.0"]
 
    ;; Server-side dependencies
-   [compojure                 "1.6.0"]
+   [compojure                 "1.6.1"]
+   [ring/ring-core            "1.6.3"]
    [ring/ring-defaults        "0.3.1"]
    [ring/ring-json            "0.4.0"]
+
    [org.clojure/java.jdbc     "0.7.5"]
    [org.postgresql/postgresql "9.4.1212.jre7"]
    [hiccup                    "1.0.5"] ;; for HTML templating
@@ -29,6 +31,7 @@
    [org.clojure/data.json     "0.2.6"] ;; for parsing the geojson from the db.
    ;; the actual server:
    [http-kit                  "2.2.0"]
+   [ring-logger               "1.0.0"]
 
    [javax.servlet/servlet-api "2.5"    :scope "test"]
    [ring/ring-mock            "0.3.0"  :scope "test"]
