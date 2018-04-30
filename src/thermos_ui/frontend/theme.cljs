@@ -5,5 +5,5 @@
   (def red "#ED3027")
   (def white "#fff")
   (def light-grey "#bbb")
-  (def dark-grey "#444")
+  (def dark-grey "#555")
   (def green "#98fb98")

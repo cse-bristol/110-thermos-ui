@@ -12,11 +12,12 @@
     body :body
     count :count
     close :close
+    on-select :on-select
     on-close :on-close}]
   [:span.tag {:key key}
    (if count
      [:span.tag__counter count])
-   [:span.tag__body body]
+   [:span.tag__body {:on-click on-select} body]
    (if close
      [:span.tag__close {:on-click (fn [] (on-close key))}
       "×"])])
