@@ -1,5 +1,6 @@
 (ns thermos-ui.frontend.main-nav
   (:require [reagent.core :as reagent]
+            [thermos-ui.specs.document :as document]
             [clojure.string :as s]))
 
 (defn component
@@ -9,6 +10,7 @@
     (fn [{on-save :on-save
           on-load :on-load
           on-run :on-run
+          unsaved? :unsaved?
           }]
       [:nav.nav
        [:h1.main-nav__header "THERMOS"
@@ -26,12 +28,13 @@
 
        [:div.pull-right.main-nav__input-container
         [:button.button.button--link-style.button--save-button
-         {:on-click #(let [name (:name @state)]
+         {:class (if-not @unsaved? "button--disabled")
+          :on-click #(let [name (:name @state)]
                        ;; If this is a new probem and a name has not been provided, prompt user to do so.
                        (if (and (some? name) (not (s/blank? name)))
-                        (on-save name)
-                        (do (js/window.alert "Please provide a name for this project.")
-                          (.focus (js/document.getElementById "file-name-input")))))
+                         (on-save name)
+                         (do (js/window.alert "Please provide a name for this project.")
+                           (.focus (js/document.getElementById "file-name-input")))))
           }
          "SAVE"]
         [:button.button.button--link-style.button--load-button {:on-click on-load} "LOAD"]

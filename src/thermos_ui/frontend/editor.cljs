@@ -4,6 +4,7 @@
             [thermos-ui.urls :as urls]
             [thermos-ui.specs.candidate :as candidate]
             [thermos-ui.specs.view :as view]
+            [thermos-ui.specs.document :as document]
             [thermos-ui.frontend.editor-state :as state]
             [thermos-ui.frontend.operations :as operations]
             [thermos-ui.frontend.main-nav :as main-nav]
@@ -56,6 +57,10 @@
 
                          :optional))))))
 
+  (defonce unsaved? (r/atom false))
+  (defonce interesting-state (fn [] (document/keep-interesting @state/state)))
+  (defonce changed (reagent.ratom/run! (reset! unsaved? true) (r/track! interesting-state)))
+
   (defn map-page []
     (let [close-popover (fn [e]
                           (let [popover-menu-node (js/document.querySelector ".popover-menu")
@@ -68,7 +73,8 @@
                                                           ::view/popover-content))]
                             (if (and click-is-outside-popover popover-is-populated)
                                 (state/edit! state/state operations/close-popover))))
-          close-table-filter (fn [e] (state/edit! state/state operations/close-table-filter))]
+          close-table-filter (fn [e] (state/edit! state/state operations/close-table-filter))
+          ]
       [:div.editor__container
        {:on-key-press
         (fn [e]
@@ -81,7 +87,8 @@
         }
        [main-nav/component
         {:on-save do-save
-         :name (if (and (= proj-name "new") (not version)) "" proj-name)}]
+         :name (if (and (= proj-name "new") (not version)) "" proj-name)
+         :unsaved? unsaved?}]
 
        [:div.layout__container.goog-splitpane {:id "splitpane"}
         [:div.goog-splitpane-first-container.lhs-pane
@@ -104,6 +111,14 @@
 
   (defn mount-root []
     (r/render [map-page] (.getElementById js/document "app"))
+
+    ;; Warn the user they have unsaved changes if they try to leave the page.
+    (.addEventListener js/window "beforeunload"
+                       (fn [e]
+                         (when @unsaved?
+                           (let [msg "You have unsaved changes. Are you sure you want to leave the page?"]
+                             (set! e.returnValue msg)
+                             msg))))
 
     ;; Do the split pane thing
     (let [;; 1st splitpane
