@@ -9,7 +9,16 @@
             ))
 
 (let [geometry-factory (jsts/geom.GeometryFactory.)
-      geometry-reader (jsts/io.GeoJSONReader. geometry-factory)]
+      geometry-reader (jsts/io.GeoJSONReader. geometry-factory)
+
+      zoom-table
+      (map-indexed vector
+                   (into []
+                         (map #(/ % 256)
+                              [ 360 180 90 45 22.5 11.25 5.625 2.813 1.406 0.703
+                               0.352 0.176 0.088 0.044 0.022 0.011 0.005 0.003 0.001 0.0005])))
+      ;; how many degrees at is 1 pixel at each zoom, at the equator
+      ]
 
   (defn- add-jsts-geometry
     "At the moment each candidate contains ::candidate/geometry, which is
@@ -28,10 +37,26 @@
                 :maxX (.getMaxX envelope)
                 :minY (.getMinY envelope)
                 :maxY (.getMaxY envelope)}
+
+          ;; how many degrees is the biggest extent
+          max-extent (max (- (.getMaxX envelope)
+                             (.getMinX envelope))
+                          (- (.getMaxY envelope)
+                             (.getMinY envelope)))
+
+          visible-zoom
+          (- (first
+              (first
+               (filter
+                (fn [[zoom px]]
+                  (>= max-extent px))
+                zoom-table)))
+             1)
           ]
       (assoc candidate
              ::jsts-geometry jsts-geom
              ::jsts-simple-geometry jsts-simple-geom
+             ::minimum-zoom visible-zoom
              ::bbox bbox))))
 
 (defn index-atom [document-atom]

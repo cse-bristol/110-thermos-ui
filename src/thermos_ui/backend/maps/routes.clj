@@ -18,7 +18,7 @@
 (defroutes map-data-routes
   (GET "/map/candidates/:zoom/:x-tile/:y-tile"
        [zoom x-tile y-tile]
-       (if (< 11 zoom)
+       (if (< (as-int zoom) 11)
          {:status 200
           :body {:type :FeatureCollection
                  :features []}}
