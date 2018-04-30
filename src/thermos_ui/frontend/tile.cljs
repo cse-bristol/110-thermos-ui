@@ -72,7 +72,7 @@
                                 :required theme/red
                                 :optional theme/blue
                                 theme/white))
-  (set! (.. ctx -fillStyle) theme/light-grey)
+  (set! (.. ctx -fillStyle) (if (::candidate/selected candidate) theme/dark-grey theme/light-grey))
 
   (render-geometry (candidate geometry-key) ctx project
      true false)
