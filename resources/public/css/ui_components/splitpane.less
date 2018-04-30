@@ -3,23 +3,20 @@
 }
 .goog-splitpane-handle--horizontal {
   cursor: ew-resize;
-  border-left: 1px solid #555;
+  border-right: 1px solid #555;
   background: transparent;
-  transition: background 0.1s linear, border 0.1s linear;
+  transition: border-color 0.1s linear;
   &:hover {
-    border-left-color: @theme-blue;
-    background: @theme-blue;
-    border-right: 2px solid @theme-blue;
+    border-color: #222;
   }
 }
 .goog-splitpane-handle--vertical {
   cursor: ns-resize;
   border-bottom: 1px solid #555;
   background: transparent;
-  transition: background 0.1s linear, border-bottom-color 0.1s linear;
+  transition: border-color 0.1s linear;
   &:hover {
-    border-bottom-color: @theme-blue;
-    background: @theme-blue;
+    border-color: #222;
   }
 }
 
@@ -29,7 +26,6 @@
   width: calc(~"100% - 550px")
 }
 .rhs-pane {
-  margin-left: -2px;
   width: 550px;
 }
 .rhs-top-pane {

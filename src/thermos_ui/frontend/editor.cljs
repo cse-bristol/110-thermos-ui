@@ -165,7 +165,7 @@
                    (if (< second-pane-width second-pane-min-width)
                      ;; Coincidentally these actions are exclusive of each other
                      (.setFirstComponentSize splitpane (- js/window.innerWidth second-pane-min-width))
-                     (.setSize splitpane2 (Size. second-pane-width "100%")))
+                     (.setSize splitpane2 (Size. (- second-pane-width 2) "100%")))
                    ))))
 
       ;; Listen for when the second splitpane is resized
