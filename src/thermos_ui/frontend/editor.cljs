@@ -11,6 +11,7 @@
             [thermos-ui.frontend.network-candidates-panel :as network-candidates-panel]
             [thermos-ui.frontend.selection-info-panel :as selection-info-panel]
             [thermos-ui.frontend.popover :as popover]
+            [thermos-ui.frontend.toaster :as toaster]
             [clojure.pprint :refer [pprint]]
             [clojure.string :as s]
             [goog.ui.SplitPane :refer [SplitPane Component]]
@@ -41,7 +42,15 @@
        (js/window.history.pushState
         nil
         name
-        (urls/editor org-name name new-id)))))
+        (urls/editor org-name name new-id))
+       ;; Show "toaster" message notifying successful save
+       (state/edit! state/state operations/set-toaster-content "Project successfully saved.")
+       (state/edit! state/state operations/set-toaster-class "toaster--success")
+       (state/edit! state/state operations/show-toaster)
+       (js/setTimeout
+        (fn [] (state/edit! state/state operations/hide-toaster))
+        4000)
+       )))
 
   (defn- rotate-inclusion! []
     (let [selected (operations/selected-candidates @state/state)]
@@ -105,7 +114,8 @@
          ]
         [:div.goog-splitpane-handle.goog-splitpane-handle--horizontal]
         ]
-       [popover/component state/state]]))
+       [popover/component state/state]
+       [toaster/component state/state]]))
 
   (defn on-js-reload [])
 

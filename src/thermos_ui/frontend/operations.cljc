@@ -279,3 +279,19 @@
   which we have access to globally, so set it here when the splitpane is created."
   [document splitpane]
   (assoc-in document [::view/view-state ::view/splitpane] splitpane))
+
+(defn show-toaster
+  [doc]
+  (assoc-in doc [::view/view-state ::view/toaster ::view/toaster-showing] true))
+
+(defn hide-toaster
+  [doc]
+  (assoc-in doc [::view/view-state ::view/toaster ::view/toaster-showing] false))
+
+(defn set-toaster-content
+  [doc content]
+  (assoc-in doc [::view/view-state ::view/toaster ::view/toaster-content] content))
+
+(defn set-toaster-class
+  [doc class]
+  (assoc-in doc [::view/view-state ::view/toaster ::view/toaster-class] class))
