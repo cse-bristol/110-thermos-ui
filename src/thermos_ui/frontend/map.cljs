@@ -132,15 +132,27 @@
     (.on map "zoomend" follow-map!)
 
 
-    ;; Event handling for selection
+    ;; this is a bit untidy: when drawing a polygon, the click events
+    ;; on the map fire before the created event, so we can ignore
+    ;; them.  However, the click event for a rectangle fires after we
+    ;; have finished, so we need to know if that's happened.
 
-    (let [is-drawing (atom false)
+    ;; this still loses a click in some silly circumstance
+
+    (let [draw-state (atom nil)
           method (atom :replace)]
+      
       (.on map (.. js/L.Draw -Event -DRAWSTART)
-           #(reset! is-drawing true))
+           #(reset! draw-state
+                    (case (o/get % "layerType")
+                      "polygon" :drawing-polygon
+                      "rectangle" :drawing-rectangle)))
 
       (.on map (.. js/L.Draw -Event -DRAWSTOP)
-           #(reset! is-drawing false))
+           #(reset! draw-state
+                    (case (o/get % "layerType")
+                      "polygon" nil
+                      "rectangle" :stop-rectangle)))
       
       (.on map (.. js/L.Draw -Event -CREATED)
            (fn [e]
@@ -159,15 +171,20 @@
                          (o/get oe "ctrlKey" false) :xor
                          (o/get oe "shiftKey" false) :union
                          :otherwise :replace))
-               (when-not @is-drawing
-                 (state/edit! document
-                              spatial/select-intersecting-candidates
 
-                              (latlng->jsts-shape
-                               (o/get e "latlng")
-                               (* 3 (pixel-size)))
+               (case @draw-state
+                 :stop-rectangle (reset! draw-state nil)
+                 nil (state/edit! document
+                                  spatial/select-intersecting-candidates
 
-                              @method))))
+                                  (latlng->jsts-shape
+                                   (o/get e "latlng")
+                                   (* 3 (pixel-size)))
+
+                                  @method)
+                 
+                 nil)
+               ))
            )
       
       (.on map "contextmenu" (fn [e] (on-right-click-on-map e document pixel-size)))
