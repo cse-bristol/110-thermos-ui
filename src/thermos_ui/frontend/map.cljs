@@ -66,7 +66,7 @@
 
         map (js/L.map map-node (clj->js {:preferCanvas true
                                          :fadeAnimation true
-                                         :zoom 13
+                                         :zoom 15
                                          :center [51.553356 -0.109271]
                                          }))
         candidates-layer (candidates-layer document)
@@ -79,7 +79,7 @@
 
         draw-control (draw-control {:position :topleft
                                     :draw {:polyline false
-                                           :polygon false
+                                           :polygon true
                                            :marker false
                                            :circlemarker false
                                            :circle false
@@ -134,43 +134,42 @@
 
     ;; Event handling for selection
 
-    (let [shape (atom nil) ;; holds the shape to select with, when drawing
-          ]
+    (let [is-drawing (atom false)
+          method (atom :replace)]
+      (.on map (.. js/L.Draw -Event -DRAWSTART)
+           #(reset! is-drawing true))
 
+      (.on map (.. js/L.Draw -Event -DRAWSTOP)
+           #(reset! is-drawing false))
+      
       (.on map (.. js/L.Draw -Event -CREATED)
            (fn [e]
-             (let [s (layer->jsts-shape (o/get e "layer"))
-                   type (o/get e "layerType")]
-               (reset! shape
-                       (if (= "circle" type)
-                         ;; radius needs projecting, which is morally wrong.
-                         (.buffer s
-                                  (-> (o/get e "layer")
-                                      (.getRadius)))
-                         s)))))
+             (state/edit! document
+                          spatial/select-intersecting-candidates
+                          (layer->jsts-shape (o/get e "layer"))
+                          @method)
+             (reset! method :replace)))
 
       (.on map "click"
            (fn [e]
-             (let [oe (o/get e "originalEvent")
-                   method
-                   (cond
-                     (o/get oe "ctrlKey" false) :xor
-                     (o/get oe "shiftKey" false) :union
-                     :otherwise :replace)
-                   ]
+             (let [oe (o/get e "originalEvent")]
+               (reset! method
+                       
+                       (cond
+                         (o/get oe "ctrlKey" false) :xor
+                         (o/get oe "shiftKey" false) :union
+                         :otherwise :replace))
+               (when-not @is-drawing
+                 (state/edit! document
+                              spatial/select-intersecting-candidates
 
-               (state/edit! document
-                            spatial/select-intersecting-candidates
+                              (latlng->jsts-shape
+                               (o/get e "latlng")
+                               (* 3 (pixel-size)))
 
-                            (or @shape
-                                (latlng->jsts-shape
-                                 (o/get e "latlng")
-                                 (* 3 (pixel-size))))
-
-                            method))
-
-             (reset! shape nil)))
-
+                              @method))))
+           )
+      
       (.on map "contextmenu" (fn [e] (on-right-click-on-map e document pixel-size)))
       )
 

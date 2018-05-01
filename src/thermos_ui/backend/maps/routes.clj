@@ -8,6 +8,8 @@
   
   )
 
+(def MIN_ZOOM (int 14))
+
 (defn- as-int [s] (Integer/parseInt (re-find #"\d+" s)))
 
 (defn- candidate->feature [candidate]
@@ -18,7 +20,7 @@
 (defroutes map-data-routes
   (GET "/map/candidates/:zoom/:x-tile/:y-tile"
        [zoom x-tile y-tile]
-       (if (< (as-int zoom) 11)
+       (if (< (as-int zoom) MIN_ZOOM)
          {:status 200
           :body {:type :FeatureCollection
                  :features []}}
