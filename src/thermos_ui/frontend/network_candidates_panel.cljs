@@ -68,8 +68,31 @@
   "Custom render function for column headers which need to be filterable."
   [doc items key args type]
   (reagent/as-element
-   (let [is-open (= (->> @doc ::view/view-state ::view/table-state ::view/open-filter) key)]
-     [:span.ReactVirtualized__Table__headerTruncatedText {:style {:width "100%"}}
+   (let [is-open (= (->> @doc ::view/view-state ::view/table-state ::view/open-filter) key)
+         filtered-candidates (operations/get-filtered-candidates @doc)]
+     [:span.ReactVirtualized__Table__headerTruncatedText
+     ;; This is quick and dirty - put a checkbox in the Selected column header to (de)select all
+      (if (and (= key ::candidate/selected) (not-empty items))
+        (let [all-selected? (= (count filtered-candidates)
+                               (count (filter #(::candidate/selected %) filtered-candidates)))]
+          [:input {:type "checkbox"
+                   :style {:position "relative" :top "1px"}
+                   :title (if all-selected? "Deselect all" "Select all")
+                   :checked all-selected?
+                   :on-click #(.stopPropagation %)
+                   :on-change (fn [e]
+                                (if (.. e -target -checked)
+                                  ;; Select all
+                                  (state/edit! doc
+                                               operations/select-candidates
+                                               (map ::candidate/id filtered-candidates)
+                                               :union)
+                                  ;; Deselect all
+                                  (state/edit! doc
+                                               operations/deselect-candidates
+                                               (map ::candidate/id filtered-candidates))
+                                  ))}])
+        )
       (.-label args)
       [:span.filter-icon {:class (str "filter-icon"
                                       (if (not-empty (operations/get-table-filters @doc key))
@@ -98,7 +121,7 @@
     (reagent/as-element [:input
                          {:type "checkbox"
                           :key candidate-id
-                          :default-checked is-selected
+                          :checked is-selected
                           :on-change (fn [e]
                                        (if (.. e -target -checked)
                                          (state/edit! document

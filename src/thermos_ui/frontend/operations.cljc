@@ -1,5 +1,6 @@
 (ns thermos-ui.frontend.operations
   (:require [clojure.spec.alpha :as s]
+            [clojure.string :as str]
             [thermos-ui.specs.document :as document]
             [thermos-ui.specs.candidate :as candidate]
             [thermos-ui.specs.view :as view]
@@ -295,3 +296,28 @@
 (defn set-toaster-class
   [doc class]
   (assoc-in doc [::view/view-state ::view/toaster ::view/toaster-class] class))
+
+(defn get-filtered-candidates
+  "Returns all candidates which are constrained and meet the filter criteria."
+  [doc]
+  (let [items (constrained-candidates doc)
+        filters (get-all-table-filters doc)]
+    (if (not-empty filters)
+      (filter
+       (fn [item]
+         (reduce-kv
+          (fn [init k v]
+            (if init
+              (if (string? v)
+                ;; If the filter is a string then check if the item matches the string in a fuzzy way.
+                (let [regex-pattern (re-pattern (str "(?i)" (str/join ".*" (str/split v #"")) ".*"))]
+                  (not-empty
+                   (re-seq regex-pattern (k item))))
+                ;; If the filter is a set of values the check if the item matches one of them exactly.
+                (or (empty? v) (contains? v (k item)))
+                )
+              false))
+          true
+          filters))
+       items)
+      items)))
