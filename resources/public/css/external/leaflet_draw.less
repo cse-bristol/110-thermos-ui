@@ -1,13 +1,40 @@
 .leaflet-draw-draw-rectangle {
+  position: relative;
   &:before {
     content: "";
     display: inline-block;
-    border: 1px #555 solid;
     position: absolute;
-    top: 8px;
-    bottom: 8px;
-    left: 8px;
-    right: 8px;
-    background: #ccc;
+    top: 7px;
+    left: 7px;
+    bottom: 7px;
+    right: 7px;
+    background: #aaa;
+  }
+}
+
+@pentagon-side: 20px;
+
+.leaflet-draw-draw-polygon {
+  position: relative;
+  &:before {
+    content: "";
+    position: absolute;
+    height: 0;
+    width: 0;
+    top: 5px;
+    left: 5px;
+    border-width: 0 10px 8px 10px;
+    border-style: solid;
+    border-color: transparent transparent #aaa;
+  }
+  &:after {
+    content: "";
+    position: absolute;
+    width: 20px;
+    border-width: 12px 5px 0px 5px;
+    border-style: solid;
+    border-color: #aaa transparent;
+    bottom: 4px;
+    left: 5px;
   }
 }
