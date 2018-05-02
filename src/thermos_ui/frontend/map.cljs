@@ -13,6 +13,7 @@
             [thermos-ui.frontend.popover :as popover]
             [thermos-ui.frontend.popover-menu :as popover-menu]
             [thermos-ui.frontend.search-box :as search-box]
+            [thermos-ui.frontend.hide-forbidden-control :as hide-forbidden-control]
             [thermos-ui.specs.document :as document]
             [thermos-ui.specs.view :as view]
             [thermos-ui.specs.candidate :as candidate]
@@ -93,6 +94,8 @@
 
         search-control (create-leaflet-control search-box/component)
 
+        hide-forbidden-control (create-leaflet-control hide-forbidden-control/component)
+
         follow-map!
         #(let [bounds (.getBounds map)]
            (edit! operations/move-map
@@ -127,6 +130,7 @@
     (.addControl map (search-control. (clj->js {:position :topright})))
     (.addControl map layers-control)
     (.addControl map draw-control)
+    (.addControl map (hide-forbidden-control. (clj->js {:position :topleft})))
 
     (.on map "moveend" follow-map!)
     (.on map "zoomend" follow-map!)
@@ -141,7 +145,7 @@
 
       (.on map (.. js/L.Draw -Event -DRAWSTOP)
            #(reset! is-drawing false))
-      
+
       (.on map (.. js/L.Draw -Event -CREATED)
            (fn [e]
              (state/edit! document
@@ -154,7 +158,7 @@
            (fn [e]
              (let [oe (o/get e "originalEvent")]
                (reset! method
-                       
+
                        (cond
                          (o/get oe "ctrlKey" false) :xor
                          (o/get oe "shiftKey" false) :union
@@ -169,7 +173,7 @@
 
                               @method))))
            )
-      
+
       (.on map "contextmenu" (fn [e] (on-right-click-on-map e document pixel-size)))
       )
 
@@ -226,78 +230,78 @@
         tiles (atom #{})
         tile-id (atom 0)
 
-        ;; when the map is redrawn, we re-render each tile
-        ;; that is on-screen
-        repaint
-        (fn []
-          ;; (this-as the-map
-          ;;   (let [doc @doc]
-          ;;     (doseq [visible-tile @tiles]
-          ;;       (tile/render-tile doc visible-tile the-map))))
-          )
-
         ;; tiles are just canvas DOM elements
-        create-tile
-        (fn [coords]
+        make-tile
+        (fn [coords layer]
           (let [canvas (js/document.createElement "canvas")]
             (swap! tiles conj canvas)
-            (this-as this
-              (let [zoom (.-z coords)
+            (let [
+                  zoom (.-z coords)
 
-                    tile-id (str "T" (swap! tile-id inc) "N")
+                  tile-id (str "T" (swap! tile-id inc) "N")
 
-                    map-control (o/get this "_map")
-                    size (.getTileSize this)
+                  map-control (o/get layer "_map")
+                  size (.getTileSize layer)
 
-                    north-west (.unproject map-control (.scaleBy coords size) zoom)
-                    south-east (.unproject map-control (.scaleBy (.add coords (js/L.point 1 1)) size) zoom)
+                  north-west (.unproject map-control (.scaleBy coords size) zoom)
+                  south-east (.unproject map-control (.scaleBy (.add coords (js/L.point 1 1)) size) zoom)
 
-                    bbox {:minY (min (.-lat north-west) (.-lat south-east))
-                          :maxY (max (.-lat north-west) (.-lat south-east))
-                          :minX (min (.-lng north-west) (.-lng south-east))
-                          :maxX (max (.-lng north-west) (.-lng south-east))
-                          }
+                  bbox {:minY (min (.-lat north-west) (.-lat south-east))
+                        :maxY (max (.-lat north-west) (.-lat south-east))
+                        :minX (min (.-lng north-west) (.-lng south-east))
+                        :maxX (max (.-lng north-west) (.-lng south-east))
+                        }
 
+                  ;; Queries the spatial index in the document
+                  ;; to update the candidates ids. This uses a cursor
+                  ;; into the document to get the spatial index, so that
+                  ;; it only gets triggered when the spatial index is changed.
+                  just-index (spatial/index-atom doc)
 
-                    ;; Queries the spatial index in the document
-                    ;; to update the candidates ids. This uses a cursor
-                    ;; into the document to get the spatial index, so that
-                    ;; it only gets triggered when the spatial index is changed.
-                    just-index (spatial/index-atom doc)
+                  ;; contains just the IDs of candidates in this box
+                  tile-candidates-ids
+                  (reagent/track
+                   #(spatial/find-candidates-ids-in-bbox @just-index bbox))
 
-                    ;; contains just the IDs of candidates in this box
-                    tile-candidates-ids
-                    (reagent/track
-                     #(spatial/find-candidates-ids-in-bbox @just-index bbox))
+                  ;; this is a cursor into the document, used so that we only trigger
+                  ;; update-tile-contents on changes to the candidate set
+                  just-candidates
+                  (reagent/cursor doc [::document/candidates])
 
-                    ;; this is a cursor into the document, used so that we only trigger
-                    ;; update-tile-contents on changes to the candidate set
-                    just-candidates
-                    (reagent/cursor doc [::document/candidates])
+                  ;; If we are not showing forbidden candidates, filter them out
+                  filter-function (if (not= (operations/showing-forbidden? @doc) false)
+                                    identity
+                                    #(and % (not= (::candidate/inclusion %) :forbidden)))
 
-                    tile-contents
-                    (reagent/track
-                     #(filter identity (map @just-candidates @tile-candidates-ids)))
-                    ]
+                  tile-contents
+                  (reagent/track
+                   #(filter filter-function (map @just-candidates @tile-candidates-ids)))
+                  ]
+
+              ;; If we are not showing forbidden candidates,
+              ;; we don't want to bother rendering the tile if there is nothing in it
+              (when (or (not= (operations/showing-forbidden? @doc) false)
+                        (not-empty @tile-contents))
 
                 (set! (.. canvas -coords) coords)
                 (set! (.. canvas -tile-id) tile-id)
                 (o/set canvas "tracks"
-                      (list (reagent/track!
-                             (fn []
-                               (tile/render-tile @tile-contents canvas this)
-                               ;; identify tiles with big red text
-                               ;; (let [ctx (.getContext canvas "2d")]
-                               ;;   (set! (.. ctx -font) "40px Sans")
-                               ;;   (set! (.. ctx -fillStyle) "#ff0000")
-                               ;;   (.fillText ctx (str tile-id) 0 40)
-                               ;;   )
+                       (list (reagent/track!
+                              (fn []
+                                (tile/render-tile @tile-contents canvas layer)
+                                ;; identify tiles with big red text
+                                ;; (let [ctx (.getContext canvas "2d")]
+                                ;;   (set! (.. ctx -font) "40px Sans")
+                                ;;   (set! (.. ctx -fillStyle) "#ff0000")
+                                ;;   (.fillText ctx (str tile-id) 0 40)
+                                ;;   )
 
-                               ))))
-                ))
-            ;; also request load of the tile into the document
-            (state/load-tile! doc (.-x coords) (.-y coords) (.-z coords))
+                                ))))
+                ;; also request load of the tile into the document
+                (state/load-tile! doc (.-x coords) (.-y coords) (.-z coords))))
             canvas))
+
+        create-tile (fn [coords] (this-as layer (make-tile coords layer)))
 
         destroy-tile
         (fn [e]
@@ -312,12 +316,26 @@
           (this-as this
             (.call (.. js/L.GridLayer -prototype -initialize) this options)
             (.on this "tileunload" destroy-tile)))
+
+        ;; when the map is redrawn, we re-render each tile
+        ;; that is on-screen
+        repaint
+        (fn []
+          (this-as layer
+                   (js/console.log layer)
+                   (let [doc @doc]
+                     (doseq [visible-tile (filter identity @tiles)]
+                       (make-tile (.-coords visible-tile) layer)
+                       )))
+          )
+
         ]
     ;; create a leaflet class with these functions
     (->>
      {:initialize initialize
       :createTile create-tile
-      :repaintInPlace repaint}
+      :repaintInPlace repaint
+      :internalId "candidates-layer"}
      (clj->js)
      (.extend js/L.GridLayer))))
 
@@ -441,11 +459,11 @@
     ))
 
 (defn create-leaflet-control
-  [component]
+  [component & args]
   (->> {:onAdd (fn [map]
                  (let [box (.create js/L.DomUtil "div")]
                    (.disableClickPropagation js/L.DomEvent box)
-                   (reagent/render [component map] box)
+                   (reagent/render (into [component map] args) box)
                    box))
         }
        clj->js

@@ -321,3 +321,7 @@
           filters))
        items)
       items)))
+
+(defn showing-forbidden?
+  [doc]
+  (->> doc ::view/view-state ::view/show-forbidden))
