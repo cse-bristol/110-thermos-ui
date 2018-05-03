@@ -322,7 +322,6 @@
         repaint
         (fn []
           (this-as layer
-                   (js/console.log layer)
                    (let [doc @doc]
                      (doseq [visible-tile (filter identity @tiles)]
                        (make-tile (.-coords visible-tile) layer)
