@@ -52,10 +52,12 @@
        :supply {::candidate/connection (:connect_id properties)}
        ))))
 
-(defn load-document! [org-name proj-name doc-version]
+(defn load-document! [org-name proj-name doc-version cb]
   (io/load-document
    org-name proj-name doc-version
-   #(edit-geometry! state operations/load-document %)))
+   #(do
+      (edit-geometry! state operations/load-document %)
+      (cb))))
 
 (defn save-document! [org-name proj-name cb]
   (let [state @state]

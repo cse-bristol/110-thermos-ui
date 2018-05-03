@@ -24,7 +24,7 @@
           :on-change #(swap! state assoc :name (.. % -target -value))
           ;; If this is a new problem, focus on the project name input
           :ref (fn [element]
-                 (when (= (:name @state) "")
+                 (when (and (= (:name @state) "") element)
                    (.focus element)))}]]
 
        [:div.pull-right.main-nav__input-container
