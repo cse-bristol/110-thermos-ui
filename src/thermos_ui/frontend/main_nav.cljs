@@ -20,6 +20,7 @@
          {:type "text" :placeholder "Untitled"
           :value (:name @state)
           :id "file-name-input"
+          :on-key-press #(.stopPropagation %) ;; Prevent keyboard shortcuts from executing when you type
           :on-change #(swap! state assoc :name (.. % -target -value))
           ;; If this is a new problem, focus on the project name input
           :ref (fn [element]
