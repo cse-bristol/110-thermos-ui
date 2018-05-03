@@ -29,27 +29,24 @@
   (let [geometry (o/get feature "geometry")
         properties (o/get feature "properties")
         simple-geometry (o/get properties "simple_geometry" geometry)
-
-        properties (dissoc (js->clj properties :keywordize-keys true) :simple_geometry)
-
-        type (keyword (:type properties))
+        type (keyword (o/get properties "type" "demand"))
         ]
 
     (merge
-     {::candidate/id (:id properties)
-      ::candidate/name (:name properties)
+     {::candidate/id (o/get properties "id")
+      ::candidate/name (o/get properties "name")
       ::candidate/type type
-      ::candidate/subtype (:subtype properties)
+      ::candidate/subtype (o/get properties "subtype")
       ::candidate/geometry geometry
       ::candidate/simple-geometry simple-geometry
       ::candidate/inclusion :forbidden}
      (case type
-       :path {::candidate/length (:length properties)
-              ::candidate/path-start (:start-id properties)
-              ::candidate/path-end (:end-id properties)}
-       :demand {::candidate/demand (:demand properties)
-                ::candidate/connection (:connect_id properties)}
-       :supply {::candidate/connection (:connect_id properties)}
+       :path {::candidate/length (o/get properties "length")
+              ::candidate/path-start (o/get properties "start_id")
+              ::candidate/path-end (o/get properties "end_id")}
+       :demand {::candidate/demand (o/get properties "demand")
+                ::candidate/connection (o/get properties "connection_id")}
+       :supply {::candidate/connection (o/get properties "connection_id")}
        ))))
 
 (defn load-document! [org-name proj-name doc-version]
