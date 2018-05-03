@@ -82,7 +82,11 @@
           (str num-applied-filters
                (if (> num-applied-filters 1) " filters" " filter")
                " applied, showing " @count-filtered-items " of "
-               (count items) " candidates.")])
+               (count items) " candidates.")
+          [:button.button.button--small
+           {:on-click #(doseq [k (keys all-filters)]
+                         (state/edit! document operations/remove-all-table-filter-values k))}
+           "CLEAR FILTERS"]])
        ])))
 
 (defn filterable-header-renderer
