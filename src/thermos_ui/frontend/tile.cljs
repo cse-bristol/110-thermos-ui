@@ -63,12 +63,6 @@
   `project` is a function to project from real space into the canvas pixel space"
   [candidate ctx project geometry-key]
 
-  ;; selection   |     inclusion      |     filter
-  ;; y/n         |   r / o            |      y / n
-  ;; y/n          |     f              |      n
-
-  ;;  line, line width, alpha, (dots)
-
   (let [selected (::candidate/selected candidate)
         inclusion (::candidate/inclusion candidate)
         included (not= :forbidden inclusion)
@@ -86,24 +80,13 @@
          :required theme/red
          :optional theme/blue
          theme/white)
-       (if filtered "ff" "55")
-       )
-      )
+       (if filtered "ff" "55")))
 
     (set! (.. ctx -fillStyle)
       (str
        (if selected theme/dark-grey theme/light-grey)
        (if filtered "ff" "88")
-       )
-      )
-
-    )
-
-  ;
-  ; (.setLineDash ctx (if (:filtered candidate)
-  ;                     #js []
-  ;                     #js [6 2]
-  ;                     ))
+       )))
 
   (render-geometry (candidate geometry-key) ctx project
      true false)
