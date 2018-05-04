@@ -6,6 +6,7 @@
             [cljsjs.leaflet-draw] ;; this modifies js/L.Control in-place
             [cljsjs.jsts :as jsts]
 
+            [thermos-ui.frontend.io :as io]
             [thermos-ui.frontend.operations :as operations]
             [thermos-ui.frontend.spatial :as spatial]
             [thermos-ui.frontend.editor-state :as state]
@@ -198,6 +199,15 @@
                                     (fn [] (unload-candidates))
                                     400))))
       )
+
+    ;; When you start to zoom, abort any pending requests at the zoom level you are leaving
+    (.on map "zoomstart" (fn [e]
+                           (let [start-zoom (.getZoom e.target)
+                                 requests-to-remove-ids (filter
+                                                         #(= (apply str (take-last 2 %)) (str start-zoom))
+                                                         (io/getOutstandingRequestIds))]
+                             (doseq [id requests-to-remove-ids] (io/abort-request id)))
+                           ))
 
     (track! show-bounding-box!)
 

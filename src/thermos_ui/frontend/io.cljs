@@ -55,4 +55,12 @@
            (urls/tile x y z)
            nil nil nil nil
            #(handler (.. % -target getResponseJson)))
-    ))
+    )
+
+  (defn getOutstandingRequestIds
+    []
+    (.getOutstandingRequestIds pool))
+
+  (defn abort-request
+    [id]
+    (.abort pool id true)))
