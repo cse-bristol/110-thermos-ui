@@ -324,4 +324,22 @@
 
 (defn showing-forbidden?
   [doc]
-  (->> doc ::view/view-state ::view/show-forbidden))
+  (->> doc ::view/view-state ::view/hide-forbidden not))
+
+(defn toggle-showing-forbidden [doc]
+  (let [doc (update-in doc [::view/view-state ::view/hide-forbidden] not)]
+    (if (showing-forbidden? doc)
+      doc
+      (update-in doc [::document/candidates]
+                 #(select-keys % (constrained-candidates-ids doc))
+                 )
+      )
+    ))
+
+(defn add-pending-tile
+  [doc tile-id]
+  (conj (->> doc ::view/view-state ::view/pending-tiles) tile-id))
+
+(defn remove-pending-tile
+  [doc tile-id]
+  (remove #{tile-id} (->> doc ::view/view-state ::view/pending-tiles)))
