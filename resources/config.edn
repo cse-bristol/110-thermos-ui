@@ -4,4 +4,8 @@
  :pg-user "postgres"
  :pg-password "therm0s"
  :pg-db-geometries "thermos_geometries"
- :server-port "8080"}
+ :server-port "8080"
+
+ :solver-directory "solver-work"
+ :solver-command "run-solver"
+ }

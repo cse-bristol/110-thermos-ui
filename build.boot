@@ -33,6 +33,10 @@
    [http-kit                  "2.2.0"]
    [ring-logger               "1.0.0"]
 
+   [io.forward/yaml           "1.0.8"]
+   [org.clojure/data.csv      "0.1.4"]
+   [aysylu/loom               "1.0.1"]
+
    [javax.servlet/servlet-api "2.5"    :scope "test"]
    [ring/ring-mock            "0.3.0"  :scope "test"]
 
