@@ -10,7 +10,7 @@
 (defn component
   [leaflet-map]
   (let [show-forbidden? (operations/showing-forbidden? @state/state)]
-    [:div.leaflet-touch.leaflet-bar
+    [:div
      [:input {:type "checkbox"
               :id "hide-forbidden-candidates"
               :style {:display "none"}
@@ -18,8 +18,9 @@
               :on-change (fn [e] (state/edit-geometry! state/state operations/toggle-showing-forbidden)
                            )
               }]
-     [:label.hide-forbidden-control {:for "hide-forbidden-candidates"
-                                     :title (if show-forbidden?
-                                              "Hide unconstrained candidates"
-                                              "Show unconstrained candidates")}
+     [:label.leaflet-control-button.hide-forbidden-control
+      {:for "hide-forbidden-candidates"
+       :title (if show-forbidden?
+                "Hide unconstrained candidates"
+                "Show unconstrained candidates")}
       [:span.hide-forbidden-icon]]]))

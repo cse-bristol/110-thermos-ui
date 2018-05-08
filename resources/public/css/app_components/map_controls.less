@@ -1,11 +1,29 @@
-.hide-forbidden-control {
+.leaflet-control-button {
   width: 30px;
-  height: 30px;
+  height: 31px;
+  line-height: 30px;
+  color: #333;
   background: #fff;
   display: block;
   cursor: pointer;
-  border-radius: 2px;
+  border: none;
+  border-bottom: 1px solid #ccc;
+  &:active, &:focus {
+    outline: none;
+  }
 }
+
+.leaflet-control-group div:first-child .leaflet-control-button {
+  border-top-left-radius: 2px;
+  border-top-right-radius: 2px;
+}
+.leaflet-control-group div:last-child .leaflet-control-button {
+  border-bottom-left-radius: 2px;
+  border-bottom-right-radius: 2px;
+  height: 30px;
+  border-bottom: none;
+}
+
 .hide-forbidden-icon {
   position: relative;
   height: 30px;

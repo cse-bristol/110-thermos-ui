@@ -15,6 +15,7 @@
             [thermos-ui.frontend.popover-menu :as popover-menu]
             [thermos-ui.frontend.search-box :as search-box]
             [thermos-ui.frontend.hide-forbidden-control :as hide-forbidden-control]
+            [thermos-ui.frontend.zoom-to-selection-control :as zoom-to-selection-control]
             [thermos-ui.specs.document :as document]
             [thermos-ui.specs.view :as view]
             [thermos-ui.specs.candidate :as candidate]
@@ -97,6 +98,14 @@
 
         hide-forbidden-control (create-leaflet-control hide-forbidden-control/component)
 
+        zoom-to-selection-control (create-leaflet-control zoom-to-selection-control/component)
+
+        test-control-group (create-leaflet-control (fn [leaflet-map]
+                                                     [:div.leaflet-bar.leaflet-control-group
+                                                      [hide-forbidden-control/component leaflet-map]
+                                                      [zoom-to-selection-control/component leaflet-map]
+                                                      ]))
+
         follow-map!
         #(let [bounds (.getBounds map)]
            (edit! operations/move-map
@@ -131,7 +140,7 @@
     (.addControl map (search-control. (clj->js {:position :topright})))
     (.addControl map layers-control)
     (.addControl map draw-control)
-    (.addControl map (hide-forbidden-control. (clj->js {:position :topleft})))
+    (.addControl map (test-control-group. (clj->js {:position :topleft})))
 
     (.on map "moveend" follow-map!)
     (.on map "zoomend" follow-map!)
