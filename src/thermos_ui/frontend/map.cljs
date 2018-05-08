@@ -205,7 +205,7 @@
                            (let [start-zoom (.getZoom e.target)
                                  requests-to-remove-ids (filter
                                                          #(= (apply str (take-last 2 %)) (str start-zoom))
-                                                         (io/getOutstandingRequestIds))]
+                                                         (io/get-outstanding-request-ids))]
                              (doseq [id requests-to-remove-ids] (io/abort-request id)))
                            ))
 
@@ -221,7 +221,6 @@
           goog.ui.Component.EventType.CHANGE
           (debounce (fn [] (.invalidateSize map)) 200)
           ))))
-
     )
   )
 

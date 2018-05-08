@@ -57,9 +57,9 @@
            #(handler (.. % -target getResponseJson)))
     )
 
-  (defn getOutstandingRequestIds
+  (defn get-outstanding-request-ids
     []
-    (.getOutstandingRequestIds pool))
+    (js->clj (.getOutstandingRequestIds pool)))
 
   (defn abort-request
     [id]

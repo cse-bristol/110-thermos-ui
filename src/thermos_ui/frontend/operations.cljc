@@ -342,11 +342,3 @@
                  )
       )
     ))
-
-(defn add-pending-tile
-  [doc tile-id]
-  (conj (->> doc ::view/view-state ::view/pending-tiles) tile-id))
-
-(defn remove-pending-tile
-  [doc tile-id]
-  (remove #{tile-id} (->> doc ::view/view-state ::view/pending-tiles)))
