@@ -275,12 +275,6 @@
               [::view/view-state ::view/table-state ::view/filters filter-key]
               #{})))
 
-(defn set-splitpane
-  "It will be useful for us to have a reference to the splitpane as a goog.Component
-  which we have access to globally, so set it here when the splitpane is created."
-  [document splitpane]
-  (assoc-in document [::view/view-state ::view/splitpane] splitpane))
-
 (defn show-toaster
   [doc]
   (assoc-in doc [::view/view-state ::view/toaster ::view/toaster-showing] true))

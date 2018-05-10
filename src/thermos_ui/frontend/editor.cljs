@@ -147,7 +147,8 @@
 
       ;; Set a reference to the splitpane in the view state so we can access it elsewhere
       (state/edit! state/state
-                   operations/set-splitpane
+                   assoc
+                   ::splitpane
                    splitpane)
 
       ;; Listen for when the window resizes and make the splitpane resize to match it
