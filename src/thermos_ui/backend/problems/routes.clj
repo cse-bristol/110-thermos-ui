@@ -21,13 +21,13 @@
           problem :file} :params :as params}
         (let [problem-file (problem :tempfile)
               stored (db/insert! org name problem-file)]
-          (if (:file stored)
+          (if stored
             {:status 201
              :headers (assoc json-headers
                              "Location"
-                             stored
+                             (str stored)
                              "X-Problem-ID"
-                             stored
+                             (str stored)
                              )}
             {:status 500})))
 
