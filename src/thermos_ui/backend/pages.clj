@@ -1,6 +1,6 @@
 (ns thermos-ui.backend.pages
   (:require [compojure.core :refer :all]
-            [thermos-ui.backend.store-service.problems :as problems]
+            [thermos-ui.backend.problems.db :as problems]
             [hiccup.page :refer :all]
             [ring.util.response :refer [resource-response]]
             ))
@@ -41,14 +41,11 @@
 
   (GET "/:org-name/:problem" [org-name problem]
        "Redirect to the latest version if no version given."
-       (let [org-problems
-             (filter (comp (partial = org-name) :org)
-                     (problems/ls org-name))
+       (let [problem-coll
+             (problems/ls org-name problem)
 
-             org-problems (group-by :name org-problems)
-             problem-coll (org-problems problem)
              latest-version-id (->> problem-coll
-                                 (sort-by :date)
+                                 (sort-by :created)
                                  last
                                  :id)]
          (if latest-version-id
@@ -58,8 +55,7 @@
 
   (GET "/:org-name" [org-name]
        (let [org-problems
-             (filter (comp (partial = org-name) :org)
-                     (problems/ls org-name))
+             (problems/ls org-name)
 
              org-problems (group-by :name org-problems)
              ]
@@ -78,13 +74,13 @@
                [:th {:style "width:100px;"} ""]]]
              [:tbody
               (for [[name saves] org-problems]
-                (let [latest-save (apply max-key :date saves)
+                (let [latest-save (apply max-key :created saves)
                       latest-save-date (.format (java.text.SimpleDateFormat. "dd/MM/yyyy - HH:mm")
-                                                (java.util.Date. (:date latest-save)))
+                                                (java.util.Date. (:created latest-save)))
                       ]
                   [:tr
                    [:td [:a.link {:href (str org-name "/" name "/" (:id latest-save) "/")} name]]
-                   [:td {:data-saved-timestamp (:date latest-save)} latest-save-date]
+                   [:td {:data-saved-timestamp (:created latest-save)} latest-save-date]
                    [:td {:style "text-align:right;"}
                     [:button.button.button--small
                      {:data-action "delete-problem" :data-org org-name :data-problem-name name}

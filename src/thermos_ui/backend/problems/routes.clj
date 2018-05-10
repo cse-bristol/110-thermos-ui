@@ -1,8 +1,7 @@
-(ns thermos-ui.backend.store-service.routes
-  (:require [clojure.java.io :as io]
-            [compojure.core :refer :all]
+(ns thermos-ui.backend.problems.routes
+  (:require [compojure.core :refer :all]
             [compojure.route :as route]
-            [thermos-ui.backend.store-service.problems :as p]))
+            [thermos-ui.backend.problems.db :as db]))
 
 (defonce json-headers {"Content-Type" "text/html"})
 
@@ -15,35 +14,26 @@
    "/problem/:org/:name/:id" {:method "DELETE" :description "Delete specific problem version"}
    })
 
-(defn- json-list-response
-  [problem-list]
-  (if (> (count problem-list) 0)
-    {:status 200
-     :headers json-headers
-     :body problem-list}
-    {:status 404}))
-
 (defroutes all
   (POST "/problem/:org/:name"
         {{org :org
           name :name
           problem :file} :params :as params}
         (let [problem-file (problem :tempfile)
-              stored (p/insert org name problem-file)]
+              stored (db/insert! org name problem-file)]
           (if (:file stored)
-
             {:status 201
              :headers (assoc json-headers
                              "Location"
-                             (:id stored)
+                             stored
                              "X-Problem-ID"
-                             (:id stored)
+                             stored
                              )}
             {:status 500})))
 
   (GET "/problem/:org/:name/:id"
        [org name id]
-       (if-let [problem (p/get-file org name id)]
+       (if-let [problem (db/get-content org name id)]
          {:status 200
           :headers json-headers
           :body problem}
@@ -51,21 +41,7 @@
 
   (DELETE "/problem/:org/:name"
           [org name]
-          (if-let [problem-dir (p/get-problem-dir org name)]
-            (do
-              ;; Delete all the files in the dir
-              (doseq [file (.listFiles problem-dir)]
-                (io/delete-file file))
-              ;; Delete the dir itself
-              (io/delete-file problem-dir)
-              {:status 204})
-            {:status 404}))
-
-  ;; (DELETE "/problem/:org/:name/:id"
-  ;;         {{org :org
-  ;;           name :name
-  ;;           id :id} :params :as params}
-  ;;         (if (p/delete org name id)
-  ;;           {:status 204}
-  ;;           {:status 404}))
+          (db/delete! org name)
+          {:status 204})
+  
   )

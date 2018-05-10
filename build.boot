@@ -32,11 +32,16 @@
    ;; the actual server:
    [http-kit                  "2.2.0"]
    [ring-logger               "1.0.0"]
+   
+   [funcool/clojure.jdbc      "0.9.0"] ;; sensible db access
+   [hikari-cp                 "1.2.4"] ;; connection pooling
+
 
    [io.forward/yaml           "1.0.8"]
    [org.clojure/data.csv      "0.1.4"]
-   [aysylu/loom               "1.0.1"]
-
+   [aysylu/loom               "1.0.1"] ;; Graph data structures / algo
+   [org.tobereplaced/nio.file "0.4.0"] ;; nio functions
+   
    [javax.servlet/servlet-api "2.5"    :scope "test"]
    [ring/ring-mock            "0.3.0"  :scope "test"]
 

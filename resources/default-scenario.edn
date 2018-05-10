@@ -373,11 +373,7 @@
    :includeResflow true,
    :operatingEmissions 0.0}],
  :metadata
- {:firstName "Kamal",
-  :lastName "Kuriyan",
-  :loggerLevel "INFO",
-  :notes "Thermos Prototype 50 nodes. Heat exchangers only.",
-  :sshHost "ps-lfe01.ps.ic.ac.uk"},
+ {:loggerLevel "INFO"},
  :minorperiods [{:hours 8760.0, :name "average"}],
  :cityspace
  {:gridX 0,

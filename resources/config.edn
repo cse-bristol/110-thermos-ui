@@ -7,5 +7,5 @@
  :server-port "8080"
 
  :solver-directory "solver-work"
- :solver-command "run-solver"
+ :solver-command "/home/hinton/p/110-thermos/solver/run-solver"
  }

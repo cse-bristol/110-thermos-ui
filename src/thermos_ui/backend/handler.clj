@@ -3,7 +3,7 @@
             [compojure.route :as route]
             [compojure.middleware :refer [wrap-canonical-redirect]]
             [thermos-ui.backend.pages :as pages]
-            [thermos-ui.backend.store-service.routes :as problem-routes]
+            [thermos-ui.backend.problems.routes :as problem-routes]
             [thermos-ui.backend.maps.routes :as map-routes]
             [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
