@@ -53,6 +53,7 @@
            (ring.util.response/redirect (str "/" org-name)))
          ))
 
+  ;; TODO show completed runs somewhere
   (GET "/:org-name" [org-name]
        (let [org-problems
              (problems/ls org-name)

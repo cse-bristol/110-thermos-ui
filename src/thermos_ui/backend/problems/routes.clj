@@ -33,7 +33,7 @@
 
   (GET "/problem/:org/:name/:id"
        [org name id]
-       (if-let [problem (db/get-content org name id)]
+       (if-let [problem (db/get-content org name (Integer/parseInt id))]
          {:status 200
           :headers json-headers
           :body problem}

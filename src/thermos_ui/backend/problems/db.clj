@@ -45,8 +45,16 @@
     (->
      (select :content)
      (from :problems)
-     (where [:and [:= :org org] [:= :name name] [:= :id (Integer/parseInt id)]])
+     (where [:and [:= :org org] [:= :name name] [:= :id id]])
      (sql/format)
      (->> (jdbc/fetch conn))
      (first)
      :content)))
+
+(defn add-solution [org name id result]
+  (with-open [conn (db/connection)]
+    (-> (update :problems)
+        (sset {:content result :has_run true})
+        (where [:and [:= :org org] [:= :name name] [:= :id id]])
+        (sql/format)
+        (->> (jdbc/execute conn)))))

@@ -1,4 +1,4 @@
-(ns thermos-ui.backend.solver
+(ns thermos-ui.backend.solver.interop
   (:require [thermos-ui.backend.config :refer [config]]
             [clojure.java.io :as io]
             [org.tobereplaced.nio.file :as nio]
@@ -266,5 +266,3 @@
        (concat included-path-ids included-vertex-ids)
        )
       )))
-
-

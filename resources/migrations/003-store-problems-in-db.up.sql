@@ -10,7 +10,6 @@ CREATE TABLE problems (
 --;;
 CREATE TABLE jobs (
     id serial not null primary key,
-    command text not null,
     args text not null,
     state smallint not null,
     queue text not null
