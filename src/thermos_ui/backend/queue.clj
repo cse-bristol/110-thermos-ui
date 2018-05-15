@@ -105,7 +105,7 @@
 (defn cancel [task-id]
   ;; There's no method to signal about this out-of-band that I can
   ;; think of, apart from making another table of death signals
-  ;; and polling that from another thread
+  ;; and polling that from another thread. We can do that later.
   )
 
 (defn ls []

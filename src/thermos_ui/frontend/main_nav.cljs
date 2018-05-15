@@ -6,7 +6,17 @@
 (defn component
   "The main nav bar at the top of the page."
   [{ name :name }]
-  (let [state (reagent/atom {:name name})]
+  (let [state (reagent/atom {:name name})
+
+        with-name (fn [do-thing]
+                    (let [name (:name @state)]
+                      ;; If this is a new probem and a name has not been provided, prompt user to do so.
+                      (if (and (some? name) (not (s/blank? name)))
+                        (do-thing name)
+                        (do (js/window.alert "Please provide a name for this project.")
+                            (.focus (js/document.getElementById "file-name-input")))))
+                    )
+        ]
     (fn [{on-save :on-save
           on-load :on-load
           on-run :on-run
@@ -30,14 +40,10 @@
        [:div.pull-right.main-nav__input-container
         [:button.button.button--link-style.button--save-button
          {:class (if-not @unsaved? "button--disabled")
-          :on-click #(let [name (:name @state)]
-                       ;; If this is a new probem and a name has not been provided, prompt user to do so.
-                       (if (and (some? name) (not (s/blank? name)))
-                         (on-save name)
-                         (do (js/window.alert "Please provide a name for this project.")
-                           (.focus (js/document.getElementById "file-name-input")))))
+          :on-click #(with-name on-save)
           }
          "SAVE"]
         [:button.button.button--link-style.button--load-button {:on-click on-load} "LOAD"]
-        [:button.button.button--outline.main-nav__run-button {:on-click on-run}
+        [:button.button.button--outline.main-nav__run-button {:on-click #(with-name on-run)}
+        
          "RUN" [:span "▸"]]]])))

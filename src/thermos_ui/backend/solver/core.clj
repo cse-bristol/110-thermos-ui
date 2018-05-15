@@ -1,8 +1,7 @@
 (ns thermos-ui.backend.solver.core
   (:require [thermos-ui.backend.solver.interop :as interop]
             [thermos-ui.backend.problems.db :as problem-db]
-            [clojure.edn :as edn]
-            [thermos-ui.backend.queue :as queue]))
+            [clojure.edn :as edn]))
 
 (defn consume-problem [conn args]
   ;; TODO I am reading off another connection here
@@ -12,10 +11,9 @@
         problem-data (edn/read-string problem-data)
         solved-problem (interop/solve problem-data)
         ]
-    ;; we want to replace the problem content with the version that
-    ;; has a solution, and we want to update the table to say we have
-    ;; a solution as well. I think probably this needs connecting up
-    ;; using something like Component in the end.
+    ;; this is a bit ugly - once the problem is solved, we update the
+    ;; database outside our transaction, which is all wrong.
     (problem-db/add-solution (:org args) (:name args) (:id args)
                              (pr-str solved-problem))))
+
 

@@ -19,9 +19,10 @@
 
 (defn save-document
   "Save a `document` to the given `url`"
-  [org proj document cb]
+  [org proj document run? cb]
   (xhr/send
-   (urls/document org proj)
+   (str (urls/document org proj)
+        (if run? "?run=1" ""))
    (fn [e]
      (cb (.getResponseHeader (.. e -target) "X-Problem-ID")))
 
@@ -32,6 +33,7 @@
      (.append data "file" blob (str proj ".edn"))
      data)
    ))
+
 
 (defn delete-problem
   "Delete all a problem's documents."

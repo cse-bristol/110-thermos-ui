@@ -2,6 +2,7 @@
   (:require [org.httpkit.server :as httpkit]
             [thermos-ui.backend.handler :refer [app]]
             [thermos-ui.backend.config :refer [config]]
+            [thermos-ui.backend.solver.core :as solver]
             [thermos-ui.backend.queue :as queue]
             )
   (:gen-class))
@@ -10,8 +11,8 @@
   ;; we need to start the run-queue
   (queue/start-consumer-thread!)
 
-  ;; we need to say that we are happy to solve problems
-  ;; off the run queue
+  ;; then we need to set up a problem solver that works
+  (queue/consume :problems solver/consume-problem)
 
   ;; and we need to handle web requests
   (httpkit/run-server #'app

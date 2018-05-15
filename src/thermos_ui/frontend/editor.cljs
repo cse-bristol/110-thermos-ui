@@ -35,18 +35,21 @@
       proj-name (url-decode proj-name)
       ]
 
-  (defn do-save [name]
+  (defn do-save [run? name]
     (state/save-document!
-     org-name name
+     org-name name run?
      (fn [new-id]
        (js/window.history.pushState
         nil
         name
         (urls/editor org-name name new-id))
        ;; Show "toaster" message notifying successful save
-       (state/edit! state/state operations/set-toaster-content "Project successfully saved.")
-       (state/edit! state/state operations/set-toaster-class "toaster--success")
-       (state/edit! state/state operations/show-toaster)
+       (state/edit! state/state
+                    #(-> %
+                         (operations/set-toaster-content "Project successfully saved.")
+                         (operations/set-toaster-class "toaster--success")
+                         (operations/show-toaster)))
+       
        (js/setTimeout
         (fn [] (state/edit! state/state operations/hide-toaster))
         4000)
@@ -95,7 +98,8 @@
         :on-context-menu close-popover
         }
        [main-nav/component
-        {:on-save do-save
+        {:on-save (partial do-save false)
+         :on-run (partial do-save true)
          :name (if (and (= proj-name "new") (not version)) "" proj-name)
          :unsaved? unsaved?}]
 

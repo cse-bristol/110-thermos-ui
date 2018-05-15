@@ -56,11 +56,12 @@
       (edit-geometry! state operations/load-document %)
       (cb))))
 
-(defn save-document! [org-name proj-name cb]
+(defn save-document! [org-name proj-name run cb]
   (let [state @state]
     (io/save-document
      org-name proj-name
      (document/keep-interesting state)
+     run
      cb
      )))
 
