@@ -23,6 +23,7 @@
               :placeholder "Type to filter"
               :default-value (or selected-filters "")
               :ref (fn [node] (if node (.focus node)))
+              :on-key-press #(.stopPropagation %) ;; Prevent keyboard shortcuts from executing when you type
               :on-key-down (fn [e]
                              ;; Stop table from sorting automatically when you press space or enter.
                              (if (or (= e.key " ") (= e.key "Enter"))
@@ -31,7 +32,7 @@
                            ;; Allows us to use the event in the callback below
                            (.persist e)
 
-                           ;; Use a timeout to wait 0.5s after user has stopped typing before
+                           ;; Use a timeout to wait 0.2s after user has stopped typing before
                            ;; initiating the filter.
                            (js/clearTimeout @timeout)
                            (reset! timeout (js/setTimeout
@@ -39,7 +40,7 @@
                                               (state/edit! document
                                                            operations/add-table-filter-value
                                                            key
-                                                           e.target.value)) 500))
+                                                           e.target.value)) 200))
                            )}]
              [:button.filter-text-input__clear-button
               {:on-click (fn [e]
