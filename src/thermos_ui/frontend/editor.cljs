@@ -196,7 +196,9 @@
       )
     )
 
-  (mount-root)
 
-  (when version
-    (state/load-document! org-name proj-name version)))
+  (if version
+    ;; If this is an existing problem, load it, then create the map.
+    ;; Otherwise create the map straight away.
+    (state/load-document! org-name proj-name version mount-root)
+    (mount-root)))

@@ -22,7 +22,7 @@
   "
   [{items :items
     filters :filters}
-   count-filtered-items ;; This let's the parent component know how many items have been filtered
+   count-filtered-items ;; This lets the parent component know how many items have been filtered
    & columns]
   ;; reagent/with-let allows us to define an atom whose lifecycle
   ;; follows that of the component, so it's not recreated when we re-render

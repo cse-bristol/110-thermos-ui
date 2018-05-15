@@ -75,21 +75,24 @@
   know what you just added or deleted."
   ([document added removed]
    (let [document (operations/map-candidates document add-jsts-geometry added)
+         candidates-bboxes (::candidates-bboxes document)
          spatial-index (or (::spatial-index document) (rbush))
          indexed-candidates
          (-> (::indexed-candidates document)
              (set/union added)
              (set/difference removed)
              (set))
+
+         added-candidates-bboxes
+         (into {}
+           (for [{id ::candidate/id bbox ::bbox}
+               (map (::document/candidates document) added)]
+           [id (clj->js (assoc bbox :id id))]))
          ]
 
      ;; put new items into the index based on their bounding boxes
      ;; they go in as JS objects, so we clj->js them
-     (.load spatial-index
-            (clj->js
-             (for [{id ::candidate/id bbox ::bbox}
-                   (map (::document/candidates document) added)]
-               (assoc bbox :id id))))
+     (.load spatial-index (clj->js (vals added-candidates-bboxes)))
 
      ;; deindex things we can no longer see
      ;; these are JS objects rather than immutable maps, because
@@ -98,15 +101,15 @@
      ;; is OK here, so we are passing a string to remove, and equality testing
      ;; that string against the ID property of each entry.
      (doseq [id removed]
-       (.remove spatial-index
-                id
-                (fn [a b] (= a (.-id b)))))
+       (.remove spatial-index (candidates-bboxes id)))
 
      ;; we have updated all our spatial book-keeping, tell the world.
      (assoc document
             ::update-counter (+ (::update-counter document)
                                 (if (and (empty? added) (empty? removed)) 0 1))
             ::spatial-index spatial-index
+            ::candidates-bboxes (merge added-candidates-bboxes
+                                       (reduce dissoc candidates-bboxes removed))
             ::indexed-candidates indexed-candidates)))
 
   ([document]

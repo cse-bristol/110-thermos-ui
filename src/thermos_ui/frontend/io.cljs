@@ -47,9 +47,20 @@
     "Load geometry from the database for the tile at `x`, `y`, `z`, and
   call `handler` with what comes back."
     [x y z handler]
+    ;; Sometimes it breaks if there is already an active request with the same id,
+    ;; so abort any such request.
+    (.abort pool (str x y z) true)
     (.send pool
            (str x y z)
            (urls/tile x y z)
            nil nil nil nil
            #(handler (.. % -target getResponseJson)))
-    ))
+    )
+
+  (defn get-outstanding-request-ids
+    []
+    (js->clj (.getOutstandingRequestIds pool)))
+
+  (defn abort-request
+    [id]
+    (.abort pool id true)))

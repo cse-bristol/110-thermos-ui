@@ -1,0 +1,68 @@
+.leaflet-control-button {
+  width: 30px;
+  height: 31px;
+  line-height: 30px;
+  color: #333;
+  background: #fff;
+  display: block;
+  cursor: pointer;
+  border: none;
+  border-bottom: 1px solid #ccc;
+  &:active, &:focus {
+    outline: none;
+  }
+}
+
+.leaflet-control-group div:first-child .leaflet-control-button {
+  border-top-left-radius: 2px;
+  border-top-right-radius: 2px;
+}
+.leaflet-control-group div:last-child .leaflet-control-button {
+  border-bottom-left-radius: 2px;
+  border-bottom-right-radius: 2px;
+  height: 30px;
+  border-bottom: none;
+}
+
+.hide-forbidden-icon {
+  position: relative;
+  height: 30px;
+  width: 30px;
+  display: inline-block;
+  &:before {
+    content: "";
+    display: inline-block;
+    width: 20px;
+    border-left: 8px solid #444;
+    border-right: 8px solid #bbb;
+    height: 8px;
+    position: absolute;
+    top: 5px;
+    left: 5px;
+  }
+  &:after {
+    content: "";
+    display: inline-block;
+    width: 20px;
+    border-left: 8px solid #bbb;
+    border-right: 8px solid #bbb;
+    height: 8px;
+    position: absolute;
+    bottom: 5px;
+    left: 5px;
+  }
+}
+.hide-forbidden-control:hover {
+  background: #f4f4f4;
+}
+input:checked + .hide-forbidden-control {
+  background: #f4f4f4;
+  .hide-forbidden-icon {
+    &:before {
+      border-right-color: #777;
+    }
+    &:after {
+      border-color: #777;
+    }
+  }
+}

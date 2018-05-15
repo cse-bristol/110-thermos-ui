@@ -63,17 +63,30 @@
   `project` is a function to project from real space into the canvas pixel space"
   [candidate ctx project geometry-key]
 
-  (set! (.. ctx -lineWidth)
-        (cond
-          (::candidate/selected candidate) 4
-          (= :path (::candidate/type candidate)) 1
-          (not (= (::candidate/inclusion candidate) :forbidden)) 1.5
-          true 1))
-  (set! (.. ctx -strokeStyle) (case (::candidate/inclusion candidate)
-                                :required theme/red
-                                :optional theme/blue
-                                theme/white))
-  (set! (.. ctx -fillStyle) (if (::candidate/selected candidate) theme/dark-grey theme/light-grey))
+  (let [selected (::candidate/selected candidate)
+        inclusion (::candidate/inclusion candidate)
+        included (not= :forbidden inclusion)
+        forbidden (not included)
+        filtered (:filtered candidate)
+        ]
+    (set! (.. ctx -lineWidth)
+      (cond
+        selected 4
+        included 1.5
+        true 1))
+    (set! (.. ctx -strokeStyle)
+      (str
+       (case inclusion
+         :required theme/red
+         :optional theme/blue
+         theme/white)
+       (if filtered "ff" "55")))
+
+    (set! (.. ctx -fillStyle)
+      (str
+       (if selected theme/dark-grey theme/light-grey)
+       (if filtered "ff" "88")
+       )))
 
   (render-geometry (candidate geometry-key) ctx project
      true false)

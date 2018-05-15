@@ -254,14 +254,21 @@
     (case filter-key
       ;; For `name` field just set the filter value to nil
       ::candidate/name
-      (assoc-in document
-                [::view/view-state ::view/table-state ::view/filters filter-key] nil)
+      (update-in document
+                [::view/view-state ::view/table-state ::view/filters]
+                dissoc filter-key)
       ;; Default case, for the other fields which are all checkbox filters
-      (assoc-in document
-                [::view/view-state ::view/table-state ::view/filters filter-key]
-                (set (if (false? value) ;; (remove #{value} current-filter-set) doesn't work when value=false
-                       (remove false? current-filter-set)
-                       (remove #{value} current-filter-set)))))))
+      (let [existing-value (get-in document [::view/view-state ::view/table-state ::view/filters filter-key])
+            new-value (if (false? value)
+                        (remove false? existing-value)
+                        (remove #{value} existing-value))
+            ]
+        (if (empty? new-value)
+          (update-in document [::view/view-state ::view/table-state ::view/filters] dissoc filter-key)
+          (assoc-in document [::view/view-state ::view/table-state ::view/filters filter-key] new-value)
+          )
+        )
+      )))
 
 (defn remove-all-table-filter-values
   [document filter-key]
@@ -315,3 +322,17 @@
           filters))
        items)
       items)))
+
+(defn showing-forbidden?
+  [doc]
+  (->> doc ::view/view-state ::view/hide-forbidden not))
+
+(defn toggle-showing-forbidden [doc]
+  (let [doc (update-in doc [::view/view-state ::view/hide-forbidden] not)]
+    (if (showing-forbidden? doc)
+      doc
+      (update-in doc [::document/candidates]
+                 #(select-keys % (constrained-candidates-ids doc))
+                 )
+      )
+    ))

@@ -20,4 +20,6 @@
 
 (s/def ::toaster (s/keys :req [::toaster-showing ::toaster-content ::toaster-class]))
 
-(s/def ::view-state (s/keys :req [::table-state ::bounding-box ::popover ::toaster]))
+(s/def ::view-state (s/keys :req [::table-state ::bounding-box ::popover ::toaster ::show-forbidden]))
+
+(s/def ::show-forbidden boolean?)

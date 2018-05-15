@@ -13,25 +13,23 @@
 (defn component
   "The panel showing all the candidates which can (or must) be required in the network."
   [document]
-  (let [all-filters (operations/get-all-table-filters @document)
+  (let [all-filters @(reagent/track #(operations/get-all-table-filters @document))
         num-applied-filters (reduce-kv (fn [init filter-key filter-value]
                                          (if (not-empty filter-value)
                                            (inc init)
                                            init))
                                        0 all-filters)
-        count-filtered-items (reagent/atom nil)
-        items (operations/included-candidates @document)]
+        items @(reagent/track #(operations/included-candidates @document))
+        open-filter @(reagent/cursor document [::view/view-state ::view/table-state ::view/open-filter])
+        filtered-candidates @(reagent/track #(operations/get-filtered-candidates @document))]
     (reagent/with-let [count-filtered-items (reagent/atom nil)]
       [:div {:class (str
                      "network-candidates-panel__virtual-table-container"
                      (if-not (zero? num-applied-filters) " network-candidates-panel__virtual-table-container--filters"))}
 
-       ;; TODO this will rerun whenever we modify anything in document we
-       ;; need a cursor instead, maybe there should be some operations
-       ;; things for this.
        [virtual-table/component
         {:items items
-         :filters (operations/get-all-table-filters @document)}
+         :filters all-filters}
         ;; For the little filter summary box below we need the virtual table
         ;; to tell us how many items have been filtered.
         count-filtered-items
@@ -39,20 +37,43 @@
         {:label "Selected"
          :key ::candidate/selected
          :cellRenderer (fn [args] (selected-cell-renderer document args))
-         :headerRenderer (fn [args] (filterable-header-renderer document items ::candidate/selected args "checkbox"))}
+         :headerRenderer (fn [args] (filterable-header-renderer document
+                                                                open-filter
+                                                                filtered-candidates
+                                                                items
+                                                                ::candidate/selected
+                                                                args
+                                                                "checkbox"))}
         {:label "Name"
          :key ::candidate/name
-         :headerRenderer (fn [args] (filterable-header-renderer document items ::candidate/name args "text"))}
+         :headerRenderer (fn [args] (filterable-header-renderer document
+                                                                open-filter
+                                                                filtered-candidates
+                                                                items
+                                                                ::candidate/name
+                                                                args
+                                                                "text"))}
 
         {:label "Type"
          :key ::candidate/type
          :cellRenderer (fn [arg]
                          (name (o/get arg "cellData")))
-         :headerRenderer (fn [args] (filterable-header-renderer document items ::candidate/type args "checkbox"))}
+         :headerRenderer (fn [args] (filterable-header-renderer document
+                                                                open-filter
+                                                                filtered-candidates
+                                                                items
+                                                                ::candidate/type
+                                                                args
+                                                                "checkbox"))}
 
         {:label "Classification" :key ::candidate/subtype
-         :headerRenderer (fn [args] (filterable-header-renderer document items ::candidate/subtype args "checkbox"))}
-
+         :headerRenderer (fn [args] (filterable-header-renderer document
+                                                                open-filter
+                                                                filtered-candidates
+                                                                items
+                                                                ::candidate/subtype
+                                                                args
+                                                                "checkbox"))}
 
         ]
        ;; Box displaying a summary of the filters if any have been applied
@@ -61,15 +82,18 @@
           (str num-applied-filters
                (if (> num-applied-filters 1) " filters" " filter")
                " applied, showing " @count-filtered-items " of "
-               (count items) " candidates.")])
+               (count items) " candidates.")
+          [:button.button.button--small
+           {:on-click #(doseq [k (keys all-filters)]
+                         (state/edit! document operations/remove-all-table-filter-values k))}
+           "CLEAR FILTERS"]])
        ])))
 
 (defn filterable-header-renderer
   "Custom render function for column headers which need to be filterable."
-  [doc items key args type]
+  [doc open-filter filtered-candidates items key args type is-open]
   (reagent/as-element
-   (let [is-open (= (->> @doc ::view/view-state ::view/table-state ::view/open-filter) key)
-         filtered-candidates (operations/get-filtered-candidates @doc)]
+   (let [is-open (= open-filter key)]
      [:span.ReactVirtualized__Table__headerTruncatedText
      ;; This is quick and dirty - put a checkbox in the Selected column header to (de)select all
       (if (and (= key ::candidate/selected) (not-empty items))
