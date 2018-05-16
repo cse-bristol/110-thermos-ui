@@ -3,35 +3,52 @@
             [ragtime.repl]
             [jdbc.core :as jdbc]
             [hikari-cp.core :as hikari]
-            [thermos-ui.backend.config :refer [config]]))
+            [com.stuartsierra.component :as component]
+            ))
 
-(def database
-  (future-call
-   #(let [db-config {:dbtype   "postgresql"
-                     :dbname   (config :pg-db-geometries)
-                     :host     (config :pg-host)
-                     :user     (config :pg-user)
-                     :password (config :pg-password)}
-          ragtime-config {:datastore (ragtime.jdbc/sql-database db-config)
-                          :migrations (ragtime.jdbc/load-resources "migrations")}
-          ]
+(defrecord Database [host port dbname user password datasource]
+  component/Lifecycle
+  (start [component]
+    (let [db-config {:dbtype   "postgresql"
+                     :dbname   dbname
+                     :host     host
+                     :user     user
+                     :password password}
 
+          ragtime-config
+          {:datastore (ragtime.jdbc/sql-database db-config)
+           :migrations (ragtime.jdbc/load-resources "migrations")}
+
+          datasource (hikari/make-datasource
+                      {:connection-timeout 30000
+                       :idle-timeout 600000
+                       :max-lifetime 1800000
+                       :minimum-idle 10
+                       :maximum-pool-size  10
+                       :adapter "postgresql"
+                       :username (:user db-config)
+                       :password (:password db-config)
+                       :database-name (:dbname db-config)
+                       :server-name (:host db-config)
+                       :port-number 5432}
+                      )]
+      
       (ragtime.repl/migrate ragtime-config)
+      ;; run migrations
+      
+      (assoc component :datasource datasource)))
 
-      (hikari/make-datasource
-       {:connection-timeout 30000
-        :idle-timeout 600000
-        :max-lifetime 1800000
-        :minimum-idle 10
-        :maximum-pool-size  10
-        :adapter "postgresql"
-        :username (:user db-config)
-        :password (:password db-config)
-        :database-name (:dbname db-config)
-        :server-name (:host db-config)
-        :port-number 5432}
-       )
-      )))
+  (stop [component]
+    (hikari/close-datasource (:datasource component))
+    (assoc component :datasource nil)))
 
-(defn connection [] (jdbc/connection @database))
+;; TODO put all this in main?
+(defn new-database [config]
+  (map->Database {:host     (config :pg-host)
+                  :user     (config :pg-user)
+                  :password (config :pg-password)
+                  :dbname   (config :pg-db-geometries)
+                  }))
+
+(defn connection [component] (jdbc/connection (:datasource component)))
 

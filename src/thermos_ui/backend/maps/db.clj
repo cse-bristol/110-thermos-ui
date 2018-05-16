@@ -19,9 +19,9 @@
   "GEOJSON-FILE should be the path to a geojson file containing
   information about some candidates. The candidates need to have a
   type on them for this to work."
-  [geojson-file progress]
+  [db geojson-file progress]
   (log/info "Inserting candidates from" geojson-file)
-  (with-open [conn (db/connection)]
+  (with-open [conn (db/connection db)]
     (let [features (-> (io/file geojson-file)
                        (slurp)
                        (json/read-str :key-fn keyword)
@@ -110,11 +110,11 @@
                   (progress e))))
             ))))))
 
-(defn find-tile [zoom x-tile y-tile]
-  (-> (make-bounding-points zoom x-tile y-tile)
-      (find-polygon)))
+(defn find-tile [db zoom x-tile y-tile]
+  (->> (make-bounding-points zoom x-tile y-tile)
+       (find-polygon db)))
 
-(defn find-polygon [points]
+(defn find-polygon [db points]
   (let [query
         (-> (select :id :name :type :subtype :connection_id
                     :demand :start_id :end_id
@@ -129,7 +129,7 @@
         tidy-fields
         #(into {} (filter second %)) ;; keep only map entries with non-nil values
         ]
-    (with-open [conn (db/connection)]
+    (with-open [conn (db/connection db)]
       (->> (jdbc/fetch conn (sql/format query {:box box-string}))
            (map tidy-fields)
            ))

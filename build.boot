@@ -21,6 +21,8 @@
    [ring/ring-defaults        "0.3.1"]
    [ring/ring-json            "0.4.0"]
 
+   [com.stuartsierra/component "0.3.2"]
+   
    [org.clojure/java.jdbc     "0.7.5"]
    [org.postgresql/postgresql "9.4.1212.jre7"]
    [hiccup                    "1.0.5"] ;; for HTML templating
@@ -61,6 +63,8 @@
    [powerlaces/boot-cljs-devtools "0.2.0"   :scope "test"]
    [deraen/boot-less              "0.6.1"   :scope "test"]
    [adzerk/boot-test              "1.2.0"   :scope "test"]
+
+   [org.danielsz/system "0.4.1"]
    ])
 
 (require '[adzerk.boot-cljs              :refer [cljs]]
@@ -69,7 +73,10 @@
          '[powerlaces.boot-cljs-devtools :refer [dirac cljs-devtools]]
          '[pandeiro.boot-http            :refer [serve]]
          '[deraen.boot-less              :refer [less]]
-         '[adzerk.boot-test :refer :all])
+         '[adzerk.boot-test :refer :all]
+
+         '[system.boot :refer [system]]
+         )
 
 (deftask testing
   "Profile setup for running tests."
@@ -84,18 +91,16 @@
  aot {:namespace #{'thermos-ui.backend.main}}
  jar {:main 'thermos-ui.backend.main})
 
+
+(require '[thermos-ui.backend.main :refer [create-system]])
+
+
 (deftask dev
-  "Run in development mode (live reload / repl)"
+  "Run in development mode - this does live reload, and runs a repl.
+   You can connect to the repl from e.g. emacs or by running boot repl -c"
   []
   (comp
-   ;; This is useful, but differs from the server we run in production
-   ;; and does not allow overriding of some important parameters
-   ;; specifically httpkit max post size
-   (serve :handler 'thermos-ui.backend.handler/app
-          :port 8080
-          :reload true
-          :httpkit true)
-   (watch)
+   (watch :verbose true)
    (less :source-map true)
    (cljs-devtools)
    (reload)
@@ -109,7 +114,14 @@
           {:devtools/config {:features-to-install [:formatters :hints :async]
                              :fn-symbol "λ"
                              :print-config-overrides true}}
-          })))
+          })
+
+   (system :sys #'create-system
+           :auto true
+           :files ["pages.clj" "handler.clj"])
+   
+   (repl :server true)
+   ))
 
 (deftask package
   "Create a runnable jar containing all the thermos stuff."
@@ -139,3 +151,19 @@
    (jar :file "thermos.jar")
    (sift :include #{#".*\.jar"})
    (target)))
+
+
+;; (require '[boot.pod :as pod])
+
+
+;; (deftask run-server []
+;;   (let [worker (pod/make-pod (get-env))
+;;         start (delay
+;;                (pod/with-eval-in worker
+;;                  (require '[thermos-ui.backend.main :as app])
+;;                  (app/-main)))]
+;;     (with-pre-wrap fileset
+;;       @start
+;;       (info "Server started")
+;;       fileset)))
+

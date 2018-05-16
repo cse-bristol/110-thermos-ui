@@ -7,9 +7,9 @@
             [honeysql-postgres.helpers :refer :all]
             ))
 
-(defn insert! [org name temp-file]
+(defn insert! [db org name temp-file]
   (let [content (slurp temp-file)]
-    (with-open [conn (db/connection)]
+    (with-open [conn (db/connection db)]
       (-> (insert-into :problems)
           (values [{:org org :name name :content content}])
           (returning :id)
@@ -18,8 +18,8 @@
           (first)
           :id))))
 
-(defn- ls* [restriction]
-  (with-open [conn (db/connection)]
+(defn- ls* [db restriction]
+  (with-open [conn (db/connection db)]
     (-> (select :id :org :name :created :has_run)
         (from :problems)
         restriction
@@ -29,19 +29,19 @@
         )))
 
 (defn ls
-  ([] (ls* identity))
-  ([org] (ls* #(where % [:= :org org])))
-  ([org name] (ls* #(where % [:and [:= :org org] [:= :name name]]))))
+  ([db] (ls* db identity))
+  ([db org] (ls* db #(where % [:= :org org])))
+  ([db org name] (ls* db #(where % [:and [:= :org org] [:= :name name]]))))
 
-(defn delete! [org name]
-  (with-open [conn (db/connection)]
+(defn delete! [db org name]
+  (with-open [conn (db/connection db)]
     (-> (delete-from :problems)
         (where [:and [:= :org org] [:= :name name]])
         (sql/format)
         (->> (jdbc/execute conn)))))
 
-(defn get-content [org name id]
-  (with-open [conn (db/connection)]
+(defn get-content [db org name id]
+  (with-open [conn (db/connection db)]
     (->
      (select :content)
      (from :problems)
@@ -51,8 +51,8 @@
      (first)
      :content)))
 
-(defn add-solution [org name id result]
-  (with-open [conn (db/connection)]
+(defn add-solution [db org name id result]
+  (with-open [conn (db/connection db)]
     (-> (update :problems)
         (sset {:content result :has_run true})
         (where [:and [:= :org org] [:= :name name] [:= :id id]])

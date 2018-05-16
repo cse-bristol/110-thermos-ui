@@ -1,6 +1,5 @@
 (ns thermos-ui.backend.solver.interop
-  (:require [thermos-ui.backend.config :refer [config]]
-            [clojure.java.io :as io]
+  (:require [clojure.java.io :as io]
             [org.tobereplaced.nio.file :as nio]
             
             [clojure.java.shell :refer [sh]]
@@ -18,13 +17,7 @@
             )
   )
 
-(def working-directory (nio/path (config :solver-directory)))
 
-(def default-scenario (edn/read-string
-                       (slurp
-                        (io/reader (io/resource "default-scenario.edn")))))
-
-(def solver-command (config :solver-command))
 
 (defn read-csv-map [reader]
   (let [rows (csv/read-csv reader)
@@ -131,9 +124,17 @@
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
-  [instance]
+  [config instance]
   
-  (let [included-candidates (->> (::document/candidates instance)
+  (let [working-directory (nio/path (config :solver-directory))
+
+        default-scenario (edn/read-string
+                          (slurp
+                           (io/reader (io/resource "default-scenario.edn"))))
+
+        solver-command (config :solver-command)
+
+        included-candidates (->> (::document/candidates instance)
                                  (vals)
                                  (filter (comp #{:optional :required} ::candidate/inclusion)))
 

@@ -26,74 +26,74 @@
 ;; TODO can these be directly related to the API by using accepts
 ;; header?
 
-(defroutes all
-  (GET "/" []
-       (html5
-        {:title "THERMOS"}
-        [:h1 "THERMOS"]
-        [:p "Nothing here, you need to go see the editor"]))
+(defn all [database]
+  (routes
+   (GET "/" []
+        (html5
+         {:title "THERMOS"}
+         [:h1 "THERMOS"]
+         [:p "Nothing here, you need to go see the editor"]))
 
-  (GET "/:org-name/:problem/:version" [org-name problem version]
-       editor)
+   (GET "/:org-name/:problem/:version" [org-name problem version]
+        editor)
 
-  (GET "/:org-name/new" [org-name]
-       editor)
+   (GET "/:org-name/new" [org-name]
+        editor)
 
-  (GET "/:org-name/:problem" [org-name problem]
-       "Redirect to the latest version if no version given."
-       (let [problem-coll
-             (problems/ls org-name problem)
+   (GET "/:org-name/:problem" [org-name problem]
+        "Redirect to the latest version if no version given."
+        (let [problem-coll
+              (problems/ls database org-name problem)
 
-             latest-version-id (->> problem-coll
-                                 (sort-by :created)
-                                 last
-                                 :id)]
-         (if latest-version-id
-           (ring.util.response/redirect (str "/" org-name "/" problem "/" latest-version-id))
-           (ring.util.response/redirect (str "/" org-name)))
-         ))
+              latest-version-id (->> problem-coll
+                                     (sort-by :created)
+                                     last
+                                     :id)]
+          (if latest-version-id
+            (ring.util.response/redirect (str "/" org-name "/" problem "/" latest-version-id))
+            (ring.util.response/redirect (str "/" org-name)))
+          ))
 
-  ;; TODO show completed runs somewhere
-  (GET "/:org-name" [org-name]
-       (let [org-problems
-             (problems/ls org-name)
+   ;; TODO show completed runs somewhere
+   (GET "/:org-name" [org-name]
+        (let [org-problems
+              (problems/ls database org-name)
 
-             org-problems (group-by :name org-problems)
-             ]
-         (thermos-page
-          {:title (str org-name)
-           :js ["/js/problems_list.js"]}
-          [:div.top-banner
-           [:div.container "Saved Problems"]]
-          [:div.container
-           [:div.card
-            [:table.table
-             [:thead
-              [:tr
-               [:th "Title"]
-               [:th {:style "width:150px;"} "Last updated"]
-               [:th {:style "width:100px;"} ""]]]
-             [:tbody
-              (for [[name saves] org-problems]
-                (let [latest-save (apply max-key :created saves)
-                      latest-save-date (.format (java.text.SimpleDateFormat. "dd/MM/yyyy - HH:mm")
-                                                (java.util.Date. (:created latest-save)))
-                      ]
-                  [:tr
-                   [:td [:a.link {:href (str org-name "/" name "/" (:id latest-save) "/")} name]]
-                   [:td {:data-saved-timestamp (:created latest-save)} latest-save-date]
-                   [:td {:style "text-align:right;"}
-                    [:button.button.button--small
-                     {:data-action "delete-problem" :data-org org-name :data-problem-name name}
-                     "Delete"]]]))
-              ]]
-            [:br]
-            [:a.button {:href (str "/" org-name "/new")} "NEW +"]
-            ]]
-          (for [[name saves] org-problems]
-            (delete-problem-modal-html name))
-          )
-         )))
+              org-problems (group-by :name org-problems)
+              ]
+          (thermos-page
+           {:title (str "THERMOS: " org-name) :js ["/js/problems_list.js"]}
+           [:div.top-banner
+            [:div.container "Saved Problems"]]
+           [:div.container
+            [:div.card
+             [:table.table
+              [:thead
+               [:tr
+                [:th "Title"]
+                [:th {:style "width:150px;"} "Last updated"]
+                [:th {:style "width:100px;"} ""]]]
+              [:tbody
+               (for [[name saves] org-problems]
+                 (let [latest-save (apply max-key :created saves)
+                       latest-save-date (.format (java.text.SimpleDateFormat. "dd/MM/yyyy - HH:mm")
+                                                 (java.util.Date. (:created latest-save)))
+                       ]
+                   [:tr
+                    [:td [:a.link {:href (str org-name "/" name "/" (:id latest-save) "/")} name]]
+                    [:td {:data-saved-timestamp (:created latest-save)} latest-save-date]
+                    [:td {:style "text-align:right;"}
+                     [:button.button.button--small
+                      {:data-action "delete-problem" :data-org org-name :data-problem-name name}
+                      "Delete"]]]))
+               ]]
+             [:br]
+             [:a.button {:href (str "/" org-name "/new")} "NEW +"]
+             ]]
+           (for [[name saves] org-problems]
+             (delete-problem-modal-html name))
+           )
+          ))))
 
 (defn delete-problem-modal-html
   "Returns the modal html for confirming deletion of a problem."

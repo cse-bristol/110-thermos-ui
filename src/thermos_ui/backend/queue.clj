@@ -8,6 +8,7 @@
             [jdbc.core :as jdbc]
             [clojure.edn :as edn]
             [clojure.set :refer [map-invert]]
+            [com.stuartsierra.component :as component]
             ))
 
 (defmethod format-lock-clause :skip-locked [_] "FOR UPDATE SKIP LOCKED")
@@ -19,12 +20,39 @@
 
 (def label->state (map-invert state->label))
 
-(defn put
-  ([task]
-   (put :default task))
+(declare run-one-task)
+
+(defrecord Queue [database poll-thread consumers]
+  component/Lifecycle
+
+  (start [component]
+    (let [consumers (atom {})
+
+          thread (Thread. (fn []
+                            (try
+                              (loop []
+                                (run-one-task (:database component) @consumers)
+                                (Thread/sleep 1000)
+                                (recur))
+                              (catch InterruptedException e))))
+          ]
+      (.start thread)
+      (assoc component
+             :poll-thread thread
+             :consumers consumers)))
   
-  ([queue task]
-   (with-open [conn (db/connection)]
+  (stop [component]
+    (.interrupt (:poll-thread component))
+    (assoc component
+           :poll-thread nil
+           :consumers nil)))
+
+(defn new-queue []
+  (map->Queue {}))
+
+(defn put
+  ([q queue task]
+   (with-open [conn (db/connection (:database q))]
      (-> (insert-into :jobs)
          (values [{:queue (name queue)
                    :args (pr-str task)
@@ -35,16 +63,12 @@
          (first)
          :id))))
 
-(def consumers (atom {}))
-
 (defn consume
-  ([handler]
-   (consume :default handler))
-  ([queue handler]
-   (swap! consumers assoc queue handler)))
+  ([q queue handler]
+   (swap! (:consumers q) assoc queue handler)))
 
-(defn- claim-job [conn]
-  (let [qs (vec (map name (keys @consumers)))]
+(defn- claim-job [conn consumers]
+  (let [qs (vec (map name (keys consumers)))]
     (when-not (empty? qs)
       (when-let [out (-> (select :id :queue :args)
                          (from :jobs)
@@ -68,11 +92,11 @@
       (sql/format)
       (->> (jdbc/execute conn))))
 
-(defn- run-one-task []
-  (with-open [conn (db/connection)]
+(defn- run-one-task [db consumers]
+  (with-open [conn (db/connection db)]
     (jdbc/atomic
      conn
-     (when-let [job (claim-job conn)]
+     (when-let [job (claim-job conn consumers)]
        (try
          (let [args (edn/read-string (:args job))
                queue (:queue job)]
@@ -90,26 +114,8 @@
              (set-state conn (:id job) (label->state :error))
            ))))))
 
-(defn start-consumer-thread! []
-  (let [t (Thread. (fn []
-                     (try
-                       (loop []
-                         (run-one-task)
-                         (Thread/sleep 1000)
-                         (recur))
-                       (catch InterruptedException e
-                         
-                         ))))]
-    (.start t)))
-
-(defn cancel [task-id]
-  ;; There's no method to signal about this out-of-band that I can
-  ;; think of, apart from making another table of death signals
-  ;; and polling that from another thread. We can do that later.
-  )
-
-(defn ls []
-  (with-open [c (db/connection)]
+(defn ls [queue]
+  (with-open [c (db/connection (:database queue))]
     (-> (select :id :queue :args :state)
         (from :jobs)
         (sql/format)

@@ -1,9 +1,8 @@
 (ns thermos-ui.backend.config
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
-            [clojure.string :as str]))
-
-;; replacement for weavejester/environ until bugs in that are fixed.
+            [clojure.string :as str]
+            ))
 
 (def ^:private values (atom nil))
 
@@ -37,7 +36,7 @@
        (map (fn [[k v]] [(keywordize k) v]))
        (into {})))
 
-(defn- load-values [_]
+(defn load-values []
   (let [defaults
         (some->> (io/resource "config.edn")
                  (io/reader)
@@ -49,6 +48,3 @@
      (select-keys (system-environment) (keys defaults))
      (select-keys (system-properties) (keys defaults)))))
 
-(defn config
-  ([] (or @values (swap! values load-values)))
-  ([k] ((config) k)))

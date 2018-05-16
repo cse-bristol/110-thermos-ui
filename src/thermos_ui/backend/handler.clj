@@ -7,8 +7,8 @@
             [thermos-ui.backend.maps.routes :as map-routes]
             [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
-            [thermos-ui.backend.config :refer [config]]
             [ring.logger :as logger]
+            [com.stuartsierra.component :as component]
             ))
 
 (defn remove-trailing-slash
@@ -18,26 +18,31 @@
     (.substring uri 0 (dec (.length uri)))
     uri))
 
-(defroutes all
-  pages/all
-  (context
-   "/api" []
-   problem-routes/all
-   map-routes/map-data-routes)
-  (route/not-found "<h1>404!</h1>"))
-
 (defn wrap-no-cache [handler]
   (println "Disabling caching (dev mode)")
   (fn [request]
     (when-let [response (handler request)]
       (assoc-in response [:headers "Cache-Control"] "no-store"))))
 
-(def app
-  (-> all
-      (wrap-defaults (assoc-in site-defaults [:security :anti-forgery] false))
-      wrap-json-body
-      wrap-json-response
-      ((if (= "true" (config :disable-cache)) wrap-no-cache identity))
-      (wrap-canonical-redirect remove-trailing-slash)
-      (logger/wrap-with-logger)
-      ))
+(defn all [no-cache? database queue]
+  "Constructing handler"
+  (let [page-routes (pages/all database)
+        problem-api (problem-routes/all database queue)
+        map-api (map-routes/all database)
+        not-found (route/not-found "<h1>Not found</h1>")
+        ]
+
+    (-> (routes
+         page-routes
+         (context "/api" [] problem-api map-api)
+         not-found)
+        
+
+        ;; middleware:
+        (wrap-defaults (assoc-in site-defaults [:security :anti-forgery] false))
+        wrap-json-body
+        wrap-json-response
+        ((if no-cache? wrap-no-cache identity))
+        (wrap-canonical-redirect remove-trailing-slash)
+        (logger/wrap-with-logger))))
+
