@@ -65,6 +65,10 @@
 
   (let [selected (::candidate/selected candidate)
         inclusion (::candidate/inclusion candidate)
+        type (::candidate/type candidate)
+
+        is-supply (= :supply type)
+        
         included (not= :forbidden inclusion)
         forbidden (not included)
         filtered (:filtered candidate)
@@ -83,10 +87,18 @@
        (if filtered "ff" "55")))
 
     (set! (.. ctx -fillStyle)
-      (str
-       (if selected theme/dark-grey theme/light-grey)
-       (if filtered "ff" "88")
-       )))
+          (if is-supply
+            (.createPattern ctx
+                            (if selected
+                              theme/dark-purple-stripes
+                              theme/light-purple-stripes)
+                            "repeat")
+            
+            (if selected theme/dark-grey theme/light-grey)))
+    
+    (set! (.. ctx -globalAlpha) (if filtered 1 0.8))
+    
+    )
 
   (render-geometry (candidate geometry-key) ctx project
      true false)
