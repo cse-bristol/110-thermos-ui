@@ -5,7 +5,7 @@
 
 (defn component
   [items]
-  (let [open-sub-menu (reagent/atom "test")]
+  (let [open-sub-menu (reagent/atom nil)]
     (reagent/create-class
      {:reagent-render
       (fn []

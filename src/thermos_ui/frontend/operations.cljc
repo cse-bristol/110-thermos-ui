@@ -141,7 +141,8 @@
     (let [inclusion (get-in doc [::document/candidates
                                  (first candidate-ids)
                                  ::candidate/inclusion])]
-      (set-candidates-inclusion candidate-ids
+      (set-candidates-inclusion doc
+                                candidate-ids
                                 (case inclusion
                                   :forbidden :optional
                                   :optional :required

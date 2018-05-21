@@ -422,100 +422,146 @@
     (-> (.read jsts-reader (.toGeoJSON layer))
         (o/get "geometry"))))
 
+(defn- display-popup [document document-value]
+  (let [selected-candidates (operations/selected-candidates document-value)
+
+        {paths :path
+         demands :demand
+         supplies :supply} (group-by ::candidate/type selected-candidates)
+
+        paths (map ::candidate/id paths)
+        buildings (map ::candidate/id (concat demands supplies))
+
+        set-inclusion!
+        (fn [candidates-ids inclusion-value]
+          (state/edit!
+           document
+           #(-> %
+                (operations/set-candidates-inclusion candidates-ids inclusion-value)
+                (operations/close-popover))))
+
+
+        set-type!
+        (fn [candidate-id type]
+          (state/edit!
+           document
+           #(-> % (operations/set-candidate-type candidate-id type)
+                (operations/close-popover))))
+        
+        popover-menu-content
+
+        ;; if the ` and ~@ syntax below is obscure to you,
+        ;; read https://clojure.org/reference/reader#syntax-quote
+        ;; or http://blog.klipse.tech/clojure/2016/05/05/macro-tutorial-3.html
+        `[{:value [:div.centre "Edit candidates"] :key "title"}
+
+          ~@(when (not-empty paths)
+              (list
+               {:value [:b (str (count paths) " roads selected")]
+                :key "selected-roads-header"}
+               {:value "Set inclusion"
+                :key "inclusion-roads"
+                :sub-menu [{:value "Required"
+                            :key "required"
+                            :on-select #(set-inclusion! paths :required)}
+                           
+                           {:value "Optional"
+                            :key "optional"
+                            :on-select #(set-inclusion! paths :optional)}
+                           
+                           {:value "Forbidden"
+                            :key "forbidden"
+                            :on-select #(set-inclusion! paths :forbidden)}]}
+               ;; {:value "Set road type [TODO]"
+               ;;  :key "road-type"
+               ;;  :sub-menu [{:value "Cheap"
+               ;;              :key "cheap"}
+               ;;             {:value "Expensive"
+               ;;              :key "expensive"}]}
+
+               ))
+         
+
+          ~(when (and (not-empty paths) (not-empty buildings))
+             {:value [:div.popover-menu__divider] :key "divider"})
+
+          ~@(when (not-empty buildings)
+              (list
+               {:value [:b (str (count buildings) " buildings selected")]
+                :key "selected-buildings-header"}
+               {:value "Set inclusion (c)"
+                :key "inclusion-buildings"
+                :sub-menu [{:value "Required"
+                            :key "required"
+                            :on-select #(set-inclusion! buildings :required)
+                            }
+                           {:value "Optional"
+                            :key "optional"
+                            :on-select #(set-inclusion! buildings :optional)}
+                           {:value "Forbidden"
+                            :key "forbidden"
+                            :on-select #(set-inclusion! buildings :forbidden)}]}
+               )
+              
+              ;; {:value "Set type [TODO]"
+              ;;  :key "type"
+              ;;  :sub-menu [{:value "Demand"
+              ;;              :key "demand"}
+              ;;             {:value "Supply"
+              ;;              :key "supply"}]}
+
+              )
+          ~(when (= 1 (count buildings))
+             (let [type (::candidate/type (or (first demands) (first supplies)))
+                   opposite-type
+                   (if (= :supply type) :demand :supply)
+                   ]
+               
+               {:value (str "Convert to "
+                            (name opposite-type) " (t)")
+                
+                :key "building-type"
+                :on-select #(set-type! (first buildings) opposite-type)
+                }
+               )
+             
+             )
+         ] ;; end of popover menu content
+        ]
+
+    (if (and (empty? buildings) (empty? paths))
+      document-value ;; no change
+
+      (-> document-value
+          (operations/set-popover-content [popover-menu/component popover-menu-content])
+          (operations/show-popover)))))
+
 (defn on-right-click-on-map
   "Callback for when you right-click on the map.
   If you are clicking on a selected candidate, open up a popover menu
   allowing you to edit the selected candidates in situ."
   [e document pixel-size]
-  (let [oe (o/get e "originalEvent")
+
+  (let [document-value @document
+        current-selection (operations/selected-candidates-ids document-value)
+
+        oe (o/get e "originalEvent")
         click-range (latlng->jsts-shape
                      (o/get e "latlng")
-                     (* 3 (pixel-size)))
-        intersecting-candidates-ids (set (spatial/find-intersecting-candidates-ids @document click-range))
-        selected-candidates-ids (operations/selected-candidates-ids @document)
-        intersecting-selected-candidates-ids (set/intersection intersecting-candidates-ids selected-candidates-ids)
+                     (pixel-size))
+        
+        clicked-candidates (spatial/find-intersecting-candidates-ids document-value click-range)
+
+        update-selection (if (empty? (set/intersection current-selection clicked-candidates))
+                           #(operations/select-candidates % clicked-candidates :replace)
+                           identity)
         ]
-    ;; If there are any selected candidates in the range of your click then show a
-    ;; menu allowing you to edit the selected candidates in situ.
-    (if (> (count intersecting-selected-candidates-ids) 0)
-      (let [selected-candidates (operations/selected-candidates @document)
-            selected-paths (filter
-                            (fn [candidate] (= (::candidate/type candidate) :path))
-                            selected-candidates)
-            selected-paths-ids (map ::candidate/id selected-paths)
-            selected-buildings (filter
-                                (fn [candidate] (or (= (::candidate/type candidate) :demand)
-                                                    (= (::candidate/type candidate) :supply)))
-                                selected-candidates)
-            selected-buildings-ids (map ::candidate/id selected-buildings)
-            set-inclusion (fn [candidates-ids inclusion-value] (state/edit! document
-                                                                            operations/set-candidates-inclusion
-                                                                            candidates-ids
-                                                                            inclusion-value))
-            popover-menu-content [{:value [:div.centre "Edit candidates"]
-                                   :key "title"}]
-            popover-menu-content (if (not-empty selected-paths)
-                                   (conj popover-menu-content
-                                         {:value [:b (str (count selected-paths) " roads selected")]
-                                          :key "selected-roads-header"}
-                                         {:value "Set inclusion"
-                                          :key "inclusion-roads"
-                                          :sub-menu [{:value "Required"
-                                                      :key "required"
-                                                      :on-select (fn [e] (set-inclusion selected-paths-ids :required)
-                                                                   (state/edit! document operations/close-popover))}
-                                                     {:value "Optional"
-                                                      :key "optional"
-                                                      :on-select (fn [e] (set-inclusion selected-paths-ids :optional)
-                                                                   (state/edit! document operations/close-popover))}
-                                                     {:value "Forbidden"
-                                                      :key "forbidden"
-                                                      :on-select (fn [e] (set-inclusion selected-paths-ids :forbidden)
-                                                                   (state/edit! document operations/close-popover))}]}
-                                         {:value "Set road type [TODO]"
-                                          :key "road-type"
-                                          :sub-menu [{:value "Cheap"
-                                                      :key "cheap"}
-                                                     {:value "Expensive"
-                                                      :key "expensive"}]})
-                                   popover-menu-content)
-            popover-menu-content (if (and (not-empty selected-paths) (not-empty selected-buildings))
-                                   (conj popover-menu-content {:value [:div.popover-menu__divider]
-                                                               :key "divider"})
-                                   popover-menu-content)
-            popover-menu-content (if (not-empty selected-buildings)
-                                   (conj popover-menu-content
-                                         {:value [:b (str (count selected-buildings) " buildings selected")]
-                                          :key "selected-buildings-header"}
-                                         {:value "Set inclusion"
-                                          :key "inclusion-buildings"
-                                          :sub-menu [{:value "Required"
-                                                      :key "required"
-                                                      :on-select (fn [e] (set-inclusion selected-buildings-ids :required)
-                                                                   (state/edit! document operations/close-popover))}
-                                                     {:value "Optional"
-                                                      :key "optional"
-                                                      :on-select (fn [e] (set-inclusion selected-buildings-ids :optional)
-                                                                   (state/edit! document operations/close-popover))}
-                                                     {:value "Forbidden"
-                                                      :key "forbidden"
-                                                      :on-select (fn [e] (set-inclusion selected-buildings-ids :forbidden)
-                                                                   (state/edit! document operations/close-popover))}]}
-                                         {:value "Set type [TODO]"
-                                          :key "type"
-                                          :sub-menu [{:value "Demand"
-                                                      :key "demand"}
-                                                     {:value "Supply"
-                                                      :key "supply"}]})
-                                   popover-menu-content)]
-        (state/edit!
-         document
-         operations/set-popover-content
-         [popover-menu/component popover-menu-content])
-        (state/edit! document operations/set-popover-source-coords
-                     [(o/get oe "clientX") (o/get oe "clientY")])
-        (state/edit! document operations/show-popover)))
-    ))
+    (state/edit! document
+                 (comp (partial display-popup document)
+                       #(operations/set-popover-source-coords
+                         % [(o/get oe "clientX") (o/get oe "clientY")])
+                       update-selection))))
+
 
 (defn create-leaflet-control
   [component & args]
