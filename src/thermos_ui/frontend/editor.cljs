@@ -12,6 +12,7 @@
             [thermos-ui.frontend.selection-info-panel :as selection-info-panel]
             [thermos-ui.frontend.popover :as popover]
             [thermos-ui.frontend.toaster :as toaster]
+            [thermos-ui.frontend.editor-keys :as keys]
             [clojure.pprint :refer [pprint]]
             [clojure.string :as s]
             [goog.ui.SplitPane :refer [SplitPane Component]]
@@ -55,24 +56,12 @@
         4000)
        )))
 
-  (defn- rotate-inclusion! []
-    (let [selected (operations/selected-candidates @state/state)]
-      (when-not (empty? selected)
-        (let [inclusion (::candidate/inclusion (first selected))]
-          (state/edit! state/state
-                       operations/set-candidates-inclusion
-                       (cljs.core/map ::candidate/id selected)
-                       (case inclusion
-                         :forbidden :optional
-                         :optional :required
-                         :required :forbidden
-
-                         :optional))))))
-
   (defonce unsaved? (r/atom false))
   (defonce interesting-state (fn [] (document/keep-interesting @state/state)))
   (defonce changed (reagent.ratom/run! (reset! unsaved? true) (r/track! interesting-state)))
 
+
+  
   (defn map-page []
     (let [close-popover (fn [e]
                           (let [popover-menu-node (js/document.querySelector ".popover-menu")
@@ -88,13 +77,8 @@
           close-table-filter (fn [e] (state/edit! state/state operations/close-table-filter))
           ]
       [:div.editor__container
-       {:on-key-press
-        (fn [e]
-          (case (.-key e)
-            "c" (rotate-inclusion!)
-            :default)
-          )
-        :on-click (fn [e] (do (close-popover e) (close-table-filter e))) ;; Close the popover menu if it is open
+       {:on-key-press keys/handle-keypress
+        :on-click (fn [e] (close-popover e) (close-table-filter e)) ;; Close the popover menu if it is open
         :on-context-menu close-popover
         }
        [main-nav/component

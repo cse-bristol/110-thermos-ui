@@ -124,6 +124,31 @@
                   #(assoc % ::candidate/inclusion new-constraint)
                   candidate-ids))
 
+(defn set-candidate-type
+  "Change the ::candidate/type of the candidate with the given id to the new type.
+  The only legal operations here are to turn a demand into a supply or vice-versa."
+  [doc candidate-id new-type]
+
+  (map-candidates doc
+                  #(if (#{:supply :demand} (::candidate/type %))
+                     (assoc % ::candidate/type new-type)
+                     %) ;; do nothing if illegal
+                  [candidate-id]))
+
+
+(defn rotate-candidates-inclusion [doc candidate-ids]
+  (when-not (empty? candidate-ids)
+    (let [inclusion (get-in doc [::document/candidates
+                                 (first candidate-ids)
+                                 ::candidate/inclusion])]
+      (set-candidates-inclusion candidate-ids
+                                (case inclusion
+                                  :forbidden :optional
+                                  :optional :required
+                                  :required :forbidden
+
+                                  :optional)))))
+
 (defn move-map
   "Show a particular boundingbox on the map"
   [doc bbox]
