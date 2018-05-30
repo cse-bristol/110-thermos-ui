@@ -123,9 +123,7 @@
   [leaflet-map result]
   (let [latlng-bounds (clj->js [[(nth (:boundingbox result) 0) (nth (:boundingbox result) 2)]
                                 [(nth (:boundingbox result) 1) (nth (:boundingbox result) 3)]])]
-    (.flyToBounds leaflet-map latlng-bounds)
-    ; (app-state/add-marker-with-tooltip! [(:lat result) (:lon result)]
-    ;                                     (:display_name result))
+    (.flyToBounds leaflet-map latlng-bounds #js {:duration 0.5})
     ))
 
 (defn map-to-query-string
