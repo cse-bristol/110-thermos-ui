@@ -37,6 +37,7 @@
                               (catch InterruptedException e))))
           ]
       (.start thread)
+      (println "Consumer thread started")
       (assoc component
              :poll-thread thread
              :consumers consumers)))
@@ -97,18 +98,19 @@
     (jdbc/atomic
      conn
      (when-let [job (claim-job conn consumers)]
+       (println "Claimed" job)
        (try
          (let [args (edn/read-string (:args job))
                queue (:queue job)]
 
-           (when-let [consumer (@consumers queue)]
+           (when-let [consumer (consumers queue)]
              (println "About to run" job)
              (set-state conn (:id job) (label->state :running))
              ;; issue checkpoint here?
              (consumer conn args)
              (set-state conn (:id job) (label->state :complete))))
          (catch Exception e
-           
+           (println e)
              ;; mark job failed and log failure
              ;; rollback checkpoint here
              (set-state conn (:id job) (label->state :error))
