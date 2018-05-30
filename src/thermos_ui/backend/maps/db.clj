@@ -21,7 +21,7 @@
   type on them for this to work."
   [db geojson-file progress]
   (log/info "Inserting candidates from" geojson-file)
-  (with-open [conn (db/connection db)]
+  (db/with-connection [conn db]
     (let [features (-> (io/file geojson-file)
                        (slurp)
                        (json/read-str :key-fn keyword)
@@ -44,10 +44,10 @@
           {:name "" :type "" :subtype ""}
 
           building-defaults
-          {:connection_id "" :demand 0}
+          {:connection_id "" :demand 0 :area 0}
 
           path-defaults
-          {:start_id "" :end_id ""}
+          {:start_id "" :end_id "" :length 0 :cost 0}
 
           insert-common-data
           (fn [candidates]
@@ -60,7 +60,7 @@
                            #(sql/call :candidate_type %)
                            )))
                 (upsert (-> (on-conflict :id)
-                            (do-update-set :name :subtype :geometry)))
+                            (do-update-set :name :subtype :geometry :orig_id)))
                 ))
 
           insert-other-data
@@ -75,13 +75,13 @@
                              #(sql/call :regexp_split_to_array % ",")
                              )))
                   (upsert (-> (on-conflict :id)
-                              (do-update-set :connection_id))))
+                              (do-update-set :connection_id :demand :area))))
               :path
               (-> (insert-into :paths)
                   (values (for [candidate candidates]
                             (get-properties candidate path-defaults)))
                   (upsert (-> (on-conflict :id)
-                              (do-update-set :start_id :end_id)))
+                              (do-update-set :start_id :end_id :length :cost)))
                   )))
 
           distinct-id
@@ -117,7 +117,7 @@
 (defn find-polygon [db points]
   (let [query
         (-> (select :id :name :type :subtype :connection_id
-                    :demand :start_id :end_id
+                    :demand :start_id :end_id :length :cost
                     :geometry :simple_geometry)
 
             (from :joined_candidates) ;; this view is defined in the migration SQL
@@ -129,7 +129,7 @@
         tidy-fields
         #(into {} (filter second %)) ;; keep only map entries with non-nil values
         ]
-    (with-open [conn (db/connection db)]
+    (db/with-connection [conn db]
       (->> (jdbc/fetch conn (sql/format query {:box box-string}))
            (map tidy-fields)
            ))

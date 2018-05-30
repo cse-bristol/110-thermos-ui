@@ -52,7 +52,7 @@
 
 (defn put
   ([q queue task]
-   (with-open [conn (db/connection (:database q))]
+   (db/with-connection [conn (:database q)]
      (-> (insert-into :jobs)
          (values [{:queue (name queue)
                    :args (pr-str task)
@@ -93,7 +93,7 @@
       (->> (jdbc/execute conn))))
 
 (defn- run-one-task [db consumers]
-  (with-open [conn (db/connection db)]
+  (db/with-connection [conn db]
     (jdbc/atomic
      conn
      (when-let [job (claim-job conn consumers)]
@@ -115,7 +115,7 @@
            ))))))
 
 (defn ls [queue]
-  (with-open [c (db/connection (:database queue))]
+  (db/with-connection [c (:database queue)]
     (-> (select :id :queue :args :state)
         (from :jobs)
         (sql/format)

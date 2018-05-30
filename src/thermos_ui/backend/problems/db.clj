@@ -9,7 +9,7 @@
 
 (defn insert! [db org name temp-file]
   (let [content (slurp temp-file)]
-    (with-open [conn (db/connection db)]
+    (db/with-connection [conn db]
       (-> (insert-into :problems)
           (values [{:org org :name name :content content}])
           (returning :id)
@@ -19,7 +19,7 @@
           :id))))
 
 (defn- ls* [db restriction]
-  (with-open [conn (db/connection db)]
+  (db/with-connection [conn db]
     (-> (select :id :org :name :created :has_run)
         (from :problems)
         restriction
@@ -34,14 +34,14 @@
   ([db org name] (ls* db #(where % [:and [:= :org org] [:= :name name]]))))
 
 (defn delete! [db org name]
-  (with-open [conn (db/connection db)]
+  (db/with-connection [conn db]
     (-> (delete-from :problems)
         (where [:and [:= :org org] [:= :name name]])
         (sql/format)
         (->> (jdbc/execute conn)))))
 
 (defn get-content [db org name id]
-  (with-open [conn (db/connection db)]
+  (db/with-connection [conn db]
     (->
      (select :content)
      (from :problems)
@@ -52,7 +52,7 @@
      :content)))
 
 (defn add-solution [db org name id result]
-  (with-open [conn (db/connection db)]
+  (db/with-connection [conn db]
     (-> (update :problems)
         (sset {:content result :has_run true})
         (where [:and [:= :org org] [:= :name name] [:= :id id]])

@@ -50,5 +50,15 @@
                   :dbname   (config :pg-db-geometries)
                   }))
 
-(defn connection [component] (jdbc/connection (:datasource component)))
+;; TODO remove double-use of ~@compute
+(defmacro with-connection [[binding value] & compute]
+  `(let [~binding (if (instance? Database ~value)
+                      (jdbc/connection (:datasource ~value))
+                      ~value)]
+     (try
+       ~@compute
+       (finally
+       (when (instance? Database ~value)
+         (.close ~binding))))))
+
 
