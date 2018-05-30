@@ -14,7 +14,7 @@
 
 (defn- candidate->feature [candidate]
   {:type :Feature
-   :geometry (json/read-str (:geometry candidate))
+   :geometry (:geometry candidate)
    :properties (dissoc candidate :geometry)})
 
 (defn all [db]
