@@ -17,6 +17,8 @@
             [thermos-ui.frontend.hide-forbidden-control :as hide-forbidden-control]
             [thermos-ui.frontend.zoom-to-selection-control :as zoom-to-selection-control]
             [thermos-ui.specs.document :as document]
+            [thermos-ui.specs.solution :as solution]
+            
             [thermos-ui.specs.view :as view]
             [thermos-ui.specs.candidate :as candidate]
 
@@ -303,6 +305,9 @@
                   just-candidates
                   (reagent/cursor doc [::document/candidates])
 
+                  solution
+                  (reagent/cursor doc [::solution/solution])
+
                   filtered-candidates-ids
                   (reagent/track #(set (map ::candidate/id (operations/get-filtered-candidates @doc))))
 
@@ -356,7 +361,7 @@
 
                       (reagent/track!
                             (fn []
-                              (tile/render-tile @tile-contents canvas layer)
+                              (tile/render-tile @solution @tile-contents canvas layer)
                               ))))
               )
             canvas))

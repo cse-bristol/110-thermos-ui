@@ -6,6 +6,8 @@
 
             [thermos-ui.specs.document :as document]
             [thermos-ui.specs.candidate :as candidate]
+            [thermos-ui.specs.solution :as solution]
+            
             [thermos-ui.frontend.spatial :as spatial]
 
             [thermos-ui.frontend.theme :as theme]
@@ -16,7 +18,8 @@
 (declare render-candidate render-geometry render-linestring)
 
 ;; most of the work is in here - how to paint an individual tile onto the map
-(defn render-tile [contents tile map]
+;; if there is a solution we probably want to show the solution cleanly
+(defn render-tile [has-solution? contents tile map]
   "Draw a tile.
   `document` should be a document map (not an atom containing a document map),
   `tile` a canvas element,
@@ -53,7 +56,7 @@
 
     (doseq [candidate contents]
       (when (> zoom (::spatial/minimum-zoom candidate))
-        (render-candidate candidate ctx project geometry-key)))
+        (render-candidate has-solution? candidate ctx project geometry-key)))
     ))
 
 (defn render-candidate
@@ -61,10 +64,11 @@
   `candidate` is a candidate map,
   `ctx` is a Canvas graphics context (2D)
   `project` is a function to project from real space into the canvas pixel space"
-  [candidate ctx project geometry-key]
+  [solution candidate ctx project geometry-key]
 
   (let [selected (::candidate/selected candidate)
         inclusion (::candidate/inclusion candidate)
+        in-solution (::solution/included (::solution/candidate candidate))
         type (::candidate/type candidate)
 
         is-supply (= :supply type)
@@ -78,13 +82,19 @@
         selected 4
         included 1.5
         true 1))
+
+    (when solution
+      (.setLineDash
+       ctx
+       (if in-solution
+         #js []
+         #js [3 3])))
+    
     (set! (.. ctx -strokeStyle)
-      (str
-       (case inclusion
-         :required theme/red
-         :optional theme/blue
-         theme/white)
-       (if filtered "ff" "55")))
+          (case inclusion
+            :required theme/red
+            :optional theme/blue
+            theme/white))
 
     (set! (.. ctx -fillStyle)
           (if is-supply
@@ -95,8 +105,9 @@
                             "repeat")
             
             (if selected theme/dark-grey theme/light-grey)))
-    
-    (set! (.. ctx -globalAlpha) (if filtered 1 0.8))
+
+    (set! (.. ctx -globalAlpha)
+          (if filtered 1 0.75))
     
     )
 
