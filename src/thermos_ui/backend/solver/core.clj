@@ -7,23 +7,33 @@
             
             ))
 
-(defn consume-problem [config conn args]
+;; TODO change the storage format to prevent inclusion of unknown tags?
+
+(defrecord TaggedValue [tag value])
+
+(defmethod print-method TaggedValue [this ^java.io.Writer w]
+   (.write w "#")
+   (print-method (:tag this) w)
+   (.write w " ")
+   (print-method (:value this) w))
+
+(defn consume-problem [config conn [org name id]]
   ;; TODO I am reading off another connection here
   ;; rather than within my own transaction
   
-  (let [problem-data (problem-db/get-content conn (:org args) (:name args) (:id args))
-        problem-data (edn/read-string problem-data)
-        solved-problem (interop/solve config problem-data)
+  (let [problem-data (problem-db/get-content conn org name id)
+        problem-data (edn/read-string {:default ->TaggedValue} problem-data)
+        solved-problem (interop/solve (format "%s-%s-%s-" org name id)
+                                      config problem-data)
         ]
-    ;; this is a bit ugly - once the problem is solved, we update the
-    ;; database outside our transaction, which is all wrong.
     (problem-db/add-solution conn
-                             (:org args) (:name args) (:id args)
+                             org name id
                              (pr-str solved-problem))))
 
 (defrecord Solver [config queue database]
   component/Lifecycle
   (start [component]
+    (println "Reading problems from queue...")
     (queue/consume queue :problems (partial consume-problem (:config component)))
     component)
   
