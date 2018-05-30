@@ -3,6 +3,7 @@
             [clojure.string :as str]
             [thermos-ui.specs.document :as document]
             [thermos-ui.specs.candidate :as candidate]
+            [thermos-ui.specs.solution :as solution]
             [thermos-ui.specs.view :as view]
             ))
 
@@ -362,3 +363,9 @@
                  )
       )
     ))
+
+(defn remove-solution [doc]
+  (-> doc
+      (dissoc ::solution/solution)
+      (map-candidates #(dissoc % ::solution/candidate))))
+
