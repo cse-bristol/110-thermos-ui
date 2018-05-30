@@ -42,6 +42,7 @@
       ::candidate/inclusion :forbidden}
      (case type
        :path {::candidate/length (o/get properties "length")
+              ::candidate/path-cost (o/get properties "cost")
               ::candidate/path-start (o/get properties "start_id")
               ::candidate/path-end (o/get properties "end_id")}
        :demand {::candidate/demand (o/get properties "demand")
