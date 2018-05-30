@@ -1,6 +1,7 @@
 (ns thermos-ui.specs.candidate
   (:require [clojure.spec.alpha :as s]
             [thermos-ui.specs.technology :as technology]
+            [thermos-ui.specs.solution :as solution]
             ))
 
 ;; A CANDIDATE is something which can be in a heat network.
@@ -19,7 +20,9 @@
 
 ;; All types of candidate have to have certain attributes
 (s/def ::common
-  (s/keys :req [ ::id ::type ::subtype ::geometry ::name ::inclusion ::selected ]))
+  (s/keys :req [ ::id ::type ::subtype ::geometry ::name ::inclusion ::selected ]
+          :opt [ ::solution/candidate ]
+          ))
 
 (s/def ::selected boolean?)
 
@@ -91,7 +94,7 @@
   (s/and
    #(= :path (::type %))
    (s/merge
-    (s/keys :req [ ::length ::path-start ::path-end ])
+    (s/keys :req [ ::length ::path-start ::path-end ::path-cost ])
     ::common)))
 
 (s/def ::length number?)

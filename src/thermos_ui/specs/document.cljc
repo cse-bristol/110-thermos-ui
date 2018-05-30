@@ -2,6 +2,7 @@
   (:require [clojure.spec.alpha :as s]
             [thermos-ui.specs.technology :as technology]
             [thermos-ui.specs.candidate :as candidate]
+            [thermos-ui.specs.solution :as solution]
             [thermos-ui.specs.view :as view]
             [clojure.string :as str]
             [clojure.walk :refer [prewalk]]
@@ -9,7 +10,11 @@
 
 ;; this is the spec for what you can see on the screen in the UI
 
-(s/def ::document (s/keys :req [ ::candidates ::technologies ::view/view-state ]))
+(s/def ::document (s/keys :req [::candidates
+                                ::technologies
+                                ::view/view-state
+                                ::solution/solution
+                                ]))
 
 (defn redundant-key
   "Make a spec which checks a map, so that for every map entry, the
@@ -58,7 +63,6 @@ This means that anything with type :path has suitable path-start and path-end"
                         (::candidate/path-end %))
                  paths))
     ))
-
 
 (s/def ::candidates
   (s/and

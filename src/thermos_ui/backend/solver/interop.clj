@@ -11,36 +11,45 @@
             [loom.attr :as attr]
             
             [thermos-ui.specs.document :as document]
+            [thermos-ui.specs.solution :as solution]
             [thermos-ui.specs.candidate :as candidate]
 
             [thermos-ui.frontend.operations :as operations]
-            )
-  )
+            ))
 
+;; TODO candidates with several connection points are not handled.
 
-
-(defn read-csv-map [reader]
+(defn- read-csv-map [reader]
   (let [rows (csv/read-csv reader)
-        header (first rows)
+        header (map keyword (first rows))
         rows (rest rows)
         ]
-    (map #(into {} (map vector header %)))))
+    (map #(into {} (map vector header %)) rows)))
 
-(defn simplify-topology
+(defn- simplify-topology
   "For CANDIDATES, create a similar graph in which all vertices of degree two
   that don't represent demand or supply points have been collapsed.
 
   You should restrict CANDIDATES to the included candidates first.
 
   The output graph has edge labels :ids, which relate to a collection of
-  candidate path IDs that are included by using that edge."
+  candidate path IDs that are included by using that edge.
+
+  TODO this could remove junction vertices which are not needed to
+  reach a demand from a supply.
+  "
   [candidates]
 
-  (let [{paths ::candidate/path
-         demands ::candidate/demand
-         supplies ::candidate/supply}
+  (let [{paths :path
+         demands :demand
+         supplies :supply}
         (group-by ::candidate/type candidates)
 
+        _ (println (count paths) (count demands) (count supplies)
+                   (count candidates)
+                   (keys (group-by ::candidate/type candidates))
+                   )
+        
         net-graph (apply
                    graph/graph
                    (concat
@@ -56,6 +65,8 @@
                     (map #(vector (::candidate/connection %) (::candidate/id %)) demands)
                     (map #(vector (::candidate/connection %) (::candidate/id %)) supplies)))
 
+        _ (println "net-graph has" (count (graph/nodes net-graph)) "vertices at start")
+        
         ;; tag all the real vertices
         net-graph (reduce (fn [g d]
                             (attr/add-attr g (::candidate/id d) :real-vertex true))
@@ -97,36 +108,64 @@
                                  (filter #(= 2 (graph/out-degree net-graph %))))]
             (if (empty? collapsible)
               net-graph
-              ;; this should be OK because we are working on nodes
+              ;; this should be OK because we are working on nodes.
               ;; removing one collapsible node does not make another
               ;; collapsible node invalid.
               (recur (reduce collapse-junction net-graph collapsible)))))
         ]
     net-graph))
 
-(defn sum-path-costs
+(defn- summarise-attributes
   "Take CANDIDATES and NET-GRAPH being a loom graph with :ids on some edges,
-  and add :cost onto those edges being the total cost of corresponding
-  paths in CANDIDATES"
+  and add :cost, :length :requirement onto those edges being the total
+  cost, length and requirement of corresponding paths in CANDIDATES
+
+  The total requirement is required if one part is required."
   [net-graph candidates]
   
   (let [paths
-        (into {} (filter (comp #{::candidate/path} ::candidate/type) candidates))
-        total-cost
-        (fn [path-ids]
-          (let [costs (map #(or (::candidate/path-cost (paths %)) 0) path-ids)]
+        (->> candidates
+             (filter #(= :path (::candidate/type %)))
+             (map #(vector (::candidate/id %) %))
+             (into {}))
+
+        total-value
+        (fn [path-ids value]
+          (let [costs (map #(or (value (paths %)) 0) path-ids)]
             (apply + costs)))
+        
+        total-requirement
+        (fn [path-ids]
+
+          (if (some (partial = :required)
+                    (map (comp ::candidate/inclusion paths) path-ids))
+            :required
+            :optional
+            ))
         ]
+    
     (reduce (fn [g e]
-              (attr/add-attr g e :cost (total-cost (attr/attr g e :ids))))
+              (let [path-ids (attr/attr g e :ids)]
+                (-> g
+                    (attr/add-attr e :cost (total-value path-ids ::candidate/path-cost))
+                    (attr/add-attr e :length (total-value path-ids ::candidate/length))
+                    (attr/add-attr e :requirement (total-requirement path-ids))
+                    )))
             net-graph (graph/edges net-graph))))
+
+(defn- kWh_year->MW [val]
+  (* val 0.0000001140771161305))
 
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
-  [config instance]
+  [label config instance]
   
-  (let [working-directory (nio/path (config :solver-directory))
+  (let [instance (operations/remove-solution instance) ;; throw away
+                                                       ;; any existing
+                                                       ;; solution
+
+        working-directory (nio/path (config :solver-directory))
 
         default-scenario (edn/read-string
                           (slurp
@@ -138,8 +177,12 @@
                                  (vals)
                                  (filter (comp #{:optional :required} ::candidate/inclusion)))
 
+        _ (def last-included-candidates included-candidates)
+        
         net-graph (simplify-topology included-candidates)
-        net-graph (sum-path-costs net-graph included-candidates)
+        net-graph (summarise-attributes net-graph included-candidates)
+
+        _ (def last-net-graph net-graph)
         
         ;; This is now the topology we want. Every edge may be several
         ;; input edges, and nodes can either be real ones or junctions
@@ -150,60 +193,78 @@
 
         ;; At this point we can hopefully just write out the rest of
         ;; the stuff
+
+                
+        working-directory (.toFile (nio/create-temp-directory! working-directory label))
+
+
+        put-csv (fn [filename & rows]
+                  (let [file (io/file working-directory filename)]
+                    (with-open [writer (io/writer file)]
+                      (doseq [r rows]
+                        (csv/write-csv writer r)))
+                    
+                    file))
+
+        cityspace-csv
+        (put-csv
+         "cityspace.csv"
+         [["id" "Area" "X" "Y" "Exclude" "isHinterland" "Households"]]
+         (for [node (graph/nodes net-graph)]
+           [node 1000 0 0 0 "n" 1]))
         
-        working-directory (.toFile (nio/create-temp-directory! working-directory "run"))
+        demands-csv
+        (put-csv
+         "demands.csv"
+         ;; [[id period resource demand requirement]]
+         (for [{id ::candidate/id type ::candidate/type demand ::candidate/demand
+                requirement ::candidate/inclusion} included-candidates
+               :when (= :demand type)]
+           
+           [id "average" "heat" (kWh_year->MW demand) (if (= :optional requirement) "0" "1")]))
 
-        cityspace-csv (let [file (io/file working-directory "cityspace.csv")]
-                        (with-open [writer (io/writer file)]
-                          (csv/write-csv
-                           writer
-                           [["id" "Area" "X" "Y" "Exclude" "isHinterland" "Households"]])
-                          
-                          (csv/write-csv
-                           writer
-                           (for [node (graph/nodes net-graph)]
-                             [node 1000 0 0 0 "n" 1])))
-                        file)
+        ;; The edge set contains both directions for edges, but we
+        ;; only want one direction. Doesn't matter which one
+        distinct-edges
+        (set (map set (graph/edges net-graph)))
+
+        neighbours-csv
+        (put-csv
+         "neighbours.csv"
+         ;; [[from to major_period length]]
+         (for [edge distinct-edges]
+           [(first edge) (second edge) 1 (or (attr/attr net-graph (vec edge) :length) 0)]))
+
+        edge-details
+        (put-csv
+         "edge-details.csv"
+         ;; [[from to requirement cost]]
+         (for [edge distinct-edges]
+           [(first edge) (second edge)
+            (case
+                (or (attr/attr net-graph (vec edge) :requirement) :optional)
+              :optional 0
+              :required 1
+              0)
+            (or (attr/attr net-graph (vec edge) :cost) 0)
+            ]))
+
+        heat-technologies
+        (->> default-scenario
+             :processes
+             (remove :household)
+             (filter :includeResflow)
+             (map :varname))
         
-        demands-csv (let [file (io/file working-directory "demands.csv")]
-                      (with-open [writer (io/writer file)]
-                        (csv/write-csv
-                         writer
-                         (for [{id ::candidate/id type ::candidate/type demand ::candidate/demand} included-candidates
-                               :when (= ::candidate/demand type)]
-                           [id "average" "heat" demand])))
-                      file)
-
-        neighbours-csv (let [file (io/file working-directory "neighbours.csv")]
-                         (with-open [writer (io/writer file)]
-                           (csv/write-csv
-                            writer
-                            (for [edge (graph/edges net-graph)] ;; TODO ensure distinct edges
-                              [(first edge) (second edge) 1
-                               (or (attr/attr net-graph edge :cost) 0)]
-                              )))
-                         file)
+        process-locations
+        (put-csv
+         "process-locations.csv"
+         ;; [[id process lb ub]]
+         (for [{id ::candidate/id type ::candidate/type} included-candidates
+               tech heat-technologies
+               :when (= :supply type)]
+           [id tech 0 10]))
         
-        ;; so this is what conversion technologies can exist in a cell
-        ;; I think. TODO generate the conversion technologies off our
-        ;; saved state.
-        supply-cells (into {}
-                           (for [{id ::candidate/id type ::candidate/type} included-candidates
-                                 :when (= type ::candidate/supply)]
-                             ;; etc
-                             [id
-                              ["small_chp" "med_chp" "large_chp" "nondom_boiler"]]
-                             )
-                           )
-
-
-        ;; I also want to say what cells must be supplied by heat
-        ;; exchanger.
-        
-        ;; and this is what primary resources can flow into a cell
-        ;; from outside? I'm not sure it matters for now
-        import-cells {} ;;{resource -> [cell]}
-
         rel-path
         (fn [fi]
           (-> working-directory
@@ -216,54 +277,96 @@
         (-> default-scenario
             (assoc-in [:majorperiods 0 :demandfile] (rel-path demands-csv))
             (assoc-in [:cityspace :neighbours] (rel-path neighbours-csv))
+            (assoc-in [:cityspace :ncells] (count (graph/nodes net-graph)))
             (assoc-in [:cityspace :gridfile] (rel-path cityspace-csv))
-            (assoc-in [:resflow :restrictImports] false) ;; if true we need something in import-cells
-            (assoc-in [:resflow :supplyCells] supply-cells)
-            (assoc-in [:resflow :restrictSupply] true)
-            (assoc-in [:resflow :importCells] import-cells)
+
+            ;; annoyingly infrastructures is a list rather than a map
+            ;; not sure why. 2 is the heat_net infrastructures in default.
+            ;; TODO make this right            
+            (assoc-in [:infrastructures 2 :required] (rel-path edge-details))
+
+            (assoc-in [:resflow :processLocations] (rel-path process-locations))
+            
+            (assoc-in [:cityspace :inverseMap] true)
+            (assoc-in [:resflow :restrictImports] false)
+            (assoc-in [:resflow :restrictSupply] false)
+            (assoc-in [:resflow :requireAllDemands] false)
+
+            (assoc-in [:resflow :objectiveFunction] "NPV")
+
+            ;; TODO make this more sensible as well
+            (assoc-in [:resflow :tariffs]
+                      [{:period "average" :process "heatex"
+                        :resource "dist_heat" :value -7}]
+                      )
+
             yaml/generate-string)]
+    
     
     ;; write the scenario down
     (spit (io/file working-directory "scenario.yml") scenario)
-    (spit (io/file working-directory "scenario.dat")
-          ;; in some cases this varies and changes some params
-          ;; but I am hoping that doesn't matter
-          "set M := capex opex ghg;\n" 
-          )
+    
     ;; invoke the solver
-    (println (sh solver-command
-                 "--scenario" "scenario.yml"
-                 "--solver" "glpk"
-                 "--datadir" "."
-                 :dir working-directory))
+    (let [output (sh solver-command
+                     "--customdata" "scenario.yml"
+                     "--solver" "glpk"
+                     "--datadir" "."
+                     :dir working-directory)
 
-    (let [network-file (io/file working-directory "network.csv")
-          network-links (with-open [reader (io/reader network-file)]
-                          ;; we need to discard the first line as it doesn't help
-                          (.readline reader)
-                          (doall (read-csv-map reader)))
+          _ (spit (io/file working-directory "solver-logfile")
+                  (str (:out output)
+                       "\n\n"
+                       (:err output)
+                       ))
 
-          processes (with-open [reader (io/reader)]
-                      (.readline reader)
-                      (doall (read-csv-map reader)))
+          _ (println "Solver completed, log in" working-directory)
+          
+          read-output (fn [name]
+                        (with-open [reader (io/reader (io/file working-directory "out" name))]
+                          (doall (read-csv-map reader))))
+          
+          network-links (read-output "network.csv")
+          processes (read-output "process.csv")
+          imports (read-output "import.csv")
 
-          included-path-ids (->> network-links
-                                 (filter #(= "dist_heat" (% "resource")))
-                                 (map #(vector (% "from") (% "to")))
-                                 (mapcat #(attr/attr net-graph % :ids))
-                                 (set))
+          path-flows (->> network-links
+                          (filter #(= "dist_heat" (:resource %)))
+                          (mapcat
+                           (fn [{from :from to :to flow :flow}]
+                             (let [edge [from to]
+                                   flow (Double/parseDouble flow)]
+                               (for [in-id (attr/attr net-graph edge :ids)]
+                                 [in-id flow]))))
+                          (into {}))
 
           included-vertex-ids (->> processes
-                                   (filter #(= "heatex" (% "process")))
-                                   (map #(get % "cell"))
-                                   (set))
+                                   (map :cell)
+                                   (set)
+                                   (filter
+                                    (set
+                                     (for [{id ::candidate/id
+                                            type ::candidate/type}
+                                           included-candidates
+                                           :when (#{:supply :demand} type)] id))))
+
+          solution
+          {::solution/exists true}
+
+          include-candidate #(assoc-in % [::solution/candidate ::solution/included] true)
+          
+          set-flow #(assoc-in % [::solution/candidate ::solution/heat-flow]
+                              (path-flows (::candidate/id %)))
+          
+          updated-instance
+          (-> instance
+              (assoc ::solution/solution solution)
+              (operations/map-candidates include-candidate (keys path-flows))
+              (operations/map-candidates set-flow (keys path-flows))
+              (operations/map-candidates include-candidate included-vertex-ids))
           ]
 
-      ;; there's other information to bring in here
+      (spit (io/file working-directory "solved-instance.edn")
+            updated-instance) ;; pprint?
       
-      (operations/map-candidates
-       instance
-       #(assoc % ::candidate/in-solution true)
-       (concat included-path-ids included-vertex-ids)
-       )
+      updated-instance
       )))
