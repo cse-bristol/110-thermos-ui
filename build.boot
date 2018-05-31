@@ -14,6 +14,7 @@
    [cljsjs/leaflet-draw "0.4.12-0"]
 
    [reagent      "0.7.0"]
+   [re-com       "0.9.0"]
 
    ;; Server-side dependencies
    [compojure                 "1.6.1"]
@@ -93,7 +94,6 @@
 
 
 (require '[thermos-ui.backend.main :refer [create-system]])
-
 
 (deftask dev
   "Run in development mode - this does live reload, and runs a repl.

@@ -5,45 +5,69 @@
 
 (defn component
   "The main nav bar at the top of the page."
-  [{ name :name }]
-  (let [state (reagent/atom {:name name})
+  [{name :name
+    tabs :tabs
+    selected-tab :selected-tab
+    on-save :on-save
+    on-run :on-run
+    on-tab-switch :on-tab-switch
+    unsaved :unsaved
+    }]
 
-        with-name (fn [do-thing]
-                    (let [name (:name @state)]
-                      ;; If this is a new probem and a name has not been provided, prompt user to do so.
-                      (if (and (some? name) (not (s/blank? name)))
-                        (do-thing name)
-                        (do (js/window.alert "Please provide a name for this project.")
-                            (.focus (js/document.getElementById "file-name-input")))))
-                    )
-        ]
-    (fn [{on-save :on-save
-          on-load :on-load
-          on-run :on-run
-          unsaved? :unsaved?
-          }]
-      [:nav.nav
-       [:h1.main-nav__header "THERMOS"
-        [:span "Heat Network Editor"]]
-       [:div.main-nav__input-container
-        [:input.text-input.main-nav__file-name-input
-         {:type "text" :placeholder "Untitled"
-          :value (:name @state)
-          :id "file-name-input"
-          :on-key-press #(.stopPropagation %) ;; Prevent keyboard shortcuts from executing when you type
-          :on-change #(swap! state assoc :name (.. % -target -value))
-          ;; If this is a new problem, focus on the project name input
-          :ref (fn [element]
-                 (when (and (= (:name @state) "") element)
-                   (.focus element)))}]]
+  (reagent/with-let [state (reagent/atom {:name name})
+                     with-name (fn [act]
+                                 (let [{name :name el :element} @state]
+                                   (if (and (some? name) (not (s/blank? name)))
+                                     (act name)
+                                     (do (js/window.alert "Please provide a name for this project.")
+                                         (.focus el)))))
+                     ]
+    
+    [:nav.nav {:style {:display :flex}}
+     [:span {:style {:display :flex :margin-right :auto}}
+      (for [tab tabs]
 
-       [:div.pull-right.main-nav__input-container
-        [:button.button.button--link-style.button--save-button
-         {:class (if-not @unsaved? "button--disabled")
-          :on-click #(with-name on-save)
+        [(if (= (:key tab) selected-tab)
+           :button.button--tab.button--tab--selected
+           :button.button--tab
+           )
+         {:key (:key tab)
+          :on-click #(on-tab-switch (:key tab))
           }
-         "SAVE"]
-        [:button.button.button--link-style.button--load-button {:on-click on-load} "LOAD"]
-        [:button.button.button--outline.main-nav__run-button {:on-click #(with-name on-run)}
-        
-         "RUN" [:span "▸"]]]])))
+         (:label tab)]
+        )
+      ]
+
+     [:span {:style {:display :flex
+                     :margin-left :2em
+                     :margin-right :2em
+                     :align-items :center
+                     :flex 1}}
+      [:h1 {:style {:margin-right :0.5em}} "THERMOS"]
+      [:input.text-input.main-nav__file-name-input
+       {:type :text :placeholder "Untitled"
+        :on-change #(swap! state assoc :name (.. % -target -value))
+        :style {:flex 1}
+        :value (:name @state)
+        :on-key-press #(.stopPropagation %)
+        :ref (fn [element]
+               (swap! state assoc :element element)
+               (when-not (:name @state)
+                 (.focus element)))
+        }]
+      ]
+     
+     [:span {:style {:display :flex :margin-left :auto}}
+      [:button.button.button--outline.button--save-button
+       {:style {:background "none" :border "none"}
+                :on-click #(with-name on-save)
+                }
+       "Save"
+       ]
+      [:button.button.button--outline
+       {:style {:background "none" :border "none"}
+                :on-click #(with-name on-run)
+                }
+       "Optimise ▸"
+       ]]
+     ]))

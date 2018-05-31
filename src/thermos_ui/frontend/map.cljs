@@ -241,14 +241,7 @@
 
     ;; When you move the splitpane, re-centre the map.
     ;; This also ensures that when you increase the size of the map pane it renders any newly exposed tiles.
-    (js/setTimeout
-     (fn []
-       (let [splitpane (get-in @document [:thermos-ui.frontend.editor/splitpane])]
-         (goog.events/listen
-          splitpane
-          goog.ui.Component.EventType.CHANGE
-          (debounce (fn [] (.invalidateSize map)) 200)
-          ))))
+    
     )
   )
 

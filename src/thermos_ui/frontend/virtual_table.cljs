@@ -31,7 +31,11 @@
                      ;; our sort function.
                      sort! (fn [items]
                              (let [[sort-col sort-dir] @sort-order
-                                   sort-col (cljs.reader/read-string sort-col)]
+                                   sort-col (cljs.reader/read-string sort-col)
+                                   sort-col (if (seqable? sort-col)
+                                              #(get-in % sort-col)
+                                              sort-col)
+                                   ]
                                (if sort-col
                                  ((if (= "ASC" sort-dir) identity reverse)
                                   (sort-by sort-col items))
@@ -57,7 +61,7 @@
              }
             {:items items}
             (js->clj dims :keywordize-keys true))
-           (for [{key :key :as col} columns]
+           (for [{key :key :as col} (remove nil? columns)]
              ^{:key key} ;; this is to make reagent shut up about :key
                          ;; props, I am not sure how it works but it
                          ;; does.
@@ -69,7 +73,9 @@
                 :width 100
                 :dataKey (str key)
                 :flexGrow 1
-                :cellDataGetter #(get (o/get % "rowData") key)
+                :cellDataGetter #(if (seqable? key)
+                                   (get-in (o/get % "rowData") key)
+                                   (get (o/get % "rowData") key))
                 }
                col)])
            ]))])))

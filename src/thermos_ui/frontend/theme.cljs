@@ -47,8 +47,8 @@
 (def green "#98fb98")
 
 (def light-purple-stripes
-  (create-stripes "#9400d3" "#bbbbbb" 4 8)
+  (create-stripes "#fff" light-grey 4 8)
   )
 (def dark-purple-stripes
-  (create-stripes "#9400d3" "#555555" 4 8)
+  (create-stripes "#fff" dark-grey 4 8)
   )
