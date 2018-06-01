@@ -309,22 +309,6 @@
               [::view/view-state ::view/table-state ::view/filters filter-key]
               #{})))
 
-(defn show-toaster
-  [doc]
-  (assoc-in doc [::view/view-state ::view/toaster ::view/toaster-showing] true))
-
-(defn hide-toaster
-  [doc]
-  (assoc-in doc [::view/view-state ::view/toaster ::view/toaster-showing] false))
-
-(defn set-toaster-content
-  [doc content]
-  (assoc-in doc [::view/view-state ::view/toaster ::view/toaster-content] content))
-
-(defn set-toaster-class
-  [doc class]
-  (assoc-in doc [::view/view-state ::view/toaster ::view/toaster-class] class))
-
 (defn get-filtered-candidates
   "Returns all candidates which are constrained and meet the filter criteria."
   [doc]

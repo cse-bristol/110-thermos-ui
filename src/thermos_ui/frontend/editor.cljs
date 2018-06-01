@@ -47,15 +47,9 @@
         name
         (urls/editor org-name name new-id))
        ;; Show "toaster" message notifying successful save
-       (state/edit! state/state
-                    #(-> %
-                         (operations/set-toaster-content "Project successfully saved.")
-                         (operations/set-toaster-class "toaster--success")
-                         (operations/show-toaster)))
-       
-       (js/setTimeout
-        (fn [] (state/edit! state/state operations/hide-toaster))
-        4000)
+       (toaster/show!
+        [:div.toaster.toaster--success "Project saved"])
+
        )))
 
   (defonce unsaved? (r/atom false))
@@ -125,13 +119,29 @@
            :candidates
            [map-page]
            :parameters
-           "Parameters page goes here"
+           
+           [:div
+            [:div
+             [:h1 "Technologies"]
+             
+             ]
+
+            [:div
+             [:h1 "Resources"]
+             
+             ]
+            
+            [:div
+             [:h1 "Objective"]
+             
+             ]
+            ]
            :help
            "Help text goes here"
            )
          
          [popover/component state/state]
-         [toaster/component state/state]])))
+         [toaster/component]])))
 
   (defn on-js-reload [])
 
