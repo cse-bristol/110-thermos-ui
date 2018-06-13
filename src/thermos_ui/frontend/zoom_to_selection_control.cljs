@@ -12,7 +12,7 @@
     [:div
      [:button.leaflet-control-button
       {:style {:font-size "30px"}
-       :title "Zoom to selection"
+       :title "Zoom to selection (z)"
        :on-click (fn [e]
                    (let [selected-candidates (operations/selected-candidates @state/state)
                          selected-candidates-geometries (map #(::candidate/geometry %) selected-candidates)

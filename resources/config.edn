@@ -7,5 +7,5 @@
  :server-port "8080"
 
  :solver-directory "solver-work"
- :solver-command "/home/hinton/p/110-thermos/solver/run-solver"
+ :solver-command "/home/hinton/p/110-thermos/solver/SpatialEnergyModel/pyomo/run-solver"
  }

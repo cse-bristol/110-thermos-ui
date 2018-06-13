@@ -51,10 +51,28 @@
      (first)
      :content)))
 
+(defn get-details [db org name id]
+  (db/with-connection [conn db]
+    (->
+     (select :content :job :has_run)
+     (from :problems)
+     (where [:and [:= :org org] [:= :name name] [:= :id id]])
+     (sql/format)
+     (->> (jdbc/fetch conn))
+     (first))))
+
 (defn add-solution [db org name id result]
   (db/with-connection [conn db]
     (-> (update :problems)
         (sset {:content result :has_run true})
+        (where [:and [:= :org org] [:= :name name] [:= :id id]])
+        (sql/format)
+        (->> (jdbc/execute conn)))))
+
+(defn set-job-id [db org name id job-id]
+  (db/with-connection [conn db]
+    (-> (update :problems)
+        (sset {:job job-id})
         (where [:and [:= :org org] [:= :name name] [:= :id id]])
         (sql/format)
         (->> (jdbc/execute conn)))))

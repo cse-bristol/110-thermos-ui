@@ -9,6 +9,10 @@
   ([org doc id]
    (str (s/join "/" [api-prefix "problem" org doc id]))))
 
+(defn run-status
+  ([org doc id]
+   (str (s/join "/" [api-prefix "problem" org doc id "status"]))))
+
 (defn tile [x y z]
   (str (s/join "/" [api-prefix "map/candidates" z x y])))
 

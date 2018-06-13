@@ -5,7 +5,9 @@
             [thermos-ui.frontend.editor-state :as state]
             [thermos-ui.frontend.operations :as operations]
             [thermos-ui.frontend.inclusion-selector :as inclusion-selector]
-            [thermos-ui.frontend.tag :as tag]))
+            [thermos-ui.frontend.tag :as tag]
+            [thermos-ui.frontend.format :refer [si-number]]
+            ))
 
 (declare component)
 
@@ -35,19 +37,17 @@
   [document]
   (let [has-solution (::solution/solution @document)
         selected-candidates (operations/selected-candidates @document)
+        selected-technologies (mapcat (comp ::solution/technologies ::solution/candidate)
+                                      selected-candidates)
         sc-class "selection-table-cell--tag-container"
         cat (fn [k u]
               (category-row document #(or (k %) u) selected-candidates))
 
-        num (fn [k agg unit]
-              (let [vals (remove nil? (map k selected-candidates))]
+        num (fn [k agg unit & [scale]]
+              (let [scale (or scale 1)
+                    vals (remove nil? (map k selected-candidates))]
                 (when-not (empty? vals)
-                  [:span (str
-                          (.toLocaleString
-                           (.toPrecision
-                            (apply agg vals)
-                            3))
-                          unit)])))
+                  [:span (si-number (* scale (reduce agg 0 vals))) unit])))
         ]
     [:div.component--selection-info
      [:header.selection-header
@@ -63,30 +63,55 @@
              ["Classification" sc-class (cat ::candidate/subtype "Unclassified")]
              ["Constraint" sc-class (cat ::candidate/inclusion "Forbidden")]
              ["Name" sc-class (cat ::candidate/name "None")]
-             (when has-solution
-               ["In solution" sc-class (cat 
-                                     #(and (-> % ::solution/candidate ::solution/included) "yes") "no")])
              
-             ["Length" nil (num ::candidate/length  + " m")]
-             ["Cost" nil (num ::candidate/path-cost +
-                              " ¤"
-                              )]
-             ["Demand" nil (num ::candidate/demand  + " kWh/yr")]
-
-             (when has-solution
-               ["Heat flow"
-                nil
-                (num (comp ::solution/heat-flow ::solution/candidate)
-                     + "MW")
-                ])]]
+             ["Length" nil (num ::candidate/length  + "m")]
+             ["Cost" nil (num ::candidate/path-cost + "¤")]
+             ["Demand" nil (num ::candidate/demand  + "Wh/yr" 1000)]
+             ]]
 
         (when-not (empty? contents)
           [:div.selection-table__row {:key row-name}
            [:div.selection-table__cell.selection-table__cell--first-col row-name]
            [:div.selection-table__cell.selection-table__cell--second-col
             {:class class}
-            contents]]))
-]
-     ]))
+            contents]])
+        )
+      
+      (when has-solution
+        (for [[row-name class contents]
+              [["In solution" sc-class (cat 
+                                        #(and (-> % ::solution/candidate ::solution/included) "yes") "no")]
+
+               ["Max flow"
+                nil
+                (num (comp ::solution/heat-flow ::solution/candidate)
+                     max "W" 1000000)
+                ]
+               ["Total flow"
+                nil
+                (num (comp ::solution/heat-flow ::solution/candidate)
+                     + "W" 1000000)]
+
+               ["Technology"
+                nil
+                (for [[process processes] (group-by :process selected-technologies)]
+                  [:span {:key process}
+                   
+                   (str (reduce + 0 (map (comp int :count) processes)) " x "process
+                        " @ "
+                        (si-number
+                         (* 1000000
+                            (reduce + 0 (map (comp float :production) processes))))
+                        "W")
+                   ])]]
+              ]
+          (when-not (empty? contents)
+            [:div.selection-table__row {:key row-name}
+             [:div.selection-table__cell.selection-table__cell--first-col row-name]
+             [:div.selection-table__cell.selection-table__cell--second-col
+              {:class class}
+              contents]])
+          ))]]))
+
 
 

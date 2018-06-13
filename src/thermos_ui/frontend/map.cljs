@@ -89,11 +89,11 @@
                                            :circlemarker false
                                            :circle false
                                            }})
-
+        
+        none-layer (js/L.tileLayer "")
+        
         layers-control (layers-control
-                        {"Satellite" esri-sat-imagery
-                         "None" (js/L.tileLayer "")
-                         }
+                        {"Satellite" esri-sat-imagery "None" none-layer}
                         {"Candidates" candidates-layer})
 
         search-control (create-leaflet-control search-box/component)
@@ -116,8 +116,24 @@
                    :west (.getWest bounds)
                    :east (.getEast bounds)}))
 
-        map-bounding-box (reagent/cursor document [::view/view-state ::view/bounding-box])
+        map-layers (reagent/cursor document [::view/view-state ::view/map-layers])
 
+        show-map-layers!
+        #(let [{basemap ::view/basemap-layer
+                candidates ::view/candidates-layer} @map-layers]
+           (case basemap
+             :satellite (do (.addLayer map esri-sat-imagery)
+                            (.removeLayer map none-layer))
+
+             (do (.removeLayer map esri-sat-imagery)
+                 (.addLayer map none-layer)))
+           
+           (if candidates
+             (.addLayer map candidates-layer)
+             (.removeLayer map candidates-layer)))
+        
+        map-bounding-box (reagent/cursor document [::view/view-state ::view/bounding-box])
+        
         show-bounding-box!
         #(let [{n :north s :south
                 w :west e :east} @map-bounding-box]
@@ -137,8 +153,6 @@
             ))
         ]
 
-    (.addLayer map esri-sat-imagery)
-    (.addLayer map candidates-layer)
     (.addControl map (search-control. (clj->js {:position :topright})))
     (.addControl map layers-control)
     (.addControl map draw-control)
@@ -238,9 +252,24 @@
                            ))
 
     (track! show-bounding-box!)
+    (track! show-map-layers!)
 
-    ;; When you move the splitpane, re-centre the map.
-    ;; This also ensures that when you increase the size of the map pane it renders any newly exposed tiles.
+    (let [watch-layers (fn [e]
+                         (let [layer (.-layer e)
+                               layer-visible (.hasLayer map layer)]
+                           (cond
+                             (and layer-visible (= esri-sat-imagery layer))
+                             (swap! map-layers assoc ::view/basemap-layer :satellite)
+
+                             (and layer-visible (= none-layer layer))
+                             (swap! map-layers assoc ::view/basemap-layer :none)
+
+                             (= layer candidates-layer)
+                             (swap! map-layers assoc ::view/candidates-layer layer-visible))))]
+      
+      (.on map "overlayadd" watch-layers)
+      (.on map "overlayremove" watch-layers)
+      (.on map "baselayerchange" watch-layers))
     
     )
   )

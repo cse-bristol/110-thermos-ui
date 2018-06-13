@@ -3,9 +3,12 @@
             [thermos-ui.frontend.map :as map]
             [thermos-ui.urls :as urls]
             [thermos-ui.specs.candidate :as candidate]
+            [thermos-ui.specs.solution :as solution]
             [thermos-ui.specs.view :as view]
             [thermos-ui.specs.document :as document]
             [thermos-ui.frontend.editor-state :as state]
+            [thermos-ui.frontend.parameters :as parameters]
+            [thermos-ui.frontend.solution :as solution-component]
             [thermos-ui.frontend.operations :as operations]
             [thermos-ui.frontend.main-nav :as main-nav]
             [thermos-ui.frontend.network-candidates-panel :as network-candidates-panel]
@@ -56,44 +59,51 @@
   (defonce interesting-state (fn [] (document/keep-interesting @state/state)))
   (defonce changed (reagent.ratom/run! (reset! unsaved? true) (r/track! interesting-state)))
   
-  (defn map-page []
-    (r/with-let [h-split-pos (r/cursor state/state
+  (defn map-page [document]
+    (r/with-let [h-split-pos (r/cursor document
                                        [::view/view-state
                                         ::view/map-page-h-split]
                                        )
-                 v-split-pos (r/cursor state/state
+                 v-split-pos (r/cursor document
                                        [::view/view-state
                                         ::view/map-page-v-split]
                                        )
                  ]
-      [rc/h-split
-       :margin "0"
-       :initial-split (or @h-split-pos 50)
+
+      [rc/v-split
+       :initial-split (or @h-split-pos 75)
        :on-split-change #(reset! h-split-pos %)
-       :panel-1 [map/component state/state]
-       :panel-2 [rc/v-split
+       :margin "0"
+       :panel-1 [rc/h-split
+                 :initial-split (or @h-split-pos 60)
+                 :on-split-change #(reset! h-split-pos %)
                  :margin "0"
-                 :initial-split (or @v-split-pos 50)
-                 :on-split-change #(reset! v-split-pos %)
-                 :panel-1 [network-candidates-panel/component state/state]
-                 :panel-2 [selection-info-panel/component state/state]
-                 ]
+                 :panel-1 [map/component document]
+                 :panel-2 [selection-info-panel/component document]]
+       :panel-2 [:div
+                 {:style {:width :100%}}
+                 [network-candidates-panel/component document]]
        ])
     
     )
   (defn main-page []
-    (r/with-let [selected-tab (r/cursor state/state [::view/view-state ::view/selected-tab])]
-      (let [close-popover (fn [e]
-                            (let [popover-menu-node (js/document.querySelector ".popover-menu")
-                                  click-is-outside-popover (and (some? popover-menu-node)
-                                                                (not (.contains popover-menu-node e.target)))
-                                  popover-is-populated (some?
-                                                        (->> @state/state
-                                                             ::view/view-state
-                                                             ::view/popover
-                                                             ::view/popover-content))]
-                              (if (and click-is-outside-popover popover-is-populated)
-                                (state/edit! state/state operations/close-popover))))
+    (r/with-let [selected-tab (r/cursor state/state [::view/view-state ::view/selected-tab])
+                 solution (r/cursor state/state [::solution/solution])
+
+                 last-run-state (r/atom nil)
+                 ]
+      (let [close-popover
+            (fn [e]
+              (let [popover-menu-node (js/document.querySelector ".popover-menu")
+                    click-is-outside-popover (and (some? popover-menu-node)
+                                                  (not (.contains popover-menu-node e.target)))
+                    popover-is-populated (some?
+                                          (->> @state/state
+                                               ::view/view-state
+                                               ::view/popover
+                                               ::view/popover-content))]
+                (if (and click-is-outside-popover popover-is-populated)
+                  (state/edit! state/state operations/close-popover))))
             close-table-filter (fn [e] (state/edit! state/state operations/close-table-filter))
             ]
         [:div.editor__container
@@ -110,34 +120,59 @@
            :selected-tab (or @selected-tab :candidates)
            :tabs
            [
-            {:key :candidates :label "Candidates"}
-            {:key :parameters :label "Parameters"}
+            {:key :candidates :label "Map"}
+            {:key :parameters :label "Options"}
+            (when @solution {:key :solution :label "Result"})
             {:key :help :label "Help"}
             ]
            }]
+
+         (let [run-state (state/is-running?)
+               last-state @last-run-state]
+           (when (and (= :complete run-state)
+                      (or (= :running last-state)
+                          (= :queued last-state)))
+             (state/load-document!
+              org-name proj-name version
+              (fn []
+                (println "select solution tab?")
+                (state/edit! state/state
+                             assoc-in
+                             [::view/view-state ::view/selected-tab]
+                             :solution))))
+           
+           (reset! last-run-state run-state)
+           
+           (when (#{:running :queued} run-state)
+             [:div
+              {:style {:position :absolute
+                       :z-index 1000000
+                       :width :100%
+                       :height :100%
+                       :background "rgba(0,0,0,0.75)"}}
+              [:b {:style {:color :white}} run-state]])
+           )
+         
+         
          (case (or @selected-tab :candidates)
            :candidates
-           [map-page]
-           :parameters
-           
-           [:div
-            [:div
-             [:h1 "Technologies"]
-             
-             ]
+           [map-page state/state]
 
-            [:div
-             [:h1 "Resources"]
-             
-             ]
-            
-            [:div
-             [:h1 "Objective"]
-             
-             ]
-            ]
+           :parameters
+           [parameters/component state/state]
+
+           :solution
+           [solution-component/component state/state]
+           
            :help
-           "Help text goes here"
+           [:iframe {:src "/help/index.html"
+                     :style {:height :500px
+                             :width :100%
+                             :margin 0
+                             :padding 0
+                             :border :none}
+                     }]
+           
            )
          
          [popover/component state/state]

@@ -25,7 +25,7 @@
     
     [:nav.nav {:style {:display :flex}}
      [:span {:style {:display :flex :margin-right :auto}}
-      (for [tab tabs]
+      (for [tab (filter identity tabs)]
 
         [(if (= (:key tab) selected-tab)
            :button.button--tab.button--tab--selected

@@ -4,9 +4,8 @@
             [cljsjs.react]
             [cljsjs.react-virtualized]
             [goog.object :as o]
+            [thermos-ui.frontend.format :refer [si-number]]
             ))
-
-(declare component filter!)
 
 (defn component
   "A virtual table wrapper. Takes any of the virtualised table
@@ -20,9 +19,7 @@
 
   Stores the sort order as a bit of internal state.
   "
-  [{items :items
-    filters :filters}
-   count-filtered-items ;; This lets the parent component know how many items have been filtered
+  [{items :items}
    & columns]
   ;; reagent/with-let allows us to define an atom whose lifecycle
   ;; follows that of the component, so it's not recreated when we re-render
@@ -43,18 +40,18 @@
                      ]
     ;; and now the actual component
     (let [[sort-col sort-dir] @sort-order
-          sorted-items (sort! items)
-          sorted-filtered-items (filter! sorted-items filters)]
-      (reset! count-filtered-items (count sorted-filtered-items))
+          items (sort! items)]
+      
+
       [:> js/ReactVirtualized.AutoSizer
        (fn [dims]
          (reagent/as-element
           [:> js/ReactVirtualized.Table
            (merge
-            {:rowCount (count sorted-filtered-items)
-             :rowGetter #(nth sorted-filtered-items (.-index %))
-             :rowHeight 50
-             :headerHeight 50
+            {:rowCount (count items)
+             :rowGetter #(nth items (.-index %))
+             :rowHeight 35
+             :headerHeight 40
              :sortBy sort-col
              :sortDirection sort-dir
              :sort #(reset! sort-order [(.-sortBy %) (.-sortDirection %)])
@@ -72,33 +69,22 @@
                 :disableSort false
                 :width 100
                 :dataKey (str key)
-                :flexGrow 1
+                :cellRenderer (fn [arg] (str (o/get arg "cellData")))
                 :cellDataGetter #(if (seqable? key)
                                    (get-in (o/get % "rowData") key)
                                    (get (o/get % "rowData") key))
                 }
-               col)])
+               col
+               )])
            ]))])))
 
-(defn filter!
-  "Function to filter items if a filter is supplied, otherwise just returns items"
- [items filters]
-  (if (not-empty filters)
-    (filter
-     (fn [item]
-       (reduce-kv
-        (fn [init k v]
-          (if init
-            (if (string? v)
-              ;; If the filter is a string then check if the item matches the string in a fuzzy way.
-              (let [regex-pattern (re-pattern (str "(?i)" (s/join ".*" (s/split v #"")) ".*"))]
-                (not-empty
-                 (re-seq regex-pattern (k item))))
-              ;; If the filter is a set of values the check if the item matches one of them exactly.
-              (or (empty? v) (contains? v (k item)))
-              )
-            false))
-        true
-        filters))
-     items)
-    items))
+
+(defn render-keyword [arg] (name (o/get arg "cellData")))
+
+(defn render-number [& {:keys [unit scale]
+                        :or {unit "" scale 1}}]
+  (fn [arg]
+    (let [x (o/get arg "cellData")]
+      (when x
+        (str (si-number (* scale x)) unit)))))
+

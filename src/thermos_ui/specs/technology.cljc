@@ -10,7 +10,16 @@
 ;; it has size bounds, and a price related to the size
 ;; it has fuel inputs and heat and electricity outputs
 ;; with associated efficiencies. these may depend on the size.
-(s/def ::technology (s/keys :req [::id ::name ::fuel ::curve]))
-(s/def ::curve (s/+ ::curve-point))
-(s/def ::curve-point
-  (s/keys :req [ ::size ::capital-cost ::heat-efficiency ::power-efficiency ]))
+
+(s/def ::technology
+  (s/keys :req
+          [::id
+           ::fuel
+           ::capacity ;; this will be capacity in MW
+           ::capital-cost
+           ::heat-efficiency
+           ::power-efficiency
+           ]
+          )
+  )
+

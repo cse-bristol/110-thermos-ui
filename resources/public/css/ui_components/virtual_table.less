@@ -44,9 +44,9 @@
 	position: relative;
 
 	// Just a test
-	margin: 0;
+//	margin: 0; this breaks everything
 	height: 100%;
-	padding: 15px 0;
+	padding: 10px 0;
 	padding-left: 10px;
 	&:first-of-type {
 		padding-right: 10px;
@@ -92,9 +92,6 @@
 		top: 2px;
 		fill: @theme-blue;
 	}
-	&[aria-sort]::before, &[aria-sort]::after {
-		// display: none;
-	}
 	&[aria-sort="ascending"]::before {
 		border-bottom-color: @theme-blue;
 	}
@@ -115,7 +112,7 @@
 .filter-icon {
 	display: inline-block;
 	position: absolute;
-	top: 18px;
+	top: 12px;
 	right: 20px;
 	width: 14px;
 	height: 14px;

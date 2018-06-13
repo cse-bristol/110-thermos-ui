@@ -3,21 +3,26 @@
             [compojure.route :as route]
             [thermos-ui.backend.problems.db :as db]
             [thermos-ui.backend.queue :as queue]
+
             ))
 
-(defonce json-headers {"Content-Type" "text/html"})
-
-(defn routes-list []
-  "List routes"
-  ;;"I'd like this to be an auto generated list from defroutes, but that's a macro..."
-  {"/problem/:org" {:method "GET" :description "List all problems for :org"}
-   "/problem/:org/:name" {:method "POST" :description "Post a problem"
-                          :params {"file" "Problem file in .edn format"}}
-   "/problem/:org/:name/:id" {:method "DELETE" :description "Delete specific problem version"}
-   })
+(defonce json-headers {"Content-Type" "application/json"})
 
 (defn all [db queue]
   (routes
+
+   ;; TODO make this work better using websockets and LISTEN/NOTIFY in
+   ;; postgres, or at least a query / index on the table
+   ;; or a join from the problems table
+   (GET "/problem/:org/:name/:id/status"
+        [org name id]
+        (if-let [{job-id :job} (db/get-details db org name (Integer/parseInt id))]
+          (let [status (queue/status queue job-id)]
+            {:status 200
+             :headers json-headers
+             :body status})
+          {:status 404}))
+   
    (POST "/problem/:org/:name"
          {{org :org
            name :name
@@ -29,6 +34,7 @@
              (let [problem-id (str stored)
                    run-id (when run (queue/put queue :problems [org name stored]))
                    ]
+               (when run-id (db/set-job-id db org name stored run-id))
                {:status 201
                 :headers (assoc json-headers
                                 "Location" (str stored)
@@ -42,9 +48,7 @@
    (GET "/problem/:org/:name/:id"
         [org name id]
         (if-let [problem (db/get-content db org name (Integer/parseInt id))]
-          {:status 200
-           :headers json-headers
-           :body problem}
+          {:status 200 :headers json-headers :body problem}
           {:status 404}))
 
    (DELETE "/problem/:org/:name"

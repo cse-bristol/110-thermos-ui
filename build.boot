@@ -69,12 +69,13 @@
    ])
 
 (require '[adzerk.boot-cljs              :refer [cljs]]
-         '[adzerk.boot-cljs-repl         :refer [cljs-repl]]
+         '[adzerk.boot-cljs-repl         :refer [cljs-repl-env start-repl]]
          '[powerlaces.boot-figreload     :refer [reload]]
          '[powerlaces.boot-cljs-devtools :refer [dirac cljs-devtools]]
          '[pandeiro.boot-http            :refer [serve]]
          '[deraen.boot-less              :refer [less]]
          '[adzerk.boot-test :refer :all]
+         '[cemerick.piggieback]
 
          '[system.boot :refer [system]]
          )
@@ -100,10 +101,13 @@
    You can connect to the repl from e.g. emacs or by running boot repl -c"
   []
   (comp
-   (watch :verbose true)
+   (watch :verbose true
+          :exclude #{#"^\\.#" #"~$"}
+          )
    (less :source-map true)
    (cljs-devtools)
    (reload)
+   (cljs-repl-env)
    (cljs :source-map true
          :optimizations :none
          :compiler-options
@@ -120,7 +124,7 @@
            :auto true
            :files ["pages.clj" "handler.clj"])
    
-   (repl :server true)
+   (repl :server true :middleware '[cemerick.piggieback/wrap-cljs-repl])
    ))
 
 (deftask package

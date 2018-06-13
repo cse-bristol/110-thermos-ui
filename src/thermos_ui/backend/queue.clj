@@ -51,6 +51,16 @@
 (defn new-queue []
   (map->Queue {}))
 
+(defn task->db [task]
+  
+  )
+
+(defn db->task [task]
+  (-> task
+      (clojure.core/update :args edn/read-string)
+      (clojure.core/update :state state->label)
+      (clojure.core/update :queue keyword)))
+
 (defn put
   ([q queue task]
    (db/with-connection [conn (:database q)]
@@ -71,7 +81,7 @@
 (defn- claim-job [conn consumers]
   (let [qs (vec (map name (keys consumers)))]
     (when-not (empty? qs)
-      (when-let [out (-> (select :id :queue :args)
+      (when-let [out (-> (select :id :queue :args :state)
                          (from :jobs)
                          (where [:and
                                  [:= :state 0]
@@ -81,9 +91,7 @@
                          (sql/format)
                          (->> (jdbc/fetch conn))
                          (first))]
-        (-> out
-            (clojure.core/update :queue keyword)
-            (clojure.core/update :state state->label))
+        (db->task out)
         ))))
 
 (defn- set-state [conn id state]
@@ -95,26 +103,22 @@
 
 (defn- run-one-task [db consumers]
   (db/with-connection [conn db]
-    (jdbc/atomic
-     conn
-     (when-let [job (claim-job conn consumers)]
-       (println "Claimed" job)
-       (try
-         (let [args (edn/read-string (:args job))
-               queue (:queue job)]
+    (when-let [job (claim-job conn consumers)]
+      (let [args (:args job)
+            queue (:queue job)]
+          (when-let [consumer (consumers queue)]
+            (println "About to run" job)
+            (set-state conn (:id job) (label->state :running))
+            ;; issue checkpoint here
+            (jdbc/atomic conn
+             (try
+               (consumer conn args)
+               (catch Exception e
+                 (println e)
+                 (set-state conn (:id job) (label->state :error)))))
+            (set-state conn (:id job) (label->state :complete))))
+      )))
 
-           (when-let [consumer (consumers queue)]
-             (println "About to run" job)
-             (set-state conn (:id job) (label->state :running))
-             ;; issue checkpoint here?
-             (consumer conn args)
-             (set-state conn (:id job) (label->state :complete))))
-         (catch Exception e
-           (println e)
-             ;; mark job failed and log failure
-             ;; rollback checkpoint here
-             (set-state conn (:id job) (label->state :error))
-           ))))))
 
 (defn ls [queue]
   (db/with-connection [c (:database queue)]
@@ -122,8 +126,16 @@
         (from :jobs)
         (sql/format)
         (->> (jdbc/fetch c)
-             (map #(-> %
-                  (clojure.core/update :state state->label)
-                  (clojure.core/update :queue keyword))))
+             (map db->task))
         )))
+
+(defn status [queue job-id]
+  (db/with-connection [c (:database queue)]
+    (-> (select :id :queue :args :state)
+        (from :jobs)
+        (where [:= :id job-id])
+        (sql/format)
+        (->> (jdbc/fetch c))
+        (first)
+        (db->task))))
 

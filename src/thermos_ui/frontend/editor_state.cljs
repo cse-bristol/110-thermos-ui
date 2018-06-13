@@ -5,11 +5,56 @@
             [thermos-ui.frontend.io :as io]
             [thermos-ui.specs.candidate :as candidate]
             [thermos-ui.specs.document :as document]
+            [thermos-ui.specs.defaults :refer [default-document]]
             [thermos-ui.frontend.operations :as operations]
             [reagent.core :as reagent :refer [atom]]))
 
 ;; The document we are editing
-(defonce state (atom {}))
+(defonce state (atom default-document))
+
+(defonce run-state (atom
+                    {:last-state nil
+                     :last-load nil}))
+
+(defonce run-state-timer (atom nil))
+
+(declare maybe-update-run-state)
+
+(defn start-run-state-timer []
+  (swap! run-state-timer
+         (fn [t]
+           (or t
+               (js/setInterval
+                maybe-update-run-state
+                1500))))
+  (println @run-state-timer)
+  )
+
+(defn cancel-run-state-timer []
+  (swap! run-state-timer
+         (fn [t]
+           (when t (js/clearInterval t))
+           nil)))
+
+(defn is-running? [] (:last-state @run-state))
+
+(defn update-run-state []
+  (let [{[org proj id] :last-load} @run-state]
+    (io/get-run-status
+     org proj id
+     (fn [result]
+       (let [state (keyword (get result "state"))]
+         (swap! run-state assoc :last-state state)
+         (when (#{:queued :running} state)
+           (start-run-state-timer)))))))
+
+(defn maybe-update-run-state []
+  (let [{last-state :last-state last-load :last-load} @run-state]
+    (if (and last-load
+             (or (nil? last-state)
+                 (#{:queued :running} last-state)))
+      (update-run-state)
+      (cancel-run-state-timer))))
 
 (defn edit!
   "Update the document, but please do not change the spatial details this way!"
@@ -29,14 +74,19 @@
   (let [geometry (o/get feature "geometry")
         properties (o/get feature "properties")
         simple-geometry (o/get properties "simple_geometry" geometry)
+        
+        empty->nil #(if (or (nil? %) (= "" %)) nil %)
+
         type (keyword (o/get properties "type" "demand"))
+        name (empty->nil (o/get properties "name"))
+        subtype (empty->nil (o/get properties "subtype"))
         ]
 
     (merge
      {::candidate/id (o/get properties "id")
-      ::candidate/name (o/get properties "name")
+      ::candidate/name name
       ::candidate/type type
-      ::candidate/subtype (o/get properties "subtype")
+      ::candidate/subtype subtype
       ::candidate/geometry geometry
       ::candidate/simple-geometry simple-geometry
       ::candidate/inclusion :forbidden}
@@ -54,6 +104,8 @@
   (io/load-document
    org-name proj-name doc-version
    #(do
+      (swap! run-state assoc :last-load [org-name proj-name doc-version])
+      (maybe-update-run-state)
       (edit-geometry! state operations/load-document %)
       (cb))))
 
@@ -63,8 +115,9 @@
      org-name proj-name
      (document/keep-interesting state)
      run
-     cb
-     )))
+     #(do (cb %)
+          (swap! run-state assoc :last-load [org-name proj-name %])
+          (update-run-state)))))
 
 (defn load-tile! [document x y z]
   (io/request-geometry

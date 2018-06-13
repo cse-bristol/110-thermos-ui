@@ -22,8 +22,11 @@
            (if (= :demand type) :supply :demand))
           )))))
 
+(defn- zoom-to-fit! [])
+
 (defn handle-keypress [e]
   (case (.-key e)
     "c" (rotate-inclusion!)
     "t" (rotate-type!)
+    "z" (zoom-to-fit!)
     :default))

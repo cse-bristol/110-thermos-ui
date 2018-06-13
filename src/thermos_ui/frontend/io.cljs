@@ -5,6 +5,17 @@
             [thermos-ui.urls :as urls]
             ))
 
+(defn get-run-status [org proj id handler]
+  (xhr/send
+   (urls/run-status org proj id)
+   (fn [e]
+     (->> (.-target e)
+          (.getResponseText)
+          js/JSON.parse
+          js->clj
+          handler)))
+  )
+
 (defn load-document
   "Load a document from the `url`, and call `handler` with it
   once deserialized"

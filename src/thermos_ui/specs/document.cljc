@@ -11,7 +11,11 @@
 ;; this is the spec for what you can see on the screen in the UI
 
 (s/def ::document (s/keys :req [::candidates
+
                                 ::technologies
+                                ::resources
+                                ::objective
+                                
                                 ::view/view-state
                                 ::solution/solution
                                 ]))
@@ -29,9 +33,7 @@
                                (= id (key val)))) :kind map? :into {}))
 
 (s/def ::technologies
-  (s/and
-   (redundant-key ::technology/id)
-   (s/map-of ::technology/id ::technology/technology)))
+  (s/* ::technology/technology))
 
 (defn is-topologically-valid
   "A candidate set is topologically valid when every path connects only to junctions or buildings.
@@ -73,7 +75,6 @@ This means that anything with type :path has suitable path-start and path-end"
 (defn keep-interesting
   "Return a version of document in which only the interesting bits are retained.
   This strips off anything which is not part of one of the specs."
-
   [document]
 
   (let [filter-forbidden
@@ -100,3 +101,15 @@ This means that anything with type :path has suitable path-start and path-end"
         ]
 
     (prewalk remove-nonspec-keys document)))
+
+(s/def ::objective
+  (s/keys :req [::period
+                ::discount-rate
+                ::carbon-cost
+                ::gas-price
+                ::biomass-price
+                ::electricity-import-price
+                ::electricity-export-price
+                ::heat-price
+                ])
+  )

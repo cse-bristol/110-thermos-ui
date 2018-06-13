@@ -68,13 +68,18 @@
 
 (defn map-candidates
   "Go through a document and apply f to all the indicated candidates."
-  [doc f & [ids]]
-  (let [ids (or ids (all-candidates-ids doc))]
-    (update doc
-            ::document/candidates
-            #(reduce
-              (fn [cands id] (update cands id f))
-              % ids))))
+  ([doc f]
+   (map-candidates doc f (all-candidates-ids doc)))
+  
+  ([doc f ids]
+   (if (empty? ids)
+     doc
+     (update doc
+             ::document/candidates
+             #(reduce
+               (fn [cands id] (update cands id f))
+               % ids)))))
+
 
 (defn select-candidates
   "Change the selection for all candidates with IDs in the CANDIDATE-IDS using the METHOD."
@@ -296,6 +301,10 @@
           )
         )
       )))
+
+(defn clear-filters
+  [document]
+  (assoc-in document [::view/view-state ::view/table-state ::view/filters] nil))
 
 (defn remove-all-table-filter-values
   [document filter-key]
