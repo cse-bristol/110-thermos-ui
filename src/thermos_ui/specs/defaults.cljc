@@ -59,9 +59,11 @@
                        ::view/candidates-layer true}}
    
    ::document/objective
-   {::document/period 7
-    ::document/discount-rate 3.5
-
+   {::document/plant-period 7
+    ::document/plant-discount-rate 3.5
+    ::document/network-period 7
+    ::document/network-discount-rate 3.5
+    
     ::document/biomass-price 2.5
     ::document/electricity-import-price 10.13
     ::document/electricity-export-price 4.5
@@ -72,6 +74,9 @@
     ::document/electricity-emissions 0.394
     ::document/gas-emissions 0.184
     ::document/biomass-emissions 0.00432
+
+    ::document/carbon-cost 0
+    ::document/carbon-cap 1e12
     }
    }
   )
