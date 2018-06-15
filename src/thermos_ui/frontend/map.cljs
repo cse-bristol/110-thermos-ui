@@ -46,7 +46,7 @@
   "Draw a cartographic map for the given `document`, which should be a reagent atom
   containing a document map"
   [document]
-  (let [watches (atom nil)
+  (let [watches (atom [])
         map-node (atom nil)
         ]
     (reagent/create-class
@@ -59,7 +59,12 @@
 (def esri-sat-imagery
   (js/L.tileLayer
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-    (clj->js {})))
+      (clj->js {})))
+
+(def heat-density-layer
+  (js/L.tileLayer
+   "/heat-map-tiles/{z}/{x}/{y}.png"
+   (clj->js {:opacity 0.5})))
 
 (defn mount
   "Make a leaflet control when this component is being put on screen"
@@ -67,13 +72,16 @@
   (let [map-node @map-node
 
         edit!  (fn [f & a] (apply state/edit! document f a))
-        track! (fn [f & a] (swap! watches conj (apply reagent/track! f a)))
+        track! (fn [f & a]
+                 (let [watch (apply reagent/track! f a)]
+                   (swap! watches conj #(reagent/dispose! watch))))
 
         map (js/L.map map-node (clj->js {:preferCanvas true
                                          :fadeAnimation true
                                          :zoom 15
                                          :center [51.553356 -0.109271]
                                          }))
+
         candidates-layer (candidates-layer document)
 
         ;; The tilesize of 256 is related to the x, y values when talking
@@ -94,7 +102,9 @@
         
         layers-control (layers-control
                         {"Satellite" esri-sat-imagery "None" none-layer}
-                        {"Candidates" candidates-layer})
+                        {"Candidates" candidates-layer
+                         "Heatmap" heat-density-layer
+                         })
 
         search-control (create-leaflet-control search-box/component)
 
@@ -120,17 +130,38 @@
 
         show-map-layers!
         #(let [{basemap ::view/basemap-layer
-                candidates ::view/candidates-layer} @map-layers]
-           (case basemap
-             :satellite (do (.addLayer map esri-sat-imagery)
-                            (.removeLayer map none-layer))
+                candidates ::view/candidates-layer
+                heat-density ::view/heat-density-layer :as target-state}
+               @map-layers
 
-             (do (.removeLayer map esri-sat-imagery)
-                 (.addLayer map none-layer)))
-           
-           (if candidates
-             (.addLayer map candidates-layer)
-             (.removeLayer map candidates-layer)))
+               visible-state
+               {::view/basemap-layer
+                (if (.hasLayer map esri-sat-imagery) :satellite
+                    :none)
+                ::view/candidates-layer (.hasLayer map candidates-layer)
+                ::view/heat-density-layer (.hasLayer map heat-density-layer)}]
+
+           (when (not= target-state visible-state)
+             (doseq [l [none-layer
+                        esri-sat-imagery
+                        heat-density-layer
+                        candidates-layer]]
+               (when (.hasLayer map l)
+                 (.removeLayer map l)))
+
+             (case basemap
+               :satellite
+               (.addLayer map esri-sat-imagery)
+               
+               (.addLayer map none-layer))
+             
+             (when candidates
+               (.addLayer map candidates-layer))
+
+             (when heat-density
+               (.addLayer map heat-density-layer))
+             )
+           )
         
         map-bounding-box (reagent/cursor document [::view/view-state ::view/bounding-box])
         
@@ -153,6 +184,9 @@
             ))
         ]
 
+    (track! show-bounding-box!)
+    (track! show-map-layers!)
+    
     (.addControl map (search-control. (clj->js {:position :topright})))
     (.addControl map layers-control)
     (.addControl map draw-control)
@@ -169,6 +203,7 @@
 
     ;; this still loses a click in some silly circumstance
 
+    
     (let [draw-state (atom nil)
           method (atom :replace)]
 
@@ -209,7 +244,7 @@
 
                                   (latlng->jsts-shape
                                    (o/get e "latlng")
-                                   (* 3 (pixel-size)))
+                                   (pixel-size))
 
                                   @method)
 
@@ -250,12 +285,9 @@
                                                          (io/get-outstanding-request-ids))]
                              (doseq [id requests-to-remove-ids] (io/abort-request id)))
                            ))
-
-    (track! show-bounding-box!)
-    (track! show-map-layers!)
-
+    
     (let [watch-layers (fn [e]
-                         (let [layer (.-layer e)
+                         (let [layer (o/get e "layer" nil)
                                layer-visible (.hasLayer map layer)]
                            (cond
                              (and layer-visible (= esri-sat-imagery layer))
@@ -264,20 +296,29 @@
                              (and layer-visible (= none-layer layer))
                              (swap! map-layers assoc ::view/basemap-layer :none)
 
+                             (= layer heat-density-layer)
+                             (swap! map-layers assoc ::view/heat-density-layer
+                                    layer-visible)
+                             
                              (= layer candidates-layer)
-                             (swap! map-layers assoc ::view/candidates-layer layer-visible))))]
+                             (swap! map-layers assoc ::view/candidates-layer
+                                    layer-visible)))
+                         (println "Map layers changed:" @map-layers)
+                         )]
       
       (.on map "overlayadd" watch-layers)
       (.on map "overlayremove" watch-layers)
       (.on map "baselayerchange" watch-layers))
-    
-    )
-  )
+
+    (swap! watches conj #(do (.off map)
+                             (.remove map)))))
 
 (defn unmount
   "Destroy a leaflet when its react component is going away"
   [watches component]
-  (doseq [watch @watches] (reagent/dispose! watch)))
+
+  (doseq [watch @watches] (watch))
+  (reset! watches nil))
 
 (defn candidates-layer
   "Create a leaflet layer class which renders the candidates from the document.
