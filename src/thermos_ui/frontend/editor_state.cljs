@@ -38,6 +38,8 @@
 
 (defn is-running? [] (:last-state @run-state))
 
+(defn get-last-save [] (:last-load @run-state))
+
 (defn update-run-state []
   (let [{[org proj id] :last-load} @run-state]
     (io/get-run-status
@@ -115,8 +117,8 @@
      org-name proj-name
      (document/keep-interesting state)
      run
-     #(do (cb %)
-          (swap! run-state assoc :last-load [org-name proj-name %])
+     #(do (swap! run-state assoc :last-load [org-name proj-name %])
+          (cb org-name proj-name %)
           (update-run-state)))))
 
 (defn load-tile! [document x y z]

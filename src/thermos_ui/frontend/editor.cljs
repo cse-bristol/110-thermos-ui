@@ -44,7 +44,7 @@
   (defn do-save [run? name]
     (state/save-document!
      org-name name run?
-     (fn [new-id]
+     (fn [org-name name new-id]
        (js/window.history.pushState
         nil
         name
@@ -132,14 +132,16 @@
            (when (and (= :complete run-state)
                       (or (= :running last-state)
                           (= :queued last-state)))
-             (state/load-document!
-              org-name proj-name version
-              (fn []
-                (println "select solution tab?")
-                (state/edit! state/state
-                             assoc-in
-                             [::view/view-state ::view/selected-tab]
-                             :solution))))
+             (let [[org-name proj-name version] (state/get-last-save)]
+               (println "last save version " version)
+               (state/load-document!
+                org-name proj-name version
+                (fn []
+                  (println "select solution tab?")
+                  (state/edit! state/state
+                               assoc-in
+                               [::view/view-state ::view/selected-tab]
+                               :solution)))))
            
            (reset! last-run-state run-state)
            
