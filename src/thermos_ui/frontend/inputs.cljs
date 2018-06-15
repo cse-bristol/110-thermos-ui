@@ -6,7 +6,7 @@
   [:input.input
    (merge {:type :text
            :placeholder "some text"
-           :default (or (:value ks) (when value-atom @value-atom))
+           :value (or (:value ks) (when value-atom @value-atom))
            :on-change (when value-atom #(reset! value-atom (.. % -target -value)))
            } ks)])
 
