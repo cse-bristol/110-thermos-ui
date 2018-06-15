@@ -63,7 +63,7 @@
        (case status
          (:feasible :optimal)
          [:div
-          [:h1 "Objective value " (si-number value) ", solution " (name status)]
+          [:h1 "Objective value " (si-number (* 1000 value)) ", solution " (name status)]
           
           [:h1 "Metrics"]
 
