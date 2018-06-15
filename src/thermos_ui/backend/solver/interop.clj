@@ -83,9 +83,9 @@
         (remove
          (comp zero? :flowValue)
 
-         [{:flowValue (/ heat-efficiency leading-efficiency)
+         [{:flowValue (float (/ heat-efficiency leading-efficiency))
            :resourceName "dist_heat"}
-          {:flowValue (/ power-efficiency leading-efficiency)
+          {:flowValue (float (/ power-efficiency leading-efficiency))
            :resourceName "elec"}])
         ]
     
@@ -111,10 +111,14 @@
   ;; setup price contributions and other objective parameters
   (let [number-of-candidates (count (::document/candidates instance))
 
-        {{period ::document/period
-          discount-rate ::document/discount-rate
+        {{plant-period ::document/plant-period
+          plant-interest-rate ::document/plant-interest-rate
+
+          network-period ::document/network-period
+          network-interest-rate ::document/network-interest-rate
           
           carbon-cost ::document/carbon-cost
+          carbon-cap ::document/carbon-cap
           gas-price ::document/gas-price
           biomass-price ::document/biomass-price
           electricity-in-price ::document/electricity-import-price
@@ -129,28 +133,29 @@
         ;; the optimiser takes tariffs in kMoney/MWh
         ;; so this is money/kwh, so divide 100 is p/kwh
         ;; similarly for prices
-        discount-rate (float (/ discount-rate 100))
+        plant-interest-rate   (float (/ plant-interest-rate 100))
+        network-interest-rate (float (/ network-interest-rate 100))
         
-        biomass-price (float (/ biomass-price 100))
-        electricity-in-price (float (/ electricity-in-price 100))
+        biomass-price         (float (/ biomass-price 100))
+        electricity-in-price  (float (/ electricity-in-price 100))
         electricity-out-price (float (/ electricity-out-price 100))
-        gas-price (float (/ gas-price 100))
-        heat-price (float (/ heat-price 100))
+        gas-price             (float (/ gas-price 100))
+        heat-price            (float (/ heat-price 100))
         ]
 
     (-> output
         (update :infrastructures
                 #(map
                   (fn [i] (assoc i
-                                 :period period
-                                 :discountRate discount-rate))
+                                 :period (float network-period)
+                                 :discountRate network-interest-rate))
                   %))
 
         (update :processes
                 #(map (fn [p]
                         (assoc p
-                               :period period
-                               :discountRate discount-rate))
+                               :period (float plant-period)
+                               :discountRate plant-interest-rate))
                       %))
 
         (assoc-in [:resflow :tariffs]
@@ -176,12 +181,13 @@
                                 :emissions biomass-emissions)
                      (->> (mapcat second))))
 
+        (update :resflow assoc
+                :carbonCap (float carbon-cap)
+                :ghgWeight (float carbon-cost))
+
         (update :resources
                 #(map (fn [res]
                         (assoc res :maxImportCells number-of-candidates)) %))
-
-        (assoc-in [:resflow :npvrate]   discount-rate)
-        (assoc-in [:resflow :npvperiod] period)
         )))
 
 ;; TODO candidates with several connection points are not handled.
@@ -406,7 +412,7 @@
               :optional 0
               :required 1
               0)
-            (or (/ (attr/attr net-graph (vec edge) :cost) 1000) 0)
+            (float (or (/ (attr/attr net-graph (vec edge) :cost) 1000) 0))
             ]))
 
         process-locations
