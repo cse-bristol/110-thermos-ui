@@ -93,7 +93,7 @@
                      :display :inline-block}}
         "Technologies"]
         [:button.button {:style {:margin-left :auto}
-                         :on-click #(reset! editing-technology {})}
+                         :on-click #(reset! editing-technology {::technology/fuel :gas})}
          "Add ⊕"]]
        
        [virtual-table/component
@@ -139,9 +139,15 @@
 
 (defn- objective-editor [document]
   (reagent/with-let
-    [period (reagent/cursor document [::document/objective ::document/period])
-     discount-rate (reagent/cursor document [::document/objective ::document/discount-rate])
-     carbon-cost(reagent/cursor document [::document/objective ::document/carbon-cost])
+    [plant-period (reagent/cursor document [::document/objective ::document/plant-period])
+     plant-interest-rate (reagent/cursor document [::document/objective ::document/plant-interest-rate])
+
+     network-period (reagent/cursor document [::document/objective ::document/network-period])
+     network-interest-rate (reagent/cursor document [::document/objective ::document/network-interest-rate])
+
+     carbon-cost (reagent/cursor document [::document/objective ::document/carbon-cost])
+
+     carbon-cap (reagent/cursor document [::document/objective ::document/carbon-cap])
 
      electricity-import-price (reagent/cursor document [::document/objective ::document/electricity-import-price])
      electricity-export-price (reagent/cursor document [::document/objective ::document/electricity-export-price])
@@ -155,10 +161,10 @@
      gas-carbon (reagent/cursor document [::document/objective ::document/gas-emissions])
      biomass-carbon (reagent/cursor document [::document/objective ::document/biomass-emissions])
      ]
-    [:div {:style {:flex 1 :display :flex :flex-direction :row}}
-
-     [:div
-      [:h1 {:style {:font-weight :bold :font-size :18pt :display :block}} "Objective"]
+    [:div {:style {:flex 1 :display :flex :flex-direction :row :margin-top :1em}}
+     [:div {:style {:margin-left :auto :margin-right :auto}}
+      [:h1 {:style {:font-weight :bold :font-size :18pt :display :block}}
+       "Capital costs"]
 
       [:table
        [:thead
@@ -166,13 +172,16 @@
        
        [:tbody
         
-        [:tr [:td "NPV"]
-         [:td [input/number :value-atom period :step 1 :max 50 :min 1]]
-         [:td [input/number :value-atom discount-rate :step 0.01 :max 50 :min 1]]]
-        
+        [:tr [:td "Plant"]
+         [:td [input/number :value-atom plant-period :step 1 :max 50 :min 1]]
+         [:td [input/number :value-atom plant-interest-rate :step 0.01 :max 50 :min 1]]]
+
+        [:tr [:td "Network"]
+         [:td [input/number :value-atom network-period :step 1 :max 50 :min 1]]
+         [:td [input/number :value-atom network-interest-rate :step 0.01 :max 50 :min 1]]]
         ]
        ]]
-     [:div
+     [:div {:style {:margin-left :auto :margin-right :auto}}
       [:h1 {:style {:font-weight :bold :font-size :18pt :display :block}}
        "Resource costs"]
       [:table
@@ -192,5 +201,22 @@
            [:td (when revenue [input/number :value-atom revenue :step 0.01 :max 9 :min 0])]
            [:td (when carbon [input/number :value-atom carbon :step 0.01 :max 9 :min 0])]])]
        ]]
+     [:div {:style {:margin-left :auto :margin-right :auto}}
+      [:h1 {:style {:font-weight :bold :font-size :18pt :display :block}}
+       "Emissions limits"]
+
+      [:table
+       [:tbody
+        [:tr
+         [:td "Cost of carbon"]
+         [:td [input/number :value-atom carbon-cost :step 0.01 :min 0 :max 100]]
+         ]
+        [:tr
+         [:td "Carbon limit"]
+         [:td [input/number :value-atom carbon-cap :step 1 :max 1e12 :min 0]]
+         ]
+        ]
+       ]]
+     
      
      ]))
