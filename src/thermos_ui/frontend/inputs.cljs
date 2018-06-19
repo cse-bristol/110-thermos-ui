@@ -37,7 +37,7 @@
 
 (defn select [& {:keys [value-atom values]}]
   [:select
-   {:default @value-atom
+   {:value @value-atom
     :on-change
     (when value-atom #(reset! value-atom (keyword (.. % -target -value))))}
    
