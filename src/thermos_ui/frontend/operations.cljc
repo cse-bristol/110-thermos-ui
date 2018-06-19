@@ -312,12 +312,7 @@
   (case filter-key
     ;; For `name` field just set the filter value to nil
     ::candidate/name
-    (assoc-in document
-              [::view/view-state ::view/table-state ::view/filters filter-key] nil)
-    ;; Default case, for the other fields which are all checkbox filters
-    (assoc-in document
-              [::view/view-state ::view/table-state ::view/filters filter-key]
-              #{})))
+    (update-in document [::view/view-state ::view/table-state ::view/filters] dissoc filter-key)))
 
 (defn get-filtered-candidates
   "Returns all candidates which are constrained and meet the filter criteria."
