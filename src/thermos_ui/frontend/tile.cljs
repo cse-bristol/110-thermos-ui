@@ -56,7 +56,7 @@
 
     (doseq [candidate contents]
       (when (> zoom (::spatial/minimum-zoom candidate))
-        (render-candidate has-solution? candidate ctx project geometry-key)))
+        (render-candidate zoom has-solution? candidate ctx project geometry-key)))
     ))
 
 (defn render-candidate
@@ -64,7 +64,7 @@
   `candidate` is a candidate map,
   `ctx` is a Canvas graphics context (2D)
   `project` is a function to project from real space into the canvas pixel space"
-  [solution candidate ctx project geometry-key]
+  [zoom solution candidate ctx project geometry-key]
 
   (let [selected (::candidate/selected candidate)
         inclusion (::candidate/inclusion candidate)
@@ -78,10 +78,12 @@
         filtered (:filtered candidate)
         ]
     (set! (.. ctx -lineWidth)
-      (cond
-        selected 4
-        included 1.5
-        true 1))
+          (+
+           (if (> zoom 17) 0.5 0)
+           (cond
+             selected 4
+             included 1.5
+             true 1)))
 
     (when solution
       (.setLineDash
@@ -91,10 +93,14 @@
          #js [3 3])))
     
     (set! (.. ctx -strokeStyle)
-          (case inclusion
-            :required theme/red
-            :optional theme/blue
-            theme/white))
+          (cond
+            (and solution
+                 (not in-solution)
+                 (= inclusion :optional)) theme/cyan
+            (= inclusion :required) theme/red
+            (= inclusion :optional) theme/blue
+
+            :otherwise theme/white))
 
     (set! (.. ctx -fillStyle)
           (if is-supply
@@ -107,7 +113,7 @@
             (if selected theme/dark-grey theme/light-grey)))
 
     (set! (.. ctx -globalAlpha)
-          (if filtered 1 0.75))
+          (if filtered 1 0.25))
     
     )
 

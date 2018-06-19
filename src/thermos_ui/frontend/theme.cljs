@@ -45,6 +45,7 @@
 (def light-grey "#bbbbbb")
 (def dark-grey "#555555")
 (def green "#98fb98")
+  (def cyan "#00ccaa")
 
 (def light-purple-stripes
   (create-stripes "#fff" light-grey 4 8)
