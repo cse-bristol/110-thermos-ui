@@ -36,6 +36,7 @@
     [:div.results_view
      (let [{status ::solution/status
             value ::solution/objective-value
+            runtime ::solution/runtime
             metrics ::solution/metrics} @solution
 
            {supplies :supply
@@ -63,7 +64,9 @@
        (case status
          (:feasible :optimal)
          [:div
-          [:h1 "Objective value " (si-number (* 1000 value)) ", solution " (name status)]
+          [:h1 "Objective value " (si-number (* 1000 value)) ", solution " (name status)
+           " (" (/ runtime 1000) "s)"
+           ]
           
           [:h1 "Metrics"]
 
