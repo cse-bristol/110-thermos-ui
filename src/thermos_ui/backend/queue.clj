@@ -134,11 +134,31 @@
 
 (defn status [queue job-id]
   (db/with-connection [c (:database queue)]
-    (-> (select :id :queue :args :state)
-        (from :jobs)
-        (where [:= :id job-id])
-        (sql/format)
-        (->> (jdbc/fetch c))
-        (first)
-        (db->task))))
+    (let [result (-> (select :id :queue :args :state)
+                     (from :jobs)
+                     (where [:= :id job-id])
+                     (sql/format)
+                     (->> (jdbc/fetch c))
+                     (first)
+                     (db->task))
+
+          position (when result
+                     (-> (select :%count.*)
+                         (from :jobs)
+                         (where [:and
+                                 [:= :queue (name (:queue result))]
+                                 [:< :id (:id result)]
+                                 [:or
+                                  [:= :state (label->state :queued)]
+                                  [:= :state (label->state :running)]]])
+                         (sql/format)
+                         (->> (jdbc/fetch c))
+                         (first)))
+          
+          
+          ]
+      
+      (when result
+        (assoc result :after (:count position)))
+      )))
 

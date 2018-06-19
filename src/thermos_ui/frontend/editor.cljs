@@ -151,10 +151,14 @@
                        :z-index 1000000
                        :width :100%
                        :height :100%
+                       :display :flex
                        :background "rgba(0,0,0,0.75)"}}
-              [:b {:style {:color :white}} run-state]])
-           )
-         
+              [:b {:style {:color :white
+                           :margin :auto
+                           :font-size :3em}}
+               (if (= :queued run-state)
+                 [:span "Number " (state/queue-position) " in queue"]
+                 [:span "Running..."])]]))
          
          (case (or @selected-tab :candidates)
            :candidates
@@ -178,7 +182,8 @@
            )
          
          [popover/component state/state]
-         [toaster/component]])))
+         [toaster/component]]
+        )))
 
   (defn on-js-reload [])
 

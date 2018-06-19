@@ -26,9 +26,7 @@
            (or t
                (js/setInterval
                 maybe-update-run-state
-                1500))))
-  (println @run-state-timer)
-  )
+                1500)))))
 
 (defn cancel-run-state-timer []
   (swap! run-state-timer
@@ -37,6 +35,7 @@
            nil)))
 
 (defn is-running? [] (:last-state @run-state))
+(defn queue-position [] (:after @run-state))
 
 (defn get-last-save [] (:last-load @run-state))
 
@@ -45,8 +44,11 @@
     (io/get-run-status
      org proj id
      (fn [result]
-       (let [state (keyword (get result "state"))]
-         (swap! run-state assoc :last-state state)
+       (let [state (keyword (get result "state"))
+             after (get result "after")]
+         (swap! run-state assoc
+                :last-state state
+                :after after)
          (when (#{:queued :running} state)
            (start-run-state-timer)))))))
 
