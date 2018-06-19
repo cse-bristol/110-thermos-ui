@@ -8,4 +8,5 @@
 
  :solver-directory "solver-work"
  :solver-command "/home/hinton/p/110-thermos/solver/SpatialEnergyModel/pyomo/run-solver"
+ :solver-count 4
  }

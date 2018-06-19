@@ -22,38 +22,41 @@
 
 (declare run-one-task)
 
-(defrecord Queue [database poll-thread consumers]
+(defrecord Queue [database poll-threads consumers count]
   component/Lifecycle
 
   (start [component]
     (let [consumers (atom {})
 
-          thread (Thread. (fn []
-                            (try
-                              (loop []
-                                (run-one-task (:database component) @consumers)
-                                (Thread/sleep 1000)
-                                (recur))
-                              (catch InterruptedException e))))
+          threads
+          (doall
+           
+           (for [i (range 0 (or count 1))]
+             (Thread. (fn []
+                        (try
+                          (loop []
+                            (run-one-task (:database component) @consumers)
+                            (Thread/sleep 1000)
+                            (recur))
+                          (catch InterruptedException e))))))
           ]
-      (.start thread)
-      (println "Consumer thread started")
+      (doseq [thread threads] (.start thread))
+      (println "Consumer threads started")
       (assoc component
-             :poll-thread thread
+             :poll-threads threads
              :consumers consumers)))
   
   (stop [component]
-    (.interrupt (:poll-thread component))
+    (doseq [thread (:poll-threads component)]
+      (.interrupt thread))
+    
     (assoc component
-           :poll-thread nil
+           :poll-threads nil
            :consumers nil)))
 
-(defn new-queue []
-  (map->Queue {}))
-
-(defn task->db [task]
-  
-  )
+(defn new-queue [config]
+  (map->Queue {:count
+               (Integer/parseInt (:solver-count config))}))
 
 (defn db->task [task]
   (-> task

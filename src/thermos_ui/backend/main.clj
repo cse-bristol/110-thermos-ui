@@ -30,7 +30,7 @@
      :database (new-database config)
 
      :queue (component/using
-             (new-queue)
+             (new-queue config)
              [:database])
 
      :solver (component/using
