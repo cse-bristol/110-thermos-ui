@@ -347,13 +347,9 @@
     (if (showing-forbidden? doc)
       doc
       (update-in doc [::document/candidates]
-                 #(select-keys % (constrained-candidates-ids doc))
-                 )
-      )
-    ))
+                 #(select-keys % (constrained-candidates-ids doc))))))
 
 (defn remove-solution [doc]
   (-> doc
       (dissoc ::solution/solution)
       (map-candidates #(dissoc % ::solution/candidate))))
-
