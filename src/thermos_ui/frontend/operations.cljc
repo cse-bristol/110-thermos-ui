@@ -117,7 +117,7 @@
               (persistent!
                (reduce (fn [candidates id]
                          (assoc! candidates id (update-fn (get candidates id))))
-                       (transient candidates)
+                       (transient (or candidates {}))
                        (keys candidates)))))))
 
 (defn select-all-candidates [doc]
