@@ -133,28 +133,33 @@
         ;; the optimiser takes tariffs in kMoney/MWh
         ;; so this is money/kwh, so divide 100 is p/kwh
         ;; similarly for prices
-        plant-interest-rate   (float (/ plant-interest-rate 100))
-        network-interest-rate (float (/ network-interest-rate 100))
+        plant-interest-rate   (float (/ (or plant-interest-rate 0) 100))
+        network-interest-rate (float (/ (or network-interest-rate 0) 100))
         
-        biomass-price         (float (/ biomass-price 100))
-        electricity-in-price  (float (/ electricity-in-price 100))
-        electricity-out-price (float (/ electricity-out-price 100))
-        gas-price             (float (/ gas-price 100))
-        heat-price            (float (/ heat-price 100))
+        biomass-price         (float (/ (or biomass-price 0) 100))
+        electricity-in-price  (float (/ (or electricity-in-price 0) 100))
+        electricity-out-price (float (/ (or electricity-out-price 0) 100))
+        gas-price             (float (/ (or gas-price 0) 100))
+        heat-price            (float (/ (or heat-price 0) 100))
+
+        network-period (float (or network-period 1))
+        plant-period (float (or plant-period 1))
+        carbon-cap (float (or carbon-cap 10000000000))
+        carbon-cost (float (or carbon-cost 0))
         ]
 
     (-> output
         (update :infrastructures
                 #(map
                   (fn [i] (assoc i
-                                 :period (float network-period)
+                                 :period network-period
                                  :discountRate network-interest-rate))
                   %))
 
         (update :processes
                 #(map (fn [p]
                         (assoc p
-                               :period (float plant-period)
+                               :period plant-period
                                :discountRate plant-interest-rate))
                       %))
 
@@ -182,8 +187,8 @@
                      (->> (mapcat second))))
 
         (update :resflow assoc
-                :carbonCap (float carbon-cap)
-                :ghgWeight (float carbon-cost))
+                :carbonCap carbon-cap
+                :ghgWeight carbon-cost)
 
         (update :resources
                 #(map (fn [res]
@@ -502,8 +507,6 @@
                                         (keyword)
                                         )))
 
-        _ (def *last-results* results-json)
-        
         termination-condition
         (or (keyword (get-in results-json [:solver 0 :termination-condition]))
             :no-solution)
