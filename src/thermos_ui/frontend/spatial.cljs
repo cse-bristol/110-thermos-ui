@@ -2,6 +2,7 @@
   (:require [clojure.set :as set]
             [thermos-ui.specs.candidate :as candidate]
             [thermos-ui.specs.document :as document]
+            [thermos-ui.specs.view :as view]
             [thermos-ui.frontend.operations :as operations]
             [cljsjs.rbush :as rbush]
             [cljsjs.jsts :as jsts]
@@ -168,3 +169,25 @@ the selection `mode` (passed on to operations/select) and maybe the index"
   not being in the problem or selected."
   [doc shape]
   )
+
+(defn zoom-to-selection [doc]
+  (let [selected-candidates (operations/selected-candidates doc)
+        selected-candidates (if (empty? selected-candidates)
+                              (operations/constrained-candidates doc)
+                              selected-candidates)]
+    (if (empty? selected-candidates)
+      doc
+      (let [minX (apply min (map #(:minX (::bbox %)) selected-candidates))
+            maxX (apply max (map #(:maxX (::bbox %)) selected-candidates))
+            minY (apply min (map #(:minY (::bbox %)) selected-candidates))
+            maxY (apply max (map #(:maxY (::bbox %)) selected-candidates))
+            new-bbox {:north maxY
+                      :south minY
+                      :east maxX
+                      :west minX}
+            ]
+        (operations/move-map doc new-bbox)
+        ))))
+
+
+

@@ -13,14 +13,6 @@
      [:button.leaflet-control-button
       {:style {:font-size "30px"}
        :title "Zoom to selection (z)"
-       :on-click (fn [e]
-                   (let [selected-candidates (operations/selected-candidates @state/state)
-                         selected-candidates-geometries (map #(::candidate/geometry %) selected-candidates)
-                         minX (apply min (map #(:minX (::spatial/bbox %)) selected-candidates))
-                         maxX (apply max (map #(:maxX (::spatial/bbox %)) selected-candidates))
-                         minY (apply min (map #(:minY (::spatial/bbox %)) selected-candidates))
-                         maxY (apply max (map #(:maxY (::spatial/bbox %)) selected-candidates))]
-                     (.flyToBounds leaflet-map (clj->js [[minY minX] [maxY maxX]]) #js{:animate false})
-                     ))
+       :on-click #(state/edit! state/state spatial/zoom-to-selection)
        }
       "⌖"]]))
