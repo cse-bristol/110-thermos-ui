@@ -24,6 +24,7 @@
        [:input#map-search-input.map-search__input
         {:type "text"
          :placeholder "Search..."
+         :on-key-press #(.stopPropagation %)
          :on-key-up (fn [e]
                       ;; Allows us to use the event in the callback below
                       (.persist e)
