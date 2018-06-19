@@ -328,11 +328,10 @@
               (if (string? v)
                 ;; If the filter is a string then check if the item matches the string in a fuzzy way.
                 (let [regex-pattern (re-pattern (str "(?i)" (str/join ".*" (str/split v #"")) ".*"))]
-                  (not-empty
-                   (re-seq regex-pattern (k item))))
+                  (when-let [vk (k item)]
+                    (re-find regex-pattern vk)))
                 ;; If the filter is a set of values the check if the item matches one of them exactly.
-                (or (empty? v) (contains? v (k item)))
-                )
+                (or (empty? v) (contains? v (k item))))
               false))
           true
           filters))
