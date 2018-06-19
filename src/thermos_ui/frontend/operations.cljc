@@ -143,7 +143,8 @@
 
 
 (defn rotate-candidates-inclusion [doc candidate-ids]
-  (when-not (empty? candidate-ids)
+  (if (empty? candidate-ids)
+    doc
     (let [inclusion (get-in doc [::document/candidates
                                  (first candidate-ids)
                                  ::candidate/inclusion])]
