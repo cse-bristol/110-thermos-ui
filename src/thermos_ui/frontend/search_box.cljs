@@ -10,12 +10,12 @@
 (defn component
   "The search box component"
   [leaflet-map]
-  (let [results (reagent/atom [])
-        active-result (reagent/atom nil)
-        active (reagent/atom false)
-        timeout (reagent/atom nil)]
-    (fn []
-      [:div {:class (str "map-search__container"
+  (reagent/with-let [results (reagent/atom [])
+                     active-result (reagent/atom nil)
+                     active (reagent/atom false)
+                     input-value (reagent/atom "")
+                     timeout (reagent/atom nil)]
+    [:div {:class (str "map-search__container"
                          (if @active " map-search__container--active")
                          (if (not-empty @results) " map-search__container--has-results"))
              ;; This is not ideal, but it works - we need to set the z index of this element's parent
@@ -23,57 +23,57 @@
              :ref (fn [element] (if element (set! (.. element -parentNode -style -zIndex) 801)))}
        [:input#map-search-input.map-search__input
         {:type "text"
+         :value @input-value
          :placeholder "Search..."
-         :on-key-press #(.stopPropagation %)
+
+         ;; this horrible hack appears to be needed
+         ;; because of react's weird event stuff
+         :ref #(when %
+                 (.addEventListener % "keypress"
+                                    (fn [e] (.stopPropagation e))
+                                    false))
+         
+         :on-change #(reset! input-value (.. % -target -value))
          :on-key-up (fn [e]
-                      ;; Allows us to use the event in the callback below
-                      (.persist e)
-                      ;; Use a timeout to wait 0.25s after user has stopped typing before searching
                       (js/clearTimeout @timeout)
-                      (reset! timeout
-                              (js/setTimeout
-                               (fn []
-                                 (if (and (not= e.key "ArrowUp") (not= e.key "ArrowUp"))
-                                   (perform-search e.target.value results))) 250))
+                      
+                      (case (.-key e)
+                        "ArrowUp"
+                        (when-not (empty? @results)
+                          (.preventDefault e)
+                          
+                          (cond
+                            (= @active-result 0) (reset! active-result nil)
+                            (> @active-result 0) (swap! active-result dec)
+                            (nil? @active-result) (reset! active-result (- (count @results) 1))))
+                        
+                        "ArrowDown"
+                        (when-not (empty? @results)
+                          (.preventDefault e)
+                          (cond
+                            (nil? @active-result) (reset! active-result 0)
+                            (= @active-result (- (count @results) 1)) (reset! active-result nil)
+                            (>= @active-result 0) (swap! active-result inc)))
 
-                      ;; When you click the up or down keys cycle through the results
-                      (if (not-empty @results)
-                        (do
-                          ;; UP arrow
-                          (if (= e.key "ArrowUp")
-                            (do (.preventDefault e)
-                              (cond
-                                (= @active-result 0) (reset! active-result nil)
-                                (> @active-result 0) (swap! active-result dec)
-                                (nil? @active-result) (reset! active-result (- (count @results) 1)))))
-
-                          ;; DOWN arrow
-                          (if (= e.key "ArrowDown")
-                            (cond
-                              (nil? @active-result) (reset! active-result 0)
-                              (= @active-result (- (count @results) 1)) (reset! active-result nil)
-                              (>= @active-result 0) (swap! active-result inc)
-                              )))
-                        )
-
-                      ;; If you press enter while on a result, go there!
-                      (if (and (= e.key "Enter") (some? @active-result))
-                        (do
+                        "Enter" ;; If you press enter while on a result, go there!
+                        (when (some? @active-result)
                           (let [result (nth @results @active-result)]
                             (fly-to-result leaflet-map result)
                             (.blur e.target)
-                            (set! e.target.value "")
-                            (reset! results []))))
+                            (set! (.. e -target -value) "")
+                            (reset! results [])))
 
-                      ;; If you press ESC, blur from the input
-                      (if (= e.key "Escape")
+                        "Escape"
                         (do (.blur e.target)
-                          (set! e.target.value "")
-                          (reset! results [])))
-                      )
+                            (set! (.. e -target -value) "")
+                            (reset! results []))
+
+                        ;; default case it's a normal key
+                        (reset! timeout (js/setTimeout #(perform-search @input-value results) 250))))
+         
          :on-focus (fn [e] (reset! active true))
-         :on-blur (fn [e] (reset! active false))
-         }]
+         :on-blur (fn [e] (reset! active false))}
+        ]
        [:i.map-search__icon]
 
        ;; The list of results
@@ -84,7 +84,7 @@
                     (let [is-active (= index @active-result)]
                       (result-item leaflet-map result is-active index results)))
                   @results)))]
-       ])))
+     ]))
 
 (defn result-item
   "Child component for a single result in the list."
