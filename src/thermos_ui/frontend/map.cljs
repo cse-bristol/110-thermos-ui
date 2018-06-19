@@ -56,15 +56,43 @@
       :component-will-unmount (partial unmount watches)
       })))
 
-(def esri-sat-imagery
-  (js/L.tileLayer
-      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-      (clj->js {})))
+(def basemaps
+  {:none
+   (js/L.tileLayer "")
+
+   :stamen-toner-lite
+   (js/L.tileLayer
+    "https:///stamen-tiles-{s}.a.ssl.fastly.net/toner-background/{z}/{x}/{y}.png"
+    (clj->js {:subdomains "abcd"
+              :minZoom 0
+              :maxZoom 20}))
+   
+   :satellite
+   (js/L.tileLayer
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    (clj->js {}))})
+
+(def basemap-names
+  {:none "None"
+   :stamen-toner-lite "Maps"
+   :stamen-labels "Road names"
+   :satellite "Satellite"})
 
 (def heat-density-layer
   (js/L.tileLayer
    "/heat-map-tiles/{z}/{x}/{y}.png"
-   (clj->js {:opacity 0.5})))
+   (clj->js {:opacity 0.5
+             :minZoom 14
+             :maxZoom 20})))
+
+(def labels-layer
+  (js/L.tileLayer
+   "https://cartodb-basemaps-{s}.global.ssl.fastly.net/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png"
+   (clj->js {:subdomains "abcd"
+             :minZoom 14
+             :maxZoom 20})
+   )
+  )
 
 (defn mount
   "Make a leaflet control when this component is being put on screen"
@@ -88,7 +116,10 @@
         ;; to the server for tile data, so if the tilesize changes, effectively
         ;; the meaning of the zoom, or equivalently the x and y changes too.
         ;; Halve this => increase zoom by 1 in queries below.
-        candidates-layer (candidates-layer. (clj->js {:tileSize 256}))
+        candidates-layer (candidates-layer. (clj->js {:tileSize 256
+                                                      :minZoom 16
+                                                      :maxZoom 20
+                                                      }))
 
         draw-control (draw-control {:position :topleft
                                     :draw {:polyline false
@@ -97,13 +128,21 @@
                                            :circlemarker false
                                            :circle false
                                            }})
-        
-        none-layer (js/L.tileLayer "")
+
+        normal-layers {::view/candidates-layer candidates-layer
+                       ::view/heat-density-layer heat-density-layer
+                       ::view/labels-layer labels-layer
+                       }
         
         layers-control (layers-control
-                        {"Satellite" esri-sat-imagery "None" none-layer}
+                        (into {}
+                              (for [[k v] basemaps]
+                                [(or (basemap-names k)
+                                     (name k)) v]))
+                        
                         {"Candidates" candidates-layer
                          "Heatmap" heat-density-layer
+                         "Labels" labels-layer
                          })
 
         search-control (create-leaflet-control search-box/component)
@@ -129,39 +168,39 @@
         map-layers (reagent/cursor document [::view/view-state ::view/map-layers])
 
         show-map-layers!
-        #(let [{basemap ::view/basemap-layer
-                candidates ::view/candidates-layer
-                heat-density ::view/heat-density-layer :as target-state}
-               @map-layers
+        #(let [target-state @map-layers
 
+               target-state
+               (merge
+                (into {} (for [[k _] normal-layers] [k false]))
+                target-state)
+               
                visible-state
-               {::view/basemap-layer
-                (if (.hasLayer map esri-sat-imagery) :satellite
-                    :none)
-                ::view/candidates-layer (.hasLayer map candidates-layer)
-                ::view/heat-density-layer (.hasLayer map heat-density-layer)}]
-
+               (merge
+                {::view/basemap-layer
+                 (first (keep
+                         (fn [[k v]] (when (.hasLayer map v) k))
+                         basemaps))}
+                (into {} (for [[k v] normal-layers] [k (.hasLayer map v)])))
+               ]
+           (println "setting layer visibilty from state"
+                    (::view/basemap-layer target-state)
+                    (::view/basemap-layer visible-state))
+           
            (when (not= target-state visible-state)
-             (doseq [l [none-layer
-                        esri-sat-imagery
-                        heat-density-layer
-                        candidates-layer]]
+             (doseq [l (concat
+                        (vals basemaps)
+                        (vals normal-layers))]
+
                (when (.hasLayer map l)
                  (.removeLayer map l)))
 
-             (case basemap
-               :satellite
-               (.addLayer map esri-sat-imagery)
-               
-               (.addLayer map none-layer))
-             
-             (when candidates
-               (.addLayer map candidates-layer))
+             (when-let [basemap (basemaps (::view/basemap-layer target-state))]
+               (.addLayer map basemap))
 
-             (when heat-density
-               (.addLayer map heat-density-layer))
-             )
-           )
+             (doseq [[k v] normal-layers]
+               (when (get target-state k)
+                 (.addLayer map v)))))
         
         map-bounding-box (reagent/cursor document [::view/view-state ::view/bounding-box])
         
@@ -288,23 +327,19 @@
     
     (let [watch-layers (fn [e]
                          (let [layer (o/get e "layer" nil)
-                               layer-visible (.hasLayer map layer)]
+                               layer-visible (.hasLayer map layer)
+                               basemap-key ((set/map-invert basemaps) layer)
+                               normal-key ((set/map-invert normal-layers) layer)
+                               ]
                            (cond
-                             (and layer-visible (= esri-sat-imagery layer))
-                             (swap! map-layers assoc ::view/basemap-layer :satellite)
+                             (and layer-visible basemap-key)
+                             (swap! map-layers assoc ::view/basemap-layer basemap-key)
 
-                             (and layer-visible (= none-layer layer))
-                             (swap! map-layers assoc ::view/basemap-layer :none)
-
-                             (= layer heat-density-layer)
-                             (swap! map-layers assoc ::view/heat-density-layer
-                                    layer-visible)
-                             
-                             (= layer candidates-layer)
-                             (swap! map-layers assoc ::view/candidates-layer
-                                    layer-visible)))
-                         (println "Map layers changed:" @map-layers)
-                         )]
+                             normal-key
+                             (swap! map-layers assoc normal-key layer-visible)))
+                         (println "updating layers due to watch")
+                         )
+          ]
       
       (.on map "overlayadd" watch-layers)
       (.on map "overlayremove" watch-layers)
@@ -620,7 +655,7 @@
         
         clicked-candidates (spatial/find-intersecting-candidates-ids document-value click-range)
 
-        update-selection (if (empty? (set/intersection current-selection clicked-candidates))
+        update-selection (if (empty? (set/intersection (set current-selection) (set clicked-candidates)))
                            #(operations/select-candidates % clicked-candidates :replace)
                            identity)
         ]
