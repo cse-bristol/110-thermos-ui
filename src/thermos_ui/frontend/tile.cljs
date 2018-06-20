@@ -54,10 +54,16 @@
 
     (.clearRect ctx 0 0 width height)
 
-    (doseq [candidate contents]
-      (when (> zoom (::spatial/minimum-zoom candidate))
-        (render-candidate zoom has-solution? candidate ctx project geometry-key)))
-    ))
+    
+    (let [paths (atom nil)]
+      (doseq [candidate contents]
+        (when (> zoom (::spatial/minimum-zoom candidate))
+          (if (= :path (::candidate/type candidate))
+            (swap! paths conj candidate)
+            (render-candidate zoom has-solution? candidate ctx project geometry-key))
+          ))
+      (doseq [path @paths]
+        (render-candidate zoom has-solution? path ctx project geometry-key)))))
 
 (defn render-candidate
   "Draw a shape for the candidate on a map.
