@@ -133,11 +133,9 @@
                       (or (= :running last-state)
                           (= :queued last-state)))
              (let [[org-name proj-name version] (state/get-last-save)]
-               (println "last save version " version)
                (state/load-document!
                 org-name proj-name version
                 (fn []
-                  (println "select solution tab?")
                   (state/edit! state/state
                                assoc-in
                                [::view/view-state ::view/selected-tab]
