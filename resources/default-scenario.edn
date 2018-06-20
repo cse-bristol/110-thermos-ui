@@ -41,7 +41,7 @@
   :solver
   {:iterationLimit 100000000,
    :resourceLimit 3600,
-   :terminationCriterion 0.05}},
+   :terminationCriterion 0.01}},
  :resources
  [{:minTransport 0.0,
    :exportPrice 0.048,
