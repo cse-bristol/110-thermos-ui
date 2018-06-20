@@ -147,8 +147,8 @@
                   [:tr {:key technology}
                    [:td technology]
                    
-                   [:td (* count (::technology/capacity tech))]
-                   [:td (* count (::technology/capital-cost tech))]
+                   [:td (si-number (* 1000000 count (::technology/capacity tech)))]
+                   [:td (si-number (* count (::technology/capital-cost tech)))]
                    [:td (si-number heat-output) "Wh/yr"]
                    [:td (si-number power-output) "Wh/yr"]
                    [:td (si-number fuel-input) "Wh/yr"]
@@ -168,16 +168,20 @@
              ]]
 
            [:tbody
-            (for [[class paths] (group-by ::candidate/subtype paths)]
+            (for [{class :subtype length :length cost :cost}
+                  (->> paths
+                       (group-by (comp tidy-class ::candidate/subtype))
+                       (map (fn [[k ps]] {:subtype k
+                                          :length (reduce + 0 (map ::candidate/length ps))
+                                          :cost (reduce + 0 (map ::candidate/path-cost ps))}))
+                       (sort-by :cost)
+                       (reverse))]
+              
               [:tr {:key class}
-               [:td (tidy-class class)]
-               [:td (add-up (map ::candidate/length paths))]
-
-               [:td (add-up (map ::candidate/path-cost paths))]
-               ]
-
-              )]
-           ]
+               [:td class]
+               [:td (si-number length)]
+               [:td (si-number cost)]])]]
+          
           [:h2 "Demands"]
           [:table
            [:thead
@@ -185,25 +189,24 @@
              [:th "Classification"]
              [:th "Count"]
              [:th "Heat demand"]
-             [:th "Revenue"] ;; need this one
+             ;; [:th "Revenue"]
+             ;; need this one
              ]
             ]
            [:tbody
-            (for [[class demands] (group-by ::candidate/subtype demands)]
+            (for [{class :subtype c :count d :demand}
+                  (->> demands
+                       (group-by (comp tidy-class ::candidate/subtype))
+                       (map (fn [[k ds]] {:subtype k
+                                          :count (count ds)
+                                          :demand (* 1000 (reduce + 0 (map ::candidate/demand demands)))}))
+                       (sort-by :demand)
+                       (reverse))
+                  ]
               [:tr {:key class}
-               [:td (tidy-class class)]
-               [:td (count demands)]
-               [:td (si-number
-                     (* 1000 (reduce + 0 (map ::candidate/demand demands)))
-                     ) "Wh/yr"]
-
-               ]
-              )
-            ]
-           ]
-
-
-          ]
+               [:td class]
+               [:td c]
+               [:td (si-number d ) "Wh/yr"]])]]]
 
          [:div
           [:h1 "No solution found"]
