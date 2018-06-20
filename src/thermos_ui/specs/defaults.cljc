@@ -6,53 +6,22 @@
 
 (declare large-chp small-chp small-boiler large-boiler heat-pump)
 
-(def large-chp
-  {::technology/id "Large CHP"
-   ::technology/fuel :gas
-   ::technology/capacity 5
-   ::technology/capital-cost 10000000
-   ::technology/heat-efficiency 0.2
-   ::technology/power-efficiency 0.4
-   }
-  )
+;; Name           Fuel        MW   Heat% Power% Cost
 
-(def small-chp
-  (assoc large-chp
-         ::technology/capacity 1
-         ::technology/capital-cost 1000000
-         ::technology/id "Small CHP"
-         ))
-
-(def large-boiler
-  {::technology/id "Gas Boiler"
-   ::technology/fuel :gas
-   ::technology/capacity 1
-   ::technology/capital-cost 500000
-   ::technology/heat-efficiency 0.3
-   }
-  )
-
-(def small-boiler
-  {::technology/id  "Biomass Boiler"
-   ::technology/fuel :biomass
-   ::technology/capacity 1
-   ::technology/capital-cost 600000
-   ::technology/heat-efficiency 0.35
-   }
-  )
-
-(def heat-pump
-  {::technology/id  "Heat Pump"
-   ::technology/fuel :electricity
-   ::technology/capacity 2
-   ::technology/capital-cost 1200000
-   ::technology/heat-efficiency 2.5
-   }
-  )
+(def technologies
+  [
+   #::technology {:id "Small CHP"        :fuel :gas         :capacity 1    :heat-efficiency 0.70 :power-efficiency 0.30 :capital-cost 100000}
+   #::technology {:id "Large CHP"        :fuel :gas         :capacity 10   :heat-efficiency 0.60 :power-efficiency 0.40 :capital-cost 800000}
+   #::technology {:id "Biomass Boiler"   :fuel :biomass     :capacity 1    :heat-efficiency 0.90                        :capital-cost 60000}
+   #::technology {:id "Tiny Gas Boiler"  :fuel :gas         :capacity 0.05 :heat-efficiency 0.90                        :capital-cost 2500}
+   #::technology {:id "Small Gas Boiler" :fuel :gas         :capacity 1    :heat-efficiency 0.95                        :capital-cost 30000}
+   #::technology {:id "Large Gas Boiler" :fuel :gas         :capacity 10   :heat-efficiency 0.95                        :capital-cost 250000}
+   #::technology {:id "Small Heat Pump"  :fuel :electricity :capacity 1    :heat-efficiency 2.50                        :capital-cost 800000}
+   #::technology {:id "Large Heat Pump"  :fuel :electricity :capacity 10   :heat-efficiency 4.00                        :capital-cost 5000000}
+   ])
 
 (def default-document
-  {::document/technologies
-   [small-chp large-chp small-boiler large-boiler heat-pump]
+  {::document/technologies technologies
 
    ::view/view-state
    {::view/map-layers {::view/basemap-layer :satellite
