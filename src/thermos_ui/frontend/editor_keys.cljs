@@ -32,7 +32,8 @@
 
 (defn- select-all! []
   (state/edit! state/state operations/select-candidates
-               (operations/constrained-candidates-ids @state/state)
+               (map ::candidate/id
+                    (operations/get-filtered-candidates @state/state))
                :replace))
 
 (defn handle-keypress [e]
