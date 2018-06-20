@@ -239,19 +239,20 @@
 (defn get-table-filters
   "Fetch the selected filters for the given `filter-key`, e.g. ::candidate/postcode."
   [document filter-key]
-  (->> document
-       ::view/view-state
-       ::view/table-state
-       ::view/filters
-       filter-key))
+  (get-in document
+          [::view/view-state
+           ::view/table-state
+           ::view/filters
+           filter-key]))
+
 
 (defn get-all-table-filters
   "Fetch the selected filters for all filterable properties."
   [document]
-  (->> document
-       ::view/view-state
-       ::view/table-state
-       ::view/filters))
+  (get-in document
+          [::view/view-state
+           ::view/table-state
+           ::view/filters]))
 
 (defn add-table-filter-value
   "Add a filter value to the table filter for a given candidate property.
@@ -319,24 +320,37 @@
   [doc]
   (let [items (constrained-candidates doc)
         filters (get-all-table-filters doc)]
-    (if (not-empty filters)
-      (filter
-       (fn [item]
-         (reduce-kv
-          (fn [init k v]
-            (if init
-              (if (string? v)
-                ;; If the filter is a string then check if the item matches the string in a fuzzy way.
-                (let [regex-pattern (re-pattern (str "(?i)" (str/join ".*" (str/split v #"")) ".*"))]
-                  (when-let [vk (k item)]
-                    (re-find regex-pattern vk)))
-                ;; If the filter is a set of values the check if the item matches one of them exactly.
-                (or (empty? v) (contains? v (k item))))
-              false))
-          true
-          filters))
-       items)
-      items)))
+    
+    (if (empty? filters) items
+        (let [filter->fn
+              (fn [[key value]]
+                (let [test-value
+                      (cond
+                        (string? value)
+                        (let [pattern (re-pattern (str "(?i)" (str/join ".*" (str/split value #"")) ".*"))]
+                          #(and % (re-find pattern %)))
+
+                        (and (set? value) (not-empty value))
+                        value
+                        
+                        :otherwise
+                        (constantly true))
+
+                      get-value
+                      (if (seqable? key)
+                        #(get-in % key)
+                        #(get % key))]
+                  
+                  #(test-value (get-value %))))
+              
+              filter-fns
+              (map filter->fn filters)
+
+              overall-filter
+              (apply every-pred filter-fns)]
+
+          (filter overall-filter items)
+          ))))
 
 (defn showing-forbidden?
   [doc]

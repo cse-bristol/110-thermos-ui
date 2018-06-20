@@ -104,7 +104,7 @@
                        open-filter
                        filtered-candidates
                        candidates
-                       (comp ::solution/included ::solution/candidate)
+                       [::solution/candidate ::solution/included]
                        args
                        "checkbox"))}
           )
@@ -130,6 +130,7 @@
 (defn filterable-header-renderer
   "Custom render function for column headers which need to be filterable."
   [doc open-filter filtered-candidates items key args type]
+
   (reagent/as-element
    (let [is-open (= open-filter key)]
      [:span.ReactVirtualized__Table__headerTruncatedText
