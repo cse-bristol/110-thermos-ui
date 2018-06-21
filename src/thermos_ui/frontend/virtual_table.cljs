@@ -79,7 +79,9 @@
            ]))])))
 
 
-(defn render-keyword [arg] (name (o/get arg "cellData")))
+(defn render-keyword [arg] (if-let [v (o/get arg "cellData")]
+                             (name v)
+                             ""))
 
 (defn render-number [& {:keys [unit scale]
                         :or {unit "" scale 1}}]
