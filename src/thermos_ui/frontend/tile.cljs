@@ -117,7 +117,7 @@
             (if selected theme/dark-grey theme/light-grey)))
 
     (set! (.. ctx -globalAlpha)
-          (if filtered 1 0.25))
+          (if filtered 0.25 1))
     
     )
 

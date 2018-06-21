@@ -365,6 +365,23 @@
         tiles (atom #{})
         tile-id (atom 0)
 
+        just-candidates
+        (reagent/cursor doc [::document/candidates])
+
+        solution
+        (reagent/cursor doc [::solution/solution])
+        
+        filtered-candidates-ids
+        (reagent/track #(set (map ::candidate/id (operations/get-filtered-candidates @doc))))
+
+        ;; since we are going to react to this, we should make it its own atom
+        showing-forbidden?
+        (reagent/track #(operations/showing-forbidden? @doc))
+
+        any-filters?
+        (reagent/track #(not (empty? (operations/get-all-table-filters @doc))))
+
+
         ;; tiles are just canvas DOM elements
         make-tile
         (fn [coords layer]
@@ -398,54 +415,30 @@
                   (reagent/track
                    #(spatial/find-candidates-ids-in-bbox @just-index bbox))
 
-                  ;; this is a cursor into the document, used so that we only trigger
-                  ;; update-tile-contents on changes to the candidate set
-                  just-candidates
-                  (reagent/cursor doc [::document/candidates])
-
-                  solution
-                  (reagent/cursor doc [::solution/solution])
-
-                  filtered-candidates-ids
-                  (reagent/track #(set (map ::candidate/id (operations/get-filtered-candidates @doc))))
-
-                  ;; since we are going to react to this, we should make it its own atom
-                  showing-forbidden?
-                  (reagent/track #(operations/showing-forbidden? @doc))
-
-                  any-filters?
-                  (reagent/track #(not (empty? (operations/get-all-table-filters @doc))))
-
-                  ;; this atom contains the candidates that are in the tile
                   tile-contents
                   (reagent/track
                    (fn []
-                     (let [just-candidates @just-candidates
+                     (let [just-candidates     @just-candidates
                            tile-candidates-ids @tile-candidates-ids
-                           showing-forbidden? @showing-forbidden?
-                           any-filters? @any-filters?
-                           filtered-candidates-ids (if any-filters? @filtered-candidates-ids (constantly true))
-                           tile-candidates  (filter identity (map just-candidates tile-candidates-ids))
+                           showing-forbidden?  @showing-forbidden?
+                           any-filters?        @any-filters?
+                           tile-candidates (if showing-forbidden?
+                                             (keep just-candidates tile-candidates-ids)
+                                             (keep #(let [c (just-candidates %)]
+                                                      (when (not= :forbidden (::candidate/inclusion c)) c))
+                                                   tile-candidates-ids))
                            ]
-                       (map
-                         (fn [cand] (assoc cand :filtered (filtered-candidates-ids (::candidate/id cand))))
-                       (if showing-forbidden?
-                         tile-candidates
-                         (filter #(not= :forbidden (::candidate/inclusion %))
-                                 tile-candidates)
-                         ))
-                       )
-                     ))
+                       (if any-filters?
+                         (let [filtered-candidates-ids @filtered-candidates-ids]
+                           (map #(assoc % :filtered (not (filtered-candidates-ids (::candidate/id %)))) tile-candidates))
+                         tile-candidates))))
+
+                  tile-last-rendered-ids (atom {:normal #{} :special #{}})
+                  render-count (atom 0)
                   ]
 
               ;; If we are not showing forbidden candidates,
               ;; we don't want to bother rendering the tile if there is nothing in it
-                                ;; identify tiles with big red text
-                                ; (let [ctx (.getContext canvas "2d")]
-                                ;   (set! (.. ctx -font) "40px Sans")
-                                ;   (set! (.. ctx -fillStyle) "#ff0000")
-                                ;   (.fillText ctx (str tile-id) 40 40)
-                                ;   )
 
               (set! (.. canvas -coords) coords)
               (set! (.. canvas -tile-id) tile-id)
@@ -457,11 +450,21 @@
                               )
                             )
 
-                      (reagent/track!
-                            (fn []
-                              (tile/render-tile @solution @tile-contents canvas layer)
-                              ))))
-              )
+                           (reagent/track!
+                            (fn [] (tile/render-tile @solution @tile-contents canvas layer)
+
+
+                              ;; (let [ctx (.getContext canvas "2d")]
+                              ;;   (set! (.. ctx -font) "40px Sans")
+                              ;;   (set! (.. ctx -fillStyle) "#ff0000")
+                              ;;   (.fillText ctx (str tile-id "-" (swap! render-count inc)) 40 40)
+                              ;;   )
+
+
+                              )
+
+
+                            ))))
             canvas))
 
         create-tile (fn [coords] (this-as layer (make-tile coords layer)))
