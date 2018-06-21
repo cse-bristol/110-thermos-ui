@@ -26,7 +26,7 @@
                    :display :flex
                    }}
      [:div {:style {:margin :auto :background :#fff}}
-      [:table 
+      [:table
        [:tr
         [:td "Name"] [:td [input/text :value-atom id]]]
        [:tr
@@ -92,9 +92,7 @@
                      :font-size :18pt
                      :display :inline-block}}
         "Technologies"]
-        [:button.button {:style {:margin-left :auto}
-                         :on-click #(reset! editing-technology {::technology/fuel :gas})}
-         "Add ⊕"]]
+        ]
        
        [virtual-table/component
         {:items @tech
@@ -122,11 +120,19 @@
          :cellRenderer
          (fn [a] (reagent/as-element [:button.button
                                       {:on-click
-                                       #(reset! editing-technology (o/get a "rowData" nil))
-                                       }
+                                       #(reset! editing-technology (o/get a "rowData" nil))}
                                       "Edit"]))
+
+         :headerRenderer
+         (fn [a] (reagent/as-element
+                  [:button.button {:style {:margin-left :auto}
+                                   :on-click #(reset! editing-technology {::technology/fuel :gas})}
+                   "Add ⊕"]
+                  ))
          }
-        {:key :edit :label "" :disableSort true
+        {:key :delete
+
+         :disableSort true
          :cellRenderer
          (fn [a] (let [item (o/get a "rowData")]
                    (reagent/as-element [:button.button
