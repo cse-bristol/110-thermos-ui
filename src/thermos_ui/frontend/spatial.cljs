@@ -7,6 +7,7 @@
             [cljsjs.rbush :as rbush]
             [cljsjs.jsts :as jsts]
             [reagent.core :as reagent]
+            [goog.object :as o]
             ))
 
 (let [geometry-factory (jsts/geom.GeometryFactory.)
@@ -31,33 +32,30 @@
     [candidate]
     (let [json-geom (::candidate/geometry candidate)
           jsts-geom (.read geometry-reader json-geom)
-          jsts-simple-geom (.read geometry-reader
-                                  (::candidate/simple-geometry candidate))
+          ;; jsts-simple-geom (.read geometry-reader
+          ;;                         (::candidate/simple-geometry candidate))
           envelope (.getEnvelopeInternal jsts-geom)
-          bbox {:minX (.getMinX envelope)
-                :maxX (.getMaxX envelope)
-                :minY (.getMinY envelope)
-                :maxY (.getMaxY envelope)}
+
+          min-x (.getMinX envelope)
+          max-x (.getMaxX envelope)
+          min-y (.getMinY envelope)
+          max-y (.getMaxY envelope)
+          
+          bbox {:minX min-x
+                :maxX max-x
+                :minY min-y
+                :maxY max-y}
 
           ;; how many degrees is the biggest extent
-          max-extent (max (- (.getMaxX envelope)
-                             (.getMinX envelope))
-                          (- (.getMaxY envelope)
-                             (.getMinY envelope)))
+          ;; max-extent
+          ;; (max (- max-x min-x)
+          ;;                 (- max-y min-y))
 
-          visible-zoom
-          (- (first
-              (first
-               (filter
-                (fn [[zoom px]]
-                  (>= max-extent px))
-                zoom-table)))
-             1)
           ]
       (assoc candidate
              ::jsts-geometry jsts-geom
-             ::jsts-simple-geometry jsts-simple-geom
-             ::minimum-zoom visible-zoom
+;;             ::jsts-simple-geometry jsts-simple-geom
+;;             ::minimum-zoom visible-zoom
              ::bbox bbox))))
 
 (defn index-atom [document-atom]
@@ -84,11 +82,17 @@
              (set/difference removed)
              (set))
 
+         candidates (::document/candidates document)
+
+         ;; more horrible performance hackery
          added-candidates-bboxes
-         (into {}
-           (for [{id ::candidate/id bbox ::bbox}
-               (map (::document/candidates document) added)]
-           [id (clj->js (assoc bbox :id id))]))
+         (reduce
+          (fn [a id]
+            (let [bb (clj->js (::bbox (candidates id)))]
+              (o/set bb "id" id)
+              (assoc a id bb)))
+          {}
+          added)
          ]
 
      ;; put new items into the index based on their bounding boxes
@@ -124,9 +128,12 @@
 
 (defn find-candidates-ids-in-bbox
   [doc bbox]
-  (let [spatial-index (::spatial-index doc)
-        matches (if (nil? spatial-index) [] (js->clj (.search spatial-index (clj->js bbox)) :keywordize-keys true))]
-    (map :id matches)))
+  (let [spatial-index (::spatial-index doc)]
+    (if (nil? spatial-index) []
+        ;; this is a bit hacky to make some javascript interact faster.
+        (js->clj
+         (.map (.search spatial-index (clj->js bbox)) #(o/get % "id" nil))))))
+
 
 (defn find-intersecting-candidates-ids
   "Given `doc`, a document, and `shape`, a shape, and possibly having

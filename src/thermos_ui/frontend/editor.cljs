@@ -56,8 +56,6 @@
        )))
 
   (defonce unsaved? (r/atom false))
-  (defonce interesting-state (fn [] (document/keep-interesting @state/state)))
-  (defonce changed (reagent.ratom/run! (reset! unsaved? true) (r/track! interesting-state)))
   
   (defn map-page [document]
     (r/with-let [h-split-pos (r/cursor document
@@ -116,7 +114,7 @@
            :on-run (partial do-save true)
            :on-tab-switch #(reset! selected-tab %)
            :name (if (and (= proj-name "new") (not version)) "" proj-name)
-           :unsaved? unsaved?
+           :unsaved? (state/needs-save?)
            :selected-tab (or @selected-tab :candidates)
            :tabs
            [
@@ -191,7 +189,7 @@
     ;; Warn the user they have unsaved changes if they try to leave the page.
     (.addEventListener js/window "beforeunload"
                        (fn [e]
-                         (when @unsaved?
+                         (when (state/needs-save?)
                            (let [msg "You have unsaved changes. Are you sure you want to leave the page?"]
                              (set! e.returnValue msg)
                              msg))))

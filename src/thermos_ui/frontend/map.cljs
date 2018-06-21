@@ -117,7 +117,7 @@
         ;; the meaning of the zoom, or equivalently the x and y changes too.
         ;; Halve this => increase zoom by 1 in queries below.
         candidates-layer (candidates-layer. (clj->js {:tileSize 256
-                                                      :minZoom 16
+                                                      :minZoom 15
                                                       :maxZoom 20
                                                       }))
 

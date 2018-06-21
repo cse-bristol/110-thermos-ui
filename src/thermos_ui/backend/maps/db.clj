@@ -118,7 +118,8 @@
   (let [query
         (-> (select :id :name :type :subtype :connection_id
                     :demand :start_id :end_id :length :cost
-                    :geometry :simple_geometry)
+                    :geometry ;; :simple_geometry
+                    )
 
             (from :joined_candidates) ;; this view is defined in the migration SQL
             (where [:&& :real_geometry (sql/call :ST_GeomFromText (sql/param :box) (int 4326))]))

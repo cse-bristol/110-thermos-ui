@@ -69,17 +69,20 @@
 (defn map-candidates
   "Go through a document and apply f to all the indicated candidates."
   ([doc f]
-   (map-candidates doc f (all-candidates-ids doc)))
+   (update doc ::document/candidates
+           #(reduce-kv
+             (fn [m k v] (assoc m k (f v))) {} %)))
   
   ([doc f ids]
    (if (empty? ids)
      doc
      (update doc
              ::document/candidates
-             #(reduce
-               (fn [cands id] (update cands id f))
-               % ids)))))
-
+             #(persistent!
+               (reduce
+                (fn [cands id]
+                  (assoc! cands id (f (get cands id))))
+                (transient %) ids))))))
 
 (defn select-candidates
   "Change the selection for all candidates with IDs in the CANDIDATE-IDS using the METHOD."

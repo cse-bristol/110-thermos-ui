@@ -14,6 +14,7 @@
 
 (defonce run-state (atom
                     {:last-state nil
+                     :needs-save nil
                      :last-load nil}))
 
 (defonce run-state-timer (atom nil))
@@ -36,6 +37,7 @@
 
 (defn is-running? [] (:last-state @run-state))
 (defn queue-position [] (:after @run-state))
+(defn needs-save? [] (:needs-save @run-state))
 
 (defn get-last-save [] (:last-load @run-state))
 
@@ -63,7 +65,14 @@
 (defn edit!
   "Update the document, but please do not change the spatial details this way!"
   [document f & args]
-  (apply swap! document f args))
+  (if (needs-save?)
+    (apply swap! document f args)
+    (let [old-value @document
+          new-value (apply swap! document f args)]
+      (when (not= (document/keep-interesting old-value)
+                  (document/keep-interesting new-value))
+        (swap! run-state assoc :needs-save true))
+      new-value)))
 
 (defn edit-geometry!
   "Change the state with f and any arguments.
@@ -77,38 +86,42 @@
 
   (let [geometry (o/get feature "geometry")
         properties (o/get feature "properties")
-        simple-geometry (o/get properties "simple_geometry" geometry)
+;;        simple-geometry (o/get properties "simple_geometry" geometry)
         
         empty->nil #(if (or (nil? %) (= "" %)) nil %)
 
         type (keyword (o/get properties "type" "demand"))
         name (empty->nil (o/get properties "name"))
         subtype (empty->nil (o/get properties "subtype"))
-        ]
 
-    (merge
-     {::candidate/id (o/get properties "id")
-      ::candidate/name name
-      ::candidate/type type
-      ::candidate/subtype subtype
-      ::candidate/geometry geometry
-      ::candidate/simple-geometry simple-geometry
-      ::candidate/inclusion :forbidden}
-     (case type
-       :path {::candidate/length (o/get properties "length")
-              ::candidate/path-cost (o/get properties "cost")
-              ::candidate/path-start (o/get properties "start_id")
-              ::candidate/path-end (o/get properties "end_id")}
-       :demand {::candidate/demand (o/get properties "demand")
-                ::candidate/connection (o/get properties "connection_id")}
-       :supply {::candidate/connection (o/get properties "connection_id")}
-       ))))
+        basics {::candidate/id (o/get properties "id")
+                ::candidate/name name
+                ::candidate/type type
+                ::candidate/subtype subtype
+                ::candidate/geometry geometry
+                ::candidate/inclusion :forbidden}
+        ]
+    
+    (case type
+      :path (assoc basics
+                   ::candidate/length (o/get properties "length")
+                   ::candidate/path-cost (o/get properties "cost")
+                   ::candidate/path-start (o/get properties "start_id")
+                   ::candidate/path-end (o/get properties "end_id"))
+      :demand (assoc basics
+                     ::candidate/demand (o/get properties "demand")
+                     ::candidate/connection (o/get properties "connection_id"))
+      :supply (assoc basics
+                     ::candidate/connection (o/get properties "connection_id"))
+      )))
 
 (defn load-document! [org-name proj-name doc-version cb]
   (io/load-document
    org-name proj-name doc-version
    #(do
-      (swap! run-state assoc :last-load [org-name proj-name doc-version])
+      (swap! run-state assoc
+             :last-load [org-name proj-name doc-version]
+             :needs-save nil)
       (maybe-update-run-state)
       (edit-geometry! state operations/load-document %)
       (cb))))
@@ -119,7 +132,9 @@
      org-name proj-name
      (document/keep-interesting state)
      run
-     #(do (swap! run-state assoc :last-load [org-name proj-name %])
+     #(do (swap! run-state assoc
+                 :last-load [org-name proj-name %]
+                 :needs-save nil)
           (cb org-name proj-name %)
           (update-run-state)))))
 
