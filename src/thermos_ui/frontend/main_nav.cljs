@@ -11,7 +11,7 @@
     on-save :on-save
     on-run :on-run
     on-tab-switch :on-tab-switch
-    unsaved :unsaved
+    unsaved :unsaved?
     }]
 
   (reagent/with-let [state (reagent/atom {:name name})
@@ -58,12 +58,14 @@
       ]
      
      [:span {:style {:display :flex :margin-left :auto}}
-      [:button.button.button--outline.button--save-button
-       {:style {:background "none" :border "none"}
-                :on-click #(with-name on-save)
-                }
-       "Save"
-       ]
+      (when unsaved
+        [:button.button.button--outline.button--save-button
+         {:style {:background "none" :border "none"}
+          :on-click #(with-name on-save)
+          ;; :disabled (not unsaved)
+          }
+         "Save"
+         ])
       [:button.button.button--outline
        {:style {:background "none" :border "none"}
                 :on-click #(with-name on-run)
