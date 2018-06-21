@@ -5,6 +5,7 @@
             [ring.util.response :refer [resource-response]]
             ))
 
+
 (declare delete-problem-modal-html thermos-page)
 
 (def source-sans-pro
@@ -65,8 +66,16 @@
               ]
           (thermos-page
            {:title (str "THERMOS: " org-name) :js ["/js/problems_list.js"]}
-           [:div.top-banner
-            [:div.container "Saved Problems"]]
+           [:div.top-banner 
+            [:div.container
+             {:style "display:flex;align-items:center;"}
+
+             "Saved Problems"
+             [:a.button {:href (str "/" org-name "/new")
+                         :style "margin-left:auto;"
+                         } "NEW +"]]
+            
+            ]
            [:div.container
             [:div.card
              [:table.table
@@ -104,32 +113,9 @@
                     [:td {:style "text-align:right;"}
                      [:button.button.button--small
                       {:data-action "delete-problem" :data-org org-name :data-problem-name name}
-                      "Delete"]]]
-                   )
-                 
-
-                 )
-               
-               (for [[name saves] org-problems]
-                 (let [latest-save (apply max-key :created saves)
-                       latest-save-date (format-date (:created latest-save))
-                       last-solved (->> saves (filter :has_run) (sort-by :created) (last))
-                       ]
-                   [:tr
-                    [:td [:a.link {:href (str org-name "/" name "/" (:id latest-save) "/")} name]]
-                    [:td (when last-solved
-                           [:a.link {:href (str org-name "/" name "/" (:id last-solved))}
-                            (format-date (:created last-solved))
-                            ])]
-                    [:td {:data-saved-timestamp (:created latest-save)} latest-save-date]
-                    [:td {:style "text-align:right;"}
-                     [:button.button.button--small
-                      {:data-action "delete-problem" :data-org org-name :data-problem-name name}
-                      "Delete"]]])
-                 )
+                      "Delete"]]]))
                ]]
-             [:br]
-             [:a.button {:href (str "/" org-name "/new")} "NEW +"]
+             
              ]]
            (for [[name saves] org-problems]
              (delete-problem-modal-html name))
