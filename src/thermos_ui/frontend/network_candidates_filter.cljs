@@ -78,7 +78,8 @@
         filter-set)
        ]
       "number"
-      [:div.filter-dropdown {:on-click (fn [e] (.stopPropagation e))}
+      [:div.filter-dropdown {:on-click (fn [e] (.stopPropagation e))
+                             :style {:overflow :hidden}}
        (let [lb (apply min (filter number? filter-set))
              ub (apply max (filter number? filter-set))
              
@@ -86,7 +87,7 @@
              [s0 s1] [(min s0 s1) (max s0 s1)]
              ]
 
-         [:div
+         [:div {:style {:width :200px}}
           [:div (str (si-number s0) " - " (si-number s1))]
           
           [:input.double-range {:type :range
