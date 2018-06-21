@@ -210,10 +210,5 @@
 
          [:div
           [:h1 "No solution found"]
-          [:pre (str @solution)]]
-         
-         )
+          [:pre (str @solution)]]))]))
 
-       )
-     ]
-    ))

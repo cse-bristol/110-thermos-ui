@@ -1,5 +1,5 @@
 div.results_view {
-   background:#fff;
+//   background:#fff;
    height: calc(~"100% - 50px");
    overflow:auto;
    width: 100%;
@@ -7,7 +7,6 @@ div.results_view {
    flex-direction: column;
    h1, h2, h3 {
       display:block;
-      border-bottom: 2px #eee solid;
       font-weight: bold;
    }
    h1 {
@@ -15,19 +14,22 @@ div.results_view {
    }
    h2 {
       font-size:1.5em;
-      margin-left: 1em;
+
    }
    h3 {
       font-size:1.25em;
-      margin-left: 2em;
+
    }
    table {
        margin-bottom:1em;
-       margin-left: 2em;
-       width:80%;
+
+       width:auto;
    }
+   
    padding: 1em;
 
-   td {text-align:left;}
-   th {text-align:left;}
+   td {text-align:left; padding-left:0.5em; padding-right:0.5em;}
+   th {text-align:left;
+   border-bottom:1px #ccc solid;
+   }
 }
