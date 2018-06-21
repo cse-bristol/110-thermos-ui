@@ -139,7 +139,9 @@
 
 (defn- objective-editor [document]
   (reagent/with-let
-    [plant-period (reagent/cursor document [::document/objective ::document/plant-period])
+    [gap (reagent/cursor document [::document/objective ::document/gap])
+
+     plant-period (reagent/cursor document [::document/objective ::document/plant-period])
      plant-interest-rate (reagent/cursor document [::document/objective ::document/plant-interest-rate])
 
      network-period (reagent/cursor document [::document/objective ::document/network-period])
@@ -180,7 +182,9 @@
          [:td [input/number :value-atom network-period :step 1 :max 50 :min 1]]
          [:td [input/number :value-atom network-interest-rate :step 0.01 :max 50 :min 1]]]
         ]
-       ]]
+       ]
+      ]
+     
      [:div {:style {:margin-left :auto :margin-right :auto}}
       [:h1 {:style {:font-weight :bold :font-size :18pt :display :block}}
        "Resource costs"]
@@ -216,7 +220,12 @@
          [:td [input/number :value-atom carbon-cap :step 1 :max 1e12 :min 0]]
          ]
         ]
-       ]]
-     
+       ]
+
+      [:h1 {:style {:margin-top :1em :font-weight :bold :font-size :18pt :display :block}}
+       "Acceptable quality"]
+      [:table [:tbody [:tr
+                       [:td [input/number :value-atom gap :max 10 :min 0 :step 0.1 :scale 100]]
+                       [:td "% from best"]]]]]
      
      ]))

@@ -46,6 +46,7 @@
 
     ::document/carbon-cost 0
     ::document/carbon-cap 1e12
+    ::document/gap 0.05
     }
    }
   )
