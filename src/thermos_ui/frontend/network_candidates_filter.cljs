@@ -1,6 +1,7 @@
 (ns thermos-ui.frontend.network-candidates-filter
   (:require [reagent.core :as reagent]
             [thermos-ui.frontend.editor-state :as state]
+            [thermos-ui.frontend.format :refer [si-number]]
             [thermos-ui.frontend.operations :as operations]))
 
 (defn component
@@ -75,4 +76,49 @@
               (if val "Yes" "No")
               val)]])
         filter-set)
-       ])))
+       ]
+      "number"
+      [:div.filter-dropdown {:on-click (fn [e] (.stopPropagation e))}
+       (let [lb (apply min (filter number? filter-set))
+             ub (apply max (filter number? filter-set))
+             
+             [s0 s1] (or selected-filters [lb ub])
+             [s0 s1] [(min s0 s1) (max s0 s1)]
+             ]
+
+         [:div
+          [:div (str (si-number s0) " - " (si-number s1))]
+          
+          [:input.double-range {:type :range
+                                :value s0
+                                :on-change
+                                #(state/edit!
+                                  document operations/set-table-filter-value
+                                  key
+                                  [(js/parseFloat (.. % -target -value)) s1])
+                                
+                                :min lb
+                                :max ub}]
+          
+          [:input.double-range {:type :range
+                                :value s1
+                                :on-change
+                                #(state/edit!
+                                  document operations/set-table-filter-value
+                                  key
+                                  [s0 (js/parseFloat (.. % -target -value))])
+                                :min lb
+                                :max ub}]
+          [:br][:br]
+          [:button
+           {:on-click
+            #(state/edit! document operations/remove-all-table-filter-values key)
+            }
+           "Clear"]]
+         )
+       
+       
+       
+       ]
+      
+      )))

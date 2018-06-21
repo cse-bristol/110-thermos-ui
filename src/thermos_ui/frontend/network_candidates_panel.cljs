@@ -80,12 +80,15 @@
         (assoc (col "Name" ::candidate/name "text" data-value)
                :flexGrow 1
                :width 80)
-        (assoc (col "Wh/yr" ::candidate/demand "text"
+        (assoc (col "Wh/yr" ::candidate/demand "number"
                     #(when-let [v (data-value %)]
-                       (si-number (* 1000 v))
-                       ))
-               :width 120
-               )
+                       (si-number (* 1000 v))))
+               :width 90)
+        (assoc (col "¤" ::candidate/path-cost "number"
+                    #(when-let [v (data-value %)]
+                       (si-number v)))
+               :width 80)
+        
         (col "Type" ::candidate/type "checkbox" data-name)
         
         (assoc (col "Class" ::candidate/subtype "checkbox" data-name)

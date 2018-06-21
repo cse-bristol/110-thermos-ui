@@ -257,6 +257,15 @@
            ::view/table-state
            ::view/filters]))
 
+(defn set-table-filter-value
+  "Add a filter value to the table filter for a given candidate property.
+  `filter-key` should be the key for the property you want to filter by, e.g. ::candidate/postcode
+  `value` should be the value you want to add to the filter, e.g. BS1 234 if filtering by postcode."
+  [document filter-key value]
+  (let [current-filter-set (or (get-table-filters document filter-key) #{})]
+    (assoc-in document
+              [::view/view-state ::view/table-state ::view/filters filter-key] value)))
+
 (defn add-table-filter-value
   "Add a filter value to the table filter for a given candidate property.
   `filter-key` should be the key for the property you want to filter by, e.g. ::candidate/postcode
@@ -313,10 +322,7 @@
 
 (defn remove-all-table-filter-values
   [document filter-key]
-  (case filter-key
-    ;; For `name` field just set the filter value to nil
-    ::candidate/name
-    (update-in document [::view/view-state ::view/table-state ::view/filters] dissoc filter-key)))
+  (update-in document [::view/view-state ::view/table-state ::view/filters] dissoc filter-key))
 
 (defn get-filtered-candidates
   "Returns all candidates which are constrained and meet the filter criteria."
@@ -329,6 +335,12 @@
               (fn [[key value]]
                 (let [test-value
                       (cond
+                        (vector? value)
+                        (let [[lb ub] value]
+                          #(and (number? %)
+                                (<= lb %)
+                                (<= % ub)))
+                        
                         (string? value)
                         (let [pattern (re-pattern (str "(?i)" (str/join ".*" (str/split value #"")) ".*"))]
                           #(and % (re-find pattern %)))
