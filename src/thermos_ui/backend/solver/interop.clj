@@ -449,7 +449,7 @@
             (assoc-in [:cityspace :gridfile] (rel-path cityspace-csv))
             (assoc-in [:resflow :processLocations] (rel-path process-locations))
 
-            (assoc-in [:solver :terminationCriterion]
+            (assoc-in [:resflow :solver :terminationCriterion]
                       (or (get-in instance [::document/objective ::document/gap]) 0.05))
             
             (update :infrastructures
