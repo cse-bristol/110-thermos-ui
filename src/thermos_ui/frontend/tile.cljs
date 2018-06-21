@@ -88,13 +88,6 @@
              selected 4
              included 1.5
              true 1)))
-
-    (when solution
-      (.setLineDash
-       ctx
-       (if in-solution
-         #js []
-         #js [3 3])))
     
     (set! (.. ctx -strokeStyle)
           (cond
