@@ -57,7 +57,6 @@
             (ring.util.response/redirect (str "/" org-name)))
           ))
 
-   ;; TODO show completed runs somewhere
    (GET "/:org-name" [org-name]
         (let [org-problems
               (problems/ls database org-name)
@@ -78,6 +77,39 @@
                 [:th {:style "width:150px;"} "Last updated"]
                 [:th {:style "width:100px;"} ""]]]
               [:tbody
+               (let [rows
+                     (for [[name saves] org-problems]
+                       {:latest (apply max-key :created saves)
+                        :solution (->> saves (filter :has_run) (sort-by :created) (last))
+                        :name name})
+
+                     rows (sort-by (juxt (comp :created :latest)
+                                         (comp :created :solution)
+                                         :name)
+                                   rows)
+
+                     rows (reverse rows)
+                     ]
+
+                 (for [{name :name
+                        {latest-id :id latest-date :created} :latest
+                        {solved-id :id solved-date :created} :solution
+                        } rows]
+                   [:tr
+                    [:td [:a.link {:href (str org-name "/" name "/" latest-id "/")} name]]
+                    [:td (when solved-id
+                           [:a.link {:href (str org-name "/" name "/" solved-id)}
+                            (format-date solved-date)])]
+                    [:td {:data-saved-timestamp latest-date} (format-date latest-date)]
+                    [:td {:style "text-align:right;"}
+                     [:button.button.button--small
+                      {:data-action "delete-problem" :data-org org-name :data-problem-name name}
+                      "Delete"]]]
+                   )
+                 
+
+                 )
+               
                (for [[name saves] org-problems]
                  (let [latest-save (apply max-key :created saves)
                        latest-save-date (format-date (:created latest-save))
