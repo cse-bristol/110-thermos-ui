@@ -97,31 +97,33 @@
         (db->task out)
         ))))
 
-(defn- set-state [conn id state]
+(defn- set-state [conn job state]
   (-> (update :jobs)
-      (sset {:state state})
-      (where [:= :id id])
+      (sset {:state (label->state state)})
+      (where [:= :id (:id job)])
       (sql/format)
       (->> (jdbc/execute conn))))
 
 (defn- run-one-task [db consumers]
   (db/with-connection [conn db]
-    (when-let [job (claim-job conn consumers)]
-      (let [args (:args job)
-            queue (:queue job)]
-          (when-let [consumer (consumers queue)]
-            (println "About to run" job)
-            (set-state conn (:id job) (label->state :running))
-            ;; issue checkpoint here
-            (jdbc/atomic conn
-             (try
-               (consumer conn args)
-               (catch Exception e
-                 (println e)
-                 (set-state conn (:id job) (label->state :error)))))
-            (set-state conn (:id job) (label->state :complete))))
-      )))
-
+    (when-let [[job consumer]
+               (jdbc/atomic
+                conn
+                (let [job (claim-job conn consumers)
+                      consumer (consumers (:queue job))]
+                  (when (and job consumer)
+                    (set-state conn job :running)
+                    [job consumer])
+                  ))]
+      (println "About to run" job)
+      (try (jdbc/atomic
+            conn
+            (consumer conn (:args job))
+            (set-state conn job :complete)
+            (println job "Job completed"))
+           (catch Exception e
+             (println "Job failed" job e)
+             (set-state conn job :error))))))
 
 (defn ls [queue]
   (db/with-connection [c (:database queue)]
