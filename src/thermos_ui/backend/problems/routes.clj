@@ -6,7 +6,8 @@
 
             ))
 
-(defonce json-headers {"Content-Type" "application/json"})
+(defonce json-headers {"Content-Type" "application/json"
+                       "Cache-Control" "no-store"})
 
 (defn all [db queue]
   (routes
