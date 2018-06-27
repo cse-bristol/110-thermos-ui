@@ -1,7 +1,7 @@
 (ns thermos-ui.backend.solver.interop
   (:require [clojure.java.io :as io]
             [org.tobereplaced.nio.file :as nio]
-            
+
             [clojure.java.shell :refer [sh]]
             [clojure.edn :as edn]
             [yaml.core :as yaml]
@@ -19,7 +19,8 @@
             [thermos-ui.specs.technology :as technology]
             [thermos-ui.specs.candidate :as candidate]
 
-            [thermos-ui.frontend.operations :as operations]))
+            [thermos-ui.frontend.operations :as operations])
+  (:import [java.io StringWriter]))
 
 (def default-scenario
   "An EDN representation of a typical YML scenario for the SEM program."
@@ -490,9 +491,20 @@
             (catch Exception e
               (println e)
               (println (:err output))
-              (assoc-in instance [::solution/solution ::solution/status] :error)
-              )
-            )
+              (-> instance
+                  (assoc-in [::solution/solution ::solution/status] :error)
+                  (assoc-in [::solution/solution ::solution/error-message]
+                            (.getMessage e))
+
+                  (assoc-in [::solution/solution ::solution/stderr]
+                            (:err output))
+                  
+                  (assoc-in [::solution/solution ::solution/stdout]
+                            (:out output))
+                  
+                  (assoc-in [::solution/solution ::solution/stacktrace]
+                            (map str (.getStackTrace e))
+                            ))))
           ]
       (spit (io/file working-directory "solved-instance.edn") instance) ;; pprint?
       instance
