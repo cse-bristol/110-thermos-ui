@@ -199,7 +199,7 @@
                        (group-by (comp tidy-class ::candidate/subtype))
                        (map (fn [[k ds]] {:subtype k
                                           :count (count ds)
-                                          :demand (* 1000 (reduce + 0 (map ::candidate/demand demands)))}))
+                                          :demand (* 1000 (reduce + 0 (map ::candidate/demand ds)))}))
                        (sort-by :demand)
                        (reverse))
                   ]
