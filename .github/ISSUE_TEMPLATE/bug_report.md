@@ -4,6 +4,9 @@ about: Create a report to help us improve
 
 ---
 
+**Please add the label "Bug" to this issue before submitting it**
+**Please also add the label for your city, and the area of functionality you are reporting about**
+
 **Describe the bug**
 A clear and concise description of what the bug is.
 

@@ -4,6 +4,9 @@ about: Suggest an idea for this project
 
 ---
 
+**Please add the label "Enhancement" to this issue before submitting it**
+**Please also add the label for your city, and the area of functionality your request relates to**
+
 **Is your feature request related to a problem? Please describe.**
 A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
 
