@@ -66,7 +66,7 @@
           insert-other-data
           (fn [type candidates]
             (case (keyword type)
-              (:supply :demand)
+              :building
               (-> (insert-into :buildings)
                   (values (for [candidate candidates]
                             (clojure.core/update

@@ -75,7 +75,7 @@
         in-solution (::solution/included (::solution/candidate candidate))
         type (::candidate/type candidate)
 
-        is-supply (= :supply type)
+        is-supply (candidate/is-supply? candidate)
         
         included (not= :forbidden inclusion)
         forbidden (not included)

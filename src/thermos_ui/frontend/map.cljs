@@ -532,12 +532,12 @@
   (let [selected-candidates (operations/selected-candidates document-value)
 
         {paths :path
-         demands :demand
-         supplies :supply} (group-by ::candidate/type selected-candidates)
+         buildings :building}
+        (group-by ::candidate/type selected-candidates)
 
         paths (map ::candidate/id paths)
-        buildings (map ::candidate/id (concat demands supplies))
-
+        buildings (map ::candidate/id buildings)
+        
         set-inclusion!
         (fn [candidates-ids inclusion-value]
           (state/edit!
@@ -547,92 +547,96 @@
                 (operations/close-popover))))
 
 
-        set-type!
-        (fn [candidate-id type]
-          (state/edit!
-           document
-           #(-> % (operations/set-candidate-type candidate-id type)
-                (operations/close-popover))))
+        allow-supply!
+        (fn [candidate-id]
+          (state/edit! document #(-> (operations/allow-supply % candidate-id)
+                                     (operations/close-popover))))
+        
+        
+        forbid-supply!
+        (fn [candidate-id]
+          (state/edit! document #(-> (operations/forbid-supply % candidate-id)
+                                     (operations/close-popover))))
+
         
         popover-menu-content
 
         ;; if the ` and ~@ syntax below is obscure to you,
         ;; read https://clojure.org/reference/reader#syntax-quote
         ;; or http://blog.klipse.tech/clojure/2016/05/05/macro-tutorial-3.html
-        `[{:value [:div.centre "Edit candidates"] :key "title"}
+        (remove nil?
+                `[{:value [:div.centre "Edit candidates"] :key "title"}
 
-          ~@(when (not-empty paths)
-              (list
-               {:value [:b (str (count paths) " roads selected")]
-                :key "selected-roads-header"}
-               {:value "Set inclusion"
-                :key "inclusion-roads"
-                :sub-menu [{:value "Required"
-                            :key "required"
-                            :on-select #(set-inclusion! paths :required)}
-                           
-                           {:value "Optional"
-                            :key "optional"
-                            :on-select #(set-inclusion! paths :optional)}
-                           
-                           {:value "Forbidden"
-                            :key "forbidden"
-                            :on-select #(set-inclusion! paths :forbidden)}]}
-               ;; {:value "Set road type [TODO]"
-               ;;  :key "road-type"
-               ;;  :sub-menu [{:value "Cheap"
-               ;;              :key "cheap"}
-               ;;             {:value "Expensive"
-               ;;              :key "expensive"}]}
+                  ~@(when (not-empty paths)
+                      (list
+                       {:value [:b (str (count paths) " roads selected")]
+                        :key "selected-roads-header"}
+                       {:value "Set inclusion"
+                        :key "inclusion-roads"
+                        :sub-menu [{:value "Required"
+                                    :key "required"
+                                    :on-select #(set-inclusion! paths :required)}
+                                   
+                                   {:value "Optional"
+                                    :key "optional"
+                                    :on-select #(set-inclusion! paths :optional)}
+                                   
+                                   {:value "Forbidden"
+                                    :key "forbidden"
+                                    :on-select #(set-inclusion! paths :forbidden)}]}
+                       ;; {:value "Set road type [TODO]"
+                       ;;  :key "road-type"
+                       ;;  :sub-menu [{:value "Cheap"
+                       ;;              :key "cheap"}
+                       ;;             {:value "Expensive"
+                       ;;              :key "expensive"}]}
 
-               ))
-         
+                       ))
+                  
 
-          ~(when (and (not-empty paths) (not-empty buildings))
-             {:value [:div.popover-menu__divider] :key "divider"})
+                  ~(when (and (not-empty paths) (not-empty buildings))
+                     {:value [:div.popover-menu__divider] :key "divider"})
 
-          ~@(when (not-empty buildings)
-              (list
-               {:value [:b (str (count buildings) " buildings selected")]
-                :key "selected-buildings-header"}
-               {:value "Set inclusion (c)"
-                :key "inclusion-buildings"
-                :sub-menu [{:value "Required"
-                            :key "required"
-                            :on-select #(set-inclusion! buildings :required)
-                            }
-                           {:value "Optional"
-                            :key "optional"
-                            :on-select #(set-inclusion! buildings :optional)}
-                           {:value "Forbidden"
-                            :key "forbidden"
-                            :on-select #(set-inclusion! buildings :forbidden)}]}
-               )
-              
-              ;; {:value "Set type [TODO]"
-              ;;  :key "type"
-              ;;  :sub-menu [{:value "Demand"
-              ;;              :key "demand"}
-              ;;             {:value "Supply"
-              ;;              :key "supply"}]}
+                  ~@(when (not-empty buildings)
+                      (list
+                       {:value [:b (str (count buildings) " buildings selected")]
+                        :key "selected-buildings-header"}
+                       {:value "Set inclusion (c)"
+                        :key "inclusion-buildings"
+                        :sub-menu [{:value "Required"
+                                    :key "required"
+                                    :on-select #(set-inclusion! buildings :required)
+                                    }
+                                   {:value "Optional"
+                                    :key "optional"
+                                    :on-select #(set-inclusion! buildings :optional)}
+                                   {:value "Forbidden"
+                                    :key "forbidden"
+                                    :on-select #(set-inclusion! buildings :forbidden)}]}
+                       )
+                      
+                      ;; {:value "Set type [TODO]"
+                      ;;  :key "type"
+                      ;;  :sub-menu [{:value "Demand"
+                      ;;              :key "demand"}
+                      ;;             {:value "Supply"
+                      ;;              :key "supply"}]}
 
-              )
-          ~(when (= 1 (count buildings))
-             (let [type (::candidate/type (or (first demands) (first supplies)))
-                   opposite-type
-                   (if (= :supply type) :demand :supply)
-                   ]
-               
-               {:value (str "Convert to "
-                            (name opposite-type) " (t)")
-                
-                :key "building-type"
-                :on-select #(set-type! (first buildings) opposite-type)
-                }
-               )
-             
-             )
-         ] ;; end of popover menu content
+                      )
+                  
+                  ;; FIXTHIS this needs to do changing type better.
+                  ~(when (= 1 (count buildings))
+                     (let [building (first buildings)]
+                       (if (candidate/is-supply? building)
+                         {:value "Disallow as supply point"
+                          :key "forbid-supplies"
+                          :on-select #(forbid-supply! building)}
+                         {:value "Allow as supply point"
+                          :key "allow-supplies"
+                          :on-select #(allow-supply! building)}
+                         ))
+                     )
+                  ]) ;; end of popover menu content
         ]
 
     (if (and (empty? buildings) (empty? paths))

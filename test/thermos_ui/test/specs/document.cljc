@@ -26,7 +26,7 @@
 
 (let [valid-supply
       {::can/id "a candidate"
-       ::can/type :supply
+       ::can/type :building
        ::can/geometry 1
        ::can/name "1 Candidate street"
        ::can/postcode "BS3 1ED"
@@ -54,7 +54,7 @@
   (testing "Valid topology appears valid"
     (is (doc/is-topologically-valid
          {1 {::can/id 1 ::can/type :path ::can/path-start 2 ::can/path-end 3}
-          2 {::can/id 2 ::can/type :demand}})))
+          2 {::can/id 2 ::can/type :building}})))
 
   (testing "Paths may not end at the ID of another path"
     (is (not (doc/is-topologically-valid

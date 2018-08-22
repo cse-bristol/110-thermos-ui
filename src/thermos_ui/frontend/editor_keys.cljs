@@ -17,12 +17,17 @@
     (when (= 1 (count selection))
       (let [selection (first selection)
             type (::candidate/type selection)]
-        (when (#{:demand :supply} type)
-          (state/edit!
-           state/state
-           operations/set-candidate-type
-           (::candidate/id selection)
-           (if (= :demand type) :supply :demand))
+        (when (#{:building} type)
+          ;; FIXTHIS
+
+          ;; need to toggle allowability of technologies
+          
+          ;; (state/edit!
+          ;;  state/state
+          ;;  operations/set-candidate-type
+          ;;  (::candidate/id selection)
+          ;;  (if (= :demand type) :supply :demand))
+
           )))))
 
 (defn- zoom-to-fit! []

@@ -108,12 +108,9 @@
                    ::candidate/path-cost (o/get properties "cost")
                    ::candidate/path-start (o/get properties "start_id")
                    ::candidate/path-end (o/get properties "end_id"))
-      :demand (assoc basics
-                     ::candidate/demand (o/get properties "demand")
-                     ::candidate/connection (o/get properties "connection_id"))
-      :supply (assoc basics
-                     ::candidate/connection (o/get properties "connection_id"))
-      )))
+      :building (assoc basics
+                       ::candidate/demand (o/get properties "demand" nil)
+                       ::candidate/connection (o/get properties "connection_id")))))
 
 (defn load-document! [org-name proj-name doc-version cb]
   (io/load-document

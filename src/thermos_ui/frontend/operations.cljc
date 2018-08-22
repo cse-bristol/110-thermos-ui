@@ -3,6 +3,7 @@
             [clojure.string :as str]
             [thermos-ui.specs.document :as document]
             [thermos-ui.specs.candidate :as candidate]
+            [thermos-ui.specs.technology :as technology]
             [thermos-ui.specs.solution :as solution]
             [thermos-ui.specs.view :as view]
             ))
@@ -132,18 +133,6 @@
   (map-candidates doc
                   #(assoc % ::candidate/inclusion new-constraint)
                   candidate-ids))
-
-(defn set-candidate-type
-  "Change the ::candidate/type of the candidate with the given id to the new type.
-  The only legal operations here are to turn a demand into a supply or vice-versa."
-  [doc candidate-id new-type]
-
-  (map-candidates doc
-                  #(if (#{:supply :demand} (::candidate/type %))
-                     (assoc % ::candidate/type new-type)
-                     %) ;; do nothing if illegal
-                  [candidate-id]))
-
 
 (defn rotate-candidates-inclusion [doc candidate-ids]
   (if (empty? candidate-ids)
@@ -382,3 +371,14 @@
   (-> doc
       (dissoc ::solution/solution)
       (map-candidates #(dissoc % ::solution/candidate))))
+
+(defn allow-supply [doc cand]
+  (assoc-in doc [::document/candidates cand ::candidate/allowed-technologies]
+            (let [every-technology (for [k (map ::technology/id (::document/technologies doc))]
+                                     [k {:min 0 :max 10}])]
+              (into {} every-technology)))
+  
+  )
+
+(defn forbid-supply [doc cand]
+  (assoc-in doc [::document/candidates cand ::allowed-technologies] {}))

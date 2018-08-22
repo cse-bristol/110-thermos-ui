@@ -7,15 +7,14 @@
 ;; A CANDIDATE is something which can be in a heat network.
 ;; At the moment there are three types of candidate:
 
-(s/def ::type #{:supply :demand :path})
+(s/def ::type #{:building :path})
 
 ;; - A SUPPLY, which is a place where heat can be produced and injected into a network
 ;; - A DEMAND, which is a place where heat can be consumed
 ;; - A PATH, which is a way along which a heat pipe could be installed
 
 (s/def ::candidate
-  (s/or :is-a-supply ::supply
-        :is-a-demand ::demand
+  (s/or :is-a-building ::building
         :is-a-path ::path))
 
 ;; All types of candidate have to have certain attributes
@@ -43,37 +42,24 @@
 
 ;; Both supplies and demands are defined to exist within BUILDINGs
 
-(s/def ::building (s/merge ::common
-                           (s/keys :req [ ::connection ])))
+(s/def ::building (s/and
+                   #(= :building (::type %))
+                   (s/merge ::common
+                            (s/keys :req [ ::connection ]
+                                    :opt [ ::allowed-technologies ::demand ]
+                                    ))))
 
 (s/def ::connection ::id)
 
 (s/def ::subtype string?)
 
-;; A SUPPLY is a building which has ::type :supply
-
-(s/def ::supply
-  (s/and
-   #(= :supply (::type %))
-   (s/merge
-    ::building
-    (s/keys :req [ ::allowed-technologies ])
-    )))
-
 ;; Allowed technologies lists the IDs of technologies that we are
 ;; considering for this building.
 ;; TODO we want them to be required / optional I guess?
-(s/def ::allowed-technologies (s/* ::technology/id))
+(s/def ::allowed-technologies (s/map-of ::technology/id
+                                        (s/keys :req-un [::min ::max])))
 
 ;; DEMAND points are just buildings which have demand information on them:
-
-(s/def ::demand
-  (s/and
-   #(= :demand (::type %))
-   (s/merge
-    ::building
-    (s/keys :req [ ::demand ]))))
-
 
 (s/def ::demand number?) ;; TODO this is not correct; we expect this
                          ;; to include duration information and to ;;
@@ -87,7 +73,7 @@
 ;; Finally PATHs; these connect pairs of points, and have length information.
 
 ;; The TOPOLOGY of the space where networks can go is inferred by the identities
-;; referred to by the star and end of each path. These identities are either for
+;; referred to by the start and end of each path. These identities are either for
 ;; buildings, or they are soley identities for junctions where paths connect.
 
 (s/def ::path
@@ -100,3 +86,33 @@
 (s/def ::length number?)
 (s/def ::path-start ::id)
 (s/def ::path-end ::id)
+
+;; access / update functions
+(defn is-included? [{inc ::inclusion}]
+  (or (= inc :optional)
+      (= inc :required)))
+
+(defn is-required? [{inc ::inclusion}]
+  (= inc :required))
+
+(defn is-excluded? [c]
+  (not (is-included? c)))
+
+(defn is-building? [{t ::type}]
+  (= t :building))
+
+(defn is-demand? [{d ::demand t ::type}]
+  (and (= t :building) d))
+
+(defn is-path? [{t ::type}]
+  (= t :path))
+
+(defn is-supply? [{s ::allowed-technologies t ::type}]
+  (and (= t :building)
+       (some #(> (:max %) 0) (vals s))))
+
+(defn annual-demand [{d ::demand}] d)
+
+(defn forbid-supply [c]
+  (assoc c ::allowed-technologies {}))
+
