@@ -50,18 +50,19 @@
 
    ;; Build tooling dependencies:
 
-   [adzerk/boot-cljs              "LATEST"  :scope "test"]
-   [powerlaces/boot-figreload     "LATEST"  :scope "test"]
+   [adzerk/boot-cljs              "2.1.4"  :scope "test"]
+   [powerlaces/boot-figreload     "0.5.14"  :scope "test"]
    [pandeiro/boot-http            "0.7.6"   :scope "test"]
 
-   [adzerk/boot-cljs-repl         "0.3.3"   :scope "test"]
-   [com.cemerick/piggieback       "0.2.1"   :scope "test"]
+   [adzerk/boot-cljs-repl         "0.4.0-SNAPSHOT"   :scope "test"]
+   [cider/piggieback              "0.3.8"   :scope "test"]
    [weasel                        "0.7.0"   :scope "test"]
    [org.clojure/tools.nrepl       "0.2.13"  :scope "test"]
-
+   [com.cemerick/piggieback       "0.2.2"   :scope "test"] ;; this is bad
+   
    [binaryage/dirac               "RELEASE" :scope "test"]
    [binaryage/devtools            "RELEASE" :scope "test"]
-   [powerlaces/boot-cljs-devtools "0.2.0"   :scope "test"]
+   ;; [powerlaces/boot-cljs-devtools "0.2.0"   :scope "test"]
    [deraen/boot-less              "0.6.1"   :scope "test"]
    [adzerk/boot-test              "1.2.0"   :scope "test"]
 
@@ -69,13 +70,12 @@
    ])
 
 (require '[adzerk.boot-cljs              :refer [cljs]]
-         '[adzerk.boot-cljs-repl         :refer [cljs-repl-env start-repl]]
+         '[adzerk.boot-cljs-repl         :refer [cljs-repl-env start-repl cljs-repl]]
          '[powerlaces.boot-figreload     :refer [reload]]
-         '[powerlaces.boot-cljs-devtools :refer [dirac cljs-devtools]]
+         ;; '[powerlaces.boot-cljs-devtools :refer [dirac cljs-devtools]]
          '[pandeiro.boot-http            :refer [serve]]
          '[deraen.boot-less              :refer [less]]
          '[adzerk.boot-test :refer :all]
-         '[cemerick.piggieback]
 
          '[system.boot :refer [system]]
          )
@@ -105,9 +105,10 @@
           :exclude #{#"^\\.#" #"~$"}
           )
    (less :source-map true)
-   (cljs-devtools)
+   ;; (cljs-devtools)
    (reload)
-   (cljs-repl-env)
+   (cljs-repl)
+
    (cljs :source-map true
          :optimizations :none
          :compiler-options
@@ -123,8 +124,6 @@
    (system :sys #'create-system
            :auto true
            :files ["pages.clj" "handler.clj"])
-   
-   (repl :server true :middleware '[cemerick.piggieback/wrap-cljs-repl])
    ))
 
 (deftask package

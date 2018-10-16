@@ -72,12 +72,12 @@
 
   (let [selected (::candidate/selected candidate)
         inclusion (::candidate/inclusion candidate)
-        in-solution (::solution/included (::solution/candidate candidate))
-        type (::candidate/type candidate)
+
+        in-solution (candidate/is-in-solution? candidate)
 
         is-supply (candidate/is-supply? candidate)
         
-        included (not= :forbidden inclusion)
+        included (candidate/is-included? candidate)
         forbidden (not included)
         filtered (:filtered candidate)
         ]

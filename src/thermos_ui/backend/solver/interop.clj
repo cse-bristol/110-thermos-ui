@@ -17,8 +17,11 @@
             [thermos-ui.specs.technology :as technology]
             [thermos-ui.specs.candidate :as candidate]
 
-            [thermos-ui.frontend.operations :as operations])
+            [thermos-ui.frontend.operations :as operations]
+            )
   (:import [java.io StringWriter]))
+
+(def HOURS-PER-YEAR 8766)
 
 (defn- simplify-topology
   "For CANDIDATES, create a similar graph in which all vertices of degree two
@@ -130,71 +133,198 @@
             :optional
             ))
         ]
-    
+
+    ;; this won't be quite right with kw-cost varying
     (reduce (fn [g e]
               (let [path-ids (attr/attr g e :ids)]
                 (-> g
                     (attr/add-attr e :fixed-cost (total-value path-ids ::candidate/path-cost))
-                    (attr/add-attr e :kw-cost 0) ;; TODO variable cost in model
+                    (attr/add-attr e :kw-cost (total-value path-ids ::candidate/path-kw-cost))
                     (attr/add-attr e :length (total-value path-ids ::candidate/length))
                     (attr/add-attr e :requirement (total-requirement path-ids))
                     )))
             net-graph (graph/edges net-graph))))
 
-(def HOURS-PER-YEAR 8766)
+(defn- instance->json [instance net-graph]
+  (let [technologies (::document/technologies instance)
+        candidates (::document/candidates instance)
 
-(defn- instance->json [technologies candidates net-graph]
-  {:periods [{:duration HOURS-PER-YEAR}]
-   :heat-price 1
-   :export-price 1
+        fuel-info (fn [fuel]
+                    {:price (document/fuel-price instance fuel)
+                     :emissions {:co2e (document/fuel-factor instance fuel :co2e)
+                                 :nox (document/fuel-factor instance fuel :nox)}})
+        
+        ]
+    
+    {:periods [{:duration HOURS-PER-YEAR}]
+     :heat-price (or (document/fuel-tariff instance :heat) 0)
+     :export-price (or (document/fuel-tariff instance :electricity) 0)
 
-   :finance {:network {:term 1 :rate 1}
-             :plant {:term 1 :rate 1}}
+     :finance {:network {:term (or (::document/network-term instance) 1)
+                         :rate (or (::document/network-rate instance) 0)}
+               :plant {:term (or (::document/plant-term instance) 1)
+                       :rate (or (::document/plant-rate instance) 0)}
+               :term (or (::document/system-term instance) 1)
+               :npv-rate (or (::document/system-rate instance) 0)
+               }
 
-   :emissions {:co2e {:cost 1}}
-   
-   :fuels {:gas {:price 1
-                 :emissions {:co2e 1}}}
+     :emissions
+     (into {}
+           (for [et document/emissions-types
+                 :let [price (or (document/emissions-price instance et) 0)
+                       cap (or (document/emissions-cap instance et) 0)]]
+             [et (merge
+                  (when (> price 0) {:price price})
+                  (when (> cap 0) {:limit cap}))]))
+     
+     :fuels
+     (into {}
+           (for [fuel [:gas :biomass :electricity]]
+             [fuel {:price (or (document/fuel-price instance fuel) 0)
+                    :emissions
+                    (into {} (for [et document/emissions-types]
+                               [et (or (document/fuel-factor instance fuel et) 0)]))}]))
 
-   :plant
-   (into {}
-         (for [tech technologies]
-           [(::technology/id tech)
-            {:capacity 100
-             :fuel-input 1
-             :heat-output 1
-             :power-output 1
-             :fuel :gas
-             :capital-cost 100}
+     :plant
+     (into {}
+           (for [tech technologies
+                 :let [power-efficiency (or (::technology/power-efficiency tech) 0)
+                       heat-efficiency (or (::technology/heat-efficiency tech) 0)
+                       heat-led (= 0 power-efficiency)
+                       main-efficiency (if heat-led heat-efficiency power-efficiency)
+                       ]
+                 ]
+             [(::technology/id tech)
+              {:capacity (::technology/capacity tech)
+               :fuel-input (/ 1.0 main-efficiency)
+               :heat-output (/ heat-efficiency main-efficiency)
+               :power-output (/ power-efficiency main-efficiency)
+               :fuel (::technology/fuel tech)
+               :capital-cost (::technology/capital-cost tech)}
+              ]
+             ))
+     
+     :edges
+     (for [edge (->> (graph/edges net-graph) ;; take each directed edge
+                     (map (comp vec sort)) ;; convert it into an undirected edge
+                     (set))] ;; remove duplicate undirected edges
+       {:src (first edge)
+        :dst (second edge)
+        :fixed-cost (attr/attr net-graph edge :fixed-cost)
+        :kw-cost (attr/attr net-graph edge :kw-cost)
+        :required (boolean (attr/attr net-graph edge :required))})
+     
+     :vertices
+     (into
+      {}
+      (for [node (graph/nodes net-graph)
+            :let [candidate (candidates node)]]
+        [node
+         (cond-> {}
+           (candidate/is-demand? candidate)
+           (assoc :demand [(/ (candidate/annual-demand candidate) HOURS-PER-YEAR)])
+
+           (candidate/is-required? candidate)
+           (assoc :required true)
+
+           (candidate/is-supply? candidate)
+           (assoc :supply
+                  (reduce-kv #(assoc %1 %2 [(:min %3) (:max %3)]) {}
+                             (::candidate/allowed-technologies candidate))
+                  :grid {} ;; TODO grid infos
+                  )
+           )]))
+     }))
+
+(defn- index-by [f vs]
+  (reduce #(assoc %1 (f %2) %2) {} vs))
+
+(defn- merge-solution [instance net-graph result-json]
+  (let [state (keyword (:state result-json))
+
+        ;; add the solution state, that's always useful:
+        instance (assoc-in instance [::solution/summary ::solution/state] state)]
+    
+    (if (= state :error)
+      (assoc-in instance
+                [::solution/summary ::solution/message] (:message result-json))
+
+      ;; otherwise not an error
+      
+      (let [demands-by-id  (index-by :id (:demands result-json))
+            supplies-by-id (index-by :id (:supplies result-json))
+            edges-by-id
+
+            (into {}
+                  (mapcat
+                   (fn [{s :src d :dst :as info}]
+                     
+                     (let [length (attr/attr net-graph [s d] :length)]
+                       (for [e (attr/attr net-graph [s d] :ids)]
+                         [e (assoc info :length length)])))
+                   (:edges result-json)))
+            clean-plant
+            (fn [{id :id
+                  count :count
+                  cap :capacity
+                  cost :capital-cost
+                  fuel :fuel-kwh
+                  fuel-cost :fuel-cost
+                  heat :heat-kwh
+                  power :power-kwh
+                  }]
+              (merge
+               {::technology/id id
+                ::solution/count count
+                ::solution/capacity cap
+                ::solution/capital-cost cost
+                ::solution/heat-output heat
+                ::solution/fuel-input fuel
+                ::solution/fuel-cost fuel-cost}
+               (when power {::solution/power-output power})))
             ]
-           ))
-   
-   :edges
-   (for [edge (->> (graph/edges net-graph) ;; take each directed edge
-                   (map (comp vec sort)) ;; convert it into an undirected edge
-                   (set))] ;; remove duplicate undirected edges
-     {:src (first edge)
-      :dst (second edge)
-      :fixed-cost (attr/attr net-graph edge :fixed-cost)
-      :kw-cost (attr/attr net-graph edge :kw-cost)
-      :required (boolean (attr/attr net-graph edge :required))})
-   
-   :vertices
-   (into
-    {}
-    (for [node (graph/nodes net-graph)
-          :let [candidate (candidates node)]]
-      [node
-       (cond-> {}
-         (candidate/is-demand? candidate) (assoc :demand [(/ (candidate/annual-demand candidate) HOURS-PER-YEAR)])
-         (candidate/is-required? candidate) (assoc :required true)
-         (candidate/is-supply? candidate) (assoc :supply
-                                                 (reduce-kv #(assoc %1 %2 [(:min %3) (:max %3)]) {}
-                                                            (::candidate/allowed-technologies candidate))
-                                                 :grid {} ;; TODO grid infos
-                                                 )
-         )]))
-   })
+        (-> instance
+            ;; copy the more detailed details
+            
+            (document/map-candidates
+             #(let [id (::candidate/id %)]
+                (candidate/add-building-to-solution
+                 %
+                 :heat-revenue   (get-in demands-by-id [id :revenue])
+                 :power-revenue  (get-in supplies-by-id [id :grid-revenue])
+                 :plant          (map clean-plant (get-in supplies-by-id [id :plant]))))
+             
+             (concat (keys demands-by-id) (keys supplies-by-id)))
+
+            (document/map-candidates
+             #(let [id (::candidate/id %)
+                    edge-info (edges-by-id id)
+                    total-length (:length edge-info)
+                    ;; pro-rata by length is wrong
+                    
+                    ;; the only real answer is to either merge the
+                    ;; costs in some way in the solution, or to
+                    ;; recompute the values used and reapply them
+                    ;; here.
+
+                    ;; maybe that is the best idea? alternatively
+                    ;; could give the opti. model a bunch of
+                    ;; components to add up for the edge, which it can
+                    ;; then produce separate answers for
+                    
+                    ;; that might be nicer.
+                    ]
+                (candidate/add-path-to-solution
+                 %
+                 :capital-cost (:capital-cost edge-info)
+                 :capacity (:capacity edge-info)))
+             
+             (keys edges-by-id))
+
+            (assoc-in [::solution/summary ::solution/objective-value]
+                      (:objective result-json)))
+
+        ))))
 
 
 (defn solve
@@ -202,7 +332,7 @@
   details in it. Probably needs running off the main thread."
   [label config instance]
   
-  (let [instance (operations/remove-solution instance) ;; throw away
+  (let [instance (document/remove-solution instance) ;; throw away
         ;; any existing
         ;; solution
 
@@ -227,8 +357,7 @@
         ;; Edges can have attributes :ids, which say the input paths,
         ;; and :cost which say the total pipe cost for the edge.
 
-        input-json (instance->json (::document/technologies instance)
-                                   (::document/candidates instance) net-graph)
+        input-json (instance->json instance net-graph)
         ]
     ;; write the scenario down
     (with-open [writer (io/writer input-file)]
@@ -241,25 +370,26 @@
           
           end-time (System/currentTimeMillis)
 
-          solution {::solution/runtime (- end-time start-time)
-                    ::solution/log (str (:out output) "\n" (:err output))
-                    }
-
           _ (println "Solver ran in" (- end-time start-time) "ms")
 
           output-json (try
                         (with-open [r (io/reader (io/file working-directory "solution.json"))]
                           (json/read r :key-fn keyword))
                         (catch Exception ex
-                          {:error (.getMessage ex)}))
+                          {:state :error
+                           :message (.getMessage ex)}))
+
+          solved-instance
+          
+          (-> instance
+              (assoc ::solution/summary
+                     #::solution {:runtime (- end-time start-time)
+                                  :log [(:out output) (:err output)]
+                                  :state (:state output-json)
+                                  })
+              (merge-solution net-graph output-json))
+          
           ]
-      ;; todo process this more neatly
-      (assoc instance
-             ::solution/solution (assoc solution :json output-json)
-             
-             )
-      ))
-
-  )
-    
-
+      (spit (io/file working-directory "instance.edn") solved-instance)
+      solved-instance
+      )))

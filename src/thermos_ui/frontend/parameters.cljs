@@ -54,184 +54,206 @@
       [:button.button {:on-click #(on-cancel)} "Cancel"]
       [:button.button {:on-click #(on-ok @content)} "OK"]]]))
 
+(defn- years [a]
+  [input/number :min 1 :step 1 :max 100 :value-atom a])
+
+
+(defn- rate [a]
+  [input/number :min 0 :step 0.01 :max 25 :value-atom a :scale 100])
+
+(defn- price [a]
+  [input/number :min 0 :step 0.1 :max 100 :value-atom a :scale 100]
+  )
+
+(defn- tonnes [a]
+  [input/number :min 0 :max 10000 :step 1 :value-atom a])
+
+(defn- rate-term [t r a b c]
+  [:div [:span a [years t] b [rate r] c]])
 
 (defn component [document]
-  ;; we need to get some flexbox in this
-  (reagent/with-let [tech (reagent/cursor document [::document/technologies])
-                     editing-technology (reagent/atom nil)
+  (reagent/with-let [dc (fn [& a] (reagent/cursor document a))
+
+                     mipgap (dc ::document/mip-gap)
+                     
+                     system-term (dc ::document/system-term)
+                     system-rate (dc ::document/system-rate)
+                     plant-term (dc ::document/plant-term)
+                     plant-rate (dc ::document/plant-rate)
+                     network-term (dc ::document/network-term)
+                     network-rate (dc ::document/network-rate)
+
+                     gas-price     (dc ::document/in-price :gas)
+                     elec-price    (dc ::document/in-price :electricity)
+                     biomass-price (dc ::document/in-price :biomass)
+
+                     elec-tariff (dc ::document/out-price :electricity)
+                     heat-tariff (dc ::document/out-price :heat)
+
+                     technologies (dc ::document/technologies)
+                     
+                     ef
+                     (fn [fuel gas]
+                       (reagent/with-let [va (dc ::document/emissions-factor gas fuel)]
+                         [input/number :min 0 :max 1000 :step 1 :value-atom va
+                          :scale 1000
+                          ]))
+
+                     emissions-price
+                     (fn [gas]
+                       (reagent/with-let [va (dc ::document/emissions-price gas)]
+                         [input/number :min 0 :max 1000 :step 0.1 :value-atom va
+                          :scale 1000]))
+                     
+                     emissions-cap
+                     (fn [gas]
+                       (reagent/with-let [va (dc ::document/emissions-cap gas)]
+                         [input/number :min 0 :max 10000 :step 100 :value-atom va
+                          :scale (/ 1 1000000)
+                          ]))
                      ]
-    [:div {:style {:height "calc(100% - 100px)"
-                   :display :flex
-                   :flex-direction :column
-                   }}
-     [:div {:style {:display :flex :flex-direction :row}}
-      [objective-editor document]
-      ]
-
-     [:div {:style {:flex 1 :display :flex :flex-direction :column}}
-      
-      [:div {:style {:flex-grow 1}}
-       (when @editing-technology
-         [technology-editor {:on-ok
-                             (fn [new-value]
-                               ;; TODO replace the element
-                               (swap! tech (fn [techs]
-                                             (let [old-value @editing-technology]
-                                               (if (some (partial = old-value) techs)
-                                                 (replace {old-value new-value} techs)
-                                                 (conj techs new-value))
-                                               )))
-                               (reset! editing-technology nil))
-                             
-                             :on-cancel #(reset! editing-technology nil)
-                             :initial-value @editing-technology
-                             }])
-       
-       [:div {:style {:display :flex :margin :0.5em}}
-        [:h1 {:style {:font-weight :bold
-                     :font-size :18pt
-                     :display :inline-block}}
-        "Technologies"]
-        ]
-       
-       [virtual-table/component
-        {:items @tech
-         :rowHeight 30
-         :headerHeight 30}
-
-        ;; we want all these to be editable or we want an edit form
-        ;; that we can pop up over the top (might be easier?)
-        {:key ::technology/id :label "Name"}
-        {:key ::technology/fuel :label "Fuel"
-         :cellRenderer virtual-table/render-keyword}
-        
-        {:key ::technology/capacity :label "MW"}
-        
-        {:key ::technology/heat-efficiency :label "Heat %"
-         :cellRenderer (virtual-table/render-number :scale 100 :unit "%")}
-        {:key ::technology/power-efficiency :label "Power %"
-         :cellRenderer (virtual-table/render-number :scale 100 :unit "%")
-         }
-        
-        {:key ::technology/capital-cost :label "Cost"
-         :cellRenderer (virtual-table/render-number)
-         }
-        {:key :edit :label "" :disableSort true
-         :cellRenderer
-         (fn [a] (reagent/as-element [:button.button
-                                      {:on-click
-                                       #(reset! editing-technology (o/get a "rowData" nil))}
-                                      "Edit"]))
-
-         :headerRenderer
-         (fn [a] (reagent/as-element
-                  [:button.button {:style {:margin-left :auto}
-                                   :on-click #(reset! editing-technology {::technology/fuel :gas})}
-                   "Add ⊕"]
-                  ))
-         }
-        {:key :delete
-
-         :disableSort true
-         :cellRenderer
-         (fn [a] (let [item (o/get a "rowData")]
-                   (reagent/as-element [:button.button
-                                        {:on-click #(swap! tech
-                                                           (fn [x] (remove #{item} x)))}
-                                        "Remove"]
-                                       )))
-         }
-        ]]]]))
-
-(defn- objective-editor [document]
-  (reagent/with-let
-    [gap (reagent/cursor document [::document/objective ::document/gap])
-
-     plant-period (reagent/cursor document [::document/objective ::document/plant-period])
-     plant-interest-rate (reagent/cursor document [::document/objective ::document/plant-interest-rate])
-
-     network-period (reagent/cursor document [::document/objective ::document/network-period])
-     network-interest-rate (reagent/cursor document [::document/objective ::document/network-interest-rate])
-
-     carbon-cost (reagent/cursor document [::document/objective ::document/carbon-cost])
-
-     carbon-cap (reagent/cursor document [::document/objective ::document/carbon-cap])
-
-     electricity-import-price (reagent/cursor document [::document/objective ::document/electricity-import-price])
-     electricity-export-price (reagent/cursor document [::document/objective ::document/electricity-export-price])
-
-     heat-price (reagent/cursor document [::document/objective ::document/heat-price])
+    
+    [:div.parameters-component {:style {:overflow :auto}}
+     [:div 
+      [:h1 "Finances"]
+      [:table
+       [:thead
+        [:tr
+         [:th]
+         [:th "Period (y)"]
+         [:th "Rate (%)"]]]
+       [:tbody
+        [:tr
+         [:td [:span.tooltip
+               [:span.tooltiptext
+                "The value being maximised is the present value "
+                "of costs and revenues over this period, discounted "
+                "at this rate"]
+               
+               "System NPV"]]
+         [:td [years system-term]]
+         [:td [rate system-rate]]]
+        [:tr
+         [:td [:span.tooltip
+               [:span.tooltiptext
+                "Plant capital cost will be spread over "
+                "this many years with a fixed rate loan at this rate."]
+               
+               "Plant Capital"]]
+         [:td [years plant-term]]
+         [:td [rate plant-rate]]]
+        [:tr
+         [:td [:span.tooltip
+               [:span.tooltiptext
+                "Pipework capital cost will be spread over "
+                "this many years with a fixed rate loan at this rate."]
+               
+               "Pipework Capital"]]
+         [:td [years network-term]]
+         [:td [rate network-rate]]]
+        ]]]
      
-     gas-price (reagent/cursor document [::document/objective ::document/gas-price])
-     biomass-price (reagent/cursor document [::document/objective ::document/biomass-price])
-
-     electricity-carbon (reagent/cursor document [::document/objective ::document/electricity-emissions])
-     gas-carbon (reagent/cursor document [::document/objective ::document/gas-emissions])
-     biomass-carbon (reagent/cursor document [::document/objective ::document/biomass-emissions])
-     ]
-    [:div {:style {:flex 1 :display :flex :flex-direction :row :margin-top :1em}}
-     [:div {:style {:margin-left :auto :margin-right :auto}}
-      [:h1 {:style {:font-weight :bold :font-size :18pt :display :block}}
-       "Capital costs"]
+     [:div
+      [:h1 "Energy prices and factors"]
 
       [:table
        [:thead
-        [:tr [:th ""] [:th "Period"] [:th "Rate"]]]
-       
+        [:tr
+         [:th]
+         [:th "Buy (c/kWh)"]
+         [:th "Sell (c/kWh)"]
+         (for [[k l] document/emissions-labels]
+           [:th {:key k} l " (g/kWh)"])
+         ]
+        ]
        [:tbody
-        
-        [:tr [:td "Plant"]
-         [:td [input/number :value-atom plant-period :step 1 :max 50 :min 1]]
-         [:td [input/number :value-atom plant-interest-rate :step 0.01 :max 50 :min 1]]]
+        [:tr
+         [:td "Gas"]
+         [:td [price gas-price]]
+         [:td]
+         (for [[k l] document/emissions-labels]
+           [:td {:key k} [ef :gas k]]
+           )
+         
+         ]
+        [:tr
+         [:td "Biomass"]
+         [:td [price elec-price]]
+         [:td]
+         (for [[k l] document/emissions-labels]
+           [:td {:key k} [ef :biomass k]]
+           )
+         ]
+        [:tr
+         [:td [:span.tooltip
+               [:span.tooltiptext
+                "Emissions factors are used for consumption and avoided emissions"]
+               
+               "Electricity"]]
+         [:td [price elec-price]]
+         [:td [price elec-tariff]]
+         (for [[k l] document/emissions-labels]
+           [:td {:key k} [ef :electricity k]]
+           )
+         ]
+        [:tr
+         [:td [:span.tooltip
+               [:span.tooltiptext
+                "Emissions factors are used to calculate avoided emissions"]
+               
+               "Heat"]]
+         [:td]
+         [:td [price heat-tariff]]
+         (for [[k l] document/emissions-labels]
+           [:td {:key k} [ef :heat k]]
+           )]]]]
+     
 
-        [:tr [:td "Network"]
-         [:td [input/number :value-atom network-period :step 1 :max 50 :min 1]]
-         [:td [input/number :value-atom network-interest-rate :step 0.01 :max 50 :min 1]]]
+     [:div
+      [:h1 "Emissions prices and limits"]
+      (for [[k l] document/emissions-labels]
+        [:div {:key k}
+         "Price " l " at " [emissions-price k] " ¤/t"
+         " and cap emissions at " [emissions-cap k] " kt/yr"])
+      ]
+
+     [:div
+      [:h1 "Optimisation"]
+      [:div
+       "Accept solutions within "
+       [input/number :max 25 :min 0 :scale 100 :step 0.1 :value-atom mipgap]
+       "% of the optimum"]
+      ]
+     
+
+     [:div
+      [:h1 "Plant types"]
+      [:table
+       [:thead
+        [:tr
+         [:th "Name"]
+         [:th "Capacity (MW)"]
+         [:th "Fuel"]
+         [:th "Heat (%)"]
+         [:th "Power (%)"]
+         [:th "Cost (¤)"]
+         [:th [:button "Add"]]]]
+       [:tbody
+        (for [technology (sort-by ::technology/capacity @technologies)]
+          [:tr {:key (::technology/id technology)}
+           [:td (::technology/id technology)]
+           [:td (* 1000 (::technology/capacity technology))]
+           [:td (name (::technology/fuel technology))]
+           [:td (* 100 (::technology/heat-efficiency technology))]
+           [:td (* 100 (::technology/power-efficiency technology))]
+           [:td (.toLocaleString (::technology/capital-cost technology))]
+           [:td [:button "x"] [:button "e"]]
+           ]
+          )
         ]
        ]
       ]
-     
-     [:div {:style {:margin-left :auto :margin-right :auto}}
-      [:h1 {:style {:font-weight :bold :font-size :18pt :display :block}}
-       "Resource costs"]
-      [:table
-       [:thead
-        [:tr [:td "Resource"] [:td "Cost"] [:td "Revenue"] [:td "Carbon"]]]
-       [:tbody
-        (for [[name {cost :cost revenue :revenue carbon :carbon}]
-              {"Electricity" {:cost electricity-import-price :revenue electricity-export-price
-                              :carbon electricity-carbon}
-               "Gas" {:cost gas-price :carbon gas-carbon}
-               "Biomass" {:cost biomass-price :carbon biomass-carbon}
-               "Heat" {:revenue heat-price}}
-              ]
-          [:tr {:key name}
-           [:td name]
-           [:td (when cost [input/number :value-atom cost :step 0.01 :max 9 :min 0])]
-           [:td (when revenue [input/number :value-atom revenue :step 0.01 :max 9 :min 0])]
-           [:td (when carbon [input/number :value-atom carbon :step 0.01 :max 9 :min 0])]])]
-       ]]
-     [:div {:style {:margin-left :auto :margin-right :auto}}
-      [:h1 {:style {:font-weight :bold :font-size :18pt :display :block}}
-       "Emissions limits"]
+     ])
+  
+  )
 
-      [:table
-       [:tbody
-        [:tr
-         [:td "Cost of carbon"]
-         [:td [input/number :value-atom carbon-cost :step 0.01 :min 0 :max 100]]
-         ]
-        [:tr
-         [:td "Carbon limit"]
-         [:td [input/number :value-atom carbon-cap :step 1 :max 1e12 :min 0]]
-         ]
-        ]
-       ]
-
-      [:h1 {:style {:margin-top :1em :font-weight :bold :font-size :18pt :display :block}}
-       "Acceptable quality"]
-      [:table [:tbody [:tr
-                       [:td [input/number :value-atom gap :max 10 :min 0 :step 0.1 :scale 100]]
-                       [:td "% from best"]]]]]
-     
-     ]))

@@ -20,7 +20,7 @@
 ;; All types of candidate have to have certain attributes
 (s/def ::common
   (s/keys :req [ ::id ::type ::subtype ::geometry ::name ::inclusion ::selected ]
-          :opt [ ::solution/candidate ]
+          :opt [ ::solution/included ]
           ))
 
 (s/def ::selected boolean?)
@@ -80,14 +80,15 @@
   (s/and
    #(= :path (::type %))
    (s/merge
-    (s/keys :req [ ::length ::path-start ::path-end ::path-cost ])
+    (s/keys :req [ ::length ::path-start ::path-end ::path-cost ::path-kw-cost ])
     ::common)))
 
 (s/def ::length number?)
 (s/def ::path-start ::id)
 (s/def ::path-end ::id)
 
-;; access / update functions
+;; accessors - I know the typical advice is not to do this type of
+;; thing, but some of these are slightly more complicated.
 (defn is-included? [{inc ::inclusion}]
   (or (= inc :optional)
       (= inc :required)))
@@ -113,6 +114,26 @@
 
 (defn annual-demand [{d ::demand}] d)
 
+(defn is-in-solution? [{s ::solution/included}] s)
+
+;; There follow functions for modifying candidates
+
 (defn forbid-supply [c]
   (assoc c ::allowed-technologies {}))
 
+(defn add-path-to-solution [p & {:keys [capacity heat-losses capital-cost]}]
+  (merge p
+         {::solution/included true
+          ::solution/capital-cost capital-cost
+          ::solution/path-capacity capacity
+          ::solution/heat-loss heat-losses}))
+
+(defn add-building-to-solution [b & {:keys [heat-revenue plant]}]
+  (merge b
+         {::solution/included true}
+         (when (and heat-revenue (> heat-revenue 0))
+           {::solution/heat-revenue heat-revenue})
+         (when (seq plant)
+           {::solution/has-supply true
+            ::solution/plant plant
+            })))

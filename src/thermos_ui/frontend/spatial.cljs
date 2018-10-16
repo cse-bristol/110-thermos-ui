@@ -73,7 +73,7 @@
   The arity-3 version you can tell what needs updating, in case you
   know what you just added or deleted."
   ([document added removed]
-   (let [document (operations/map-candidates document add-jsts-geometry added)
+   (let [document (document/map-candidates document add-jsts-geometry added)
          candidates-bboxes (::candidates-bboxes document)
          spatial-index (or (::spatial-index document) (rbush))
          indexed-candidates

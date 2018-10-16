@@ -63,3 +63,25 @@
   (testing "Paths have to go from one place to another, different place"
     (is (not (doc/is-topologically-valid
               {1 {::can/id 1 ::can/type :path ::can/path-start 2 ::can/path-end 2}})))))
+
+
+(deftest map-candidates-works
+  (let [doc
+        {:splarge 1
+
+         ::document/candidates
+         {"a" {::candidate/id "a" ::candidate/selected false}
+          "b" {::candidate/id "b" ::candidate/selected true}
+          }}]
+    (is (= (doc/map-candidates
+            doc
+            #(assoc % ::candidate/selected :orange)
+            )
+           {:splarge 1
+            ::document/candidates
+         {"a" {::candidate/id "a" ::candidate/selected :orange}
+          "b" {::candidate/id "b" ::candidate/selected :orange}
+          }}
+           ))
+    )
+  )

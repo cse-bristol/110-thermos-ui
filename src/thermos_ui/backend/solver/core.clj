@@ -34,7 +34,13 @@
   component/Lifecycle
   (start [component]
     (println "Reading problems from queue...")
-    (queue/consume queue :problems (partial consume-problem (:config component)))
+    (let [config (:config component)]
+      (queue/consume queue :problems
+                     (fn [connection args]
+                       (consume-problem
+                        config
+                        connection
+                        args))))
     component)
   
   (stop [component]))

@@ -67,24 +67,6 @@
        (vals)
        (filter #(> (.indexOf [:required :optional] (::candidate/inclusion %)) -1))))
 
-(defn map-candidates
-  "Go through a document and apply f to all the indicated candidates."
-  ([doc f]
-   (update doc ::document/candidates
-           #(reduce-kv
-             (fn [m k v] (assoc m k (f v))) {} %)))
-  
-  ([doc f ids]
-   (if (empty? ids)
-     doc
-     (update doc
-             ::document/candidates
-             #(persistent!
-               (reduce
-                (fn [cands id]
-                  (assoc! cands id (f (get cands id))))
-                (transient %) ids))))))
-
 (defn select-candidates
   "Change the selection for all candidates with IDs in the CANDIDATE-IDS using the METHOD."
   [doc candidate-ids method]
@@ -130,9 +112,9 @@
 (defn set-candidates-inclusion
   "Change the inclusion constraint for candidates in CANDIDATE-IDS to NEW-CONSTRAINT"
   [doc candidate-ids new-constraint]
-  (map-candidates doc
-                  #(assoc % ::candidate/inclusion new-constraint)
-                  candidate-ids))
+  (document/map-candidates doc
+                           #(assoc % ::candidate/inclusion new-constraint)
+                           candidate-ids))
 
 (defn rotate-candidates-inclusion [doc candidate-ids]
   (if (empty? candidate-ids)
@@ -183,7 +165,7 @@
 (defn deselect-candidates
   "Removes the given candidates from the current selection."
   [document candidate-ids]
-  (map-candidates document
+  (document/map-candidates document
                   #(assoc % ::candidate/selected false)
                   candidate-ids))
 
@@ -366,11 +348,6 @@
       doc
       (update-in doc [::document/candidates]
                  #(select-keys % (constrained-candidates-ids doc))))))
-
-(defn remove-solution [doc]
-  (-> doc
-      (dissoc ::solution/solution)
-      (map-candidates #(dissoc % ::solution/candidate))))
 
 (defn allow-supply [doc cand]
   (assoc-in doc [::document/candidates cand ::candidate/allowed-technologies]

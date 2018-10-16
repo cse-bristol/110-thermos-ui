@@ -17,7 +17,7 @@
   "The panel showing all the candidates which can (or must) be required in the network."
   [document]
   (reagent/with-let
-    [solution (reagent/cursor document [::solution/solution])
+    [solution (reagent/cursor document [::solution/summary])
      all-filters (reagent/track #(operations/get-all-table-filters @document))
      num-applied-filters (reagent/track
                           #(reduce-kv (fn [init filter-key filter-value]
@@ -94,7 +94,7 @@
         (assoc (col "Class" ::candidate/subtype "checkbox" data-name)
                :width 120)
         (when @solution
-          {:label "In?" :key [::solution/candidate ::solution/included]
+          {:label "In?" :key ::solution/included
            :cellRenderer #(if (data-value %)
                             "✓" "❌")
            :style #js {"text-align" "right"}
@@ -107,7 +107,7 @@
                        open-filter
                        filtered-candidates
                        candidates
-                       [::solution/candidate ::solution/included]
+                       ::solution/included
                        args
                        "checkbox"))}
           )

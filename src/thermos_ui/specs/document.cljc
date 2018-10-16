@@ -6,6 +6,13 @@
             [thermos-ui.specs.view :as view]
             [clojure.string :as str]
             [clojure.walk :refer [prewalk]]
+
+            [clojure.spec.alpha :as s]
+            [clojure.string :as str]
+            [thermos-ui.specs.candidate :as candidate]
+            [thermos-ui.specs.technology :as technology]
+            [thermos-ui.specs.solution :as solution]
+            [thermos-ui.specs.view :as view]
             ))
 
 ;; this is the spec for what you can see on the screen in the UI
@@ -17,8 +24,10 @@
                                 ::objective
                                 
                                 ::view/view-state
-                                ::solution/solution
-                                ]))
+                                ]
+                          
+                          :opt [ ::solution/summary ]
+                          ))
 
 (defn redundant-key
   "Make a spec which checks a map, so that for every map entry, the
@@ -113,3 +122,56 @@ This means that anything with type :path has suitable path-start and path-end"
                 ::heat-price
                 ])
   )
+
+(defn map-candidates
+  "Go through a document and apply f to all the indicated candidates."
+  ([doc f]
+   (update doc ::candidates
+           #(reduce-kv
+             (fn [m k v] (assoc m k (f v))) {} %)))
+
+  ([doc f ids]
+   (if (empty? ids)
+     doc
+     (update doc
+             ::candidates
+             #(persistent!
+               (reduce
+                (fn [cands id]
+                  (assoc! cands id (f (get cands id))))
+                (transient %) ids))))))
+
+(let [solution-ns (namespace ::solution/included)
+      is-solution-keyword #(= (namespace %) solution-ns)]
+  (defn remove-solution
+    "Remove everything to do with a solution from this document"
+    [doc]
+    (-> doc
+        (dissoc ::solution/summary)
+        (map-candidates #(select-keys % (remove is-solution-keyword (keys %)))))))
+
+(defn fuel-tariff
+  "The tariff is the price we sell at"
+  [doc fuel]
+  (get-in doc [::out-price fuel]))
+
+(defn fuel-price
+  "The price is the price we buy at"
+  [doc fuel]
+  (get-in doc [::in-price fuel]))
+
+(defn fuel-factor [doc fuel gas]
+  (get-in doc [::emissions-factor gas fuel]))
+
+(defn emissions-price [doc gas]
+  (get-in doc [::emissions-price gas]))
+
+(defn emissions-cap [doc gas]
+  (get-in doc [::emissions-cap gas]))
+
+(def emissions-types [:co2e :pm25])
+
+(def emissions-labels
+  {:co2e  "CO₂ₑ"
+   :pm25 "PM₂₅"})
+

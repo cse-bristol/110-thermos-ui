@@ -65,23 +65,3 @@
              (test-document false true))))))
 
 
-(deftest map-candidates-works
-  (let [doc
-        {:splarge 1
-
-         ::document/candidates
-         {"a" {::candidate/id "a" ::candidate/selected false}
-          "b" {::candidate/id "b" ::candidate/selected true}
-          }}]
-    (is (= (ops/map-candidates
-            doc
-            #(assoc % ::candidate/selected :orange)
-            )
-           {:splarge 1
-            ::document/candidates
-         {"a" {::candidate/id "a" ::candidate/selected :orange}
-          "b" {::candidate/id "b" ::candidate/selected :orange}
-          }}
-           ))
-    )
-  )

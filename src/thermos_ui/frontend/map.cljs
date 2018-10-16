@@ -369,7 +369,7 @@
         (reagent/cursor doc [::document/candidates])
 
         solution
-        (reagent/cursor doc [::solution/solution])
+        (reagent/cursor doc [::solution/summary])
         
         filtered-candidates-ids
         (reagent/track #(set (map ::candidate/id (operations/get-filtered-candidates @doc))))

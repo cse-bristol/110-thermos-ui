@@ -35,7 +35,7 @@
 (defn component
   "The panel in the bottom right which displays some information about the currently selected candidates."
   [document]
-  (let [has-solution (::solution/solution @document)
+  (let [has-solution (::solution/summary @document)
         selected-candidates (operations/selected-candidates @document)
         selected-technologies (mapcat (comp ::solution/technologies ::solution/candidate)
                                       selected-candidates)
@@ -79,18 +79,15 @@
       
       (when has-solution
         (for [[row-name class contents]
-              [["In solution" sc-class (cat 
-                                        #(and (-> % ::solution/candidate ::solution/included) "yes") "no")]
+              [["In solution" sc-class (cat #(when (candidate/is-in-solution? %) "yes") "no")]
 
                ["Max flow"
                 nil
-                (num (comp ::solution/heat-flow ::solution/candidate)
-                     max "W" 1000000)
+                (num ::solution/path-capacity max "W" 1000)
                 ]
                ["Total flow"
                 nil
-                (num (comp ::solution/heat-flow ::solution/candidate)
-                     + "W" 1000000)]
+                (num ::solution/path-capacity + "W" 1000)]
 
                ["Technology"
                 nil

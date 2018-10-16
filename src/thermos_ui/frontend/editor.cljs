@@ -8,7 +8,7 @@
             [thermos-ui.specs.document :as document]
             [thermos-ui.frontend.editor-state :as state]
             [thermos-ui.frontend.parameters :as parameters]
-            [thermos-ui.frontend.solution :as solution-component]
+            [thermos-ui.frontend.solution-view :as solution-component]
             [thermos-ui.frontend.operations :as operations]
             [thermos-ui.frontend.main-nav :as main-nav]
             [thermos-ui.frontend.network-candidates-panel :as network-candidates-panel]
@@ -86,10 +86,8 @@
     )
   (defn main-page []
     (r/with-let [selected-tab (r/cursor state/state [::view/view-state ::view/selected-tab])
-                 solution (r/cursor state/state [::solution/solution])
-
-                 last-run-state (r/atom nil)
-                 ]
+                 solution (r/cursor state/state [::solution/summary])
+                 last-run-state (r/atom nil)]
       (let [close-popover
             (fn [e]
               (let [popover-menu-node (js/document.querySelector ".popover-menu")
