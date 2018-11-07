@@ -1,8 +1,8 @@
-(ns thermos-ui.test.frontend.operations
+(ns thermos-test.frontend.operations
   (:require [clojure.test :refer :all]
-            [thermos-ui.specs.document :as document]
-            [thermos-ui.specs.candidate :as candidate]
-            [thermos-ui.frontend.operations :as ops])
+            [thermos-specs.document :as document]
+            [thermos-specs.candidate :as candidate]
+            [thermos-frontend-.operations :as ops])
   )
 
 (deftest selected-candidates-ids-works

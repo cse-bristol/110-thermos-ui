@@ -97,6 +97,7 @@
   (defn mkvisitor [^Path root tree & {:keys [ignore]}]
     (let [^SimpleFileVisitor v0 (mkvisitor-0 root tree :ignore ignore)]
       (proxy [SimpleFileVisitor] []
+        (postVisitDirectory [p e] (.postVisitDirectory v0 p e))
         (preVisitDirectory [path attr] (.preVisitDirectory v0 path attr))
         (visitFile [path attr] (.visitFile v0 path attr))
         (visitFileFailed [path exc]
@@ -115,11 +116,11 @@
 (task-options!
  pom {:project 'thermos
       :version "0.1.0-SNAPSHOT"}
- aot {:namespace #{'thermos-ui.backend.main}}
- jar {:main 'thermos-ui.backend.main})
+ aot {:namespace #{'thermos-backend.main}}
+ jar {:main 'thermos-backend.main})
 
 
-(require '[thermos-ui.backend.main :refer [create-system]])
+(require '[thermos-backend.main :refer [create-system]])
 
 (deftask dev
   "Run in development mode - this does live reload, and runs a repl.

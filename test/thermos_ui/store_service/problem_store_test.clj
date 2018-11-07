@@ -1,9 +1,9 @@
-(ns thermos-ui.store-service.problem_store_test
+(ns thermos-store-service.problem_store_test
   (:require [clojure.test :refer :all]
             [clojure.java.io :as io]
             [ring.mock.request :as mock]
-            [thermos-ui.backend.handler :refer :all]
-            [thermos-ui.backend.store-service.problems :as problem]
+            [thermos-backend.handler :refer :all]
+            [thermos-backend.store-service.problems :as problem]
             [environ.core :refer [env]]))
 
 (defonce store-location (env :problem-store))

@@ -1,4 +1,4 @@
-(ns thermos-ui.test.specs.util
+(ns thermos-test.specs.util
   (:require [clojure.spec.alpha :as s]
             [clojure.test :refer :all]
             ))

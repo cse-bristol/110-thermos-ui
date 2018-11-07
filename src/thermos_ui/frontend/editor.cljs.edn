@@ -1,9 +1,0 @@
-{:require [thermos-ui.frontend.editor]
- :init-fns [thermos-ui.frontend.editor/on-js-reload]
- :compiler-options {
-                    :output-dir "public/js/editor.out"
-                    :output-to "public/js/editor.js"
-                    :asset-path "/js/editor.out"
-
-                    }
- }

@@ -1,7 +1,0 @@
-{:require [thermos-ui.frontend.pages.problems-list]
- :compiler-options {
-                    :output-dir "public/js/problems_list.out"
-                    :output-to "public/js/problems_list.js"
-                    :asset-path "/js/problems_list.out"
-                    }
- }

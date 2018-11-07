@@ -1,8 +1,8 @@
-(ns thermos-ui.test.specs.view
-  (:require [thermos-ui.specs.view :as view]
-            [thermos-ui.specs.candidate :as can]
+(ns thermos-test.specs.view
+  (:require [thermos-specs.view :as view]
+            [thermos-specs.candidate :as can]
             [clojure.spec.alpha :as s]
-            [thermos-ui.test.specs.util]
+            [thermos-test.specs.util]
             [clojure.test :refer :all]))
 
 (s/check-asserts true)

@@ -1,8 +1,8 @@
-(ns thermos-ui.store-service.geometry-store-test
+(ns thermos-store-service.geometry-store-test
   (:require [clojure.test :refer :all]
             [ring.mock.request :as mock]
-            [thermos-ui.backend.handler :refer :all]
-            [thermos-ui.backend.store-service.geometries :as geoms]))
+            [thermos-backend.handler :refer :all]
+            [thermos-backend.store-service.geometries :as geoms]))
 
 (deftest bounding-box-calc
   (testing "Get Bounding box a res 18"
