@@ -3,10 +3,8 @@
             [clojure.string :as str]
             [thermos-ui.specs.document :as document]
             [thermos-ui.specs.candidate :as candidate]
-            [thermos-ui.specs.technology :as technology]
             [thermos-ui.specs.solution :as solution]
-            [thermos-ui.specs.view :as view]
-            ))
+            [thermos-ui.specs.view :as view]))
 
 (s/def ::selection-method
   #{:replace :union :intersection :difference :xor})
@@ -348,14 +346,3 @@
       doc
       (update-in doc [::document/candidates]
                  #(select-keys % (constrained-candidates-ids doc))))))
-
-(defn allow-supply [doc cand]
-  (assoc-in doc [::document/candidates cand ::candidate/allowed-technologies]
-            (let [every-technology (for [k (map ::technology/id (::document/technologies doc))]
-                                     [k {:min 0 :max 10}])]
-              (into {} every-technology)))
-  
-  )
-
-(defn forbid-supply [doc cand]
-  (assoc-in doc [::document/candidates cand ::allowed-technologies] {}))

@@ -1,33 +1,32 @@
 (ns thermos-ui.specs.document
   (:require [clojure.spec.alpha :as s]
-            [thermos-ui.specs.technology :as technology]
             [thermos-ui.specs.candidate :as candidate]
+            [thermos-ui.specs.demand :as demand]
             [thermos-ui.specs.solution :as solution]
             [thermos-ui.specs.view :as view]
             [clojure.string :as str]
-            [clojure.walk :refer [prewalk]]
+            [clojure.walk :refer [prewalk]]))
 
-            [clojure.spec.alpha :as s]
-            [clojure.string :as str]
-            [thermos-ui.specs.candidate :as candidate]
-            [thermos-ui.specs.technology :as technology]
-            [thermos-ui.specs.solution :as solution]
-            [thermos-ui.specs.view :as view]
-            ))
+(s/def ::document
+  (s/keys :req [::candidates
+                ::view/view-state
 
-;; this is the spec for what you can see on the screen in the UI
+                ;; default values for price & emissions at demands
+                ::demand/price
+                ::demand/emissions
 
-(s/def ::document (s/keys :req [::candidates
+                ::npv-term
+                ::npv-rate
 
-                                ::technologies
-                                ::resources
-                                ::objective
-                                
-                                ::view/view-state
-                                ]
-                          
-                          :opt [ ::solution/summary ]
-                          ))
+                ::loan-term
+                ::loan-rate
+
+                ::emissions-cost  ;; numbers
+                ::emissions-limit ;; {:enabled and :value}
+                
+                ::mip-gap
+                ]
+          :opt [ ::solution/summary ]))
 
 (defn redundant-key
   "Make a spec which checks a map, so that for every map entry, the
@@ -41,44 +40,42 @@
   (s/every (fn [[id val]] (and (map? val)
                                (= id (key val)))) :kind map? :into {}))
 
-(s/def ::technologies
-  (s/* ::technology/technology))
+;; (defn is-topologically-valid
+;;   "A candidate set is topologically valid when every path connects only to junctions or buildings.
+;; This means that anything with type :path has suitable path-start and path-end"
+;;   [candidates]
 
-(defn is-topologically-valid
-  "A candidate set is topologically valid when every path connects only to junctions or buildings.
-This means that anything with type :path has suitable path-start and path-end"
-  [candidates]
+;;   (let [paths
+;;         (filter
+;;          #(= (::candidate/type %) :path)
+;;          (vals candidates))
 
-  (let [paths
-        (filter
-         #(= (::candidate/type %) :path)
-         (vals candidates))
+;;         path-ids
+;;         (into #{} (mapcat ::candidate/connections paths))
 
-        path-ids
-        (into #{} (map ::candidate/id paths))
+;;         endpoints
+;;         (->> paths
+;;              (mapcat #(vector (::candidate/path-start %)
+;;                               (::candidate/path-end %)))
+;;              (into #{}))
+;;         ]
 
-        endpoints
-        (->> paths
-             (mapcat #(vector (::candidate/path-start %)
-                              (::candidate/path-end %)))
-             (into #{}))
-        ]
+;;     ;; every endpoint must be a building ID or a junction ID
+;;     ;; but this is always true because junction IDs may be anything
 
-    ;; every endpoint must be a building ID or a junction ID
-    ;; but this is always true because junction IDs may be anything
+;;     ;; so the only real rule is that no endpoint may be a path ID:
+;;     (and (every? (comp not path-ids) endpoints)
+;;          ;; and also that no path may be a loop, as that would be silly
+;;          (every? #(not= (::candidate/path-start %)
+;;                         (::candidate/path-end %))
+;;                  paths))
+;;     ))
 
-    ;; so the only real rule is that no endpoint may be a path ID:
-    (and (every? (comp not path-ids) endpoints)
-         ;; and also that no path may be a loop, as that would be silly
-         (every? #(not= (::candidate/path-start %)
-                        (::candidate/path-end %))
-                 paths))
-    ))
 
 (s/def ::candidates
   (s/and
    (redundant-key ::candidate/id)
-   is-topologically-valid
+   ;;   is-topologically-valid
    (s/map-of ::candidate/id ::candidate/candidate)))
 
 (defn keep-interesting
@@ -111,18 +108,6 @@ This means that anything with type :path has suitable path-start and path-end"
 
     (prewalk remove-nonspec-keys document)))
 
-(s/def ::objective
-  (s/keys :req [::period
-                ::discount-rate
-                ::carbon-cost
-                ::gas-price
-                ::biomass-price
-                ::electricity-import-price
-                ::electricity-export-price
-                ::heat-price
-                ])
-  )
-
 (defn map-candidates
   "Go through a document and apply f to all the indicated candidates."
   ([doc f]
@@ -149,29 +134,4 @@ This means that anything with type :path has suitable path-start and path-end"
     (-> doc
         (dissoc ::solution/summary)
         (map-candidates #(select-keys % (remove is-solution-keyword (keys %)))))))
-
-(defn fuel-tariff
-  "The tariff is the price we sell at"
-  [doc fuel]
-  (get-in doc [::out-price fuel]))
-
-(defn fuel-price
-  "The price is the price we buy at"
-  [doc fuel]
-  (get-in doc [::in-price fuel]))
-
-(defn fuel-factor [doc fuel gas]
-  (get-in doc [::emissions-factor gas fuel]))
-
-(defn emissions-price [doc gas]
-  (get-in doc [::emissions-price gas]))
-
-(defn emissions-cap [doc gas]
-  (get-in doc [::emissions-cap gas]))
-
-(def emissions-types [:co2e :pm25])
-
-(def emissions-labels
-  {:co2e  "CO₂ₑ"
-   :pm25 "PM₂₅"})
 

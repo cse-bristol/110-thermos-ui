@@ -7,13 +7,13 @@
             [thermos-ui.specs.view :as view]
             [thermos-ui.specs.document :as document]
             [thermos-ui.frontend.editor-state :as state]
-            [thermos-ui.frontend.parameters :as parameters]
-            [thermos-ui.frontend.solution-view :as solution-component]
+
             [thermos-ui.frontend.operations :as operations]
             [thermos-ui.frontend.main-nav :as main-nav]
             [thermos-ui.frontend.network-candidates-panel :as network-candidates-panel]
             [thermos-ui.frontend.selection-info-panel :as selection-info-panel]
             [thermos-ui.frontend.popover :as popover]
+            [thermos-ui.frontend.model-parameters :as model-parameters]
             [thermos-ui.frontend.toaster :as toaster]
             [thermos-ui.frontend.editor-keys :as keys]
             [clojure.pprint :refer [pprint]]
@@ -50,10 +50,7 @@
         name
         (urls/editor org-name name new-id))
        ;; Show "toaster" message notifying successful save
-       (toaster/show!
-        [:div.toaster.toaster--success "Project saved"])
-
-       )))
+       (toaster/show! [:div.toaster.toaster--success "Project saved"]))))
 
   (defonce unsaved? (r/atom false))
   
@@ -117,8 +114,9 @@
            :tabs
            [
             {:key :candidates :label "Map"}
+            ;; {:key :parameters :label "Options"}
+            ;; (when @solution {:key :solution :label "Result"})
             {:key :parameters :label "Options"}
-            (when @solution {:key :solution :label "Result"})
             {:key :help :label "Help"}
             ]
            }]
@@ -159,10 +157,13 @@
            [map-page state/state]
 
            :parameters
-           [parameters/component state/state]
+           [model-parameters/parameter-editor state/state]
+           ;; :parameters
+           ;; [parameters/component state/state]
 
            :solution
-           [solution-component/component state/state]
+           [:div]
+           ;; [solution-component/component state/state]
            
            :help
            [:iframe {:src "/help/index.html"

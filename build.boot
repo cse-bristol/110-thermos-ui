@@ -22,6 +22,17 @@
    [ring/ring-defaults        "0.3.1"]
    [ring/ring-json            "0.4.0"]
 
+   [org.clojure/tools.logging "0.4.1"]
+   [log4j/log4j "1.2.17"
+    :exclusions [javax.mail/mail
+                 javax.jms/jms
+                 com.sun.jmdk/jmxtools
+                 com.sun.jmx/jmxri]]
+
+   ;; we need this because we have hikari thing which uses slf4j,
+   ;; which then does nothing if we don't have a logging doodad
+   [org.slf4j/slf4j-log4j12   "1.7.10"]
+
    [com.stuartsierra/component "0.3.2"]
    
    [org.clojure/java.jdbc     "0.7.5"]
@@ -40,7 +51,6 @@
    [hikari-cp                 "1.2.4"] ;; connection pooling
 
 
-   [io.forward/yaml           "1.0.8"]
    [org.clojure/data.csv      "0.1.4"]
    [aysylu/loom               "1.0.1"] ;; Graph data structures / algo
    [org.tobereplaced/nio.file "0.4.0"] ;; nio functions
@@ -80,6 +90,21 @@
          '[system.boot :refer [system]]
          )
 
+(require 'clojure.java.shell)
+(require 'boot.filesystem)
+(in-ns 'boot.filesystem)
+(let [mkvisitor-0 mkvisitor]
+  (defn mkvisitor [^Path root tree & {:keys [ignore]}]
+    (let [^SimpleFileVisitor v0 (mkvisitor-0 root tree :ignore ignore)]
+      (proxy [SimpleFileVisitor] []
+        (preVisitDirectory [path attr] (.preVisitDirectory v0 path attr))
+        (visitFile [path attr] (.visitFile v0 path attr))
+        (visitFileFailed [path exc]
+          (clojure.java.shell/sh "notify-send" "ignoring a lockfile error"
+                                 (.getMessage exc))
+          FileVisitResult/CONTINUE)))))
+(in-ns 'boot.user)
+
 (deftask testing
   "Profile setup for running tests."
   []
@@ -102,8 +127,7 @@
   []
   (comp
    (watch :verbose true
-          :exclude #{#"^\\.#" #"~$"}
-          )
+          :debounce 50)
    (less :source-map true)
    ;; (cljs-devtools)
    (reload)

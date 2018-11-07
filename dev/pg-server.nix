@@ -16,7 +16,7 @@
     CREATE ROLE postgres LOGIN;
     GRANT root TO postgres;
     ALTER USER postgres WITH PASSWORD 'therm0s';
-    CREATE DATABASE thermos_geometries;
+    CREATE DATABASE thermos;
   '';
   enable-postgis = builtins.toFile "enable-postgis.sql"
     "CREATE EXTENSION postgis;";
@@ -31,7 +31,7 @@
     services.postgresql = {
       enable = true;
       package = pg;
-      extraPlugins = [ pgis.v_2_3_1 ];
+      extraPlugins = [ pgis ];
       enableTCPIP = true;
 
       authentication = ''
@@ -49,7 +49,7 @@
       requires = ["postgresql.service"];
       script = ''
         [[ -f /var/lib/enabled-postgis ]] ||
-        ( psql -U postgres -d thermos_geometries -a -f "${enable-postgis}" &&
+        ( psql -U root -d thermos -a -f "${enable-postgis}" &&
           touch /var/lib/enabled-postgis )
       '';
     };

@@ -1,6 +1,8 @@
 (ns thermos-ui.frontend.selection-info-panel
   (:require [reagent.core :as reagent]
             [thermos-ui.specs.candidate :as candidate]
+            [thermos-ui.specs.demand :as demand]
+            [thermos-ui.specs.path :as path]
             [thermos-ui.specs.solution :as solution]
             [thermos-ui.frontend.editor-state :as state]
             [thermos-ui.frontend.operations :as operations]
@@ -64,10 +66,10 @@
              ["Constraint" sc-class (cat ::candidate/inclusion "Forbidden")]
              ["Name" sc-class (cat ::candidate/name "None")]
              
-             ["Length" nil (num ::candidate/length  + "m")]
-             ["Cost" nil (num ::candidate/path-cost + "¤")]
-             ["Demand" nil (num ::candidate/demand  + "Wh/yr" 1000)]
-             ]]
+             ["Length" nil (num ::path/length  + "m")]
+             ["Cost" nil (num path/cost + "¤")]
+             ["Demand" nil (num ::demand/kwh  + "Wh/yr" 1000)]
+             ["Peak" nil (num ::demand/kwp  + "Wp" 1000)]]]
 
         (when-not (empty? contents)
           [:div.selection-table__row {:key row-name}
@@ -79,7 +81,7 @@
       
       (when has-solution
         (for [[row-name class contents]
-              [["In solution" sc-class (cat #(when (candidate/is-in-solution? %) "yes") "no")]
+              [["In solution" sc-class (cat #(when (candidate/in-solution? %) "yes") "no")]
 
                ["Max flow"
                 nil

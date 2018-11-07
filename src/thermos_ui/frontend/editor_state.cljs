@@ -4,10 +4,18 @@
             [thermos-ui.frontend.spatial :as spatial]
             [thermos-ui.frontend.io :as io]
             [thermos-ui.specs.candidate :as candidate]
+            [thermos-ui.specs.demand :as demand]
+            [thermos-ui.specs.path :as path]
+
+            [clojure.string :as string]
+            
             [thermos-ui.specs.document :as document]
             [thermos-ui.specs.defaults :refer [default-document]]
+            [reagent.core :as reagent :refer [atom]]
+
             [thermos-ui.frontend.operations :as operations]
-            [reagent.core :as reagent :refer [atom]]))
+
+            ))
 
 ;; The document we are editing
 (defonce state (atom default-document))
@@ -86,13 +94,13 @@
 
   (let [geometry (o/get feature "geometry")
         properties (o/get feature "properties")
-;;        simple-geometry (o/get properties "simple_geometry" geometry)
         
         empty->nil #(if (or (nil? %) (= "" %)) nil %)
 
-        type (keyword (o/get properties "type" "demand"))
+        type (if (o/get properties "is_building" false)
+               :building :path)
         name (empty->nil (o/get properties "name"))
-        subtype (empty->nil (o/get properties "subtype"))
+        subtype (empty->nil (o/get properties "type"))
 
         basics {::candidate/id (o/get properties "id")
                 ::candidate/name name
@@ -103,14 +111,19 @@
         ]
     
     (case type
-      :path (assoc basics
-                   ::candidate/length (o/get properties "length")
-                   ::candidate/path-cost (o/get properties "cost")
-                   ::candidate/path-start (o/get properties "start_id")
-                   ::candidate/path-end (o/get properties "end_id"))
-      :building (assoc basics
-                       ::candidate/demand (o/get properties "demand" nil)
-                       ::candidate/connection (o/get properties "connection_id")))))
+      :path
+      (assoc basics
+             ::path/length     (o/get properties "length")
+             ::path/cost-per-m (o/get properties "unit_cost")
+             ::path/start      (o/get properties "start_id")
+             ::path/end        (o/get properties "end_id"))
+      :building
+      (assoc basics
+             ::demand/kwh              (o/get properties "demand_kwh_per_year" nil)
+             ::demand/kwp              (o/get properties "demand_kwp" nil)
+             ::demand/connection-count (o/get properties "connection_count" 1)
+             ::demand/connections      (string/split (o/get properties "connection_id")
+                                                     #",")))))
 
 (defn load-document! [org-name proj-name doc-version cb]
   (io/load-document

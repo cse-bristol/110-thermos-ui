@@ -4,6 +4,9 @@
             [thermos-ui.frontend.spatial :as spatial]
             [thermos-ui.specs.candidate :as candidate]
 
+            [thermos-ui.frontend.supply-parameters :as supply-parameters]
+            [thermos-ui.frontend.candidate-editor :as candidate-editor]
+            
             [goog.object :as o]))
 
 (defn- rotate-inclusion! []
@@ -12,23 +15,18 @@
    operations/rotate-candidates-inclusion
    (operations/selected-candidates-ids @state/state)))
 
-(defn- rotate-type! []
-  (let [selection (operations/selected-candidates @state/state)]
-    (when (= 1 (count selection))
-      (let [selection (first selection)
-            type (::candidate/type selection)]
-        (when (#{:building} type)
-          ;; FIXTHIS
+(defn- edit-supply! []
+  (->> @state/state
+       (operations/selected-candidates)
+       (filter candidate/is-building?)
+       (map ::candidate/id)
+       (supply-parameters/show-editor! state/state)))
 
-          ;; need to toggle allowability of technologies
-          
-          ;; (state/edit!
-          ;;  state/state
-          ;;  operations/set-candidate-type
-          ;;  (::candidate/id selection)
-          ;;  (if (= :demand type) :supply :demand))
-
-          )))))
+(defn edit-demand-or-path! []
+  (->> @state/state
+       (operations/selected-candidates)
+       (map ::candidate/id)
+       (candidate-editor/show-editor! state/state)))
 
 (defn- zoom-to-fit! []
   (state/edit!
@@ -44,8 +42,9 @@
 (defn handle-keypress [e]
   (case (.-key e)
     "c" (rotate-inclusion!)
-    "t" (rotate-type!)
+    "s" (edit-supply!)
     "z" (zoom-to-fit!)
     "a" (select-all!)
+    "e" (edit-demand-or-path!)
     
     :default))

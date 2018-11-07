@@ -73,9 +73,9 @@
   (let [selected (::candidate/selected candidate)
         inclusion (::candidate/inclusion candidate)
 
-        in-solution (candidate/is-in-solution? candidate)
+        in-solution (candidate/in-solution? candidate)
 
-        is-supply (candidate/is-supply? candidate)
+        is-supply (candidate/has-supply? candidate)
         
         included (candidate/is-included? candidate)
         forbidden (not included)

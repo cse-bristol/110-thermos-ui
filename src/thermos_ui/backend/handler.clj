@@ -9,6 +9,8 @@
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
             [ring.logger :as logger]
             [com.stuartsierra.component :as component]
+
+            [clojure.tools.logging :as log]
             ))
 
 (defn remove-trailing-slash
@@ -19,13 +21,12 @@
     uri))
 
 (defn wrap-no-cache [handler]
-  (println "Disabling caching (dev mode)")
+  (log/info "Disabling caching")
   (fn [request]
     (when-let [response (handler request)]
       (assoc-in response [:headers "Cache-Control"] "no-store"))))
 
 (defn all [no-cache? database queue]
-  "Constructing handler"
   (let [page-routes (pages/all database)
         problem-api (problem-routes/all database queue)
         map-api (map-routes/all database)

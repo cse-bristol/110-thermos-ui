@@ -42,23 +42,23 @@
     (hikari/close-datasource (:datasource component))
     (assoc component :datasource nil)))
 
-;; TODO put all this in main?
 (defn new-database [config]
   (map->Database {:host     (config :pg-host)
                   :user     (config :pg-user)
                   :password (config :pg-password)
-                  :dbname   (config :pg-db-geometries)
+                  :dbname   (config :pg-db)
                   }))
 
-;; TODO remove double-use of ~@compute
-(defmacro with-connection [[binding value] & compute]
+(defmacro with-connection
+  "Run some computation with a connection open and bound, closing it afterwards."
+  [[binding value] & compute]
   `(let [~binding (if (instance? Database ~value)
-                      (jdbc/connection (:datasource ~value))
-                      ~value)]
+                    (jdbc/connection (:datasource ~value))
+                    ~value)]
      (try
        ~@compute
        (finally
-       (when (instance? Database ~value)
-         (.close ~binding))))))
+         (when (instance? Database ~value)
+           (.close ~binding))))))
 
 

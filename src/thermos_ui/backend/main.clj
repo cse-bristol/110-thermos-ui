@@ -5,7 +5,9 @@
             [thermos-ui.backend.db :refer [new-database]]
             [thermos-ui.backend.handler :as handler]
             [thermos-ui.backend.solver.core :refer [new-solver]]
-            [thermos-ui.backend.queue :refer [new-queue]])
+            [thermos-ui.backend.queue :refer [new-queue]]
+
+            [clojure.tools.logging :as log])
   (:gen-class))
 
 (defrecord WebServer [port no-cache http-server database queue]
@@ -15,7 +17,7 @@
     (assoc component :http-server
            (httpkit/run-server
             (handler/all no-cache (:database component) (:queue component))
-            {:max-body (* 8388608 200)  ;; 800 megabytes
+            {:max-body (:max-body component)
              :port (:port component)})))
 
   (stop [component]
@@ -24,8 +26,6 @@
 
 (defn create-system []
   (let [config (config/load-values)]
-    (println "Creating system...")
-    
     (component/system-map
      :database (new-database config)
 
@@ -38,12 +38,15 @@
               [:queue :database])
 
      :webserver (component/using
-                 (map->WebServer {:port (Integer/parseInt (config :server-port))
-                                  :no-cache (= "true" (config :disable-cache))})
+                 (map->WebServer {:port (Integer/parseInt (config :web-server-port))
+                                  :no-cache (= "true" (config :web-server-disable-cache))
+                                  :max-body (* 1024 1024
+                                               (Integer/parseInt (config :web-server-max-body)))
+                                  })
                  [:database :queue])
-     ))
-  )
+     )))
 
 (defn -main [& args]
+  (log/info "Starting THERMOS application")
   (component/start (create-system)))
 

@@ -16,6 +16,9 @@
             [thermos-ui.frontend.search-box :as search-box]
             [thermos-ui.frontend.hide-forbidden-control :as hide-forbidden-control]
             [thermos-ui.frontend.zoom-to-selection-control :as zoom-to-selection-control]
+            [thermos-ui.frontend.supply-parameters :as supply-parameters]
+            [thermos-ui.frontend.candidate-editor :as candidate-editor]
+            
             [thermos-ui.specs.document :as document]
             [thermos-ui.specs.solution :as solution]
             
@@ -425,7 +428,7 @@
                            tile-candidates (if showing-forbidden?
                                              (keep just-candidates tile-candidates-ids)
                                              (keep #(let [c (just-candidates %)]
-                                                      (when (not= :forbidden (::candidate/inclusion c)) c))
+                                                      (when (candidate/is-included? c) c))
                                                    tile-candidates-ids))
                            ]
                        (if any-filters?
@@ -528,15 +531,16 @@
     (-> (.read jsts-reader (.toGeoJSON layer))
         (o/get "geometry"))))
 
-(defn- display-popup [document document-value]
-  (let [selected-candidates (operations/selected-candidates document-value)
-
-        {paths :path
+(defn popover-content [document selected-candidates]
+  (let [{paths :path
          buildings :building}
         (group-by ::candidate/type selected-candidates)
 
+        supplies (filter candidate/has-supply? selected-candidates)
+        
         paths (map ::candidate/id paths)
         buildings (map ::candidate/id buildings)
+        supplies (map ::candidate/id supplies)
         
         set-inclusion!
         (fn [candidates-ids inclusion-value]
@@ -548,103 +552,79 @@
 
 
         allow-supply!
-        (fn [candidate-id]
-          (state/edit! document #(-> (operations/allow-supply % candidate-id)
-                                     (operations/close-popover))))
+        (fn [candidate-ids]
+          ;; (state/edit! document #(-> (operations/allow-supply % candidate-id)
+          ;;                            (operations/close-popover)))
+          )
         
         
         forbid-supply!
-        (fn [candidate-id]
-          (state/edit! document #(-> (operations/forbid-supply % candidate-id)
-                                     (operations/close-popover))))
-
-        
-        popover-menu-content
-
-        ;; if the ` and ~@ syntax below is obscure to you,
-        ;; read https://clojure.org/reference/reader#syntax-quote
-        ;; or http://blog.klipse.tech/clojure/2016/05/05/macro-tutorial-3.html
-        (remove nil?
-                `[{:value [:div.centre "Edit candidates"] :key "title"}
-
-                  ~@(when (not-empty paths)
-                      (list
-                       {:value [:b (str (count paths) " roads selected")]
-                        :key "selected-roads-header"}
-                       {:value "Set inclusion"
-                        :key "inclusion-roads"
-                        :sub-menu [{:value "Required"
-                                    :key "required"
-                                    :on-select #(set-inclusion! paths :required)}
-                                   
-                                   {:value "Optional"
-                                    :key "optional"
-                                    :on-select #(set-inclusion! paths :optional)}
-                                   
-                                   {:value "Forbidden"
-                                    :key "forbidden"
-                                    :on-select #(set-inclusion! paths :forbidden)}]}
-                       ;; {:value "Set road type [TODO]"
-                       ;;  :key "road-type"
-                       ;;  :sub-menu [{:value "Cheap"
-                       ;;              :key "cheap"}
-                       ;;             {:value "Expensive"
-                       ;;              :key "expensive"}]}
-
-                       ))
-                  
-
-                  ~(when (and (not-empty paths) (not-empty buildings))
-                     {:value [:div.popover-menu__divider] :key "divider"})
-
-                  ~@(when (not-empty buildings)
-                      (list
-                       {:value [:b (str (count buildings) " buildings selected")]
-                        :key "selected-buildings-header"}
-                       {:value "Set inclusion (c)"
-                        :key "inclusion-buildings"
-                        :sub-menu [{:value "Required"
-                                    :key "required"
-                                    :on-select #(set-inclusion! buildings :required)
-                                    }
-                                   {:value "Optional"
-                                    :key "optional"
-                                    :on-select #(set-inclusion! buildings :optional)}
-                                   {:value "Forbidden"
-                                    :key "forbidden"
-                                    :on-select #(set-inclusion! buildings :forbidden)}]}
-                       )
-                      
-                      ;; {:value "Set type [TODO]"
-                      ;;  :key "type"
-                      ;;  :sub-menu [{:value "Demand"
-                      ;;              :key "demand"}
-                      ;;             {:value "Supply"
-                      ;;              :key "supply"}]}
-
-                      )
-                  
-                  ;; FIXTHIS this needs to do changing type better.
-                  ~(when (= 1 (count buildings))
-                     (let [building (first buildings)]
-                       (if (candidate/is-supply? building)
-                         {:value "Disallow as supply point"
-                          :key "forbid-supplies"
-                          :on-select #(forbid-supply! building)}
-                         {:value "Allow as supply point"
-                          :key "allow-supplies"
-                          :on-select #(allow-supply! building)}
-                         ))
-                     )
-                  ]) ;; end of popover menu content
+        (fn [candidate-ids]
+          ;; (state/edit! document #(-> (operations/forbid-supply % candidate-id)
+          ;;                            (operations/close-popover)))
+          )
         ]
+    [popover-menu/component
+     (remove
+      nil?
+      `[{:value [:div.centre "Edit candidates"] :key "title"}
 
-    (if (and (empty? buildings) (empty? paths))
-      document-value ;; no change
+        ~@(when (not-empty paths)
+            (list
+             {:value [:b (str (count paths) " roads selected")]
+              :key "selected-roads-header"}
+             {:value "Set inclusion"
+              :key "inclusion-roads"
+              :sub-menu [{:value "Required"
+                          :key "required"
+                          :on-select #(set-inclusion! paths :required)}
+                         
+                         {:value "Optional"
+                          :key "optional"
+                          :on-select #(set-inclusion! paths :optional)}
+                         
+                         {:value "Forbidden"
+                          :key "forbidden"
+                          :on-select #(set-inclusion! paths :forbidden)}]}
+             ))
+        
 
-      (-> document-value
-          (operations/set-popover-content [popover-menu/component popover-menu-content])
-          (operations/show-popover)))))
+        ~(when (and (not-empty paths) (not-empty buildings))
+           {:value [:div.popover-menu__divider] :key "divider"})
+
+        ~@(when (not-empty buildings)
+            (list
+             {:value [:b (str (count buildings) " buildings selected")]
+              :key "selected-buildings-header"}
+             {:value "Set inclusion (c)"
+              :key "inclusion-buildings"
+              :sub-menu [{:value "Required"
+                          :key "required"
+                          :on-select #(set-inclusion! buildings :required)
+                          }
+                         {:value "Optional"
+                          :key "optional"
+                          :on-select #(set-inclusion! buildings :optional)}
+                         {:value "Forbidden"
+                          :key "forbidden"
+                          :on-select #(set-inclusion! buildings :forbidden)}]}
+             {:value "Edit demands"
+              :key "edit-demands"
+              :on-select #(candidate-editor/show-editor! document buildings)}
+             ))
+
+        ~@(list
+           (when (seq supplies)
+             {:value "Disallow as supply point"
+              :key "forbid-supplies"
+              :on-select #(forbid-supply! supplies)})
+           (when (seq buildings)
+             {:value (if (seq supplies)
+                       "Edit supply parameters"
+                       "Make supply point")
+              :key "allow-supplies"
+              :on-select #(supply-parameters/show-editor! document buildings)}))
+        ])]))
 
 (defn on-right-click-on-map
   "Callback for when you right-click on the map.
@@ -652,26 +632,27 @@
   allowing you to edit the selected candidates in situ."
   [e document pixel-size]
 
-  (let [document-value @document
-        current-selection (operations/selected-candidates-ids document-value)
+  (let [current-selection (operations/selected-candidates-ids @document)
 
         oe (o/get e "originalEvent")
         click-range (latlng->jsts-shape
                      (o/get e "latlng")
                      (pixel-size))
         
-        clicked-candidates (spatial/find-intersecting-candidates-ids document-value click-range)
+        clicked-candidates (spatial/find-intersecting-candidates-ids @document click-range)
 
-        update-selection (if (empty? (set/intersection (set current-selection) (set clicked-candidates)))
+        update-selection (if (empty? (set/intersection (set current-selection)
+                                                       (set clicked-candidates)))
                            #(operations/select-candidates % clicked-candidates :replace)
                            identity)
         ]
-    (state/edit! document
-                 (comp (partial display-popup document)
-                       #(operations/set-popover-source-coords
-                         % [(o/get oe "clientX") (o/get oe "clientY")])
-                       update-selection))))
-
+    (state/edit! document update-selection)
+    (let [selection (operations/selected-candidates @document)]
+      (if (empty? selection)
+        (popover/close! document)
+        (popover/open! document
+                       [popover-content document selection]
+                       [(o/get oe "clientX") (o/get oe "clientY")])))))
 
 (defn create-leaflet-control
   [component & args]

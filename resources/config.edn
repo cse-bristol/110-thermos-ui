@@ -1,10 +1,11 @@
-{:problem-store "test-resources/data/problems"
- :disable-cache "true"
- :pg-host "192.168.56.101"
+{:pg-host "192.168.56.101"
  :pg-user "postgres"
  :pg-password "therm0s"
- :pg-db-geometries "thermos_geometries"
- :server-port "8080"
+ :pg-db "thermos"
+ 
+ :web-server-port "8080"
+ :web-server-disable-cache "true"
+ :web-server-max-body 800
 
  :solver-directory "solver-work"
  :solver-command "/home/hinton/p/110-thermos/model/run-model"

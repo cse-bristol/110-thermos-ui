@@ -4,6 +4,7 @@
             [clojure.data.json :as json]
             [clojure.java.io :as io]
             [ring.util.io :as ring-io]
+            [clojure.tools.logging :as log]
             )
   
   )
@@ -50,10 +51,7 @@
                                   (.flush w)
                                   (.flush ostream))))
                           (catch Exception e
-                            (println "Exception in insert"
-                                     e)
-                            )
-                          )))
+                            (log/error e "Attemping to insert to /map/candidates")))))
             }
            ))
    ))

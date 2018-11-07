@@ -2,6 +2,8 @@
   (:require [goog.object :as o]
             [reagent.core :as reagent]
             [thermos-ui.specs.candidate :as candidate]
+            [thermos-ui.specs.demand :as demand]
+            [thermos-ui.specs.path :as path]
             [thermos-ui.specs.solution :as solution]
             [thermos-ui.specs.view :as view]
             [thermos-ui.frontend.editor-state :as state]
@@ -80,13 +82,19 @@
         (assoc (col "Name" ::candidate/name "text" data-value)
                :flexGrow 1
                :width 80)
-        (assoc (col "Wh/yr" ::candidate/demand "number"
+        (assoc (col "Wh/yr" ::demand/kwh "number"
                     #(when-let [v (data-value %)]
                        (si-number (* 1000 v))))
                :width 90)
-        (assoc (col "¤" ::candidate/path-cost "number"
+        (assoc (col "Wp" ::demand/kwp "number"
+                    #(when-let [v (data-value %)]
+                       (si-number (* 1000 v))))
+               :width 90)
+        (assoc (col "¤" ::path/cost-per-m "number"
                     #(when-let [v (data-value %)]
                        (si-number v)))
+               :cellDataGetter
+               #(path/cost (o/get % "rowData" nil))
                :width 80)
         
         (col "Type" ::candidate/type "checkbox" data-name)

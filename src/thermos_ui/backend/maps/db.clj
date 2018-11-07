@@ -15,100 +15,100 @@
 
 (declare find-polygon find-tile make-bounding-points comma-separate space-separate)
 
+(def ^:dynamic *insert-block-size* 1000)
+
 (defn insert!
   "GEOJSON-FILE should be the path to a geojson file containing
-  information about some candidates. The candidates need to have a
-  type on them for this to work."
+  information about some candidates."
   [db geojson-file progress]
   (log/info "Inserting candidates from" geojson-file)
   (db/with-connection [conn db]
-    (let [features (-> (io/file geojson-file)
-                       (slurp)
-                       (json/read-str :key-fn keyword)
-                       :features)
+    (let [geojson-data (-> (io/file geojson-file)
+                           (slurp)
+                           (json/read-str :key-fn keyword))
 
-          _ (log/info (count features) "candidates read from file")
+          crs (get-in geojson-data [:crs :properties :name] "EPSG:4326")
+          epsg (if (.startsWith crs "EPSG:")
+                 (Integer/parseInt (.substring crs 5))
+                 (do
+                   (log/warn "Unknown CRS" crs "- using 4326!")
+                   4326))
+          
+          features (:features geojson-data)
+
+          _ (log/debug (count features) "features to insert")
           
           sql-geometry
           (fn [geom]
-            (sql/call
-             :ST_SetSRID
-             (sql/call :ST_GeomFromGeoJSON (json/write-str geom))
-             (int 4326)))
+            (sql/call :ST_SetSRID (sql/call :ST_GeomFromGeoJSON (json/write-str geom)) epsg))
 
-          get-properties
-          (fn [feature defaults]
-            (merge defaults (select-keys (:properties feature) (conj (keys defaults) :id))))
+          features (group-by (comp :id :properties) features)
 
-          candidate-defaults
-          {:name "" :type "" :subtype ""}
-
-          building-defaults
-          {:connection_id "" :demand 0 :area 0}
-
-          path-defaults
-          {:start_id "" :end_id "" :length 0 :cost 0}
-
-          insert-common-data
-          (fn [candidates]
-            (-> (insert-into :candidates)
-                (values (for [candidate candidates]
-                          (clojure.core/update
-                           (merge (get-properties candidate candidate-defaults)
-                                  {:geometry (sql-geometry (:geometry candidate))})
-                           :type
-                           #(sql/call :candidate_type %)
-                           )))
-                (upsert (-> (on-conflict :id)
-                            (do-update-set :name :subtype :geometry :orig_id)))
-                ))
-
-          insert-other-data
-          (fn [type candidates]
-            (case (keyword type)
-              :building
-              (-> (insert-into :buildings)
-                  (values (for [candidate candidates]
-                            (clojure.core/update
-                             (get-properties candidate building-defaults)
-                             :connection_id
-                             #(sql/call :regexp_split_to_array % ",")
-                             )))
-                  (upsert (-> (on-conflict :id)
-                              (do-update-set :connection_id :demand :area))))
-              :path
-              (-> (insert-into :paths)
-                  (values (for [candidate candidates]
-                            (get-properties candidate path-defaults)))
-                  (upsert (-> (on-conflict :id)
-                              (do-update-set :start_id :end_id :length :cost)))
-                  )))
-
-          distinct-id
-          (fn [candidates]
-            (map (comp first second)
-                 (group-by (comp :id :properties) candidates)))
+          features (for [[_ dups] features]
+                     (if (> (count dups) 1)
+                       (do
+                         (log/warn "Duplicate features" (map :properties dups))
+                         (first dups))
+                       (first dups)))
           ]
-      (jdbc/atomic conn
-        (doseq [[type features]  (group-by (comp :type :properties) features)]
-          (let [features (distinct-id features)]
-            (progress [:put type (count features)])
-            (doseq [block (partition-all 1000 features)]
-              ;; We can insert all the candidate data in one go, but the
-              ;; building / path data is split and has to go in
-              ;; separately. Fortunately, because we are generating the
-              ;; keys outside the db we don't have to do anything to keep
-              ;; the keys consistent
-              (try
-                (do
-                  (log/info "Inserting a block of" type)
-                  (jdbc/execute conn (sql/format (insert-common-data block)))
-                  (jdbc/execute conn (sql/format (insert-other-data type block)))
-                  (progress [:done type (count block)]))
-                (catch Exception e
-                  (println e)
-                  (progress e))))
-            ))))))
+
+
+      (doseq [[type features] (group-by (comp :type :properties) features)]
+        (progress [:put type (count features)])
+        (doseq [block (partition-all *insert-block-size* features)]
+          (try
+            (jdbc/atomic
+             conn
+             (-> (insert-into :candidates)
+                 (values (for [{properties :properties
+                                geometry :geometry} block]
+                           {:id (:id properties)
+                            :orig_id (or (:orig_id properties) "unknown")
+                            :name (or (:name properties) "")
+                            :type (or (:subtype properties) "")
+                            :geometry (sql-geometry geometry)}))
+                 (upsert (-> on-conflict :id)
+                         (do-update-set :orig_id :name :type :geometry))
+                 (sql/format)
+                 (->> (jdbc/execute conn)))
+             (-> (case type
+                   (":polygon" "building")
+                   (-> (insert-into :buildings)
+                       (values (for [{properties :properties} block]
+                                 {:id (:id properties)
+                                  :connection_id (sql/call :regexp_split_to_array
+                                                           (:connection_id properties)
+                                                           ",")
+                                  :demand_kwh_per_year (:demand_kwh_per_year properties)
+                                  :demand_kwp (:demand_kwp properties)
+                                  ;; TODO real connection count
+                                  :connection_count 1}))
+                       (upsert (-> (on-conflict :id)
+                                   (do-update-set :connection_id :demand_kwh_per_year :demand_kwp
+                                                  :connection_count)))
+                       )
+                   (":linestring" "path")
+                   (-> (insert-into :paths)
+                       (values (for [{properties :properties} block]
+                                 {:id (:id properties)
+                                  :start_id (:start_id properties)
+                                  :end_id (:end_id properties)
+                                  :length (:length properties)
+                                  :unit_cost (or (:unit_cost properties) 0)
+                                  }))
+                       (upsert (-> (on-conflict :id)
+                                   (do-update-set :start_id :end_id :length :unit_cost))))
+
+                   (log/warn "Unknown type of feature" type))
+                 (sql/format)
+                 (->> (jdbc/execute conn))))
+            
+            (progress [:done type (count block)])
+            (catch Exception e
+              (log/error e "Inserting a block of" type)
+              (progress e)))))
+      
+      )))
 
 (defn find-tile [db zoom x-tile y-tile]
   (->> (make-bounding-points zoom x-tile y-tile)
@@ -116,13 +116,11 @@
 
 (defn find-polygon [db points]
   (let [query
-        (-> (select :id :name :type :subtype :connection_id
-                    :demand :start_id :end_id :length :cost
-                    :geometry ;; :simple_geometry
-                    )
-
+        (-> (select :id :name :type :geometry :is_building
+                    :demand_kwh_per_year :demand_kwp :connection_count :connection_ids
+                    :start_id :end_id :length :unit_cost)
             (from :joined_candidates) ;; this view is defined in the migration SQL
-            (where [:&& :real_geometry (sql/call :ST_GeomFromText (sql/param :box) (int 4326))]))
+            (where [:&& :raw_geometry (sql/call :ST_GeomFromText (sql/param :box) (int 4326))]))
 
         box-string
         (format "POLYGON((%s))" (comma-separate (map space-separate points)))
@@ -131,10 +129,10 @@
         #(into {} (filter second %)) ;; keep only map entries with non-nil values
         ]
     (db/with-connection [conn db]
-      (->> (jdbc/fetch conn (sql/format query {:box box-string}))
-           (map tidy-fields)
-           ))
-    ))
+      (-> query
+          (sql/format {:box box-string})
+          (->> (jdbc/fetch conn)
+               (map tidy-fields))))))
 
 (def comma-separate (partial string/join ","))
 (def space-separate (partial string/join " "))

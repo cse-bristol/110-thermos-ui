@@ -65,7 +65,7 @@
              [:> js/ReactVirtualized.Column
               (merge
                {:key (str key) ;; this is needed to so that the sort
-                               ;; column has the fully qualified name
+                ;; column has the fully qualified name
                 :disableSort false
                 :width 100
                 :dataKey (str key)
