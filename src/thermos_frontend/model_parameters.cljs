@@ -108,7 +108,7 @@
       [inputs/number {:value-atom mip-gap :min 0 :max 100 :scale 100}] "%"]
      [:p
       "Maximum runtime "
-      [inputs/number {:value-atom runtime :min 0 :max 50 :step 0.5}] "h"]
+      [inputs/number {:value-atom runtime :min 0 :max 50 :step 0.1}] "h"]
      ]])
 
   )

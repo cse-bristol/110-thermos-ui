@@ -14,6 +14,7 @@
             [thermos-frontend.selection-info-panel :as selection-info-panel]
             [thermos-frontend.popover :as popover]
             [thermos-frontend.model-parameters :as model-parameters]
+            [thermos-frontend.solution-view :as solution-view]
             [thermos-frontend.toaster :as toaster]
             [thermos-frontend.editor-keys :as keys]
             [clojure.pprint :refer [pprint]]
@@ -52,8 +53,6 @@
        ;; Show "toaster" message notifying successful save
        (toaster/show! [:div.toaster.toaster--success "Project saved"]))))
 
-  (defonce unsaved? (r/atom false))
-  
   (defn map-page [document]
     (r/with-let [h-split-pos (r/cursor document
                                        [::view/view-state
@@ -83,7 +82,7 @@
     )
   (defn main-page []
     (r/with-let [selected-tab (r/cursor state/state [::view/view-state ::view/selected-tab])
-                 solution (r/cursor state/state [::solution/summary])
+                 has-solution? (r/track #(document/has-solution? @state/state))
                  last-run-state (r/atom nil)]
       (let [close-popover
             (fn [e]
@@ -114,9 +113,8 @@
            :tabs
            [
             {:key :candidates :label "Map"}
-            ;; {:key :parameters :label "Options"}
-            ;; (when @solution {:key :solution :label "Result"})
             {:key :parameters :label "Options"}
+            (when @has-solution? {:key :solution :label "Result"})
             {:key :help :label "Help"}
             ]
            }]
@@ -162,8 +160,7 @@
            ;; [parameters/component state/state]
 
            :solution
-           [:div]
-           ;; [solution-component/component state/state]
+           [solution-view/component state/state]
            
            :help
            [:iframe {:src "/help/index.html"

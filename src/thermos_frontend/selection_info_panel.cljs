@@ -1,6 +1,7 @@
 (ns thermos-frontend.selection-info-panel
   (:require [reagent.core :as reagent]
             [thermos-specs.candidate :as candidate]
+            [thermos-specs.document :as document]
             [thermos-specs.demand :as demand]
             [thermos-specs.path :as path]
             [thermos-specs.solution :as solution]
@@ -37,7 +38,12 @@
 (defn component
   "The panel in the bottom right which displays some information about the currently selected candidates."
   [document]
-  (let [has-solution (::solution/summary @document)
+  (let [rsum (partial reduce +)
+        rmax (partial reduce max)
+        rmin (partial reduce min)
+        rmean #(/ (rsum %) (count %)) 
+
+        has-solution (document/has-solution? @document)
         selected-candidates (operations/selected-candidates @document)
         selected-technologies (mapcat (comp ::solution/technologies ::solution/candidate)
                                       selected-candidates)
@@ -49,7 +55,7 @@
               (let [scale (or scale 1)
                     vals (remove nil? (map k selected-candidates))]
                 (when-not (empty? vals)
-                  [:span (si-number (* scale (reduce agg 0 vals))) unit])))
+                  [:span (si-number (* scale (agg vals))) unit])))
         ]
     [:div.component--selection-info
      [:header.selection-header
@@ -66,10 +72,10 @@
              ["Constraint" sc-class (cat ::candidate/inclusion "Forbidden")]
              ["Name" sc-class (cat ::candidate/name "None")]
              
-             ["Length" nil (num ::path/length  + "m")]
-             ["Cost" nil (num path/cost + "¤")]
-             ["Demand" nil (num ::demand/kwh  + "Wh/yr" 1000)]
-             ["Peak" nil (num ::demand/kwp  + "Wp" 1000)]]]
+             ["Length" nil (num ::path/length  rsum "m")]
+             ["Base cost" nil (num path/cost   rsum "¤")]
+             ["Demand" nil (num ::demand/kwh  rsum "Wh/yr" 1000)]
+             ["Peak" nil (num ::demand/kwp  rsum "Wp" 1000)]]]
 
         (when-not (empty? contents)
           [:div.selection-table__row {:key row-name}
@@ -78,39 +84,26 @@
             {:class class}
             contents]])
         )
-      
       (when has-solution
         (for [[row-name class contents]
               [["In solution" sc-class (cat #(when (candidate/in-solution? %) "yes") "no")]
-
-               ["Max flow"
+               ["Diversity"
                 nil
-                (num ::solution/path-capacity max "W" 1000)
+                (num ::solution/diversity rmean "")
                 ]
-               ["Total flow"
+               ["Max capacity"
                 nil
-                (num ::solution/path-capacity + "W" 1000)]
-
-               ["Technology"
-                nil
-                (for [[process processes] (group-by :process selected-technologies)]
-                  [:span {:key process}
-                   
-                   (str (reduce + 0 (map (comp int :count) processes)) " x "process
-                        " @ "
-                        (si-number
-                         (* 1000000
-                            (reduce + 0 (map (comp float :production) processes))))
-                        "W")
-                   ])]]
-              ]
+                (num ::solution/capacity-kw rmax "W" 1000)
+                ]]]
           (when-not (empty? contents)
             [:div.selection-table__row {:key row-name}
              [:div.selection-table__cell.selection-table__cell--first-col row-name]
              [:div.selection-table__cell.selection-table__cell--second-col
               {:class class}
               contents]])
-          ))]]))
+          ))
+      ]
+     ]))
 
 
 

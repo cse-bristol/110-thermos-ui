@@ -20,7 +20,6 @@
             [thermos-frontend.candidate-editor :as candidate-editor]
             
             [thermos-specs.document :as document]
-            [thermos-specs.solution :as solution]
             
             [thermos-specs.view :as view]
             [thermos-specs.candidate :as candidate]
@@ -372,7 +371,7 @@
         (reagent/cursor doc [::document/candidates])
 
         solution
-        (reagent/cursor doc [::solution/summary])
+        (reagent/track #(document/has-solution? @doc))
         
         filtered-candidates-ids
         (reagent/track #(set (map ::candidate/id (operations/get-filtered-candidates @doc))))
@@ -454,8 +453,9 @@
                             )
 
                            (reagent/track!
-                            (fn [] (tile/render-tile @solution @tile-contents canvas layer)
-
+                            (fn []
+                              (tile/render-tile @solution @tile-contents canvas layer)
+                              
 
                               ;; (let [ctx (.getContext canvas "2d")]
                               ;;   (set! (.. ctx -font) "40px Sans")

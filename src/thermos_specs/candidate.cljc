@@ -3,8 +3,7 @@
             [thermos-specs.solution :as solution]
             [thermos-specs.supply :as supply]
             [thermos-specs.demand :as demand]
-            [thermos-specs.path :as path]
-            ))
+            [thermos-specs.path :as path]))
 
 (defn- nil-or-string? [x] (or (nil? x) (string? x)))
 
@@ -44,6 +43,6 @@
 (defn required? [candidate]
   (= (::inclusion candidate) :required))
 
-(defn in-solution? [candidate])
+(defn in-solution? [candidate] (::solution/included candidate))
 
 (def emissions-types #{:co2 :pm25 :nox})

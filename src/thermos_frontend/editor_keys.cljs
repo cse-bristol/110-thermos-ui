@@ -5,6 +5,7 @@
             
             [thermos-frontend.spatial :as spatial]
             [thermos-specs.candidate :as candidate]
+            [thermos-frontend.debug-box :as debug-box]
 
             [clojure.pprint :as pprint]
             
@@ -45,17 +46,16 @@
 
 (defn- show-pprint-thing []
   (popover/open! state/state
-                 [:div {:style {:background "white" :width :50% :height :50% :display :block
-                                :min-width :500px
-                                }}
-                  [:textarea {:style {:width :100% :height :300px}}
-                   (with-out-str
-                     (pprint/pprint
-                      (operations/selected-candidates @state/state)))]
+                 [:div.popover-dialog
+                  {:style {:max-width :80vw}}
+                  
+                  [debug-box/debug-box
+                   (or (seq (operations/selected-candidates @state/state))
+                       @state/state)]
                   [:button
                    {:on-click #(popover/close! state/state)}
-                   "OK"]
-                  ]
+                   "OK"]]
+                 
                  :middle))
 
 (defn handle-keypress [e]

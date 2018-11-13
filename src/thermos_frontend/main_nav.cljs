@@ -15,14 +15,16 @@
     }]
 
   (reagent/with-let [state (reagent/atom {:name name})
+                     element (atom nil)
                      with-name (fn [act]
-                                 (let [{name :name el :element} @state]
+                                 (let [{name :name} @state
+                                       el @element
+                                       ]
                                    (if (and (some? name) (not (s/blank? name)))
                                      (act name)
                                      (do (js/window.alert "Please provide a name for this project.")
                                          (.focus el)))))
                      ]
-    
     [:nav.nav {:style {:display :flex}}
      [:span {:style {:display :flex :margin-right :auto}}
       (for [tab (filter identity tabs)]
@@ -50,10 +52,10 @@
         :style {:flex 1}
         :value (:name @state)
         :on-key-press #(.stopPropagation %)
-        :ref (fn [element]
-               (swap! state assoc :element element)
+        :ref (fn [e]
+               (reset! element e)
                (when-not (:name @state)
-                 (.focus element)))
+                 (.focus e)))
         }]
       ]
      

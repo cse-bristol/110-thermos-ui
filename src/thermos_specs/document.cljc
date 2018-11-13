@@ -97,7 +97,7 @@
         (fn [x]
           (or (not (keyword? x))
               (not (namespace x))
-              (str/starts-with? (namespace x) "thermos-ui.specs")))
+              (str/starts-with? (namespace x) "thermos-specs")))
 
         remove-nonspec-keys
         (fn [x]
@@ -132,6 +132,8 @@
     "Remove everything to do with a solution from this document"
     [doc]
     (-> doc
-        (dissoc ::solution/summary)
+        (dissoc (filter is-solution-keyword (keys doc)))
         (map-candidates #(select-keys % (remove is-solution-keyword (keys %)))))))
 
+(defn has-solution? [document]
+  (contains? document ::solution/state))

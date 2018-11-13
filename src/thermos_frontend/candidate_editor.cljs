@@ -112,7 +112,7 @@
                    :value-atom
                    (reagent/cursor values [group-by-key k e :value])
                    :check-atom
-                   (reagent/cursor values [group-by-key k e :value])
+                   (reagent/cursor values [group-by-key k e :check])
                    }]]))
              ]))]
         ])]))
@@ -176,18 +176,28 @@
            (->> buildings
                 (group-by k)
                 (map (fn [[k v]]
-                       [k {:demand {:value (mean (map ::demand/kwh v))}
-                           :peak-demand {:value (mean (map ::demand/kwp v))}
-                           :demand-benchmark {:value 2}
-                           :peak-benchmark {:value 3}
-                           :price {:value (mean (map ::demand/price v))}
-                           }]))
+                       [k (merge
+                           {:demand {:value (mean (map ::demand/kwh v))}
+                            :peak-demand {:value (mean (map ::demand/kwp v))}
+                            :demand-benchmark {:value 2}
+                            :peak-benchmark {:value 3}
+                            :price {:value (mean (map ::demand/price v))}
+                            }
+                           (->> (for [e candidate/emissions-types]
+                                  [e {:value
+                                      (mean
+                                       (map
+                                        #(get-in % [::demand/emissions e])
+                                        v))
+                                      }])
+                                (into {}))
+                           )]))
                 (into {}))])
         (into {}))})
 
 (defn- apply-path-state [document path-state path-ids]
   (let [{group :group-by values :values} path-state]
-    (println values)
+
     (document/map-candidates
      document
      (fn [path]
@@ -229,7 +239,11 @@
              (select-keys values candidate/emissions-types)
 
              emissions-factors
-             (into {}  (filter (comp :check second) emissions-factors))
+             (->> (for [[e {c :check v :value}] emissions-factors
+                        :when c]
+                    [e v])
+                  (into {}))
+             
              ]
          
          (cond-> building

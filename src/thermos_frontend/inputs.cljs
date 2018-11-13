@@ -19,7 +19,12 @@
          
          s-value (.toFixed
                   (* scale (or (when value-atom @value-atom) (:value ks)))
-                  digits)]
+                  digits)
+          on-change (or (:on-change ks) (partial reset! value-atom))
+          parse (if (integer? (or (:step ks) 1))
+                            js/parseInt
+                            js/parseFloat)
+          ]
      
      [:input.input
       (merge {:type :number
@@ -30,17 +35,14 @@
              {:ref #(reset! element %)
 
               :on-blur
-              #(set! (.. @element -value) @value-atom)
+              #(let [val @value-atom]
+                 (set! (.. @element -value)
+                       (* val scale)))
               
               :on-change
-              (let [on-change (or (:on-change ks) (partial reset! value-atom))
-                    parse (if (integer? (or (:step ks) 1))
-                            js/parseInt
-                            js/parseFloat)
-                    ]
-                #(let [val (.. % -target -value)
-                       val (/ (parse val) scale)]
-                   (on-change val)))})])))
+              #(let [val (.. % -target -value)
+                     val (/ (parse val) scale)]
+                 (on-change val))})])))
 
 (defn select [{value-atom :value-atom values :values}]
   [:select
