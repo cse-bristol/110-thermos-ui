@@ -54,6 +54,10 @@
    [org.clojure/data.csv      "0.1.4"]
    [aysylu/loom               "1.0.1"] ;; Graph data structures / algo
    [org.tobereplaced/nio.file "0.4.0"] ;; nio functions
+
+
+   ;; for doing density map
+   [org.apache.commons/commons-math3 "3.6.1"]
    
    [javax.servlet/servlet-api "2.5"    :scope "test"]
    [ring/ring-mock            "0.3.0"  :scope "test"]

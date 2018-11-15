@@ -82,9 +82,9 @@
 
 (def heat-density-layer
   (js/L.tileLayer
-   "/heat-map-tiles/{z}/{x}/{y}.png"
-   (clj->js {:opacity 0.5
-             :minZoom 14
+   "/api/map/density/{z}/{x}/{y}.png"
+   (clj->js {:opacity 0.6
+             :minZoom 12
              :maxZoom 20})))
 
 (def labels-layer
@@ -92,9 +92,7 @@
    "https://cartodb-basemaps-{s}.global.ssl.fastly.net/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png"
    (clj->js {:subdomains "abcd"
              :minZoom 14
-             :maxZoom 20})
-   )
-  )
+             :maxZoom 20})))
 
 (defn mount
   "Make a leaflet control when this component is being put on screen"

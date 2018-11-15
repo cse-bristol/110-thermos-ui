@@ -134,6 +134,71 @@
           (->> (jdbc/fetch conn)
                (map tidy-fields))))))
 
+(defn density-points [db [tl-x tl-y] [br-x br-y] bw]
+  (db/with-connection [conn db]
+    (-> (select :x :y :demand)
+        (from :heat_centroids)
+        (where [:&& :geometry
+                (as-> :box box
+                  (sql/param box)
+                  (sql/call :ST_GeogFromText box)
+                  (sql/call :ST_Buffer box (sql/param :buffer))
+                  (sql/call :cast box :geometry))
+                ])
+        (sql/format {:box (format "POLYGON((%s %s, %s %s, %s %s, %s %s, %s %s))"
+                           tl-x     ;; Top-left x         o--|
+                           tl-y     ;; Top-left y         |__|
+                           br-x     ;; Top-right x              |--o
+                           tl-y     ;; Top-right y              |__|
+                           br-x     ;; Bottom-right x    |--|
+                           br-y     ;; Bottom-right y    |__o
+                           tl-x     ;; Bottom-left x           |--|
+                           br-y     ;; Bottom-left y           o__|
+                           tl-x     ;; Top-left x again   o--|
+                           tl-y     ;; Top-left y again   |__|
+                           )
+                     :buffer bw})
+        (->> (jdbc/fetch conn)))))
+
+(defn tile-cache [db x y z]
+  (db/with-connection [conn db]
+    (let [tile
+          (-> (select :bytes)
+              (from :tilecache)
+              (where [:and [:= :x x] [:= :y y] [:= :z z]])
+              (limit 1)
+              (sql/format)
+              (->> (jdbc/fetch-one conn))
+              (:bytes))
+
+          max-val
+          (-> (select :maximum)
+              (from :tilemaxima)
+              (where [:= :z z])
+              (limit 1)
+              (sql/format)
+              (->> (jdbc/fetch-one conn))
+              (:maximum))
+          ]
+      [max-val tile])))
+
+(defn tile-cache-insert [db x y z max-val image-bytes]
+  (db/with-connection [conn db]
+    (jdbc/atomic
+     conn
+     (-> (insert-into :tilecache)
+         (values [{:bytes image-bytes :x x :y y :z z}])
+         (upsert (-> (on-conflict :x :y :z)
+                     (do-update-set :bytes)))
+         (sql/format)
+         (->> (jdbc/execute conn)))
+     (-> (insert-into :tilemaxima)
+         (values [{:z z :maximum max-val}])
+         (upsert (-> (on-conflict :z)
+                     (do-update-set! [:maximum (sql/call :greatest :EXCLUDED.maximum :tilemaxima.maximum)])))
+         (sql/format)
+         (->> (jdbc/execute conn))))))
+
 (def comma-separate (partial string/join ","))
 (def space-separate (partial string/join " "))
 
