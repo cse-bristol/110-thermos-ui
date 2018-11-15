@@ -11,10 +11,13 @@
 (defn- just-number-values [m] (into {} (filter (comp number? second) m)))
 
 (defn- merge-supply-parameters [document candidate-ids parameters]
-  (let [parameters (just-number-values parameters)]
+  (let [emissions (just-number-values (::supply/emissions parameters))
+        parmeters (just-number-values parameters)]
     (document/map-candidates
      document
-     #(merge % parameters)
+     #(-> %
+          (update ::supply/emissions merge emissions)
+          (merge parameters))
      candidate-ids)))
 
 (defn- supply-parameters-form [document candidate-ids]
@@ -50,17 +53,17 @@
       [:table
        [:tr [:td {:colspan 3} [:b "Cost and capacity"]] ]
        ;; TODO check these thresholds are sane
-       [:tr [:td "Maximum capacity"] [:td [inputs/number {:value-atom capacity-kwp :scale (/ 1.0 1000) :min 1 :max 1000}]]   [:td "MW"]]
-       [:tr [:td "Fixed cost"]       [:td [inputs/number {:value-atom fixed-cost :min 0 :max 10000 :scale (/ 1.0 1000)}]]    [:td "k¤"]]
-       [:tr [:td "Capacity cost"]    [:td [inputs/number {:value-atom capex-per-kwp :min 0 :max 10000 :scale (/ 1.0 1000)}]] [:td "k¤/kW"]]
-       [:tr [:td "Operating cost"]   [:td [inputs/number {:value-atom opex-per-kwp :min 0 :max 10000 :scale (/ 1.0 1000)}]]  [:td "k¤/kW"]]
-       [:tr [:td "Supply cost"]      [:td [inputs/number {:value-atom cost-per-kwh :scale 100}]]  [:td "c/kWh"]]
+       [:tr [:td "Maximum capacity"] [:td [inputs/number {:value-atom capacity-kwp :scale (/ 1.0 1000) :min 1 :max 1000  :step 0.1}]]   [:td "MW"]]
+       [:tr [:td "Fixed cost"]       [:td [inputs/number {:value-atom fixed-cost :min 0 :max 10000 :scale (/ 1.0 1000)  :step 0.1}]]    [:td "k¤"]]
+       [:tr [:td "Capacity cost"]    [:td [inputs/number {:value-atom capex-per-kwp :min 0 :max 10000 :scale (/ 1.0 1000)  :step 0.1}]] [:td "k¤/kW"]]
+       [:tr [:td "Operating cost"]   [:td [inputs/number {:value-atom opex-per-kwp :min 0 :max 10000 :scale (/ 1.0 1000) :step 0.1}]]  [:td "k¤/kW"]]
+       [:tr [:td "Supply cost"]      [:td [inputs/number {:value-atom cost-per-kwh :min 0 :max 500 :scale 100 :step 0.1}]]  [:td "c/kWh"]]
        [:tr [:td {:colspan 3} [:b "Emissions factors"]] ]
        (for [e candidate/emissions-types]
         [:tr {:key e}
          [:td (name e)]
          [:td [inputs/number {:value-atom (emissions-atoms e)
-                              :scale 1000 :minimum 0 :maximum 1000}]]
+                              :scale 1000.0 :min 0 :max 1000 :step 0.1}]]
          [:td "g/kWh"]
          ])
        ]
