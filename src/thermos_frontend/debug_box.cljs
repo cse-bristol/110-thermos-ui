@@ -5,7 +5,8 @@
     (map? obj)
     [:table {:style {:border "2px grey dotted" :margin :2px}}
      [:tbody
-      (for [[k v] obj]
+      (for [k (sort (keys obj))
+            :let [v (get obj k)]]
         [:tr {:key k}
          [:td [:b (debug-box- k)]]
          [:td (debug-box- v)]])]]
