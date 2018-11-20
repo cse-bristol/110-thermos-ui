@@ -2,6 +2,9 @@ div.parameters-component {
    height: calc(~"100% - 50px");
    overflow-y: auto;
    font-size:1.2em;
+   display:flex;
+   flex-flow: row wrap;
+   background:#fafafa;
 
    h1, h2 { display: block; }
 
@@ -18,7 +21,7 @@ div.parameters-component {
 
    input[type=number] {
       padding:3px;
-      border:none;
+      border:1px #ddd solid;
       border-radius:3px;
       background-color:rgba(255,255,255,0.5);
       transition:background-color 0.1s ease;

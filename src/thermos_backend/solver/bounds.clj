@@ -170,7 +170,8 @@
     all
     ))
 
-(defn edge-bounds [g & {:keys [capacity demand peak-demand size]}]
+(defn edge-bounds [g & {:keys [capacity demand peak-demand size max-kwp]
+                        :or {max-kwp 100000000}}]
   (->>
    (for [[i j] (graph/edges g)]
      (let [posmin (fn [c]
@@ -178,7 +179,7 @@
                       (if (empty? c) 0
                           (reduce min c))))
 
-           bound (fn [a b] [(min a b) b])
+           bound (fn [a b] [(min a b max-kwp) (min b max-kwp)])
            
            g' (graph/remove-edges g [i j] [j i])
            i* (set (alg/bf-traverse g' i))

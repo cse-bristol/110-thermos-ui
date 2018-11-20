@@ -177,26 +177,6 @@
 ;; @TODO
 ;; The below 7 are all UI things, so maybe they should go somewhere else.
 
-(defn show-popover
-  [document]
-  (assoc-in document [::view/view-state ::view/popover ::view/popover-showing] true))
-
-(defn hide-popover
-  [document]
-  (assoc-in document [::view/view-state ::view/popover ::view/popover-showing] false))
-
-(defn set-popover-content
-  [document content]
-  (assoc-in document [::view/view-state ::view/popover ::view/popover-content] content))
-
-(defn set-popover-source-coords
-  [document source-coords]
-  (assoc-in document [::view/view-state ::view/popover ::view/source-coords] source-coords))
-
-(defn close-popover
-  [document]
-  ((comp hide-popover (fn [doc] (set-popover-content doc nil))) document))
-
 (defn close-table-filter
   "Close the currently open filter pop-up."
   [document]
@@ -206,7 +186,10 @@
   "Open a table filter pop-up.
   `filter-key` should be the key for the property you want to filter by, e.g. ::candidate/postcode"
   [document filter-key]
-    (assoc-in document [::view/view-state ::view/table-state ::view/open-filter] filter-key))
+  (assoc-in document [::view/view-state ::view/table-state ::view/open-filter] filter-key))
+
+(defn table-filter-open? [document]
+  (get-in document [::view/view-state ::view/table-state ::view/open-filter]))
 
 (defn get-table-filters
   "Fetch the selected filters for the given `filter-key`, e.g. ::candidate/postcode."

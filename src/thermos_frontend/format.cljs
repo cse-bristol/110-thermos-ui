@@ -7,16 +7,29 @@
   (when (>= value scale)
     (str (local-format (/ value scale)) " " prefix)))
 
-(defn si-number [value]
+(defn si-number [value & [dimension]]
   (let [sign (if (< value 0) "-" )
         value (Math/abs value)
         ]
-    (str sign
-     (or (metric-prefix value 1000000000000 "T")
-         (metric-prefix value 1000000000 "G")
-         (metric-prefix value 1000000 "M")
-         (metric-prefix value 1000 "k")
-         (local-format value)))))
+    (if dimension
+           (let [scale (case (aget dimension 0)
+                         "k" 1000
+                         "M" 1000000
+                         "G" 1000000000
+                         "T" 1000000000000)]
+             (str sign
+                  (or (metric-prefix value (/ 1000000000000 scale) "T")
+                      (metric-prefix value (/ 1000000000 scale) "G")
+                      (metric-prefix value (/ 1000000 scale) "M")
+                      (metric-prefix value (/ 1000 scale) "k")
+                      (local-format value))
+                  (.substring dimension 1)))
+           (str sign
+                (or (metric-prefix value 1000000000000 "T")
+                    (metric-prefix value 1000000000 "G")
+                    (metric-prefix value 1000000 "M")
+                    (metric-prefix value 1000 "k")
+                    (local-format value))))))
 
 (defn seconds [s]
   (let [s (int s)

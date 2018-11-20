@@ -544,10 +544,8 @@
         (fn [candidates-ids inclusion-value]
           (state/edit!
            document
-           #(-> %
-                (operations/set-candidates-inclusion candidates-ids inclusion-value)
-                (operations/close-popover))))
-
+           #(operations/set-candidates-inclusion % candidates-ids inclusion-value))
+          (popover/close!))
 
         allow-supply!
         (fn [candidate-ids]
@@ -647,9 +645,8 @@
     (state/edit! document update-selection)
     (let [selection (operations/selected-candidates @document)]
       (if (empty? selection)
-        (popover/close! document)
-        (popover/open! document
-                       [popover-content document selection]
+        (popover/close!)
+        (popover/open! [popover-content document selection]
                        [(o/get oe "clientX") (o/get oe "clientY")])))))
 
 (defn create-leaflet-control

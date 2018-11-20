@@ -45,15 +45,14 @@
                :replace))
 
 (defn- show-pprint-thing []
-  (popover/open! state/state
-                 [:div.popover-dialog
+  (popover/open! [:div.popover-dialog
                   {:style {:max-width :80vw}}
                   
                   [debug-box/debug-box
                    (or (seq (operations/selected-candidates @state/state))
                        @state/state)]
                   [:button
-                   {:on-click #(popover/close! state/state)}
+                   {:on-click popover/close!}
                    "OK"]]
                  
                  :middle))

@@ -46,3 +46,10 @@
 (defn in-solution? [candidate] (::solution/included candidate))
 
 (def emissions-types #{:co2 :pm25 :nox})
+
+(defn unreachable? [candidate] (::solution/unreachable candidate))
+
+(defn emissions [candidate e document]
+  (* (::demand/kwh candidate 0)
+     (or (get (::demand/emissions candidate) e)
+         (get (::demand/emissions document) e 0))))

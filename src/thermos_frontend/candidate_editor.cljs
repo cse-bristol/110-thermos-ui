@@ -63,7 +63,7 @@
           [:th (if benchmarks "kW/m2" "kW")]
           [:th "c/kWh"]
           (for [e candidate/emissions-types]
-            [:th {:key e} "g/kWh"])
+            [:th {:key e} "kg/kWh"])
           ]
          
          ]
@@ -94,7 +94,7 @@
                     (reagent/cursor values [group-by-key k :peak-demand :check])}]]
              [:td [inputs/check-number
                    {:scale 100 ;; store in £ not p
-                    :step 1
+                    :step 0.1
                     :max 100
                     :min 0
                     :value-atom
@@ -105,8 +105,7 @@
               (for [e candidate/emissions-types]
                 [:th {:key e}
                  [inputs/check-number
-                  {:step 1
-                   :scale 1000 ;; store in kg/kwh, display in g/kwh
+                  {:step 0.1
                    :max 1000
                    :min 0
                    :value-atom
@@ -269,7 +268,7 @@
      (when (seq paths)
        [path-editor path-state paths])
      [:div
-      [:button {:on-click #(popover/close! document)}
+      [:button {:on-click popover/close!}
        "Cancel"]
       [:button {:on-click (fn []
                             (state/edit! document
@@ -280,7 +279,7 @@
                                               (apply-building-state @demand-state
                                                                     (map ::candidate/id buildings)
                                                                     )))
-                            (popover/close! document))}
+                            (popover/close!))}
        "OK"]]]
     ))
 
@@ -288,6 +287,5 @@
 
 (defn show-editor! [document candidate-ids]
   (when (seq candidate-ids)
-    (popover/open! document
-                   [candidate-editor document candidate-ids]
+    (popover/open! [candidate-editor document candidate-ids]
                    :middle)))

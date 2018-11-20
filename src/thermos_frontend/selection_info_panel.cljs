@@ -91,10 +91,20 @@
                 nil
                 (num ::solution/diversity rmean "")
                 ]
-               ["Max capacity"
+               ["Capacity"
                 nil
                 (num ::solution/capacity-kw rmax "W" 1000)
-                ]]]
+                ]
+               ["Principal"
+                nil
+                (num ::solution/principal rsum "¤")
+                ]
+               ["Revenue"
+                nil
+                (num ::solution/heat-revenue rsum "¤/yr")
+                ]
+               
+               ]]
           (when-not (empty? contents)
             [:div.selection-table__row {:key row-name}
              [:div.selection-table__cell.selection-table__cell--first-col row-name]

@@ -20,7 +20,8 @@
 
    ::document/npv-term 40
    ::document/npv-rate 0.03
-   
+
+   ::document/maximum-pipe-kwp 20000
    ;; ::document/emissions-factor {:co2e {:gas 0.216 :electricity 0.5 :biomass 0.016
    ;;                                     :heat 0.25
    ;;                                     }

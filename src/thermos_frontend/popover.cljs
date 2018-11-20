@@ -1,13 +1,14 @@
 (ns thermos-frontend.popover
   (:require [reagent.core :as reagent]
-            [thermos-specs.view :as view]
             [thermos-frontend.editor-state :as state]))
 
+(defonce state (reagent/atom {}))
+
 (defn component
-  [document]
-  (let [showing (->> @document ::view/view-state ::view/popover ::view/popover-showing)
-        content (->> @document ::view/view-state ::view/popover ::view/popover-content)
-        source-coords (->> @document ::view/view-state ::view/popover ::view/source-coords)]
+  []
+  (let [showing (->> @state ::popover-showing)
+        content (->> @state ::popover-content)
+        source-coords (->> @state ::source-coords)]
     (when showing
       (cond
         (seqable? source-coords)
@@ -32,24 +33,20 @@
       )))
 
 (defn- show-popover [state content coords]
-  (update-in state [::view/view-state ::view/popover]
-             assoc
-             ::view/popover-showing true
-             ::view/popover-content content
-             ::view/source-coords coords))
+  (assoc state
+          ::popover-showing true
+          ::popover-content content
+          ::source-coords coords))
 
 (defn- hide-popover [state]
-  (update-in state [::view/view-state ::view/popover]
-             assoc
-             ::view/popover-showing false
-             ::view/popover-content nil
-             ::view/source-coords nil))
+  (assoc state
+          ::popover-showing false
+          ::popover-content nil
+          ::source-coords nil))
 
-(defn open! [document content coords]
-  (state/edit! document
-               show-popover
-               content coords))
+(defn open! [content coords]
+  (swap! state show-popover content coords))
 
-(defn close! [document]
-  (state/edit! document
-               hide-popover))
+(defn close! [] (swap! state hide-popover))
+
+(defn visible? [] (get-in @state ::popover-showing))

@@ -158,6 +158,7 @@
                       (log/info "Computing flow bounds...")
                       (bounds/edge-bounds
                        net-graph
+                       :max-kwp (::document/maximum-pipe-kwp instance)
                        :capacity (comp #(::supply/capacity-kwp % 0) candidates)
                        :demand (comp annual-kwh->kw #(::demand/kwh % 0) candidates)
                        :peak-demand (comp #(::demand/kwp % 0) candidates)
@@ -196,12 +197,9 @@
                  :required  (boolean (candidate/required? candidate))
                  :count     (int     (::demand/connection-count candidate 1))
                  :emissions (into {} (for [e candidate/emissions-types
-                                           :let [d (::demand/kwh candidate 0)
-                                                 f (get (::demand/emissions candidate) e
-                                                        (global-factors e 0))
-                                                 em (* d f)]
+                                           :let [em (candidate/emissions candidate e instance)]
                                            :when (pos? em)]
-                                       [e  (float em)]))
+                                       [e (float em)]))
                  :heat-price (float (::demand/price candidate default-price))})
 
          (candidate/has-supply? candidate)
@@ -253,19 +251,20 @@
                         (let [solution-vertex (solution-vertices (::candidate/id v))]
                           (cond-> (assoc v ::solution/included true)
                             ;; demand facts
-                            (:demand-npv solution-vertex)
-                            (assoc ::solution/demand-npv (:demand-npv solution-vertex))
+                            (:heat-revenue solution-vertex)
+                            (assoc ::solution/heat-revenue   (:heat-revenue solution-vertex)
+                                   ::solution/avoided-emissions (:avoided-emissions solution-vertex))
 
                             ;; supply facts
                             (:capacity-kw solution-vertex)
                             (assoc ::solution/capacity-kw (:capacity-kw solution-vertex)
                                    ::solution/diversity   (:diversity solution-vertex)
                                    ::solution/output-kwh  (:output-kwh solution-vertex)
-                                   ::solution/capex-npv   (:capex-npv solution-vertex)
-                                   ::solution/opex-npv    (:opex-npv solution-vertex)
-                                   ::solution/supply-npv  (:supply-npv solution-vertex)
+                                   ::solution/principal   (:principal solution-vertex)
+                                   ::solution/opex        (:opex solution-vertex)
+                                   ::solution/heat-cost   (:heat-cost solution-vertex)
+                                   ::solution/emissions   (:emissions solution-vertex)
                                    )
-
                             )))
         
         update-edge   (fn [e]
@@ -274,9 +273,9 @@
                                  ::solution/included true
                                  ::solution/capacity-kw (:capacity-kw solution-edge)
                                  ::solution/diversity   (:diversity solution-edge)
-                                 ::solution/capex-npv   (:npv solution-edge)
+                                 ::solution/principal   (:principal solution-edge)
+                                 ::solution/losses-kwh  (* HOURS-PER-YEAR (:losses-kw solution-edge))
                                  )))
-        
         ]
     (if (= state :error)
       instance
@@ -284,10 +283,23 @@
       (-> instance
           (document/map-candidates update-vertex (keys solution-vertices))
           (document/map-candidates update-edge (keys solution-edges))
-          (assoc ::solution/objective (:objective result-json)))
-      )))
+          (assoc ::solution/objective (:objective result-json)
+                 ::solution/finance-parameters
+                 (select-keys instance
+                              [::document/npv-rate
+                               ::document/npv-term
+                               ::document/loan-rate
+                               ::document/loan-term]))))))
 
-
+(defn- mark-unreachable [instance components]
+  (let [vertices (apply concat components)
+        candidates (::document/candidates instance)
+        is-candidate (fn [id] (contains? candidates id))
+        vertices (filter is-candidate vertices)]
+    (document/map-candidates
+     instance
+     #(assoc % ::solution/unreachable true)
+     vertices)))
 
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
@@ -369,7 +381,8 @@
                ::solution/state (:state output-json)
                ::solution/message (:message output-json)
                ::solution/runtime (/ (- end-time start-time) 1000.0))
-              (merge-solution net-graph output-json))
+              (merge-solution net-graph output-json)
+              (mark-unreachable invalid-ccs))
           
           ]
       (spit (io/file working-directory "instance.edn") solved-instance)

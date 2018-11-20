@@ -83,26 +83,27 @@
   (defn main-page []
     (r/with-let [selected-tab (r/cursor state/state [::view/view-state ::view/selected-tab])
                  has-solution? (r/track #(document/has-solution? @state/state))
-                 last-run-state (r/atom nil)]
+                 last-run-state (r/atom nil)
+                 ]
       (let [close-popover
             (fn [e]
               (let [popover-menu-node (js/document.querySelector ".popover-menu")
-                    click-is-outside-popover (and (some? popover-menu-node)
+                    click-is-outside-popover (and popover-menu-node
                                                   (not (.contains popover-menu-node e.target)))
-                    popover-is-populated (some?
-                                          (->> @state/state
-                                               ::view/view-state
-                                               ::view/popover
-                                               ::view/popover-content))]
-                (if (and click-is-outside-popover popover-is-populated)
-                  (state/edit! state/state operations/close-popover))))
-            close-table-filter (fn [e] (state/edit! state/state operations/close-table-filter))
+                    ]
+                (when click-is-outside-popover (popover/close!))))
+            
+            close-table-filter
+            (fn [e]
+              (when (operations/table-filter-open? @state/state)
+                (state/edit! state/state operations/close-table-filter)))
             ]
         [:div.editor__container
          {:on-key-press keys/handle-keypress
           :on-click (fn [e] (close-popover e) (close-table-filter e)) ;; Close the popover menu if it is open
           :on-context-menu close-popover
           }
+
          [main-nav/component
           {:on-save (partial do-save false)
            :on-run (partial do-save true)
@@ -156,8 +157,6 @@
 
            :parameters
            [model-parameters/parameter-editor state/state]
-           ;; :parameters
-           ;; [parameters/component state/state]
 
            :solution
            [solution-view/component state/state]

@@ -76,6 +76,8 @@
 
         in-solution (candidate/in-solution? candidate)
 
+        unreachable (candidate/unreachable? candidate)
+
         is-supply (candidate/has-supply? candidate)
         
         included (candidate/is-included? candidate)
@@ -92,6 +94,7 @@
     
     (set! (.. ctx -strokeStyle)
           (cond
+            unreachable theme/magenta
             (and solution
                  (not in-solution)
                  (= inclusion :optional)) theme/cyan

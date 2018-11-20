@@ -34,6 +34,8 @@
 
      loan-term (reagent/cursor document [::document/loan-term])
      loan-rate (reagent/cursor document [::document/loan-rate])
+
+     max-pipe-kwp (reagent/cursor document [::document/maximum-pipe-kwp])
      ]
     
     [:div.parameters-component
@@ -55,7 +57,7 @@
       [:h2 "Emissions"]
       [:table
        [:thead
-        [:tr [:th "Emission"] [:th "Cost (¤/kg)"] [:th "Limit (kg)"]]]
+        [:tr [:th "Emission"] [:th "Cost (¤/t)"] [:th "Limit (t)"]]]
        [:tbody
         (for [e candidate/emissions-types]
           [:tr {:key e}
@@ -63,52 +65,58 @@
            [:td [inputs/number {:value-atom (emissions-cost e)
                                 :min 0
                                 :max 1000
-                                :step 1}]]
+                                :scale 1000
+                                :step 0.01}]]
            
            [:td [inputs/check-number {:value-atom (emissions-limit e)
                                       :check-atom (emissions-check e)
                                       :min 0
-                                      :max 100000
+                                      :scale 1000
+                                      :max 10000
                                       :step 1}]]]
           )]
        ]
+
+      [:h2 "Pipes"]
+      [:p "Limit pipe capacity to at most "
+       [inputs/number {:value-atom max-pipe-kwp :min 0 :max 500 :step 1 :scale 1000}]
+       " MWp"]
       ]
     [:div
-     [:h1 "Site defaults"]
-     [:p "These values will be used for sites where you have not input values"]
-     [:h2 "Heat sale price"]
-     [inputs/number
-      {:value-atom heat-price
-       :min 0
-       :max 100
-       :scale 100
-       :step 1}] "c/kWh"
-     [:h2 "Emissions factors"]
-     [:table
-      [:tbody
-       (for [e candidate/emissions-types]
-         [:tr {:key e}
-          [:td (name e)]
-          [:td [inputs/number {:value-atom (emissions-factor e)
-                               :min 0
-                               :max 1000
-                               :step 1
-                               :scale 1000
-                               }]]
-          [:td "g/kg"]]
-         
-         )]
+      [:h1 "Site defaults"]
+      [:p "These values will be used for sites where you have not input values"]
+      [:h2 "Heat sale price"]
+      [inputs/number
+       {:value-atom heat-price
+        :min 0
+        :max 100
+        :scale 100
+        :step 0.1}] "c/kWh"
+      [:h2 "Emissions factors"]
+      [:table
+       [:tbody
+        (for [e candidate/emissions-types]
+          [:tr {:key e}
+           [:td (name e)]
+           [:td [inputs/number {:value-atom (emissions-factor e)
+                                :min 0
+                                :max 1000
+                                :step 0.01
+                                }]]
+           [:td "kg/kWh"]]
+          
+          )]
+       ]
       ]
-     ]
-    [:div
-     [:h1 "Optimisation parameters"]
-     [:p "These values control the behaviour of the optimiser"]
-     [:p
-      "Allowable distance from best possible answer "
-      [inputs/number {:value-atom mip-gap :min 0 :max 100 :scale 100}] "%"]
-     [:p
-      "Maximum runtime "
-      [inputs/number {:value-atom runtime :min 0 :max 50 :step 0.1}] "h"]
-     ]])
+     [:div
+      [:h1 "Optimisation parameters"]
+      [:p "These values control the behaviour of the optimiser"]
+      [:p
+       "Allowable distance from best possible answer "
+       [inputs/number {:value-atom mip-gap :min 0 :max 100 :scale 100}] "%"]
+      [:p
+       "Maximum runtime "
+       [inputs/number {:value-atom runtime :min 0 :max 50 :step 0.1}] "h"]
+      ]])
 
   )

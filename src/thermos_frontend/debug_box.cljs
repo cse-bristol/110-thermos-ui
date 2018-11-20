@@ -7,7 +7,7 @@
      [:tbody
       (for [k (sort (keys obj))
             :let [v (get obj k)]]
-        [:tr {:key k}
+        [:tr {:key (str k)}
          [:td [:b (debug-box- k)]]
          [:td (debug-box- v)]])]]
 

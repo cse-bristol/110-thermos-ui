@@ -51,7 +51,7 @@
     [:div.popover-dialog
      [:div
       [:table
-       [:tr [:td {:colspan 3} [:b "Cost and capacity"]] ]
+       [:tr [:td {:colSpan 3} [:b "Cost and capacity"]] ]
        ;; TODO check these thresholds are sane
        [:tr [:td "Maximum capacity"] [:td [inputs/number {:value-atom capacity-kwp :scale (/ 1.0 1000) :min 1 :max 1000  :step 0.1}]]   [:td "MW"]]
        [:tr [:td "Fixed cost"]       [:td [inputs/number {:value-atom fixed-cost :min 0 :max 10000 :scale (/ 1.0 1000)  :step 0.1}]]    [:td "k¤"]]
@@ -62,18 +62,17 @@
        (for [e candidate/emissions-types]
         [:tr {:key e}
          [:td (name e)]
-         [:td [inputs/number {:value-atom (emissions-atoms e)
-                              :scale 1000.0 :min 0 :max 1000 :step 0.1}]]
-         [:td "g/kWh"]
+         [:td [inputs/number {:value-atom (emissions-atoms e) :min 0 :max 1000 :step 0.1}]]
+         [:td "kg/kWh"]
          ])
        ]
       ]
      [:div
-      [:button {:on-click #(popover/close! document)}
+      [:button {:on-click #(popover/close!)}
        "Cancel"]
       [:button {:on-click (fn []
                             (state/edit! document merge-supply-parameters candidate-ids @local-state)
-                            (popover/close! document)
+                            (popover/close!)
                             )}
        "OK"]]
     ])
@@ -81,7 +80,6 @@
 
 (defn show-editor! [document candidate-ids]
   (when (seq candidate-ids)
-    (popover/open! document
-                   [supply-parameters-form document candidate-ids]
+    (popover/open! [supply-parameters-form document candidate-ids]
                    :middle)))
 

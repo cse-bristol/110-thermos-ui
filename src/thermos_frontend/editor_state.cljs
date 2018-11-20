@@ -27,6 +27,8 @@
 
 (defonce run-state-timer (atom nil))
 
+
+
 (declare maybe-update-run-state)
 
 (defn start-run-state-timer []
@@ -46,6 +48,16 @@
 (defn is-running? [] (:last-state @run-state))
 (defn queue-position [] (:after @run-state))
 (defn needs-save? [] (:needs-save @run-state))
+
+(defonce watch-state-for-save
+  (add-watch state
+             :watch-for-save
+             (fn [_ _ old-state new-state]
+               (when-not (needs-save?)
+                 (let [old-state (document/keep-interesting old-state)
+                       new-state (document/keep-interesting new-state)]
+                   (swap! run-state assoc :needs-save
+                          (not= old-state new-state)))))))
 
 (defn get-last-save [] (:last-load @run-state))
 
@@ -73,14 +85,7 @@
 (defn edit!
   "Update the document, but please do not change the spatial details this way!"
   [document f & args]
-  (if (needs-save?)
-    (apply swap! document f args)
-    (let [old-value @document
-          new-value (apply swap! document f args)]
-      (when (not= (document/keep-interesting old-value)
-                  (document/keep-interesting new-value))
-        (swap! run-state assoc :needs-save true))
-      new-value)))
+  (apply swap! document f args))
 
 (defn edit-geometry!
   "Change the state with f and any arguments.

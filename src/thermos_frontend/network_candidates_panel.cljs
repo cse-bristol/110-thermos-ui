@@ -5,6 +5,7 @@
             [thermos-specs.demand :as demand]
             [thermos-specs.path :as path]
             [thermos-specs.solution :as solution]
+            [thermos-specs.document :as document]
             [thermos-specs.view :as view]
             [thermos-frontend.editor-state :as state]
             [thermos-frontend.operations :as operations]
@@ -19,7 +20,7 @@
   "The panel showing all the candidates which can (or must) be required in the network."
   [document]
   (reagent/with-let
-    [solution (reagent/cursor document [::solution/summary])
+    [solution (reagent/track #(document/has-solution? @document))
      all-filters (reagent/track #(operations/get-all-table-filters @document))
      num-applied-filters (reagent/track
                           #(reduce-kv (fn [init filter-key filter-value]
