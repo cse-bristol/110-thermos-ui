@@ -53,3 +53,11 @@
   (* (::demand/kwh candidate 0)
      (or (get (::demand/emissions candidate) e)
          (get (::demand/emissions document) e 0))))
+
+(defn forbid-supply! [candidate]
+  (dissoc candidate ::supply/capacity-kwp))
+
+(defn reset-defaults! [candidate]
+  (dissoc candidate
+          ::demand/emissions
+          ::demand/price))

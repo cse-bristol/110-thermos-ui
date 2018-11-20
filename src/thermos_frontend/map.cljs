@@ -547,18 +547,24 @@
            #(operations/set-candidates-inclusion % candidates-ids inclusion-value))
           (popover/close!))
 
-        allow-supply!
-        (fn [candidate-ids]
-          ;; (state/edit! document #(-> (operations/allow-supply % candidate-id)
-          ;;                            (operations/close-popover)))
-          )
-        
-        
         forbid-supply!
         (fn [candidate-ids]
-          ;; (state/edit! document #(-> (operations/forbid-supply % candidate-id)
-          ;;                            (operations/close-popover)))
-          )
+          (state/edit! document
+                       #(document/map-candidates %
+                         candidate/forbid-supply!
+                         candidate-ids))
+          (popover/close!))
+        
+
+        reset-defaults!
+        (fn []
+          (state/edit! document
+                       #(document/map-candidates %
+                         candidate/reset-defaults!
+                         buildings))
+          (popover/close!))
+        
+        
         ]
     [popover-menu/component
      (remove
@@ -567,7 +573,7 @@
 
         ~@(when (not-empty paths)
             (list
-             {:value [:b (str (count paths) " roads selected")]
+             {:value [:b (str (count paths) " roads")]
               :key "selected-roads-header"}
              {:value "Set inclusion"
               :key "inclusion-roads"
@@ -582,15 +588,16 @@
                          {:value "Forbidden"
                           :key "forbidden"
                           :on-select #(set-inclusion! paths :forbidden)}]}
-             ))
-        
+             {:value "Edit cost"
+              :key "road-cost"
+              :on-select #(candidate-editor/show-editor! document paths)}))
 
         ~(when (and (not-empty paths) (not-empty buildings))
            {:value [:div.popover-menu__divider] :key "divider"})
 
         ~@(when (not-empty buildings)
             (list
-             {:value [:b (str (count buildings) " buildings selected")]
+             {:value [:b (str (count buildings) " buildings")]
               :key "selected-buildings-header"}
              {:value "Set inclusion (c)"
               :key "inclusion-buildings"
@@ -607,17 +614,23 @@
              {:value "Edit demands"
               :key "edit-demands"
               :on-select #(candidate-editor/show-editor! document buildings)}
-             ))
-
+             {:value "Set defaults"
+              :key "set-defaults"
+              :on-select reset-defaults!}
+             {:value [:div.popover-menu__divider] :key "divider-2"}))
+        
         ~@(list
+           (when (seq buildings)
+             {:key "supplies-header"
+              :value [:b (str (count supplies) " supply points")]})
            (when (seq supplies)
              {:value "Disallow as supply point"
               :key "forbid-supplies"
               :on-select #(forbid-supply! supplies)})
            (when (seq buildings)
              {:value (if (seq supplies)
-                       "Edit supply parameters"
-                       "Make supply point")
+                       "Edit supply parameters (s)"
+                       "Make supply point (s)")
               :key "allow-supplies"
               :on-select #(supply-parameters/show-editor! document buildings)}))
         ])]))
