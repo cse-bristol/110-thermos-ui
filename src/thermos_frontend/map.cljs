@@ -563,8 +563,6 @@
                          candidate/reset-defaults!
                          buildings))
           (popover/close!))
-        
-        
         ]
     [popover-menu/component
      (remove
@@ -588,7 +586,7 @@
                          {:value "Forbidden"
                           :key "forbidden"
                           :on-select #(set-inclusion! paths :forbidden)}]}
-             {:value "Edit cost"
+             {:value "Edit cost (e)"
               :key "road-cost"
               :on-select #(candidate-editor/show-editor! document paths)}))
 
