@@ -609,7 +609,7 @@
                          {:value "Forbidden"
                           :key "forbidden"
                           :on-select #(set-inclusion! buildings :forbidden)}]}
-             {:value "Edit demands"
+             {:value "Edit buildings (e)"
               :key "edit-demands"
               :on-select #(candidate-editor/show-editor! document buildings)}
              {:value "Set defaults"
