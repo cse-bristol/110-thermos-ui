@@ -1,9 +1,3 @@
-[submodule "deployment/density-tile-server"]
-	path = deployment/density-tile-server
-	url = git@github.com:cse-bristol/density-tile-server
-[submodule "deployment/SpatialEnergyModel"]
-	path = deployment/SpatialEnergyModel
-	url = git@github.com:cse-bristol/SpatialEnergyModel.git
 [submodule "deployment/systemd-digitalocean"]
 	path = deployment/systemd-digitalocean
 	url = https://github.com/edef1c/systemd-digitalocean.git
