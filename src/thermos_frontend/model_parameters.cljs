@@ -3,9 +3,7 @@
             [thermos-specs.demand :as demand]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.document :as document]
-            [thermos-frontend.inputs :as inputs]
-            )
-  )
+            [thermos-frontend.inputs :as inputs]))
 
 ;; page for editing the big top-level params
 
@@ -79,7 +77,7 @@
 
       [:h2 "Pipes"]
       [:p "Limit pipe capacity to at most "
-       [inputs/number {:value-atom max-pipe-kwp :min 0 :max 500 :step 1 :scale 1000}]
+       [inputs/number {:value-atom max-pipe-kwp :min 0 :max 500 :step 1 :scale (/ 1 1000.0)}]
        " MWp"]
       ]
     [:div
