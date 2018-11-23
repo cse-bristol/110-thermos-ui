@@ -10,7 +10,7 @@
     CREATE ROLE postgres LOGIN;
     GRANT root TO postgres;
     ALTER USER postgres WITH PASSWORD 'therm0s';
-    CREATE DATABASE thermos_geometries;
+    CREATE DATABASE thermos;
   '';
   enable-postgis = builtins.toFile "enable-postgis.sql"
     "CREATE EXTENSION postgis;";
@@ -52,15 +52,6 @@
             proxy_send_timeout 7200;
             send_timeout 7200;
         }
-        location /heat-map-tiles {
-            proxy_pass http://localhost:8081;
-            proxy_set_header Host $host;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-
-            proxy_read_timeout 7200;
-            proxy_send_timeout 7200;
-            send_timeout 7200;
-        }
       }
       '';
     };
@@ -86,30 +77,8 @@
       requires = ["postgresql.service"];
       script = ''
         [[ -f /var/lib/enabled-postgis ]] ||
-        ( psql -U postgres -d thermos_geometries -a -f "${enable-postgis}" &&
+        ( psql -U postgres -d thermos -a -f "${enable-postgis}" &&
           touch /var/lib/enabled-postgis )
-      '';
-    };
-
-    systemd.services.tiles =
-    {
-      wantedBy = ["multi-user.target"];
-      after = ["postgresql.service"];
-      requires = ["postgresql.service"];
-
-      path = [
-      	(pkgs.callPackage ./tileserver-env.nix {})
-      ];
-
-      script =
-      let
-      tileserver = ./density-tile-server;
-      in
-      ''
-      export DB="dbname='thermos_geometries' user='postgres' host='127.0.0.1' password='password'"
-      export SCALE="/tile-scale.json"
-      export PORT=8081
-      python3 ${tileserver}/tileserver.py
       '';
     };
 
@@ -118,16 +87,14 @@
       wantedBy = ["multi-user.target"];
       after = ["enable-postgis.service"];
       requires = ["enable-postgis.service"];
-      path = [
-         (pkgs.callPackage ./solver-env.nix {})
-      ];
+      path = (pkgs.callPackage ./model/path.nix {});
       script =
       let
-      sem = ./SpatialEnergyModel;
+      model-path = ./model;
       run-solver = pkgs.writeScript "run-solver"
           ''
           #! ${pkgs.bash}/bin/bash
-          python ${sem}/pyomo/sem.py "$@"
+          python ${model-path}/main.py "$1" "${model-path}/instances/assumptions.json" "$2"
           '';
       in
       ''
@@ -135,7 +102,7 @@
         export DISABLE_CACHE=false
         export PG_HOST=127.0.0.1
         export SOLVER_COMMAND=${run-solver}
-        ${pkgs.jre8_headless}/bin/java -jar ${../target/thermos.jar}
+        ${pkgs.jre}/bin/java -jar ${../target/thermos.jar}
       '';
     };
 
@@ -150,7 +117,7 @@
     Solver processes to look for: glpsol / python
     IF needs be, sudo pkill glpsol / pkill python will probably work
 
-    To look in the db: psql -U postgres thermos_geometries
+    To look in the db: psql -U postgres thermos
 
     Running / complete jobs will have data in /solver-work.
     If this directory doesn't exists, system won't start.

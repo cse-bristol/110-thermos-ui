@@ -1,3 +1,6 @@
 [submodule "deployment/systemd-digitalocean"]
 	path = deployment/systemd-digitalocean
 	url = https://github.com/edef1c/systemd-digitalocean.git
+[submodule "deployment/model"]
+	path = deployment/model
+	url = git@github.com:cse-bristol/110-thermos-model.git
