@@ -24,8 +24,7 @@
             [goog.math :refer [Size]]
             [goog.functions :refer [debounce]]
 
-            [re-com.core :as rc]
-            ))
+            [re-com.core :as rc]))
 
 (enable-console-print!)
 
@@ -100,8 +99,9 @@
             ]
         [:div.editor__container
          {:on-key-press keys/handle-keypress
-          :on-click (fn [e] (close-popover e) (close-table-filter e)) ;; Close the popover menu if it is open
+          :on-click (fn [e] (close-popover e) (close-table-filter e))
           :on-context-menu close-popover
+          :ref popover/set-focus-element!
           }
 
          [main-nav/component

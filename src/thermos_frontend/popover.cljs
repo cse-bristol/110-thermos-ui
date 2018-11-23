@@ -3,6 +3,7 @@
             [thermos-frontend.editor-state :as state]))
 
 (defonce state (reagent/atom {}))
+(defonce focus-element (atom nil))
 
 (defn component
   []
@@ -47,6 +48,12 @@
 (defn open! [content coords]
   (swap! state show-popover content coords))
 
-(defn close! [] (swap! state hide-popover))
+(defn close! []
+  (swap! state hide-popover)
+  (when-let [e @focus-element]
+    (.focus e)))
 
 (defn visible? [] (get-in @state ::popover-showing))
+
+(defn set-focus-element! [e]
+  (reset! focus-element e))
