@@ -307,7 +307,7 @@
     (document/map-candidates
      instance
      #(assoc % ::solution/unreachable true)
-     (concat paths vertices))))
+     (concat paths buildings))))
 
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
