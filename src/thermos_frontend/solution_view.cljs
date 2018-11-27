@@ -40,13 +40,18 @@
           npv-rate ::document/npv-rate} @finance-parameters
          
          annualize
-         (fn [principal]
-           (let [repayment (/ (* principal loan-rate)
-                              (- 1 (/ 1 (Math/pow (+ 1 loan-rate)
-                                                  loan-term))))]
-             (repeat loan-term repayment)))
+         (if (zero? loan-rate)
+           (fn [principal] (/ principal loan-term))
+           (fn [principal]
+             (let [repayment (/ (* principal loan-rate)
+                                (- 1 (/ 1 (Math/pow (+ 1 loan-rate)
+                                                    loan-term))))]
+               (repeat loan-term repayment))))
 
-         pv (fn [vals] (reduce + (map-indexed (fn [i v] (/ v (Math/pow (+ 1 npv-rate) i))) vals)))
+         pv
+         (if (zero? npv-rate)
+           (fn [vals] (reduce + vals))
+           (fn [vals] (reduce + (map-indexed (fn [i v] (/ v (Math/pow (+ 1 npv-rate) i))) vals))))
          
          opex-pv (fn [annual] (pv (repeat npv-term annual)))
 
