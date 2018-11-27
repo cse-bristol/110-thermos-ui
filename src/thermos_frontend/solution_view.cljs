@@ -41,7 +41,8 @@
          
          annualize
          (if (zero? loan-rate)
-           (fn [principal] (/ principal loan-term))
+           (fn [principal] (repeat loan-term
+                                   (/ principal loan-term)))
            (fn [principal]
              (let [repayment (/ (* principal loan-rate)
                                 (- 1 (/ 1 (Math/pow (+ 1 loan-rate)
