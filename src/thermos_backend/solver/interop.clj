@@ -269,15 +269,20 @@
         
         update-edge   (fn [e]
                         (let [solution-edge (solution-edges (::candidate/id e))
-                              length-factor (/ (::path/length e)
-                                               (attr/attr net-graph [(:i e) (:j e)] :length))]
+                              candidate-length (::path/length e)
+                              input-length (or (attr/attr net-graph [(:i solution-edge) (:j solution-edge)] :length) candidate-length)
+                              
+                              length-factor (if (zero? candidate-length) 0 (/ candidate-length input-length))
+                              ]
+
+                          
                           
                           (assoc e
                                  ::solution/length-factor length-factor
                                  ::solution/included true
                                  ::solution/capacity-kw (:capacity-kw solution-edge)
                                  ::solution/diversity   (:diversity solution-edge)
-                                 ::solution/principal   (float (* length-factor (:principal solution-edge)))
+                                 ::solution/principal   (* length-factor (:principal solution-edge))
                                  ::solution/losses-kwh  (* HOURS-PER-YEAR length-factor (:losses-kw solution-edge)))
                           ))
         ]
