@@ -269,9 +269,11 @@
         
         update-edge   (fn [e]
                         (let [solution-edge (solution-edges (::candidate/id e))
-                              length-factor (/ (::path/length e) (attr/attr net-graph [(:i e) (:j e)] :length))]
+                              length-factor (/ (::path/length e)
+                                               (attr/attr net-graph [(:i e) (:j e)] :length))]
                           
                           (assoc e
+                                 ::solution/length-factor length-factor
                                  ::solution/included true
                                  ::solution/capacity-kw (:capacity-kw solution-edge)
                                  ::solution/diversity   (:diversity solution-edge)
