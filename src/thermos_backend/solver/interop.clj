@@ -291,15 +291,23 @@
                                ::document/loan-rate
                                ::document/loan-term]))))))
 
-(defn- mark-unreachable [instance components]
-  (let [vertices (apply concat components)
+(defn- mark-unreachable [instance net-graph components]
+  (let [vertices (set (apply concat components))
+
+        paths
+        (->> (graph/edges net-graph)
+             (filter (fn [[i j]] (or (vertices i) (vertices j)) ))
+             (mapcat #(attr/attr net-graph % :ids))
+             (set))
+        
         candidates (::document/candidates instance)
         is-candidate (fn [id] (contains? candidates id))
-        vertices (filter is-candidate vertices)]
+        buildings (filter is-candidate vertices)]
+    
     (document/map-candidates
      instance
      #(assoc % ::solution/unreachable true)
-     vertices)))
+     (concat paths vertices))))
 
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
@@ -338,10 +346,13 @@
         _ (log/info "removing" (count invalid-ccs) "un-suppliable components"
                     "containing" (reduce + 0 (map count invalid-ccs)) "vertices")
 
+        net-graph-with-unreachable net-graph
+        
         net-graph (reduce (fn [g cc] (graph/remove-nodes* g cc))
                           net-graph invalid-ccs)
         
         ;; * edges to nowhere
+        
         
         ;; This is now the topology we want. Every edge may be several
         ;; input edges, and nodes can either be real ones or junctions
@@ -382,7 +393,7 @@
                ::solution/message (:message output-json)
                ::solution/runtime (/ (- end-time start-time) 1000.0))
               (merge-solution net-graph output-json)
-              (mark-unreachable invalid-ccs))
+              (mark-unreachable net-graph-with-unreachable invalid-ccs))
           
           ]
       (spit (io/file working-directory "instance.edn") solved-instance)
