@@ -114,7 +114,19 @@
               ;; removing one collapsible node does not make another
               ;; collapsible node invalid.
               (recur (reduce collapse-junction net-graph collapsible)))))
-        
+
+        ;; prune all spurious junctions
+        net-graph
+        (loop [net-graph net-graph]
+          (let [spurious (->> (graph/nodes net-graph)
+                              (filter #(not (attr/attr net-graph % :real-vertex)))
+                              (filter #(= 1 (graph/out-degree net-graph %))))]
+            (if (empty? spurious)
+              net-graph
+              ;; this should be OK because we are working on nodes.
+              ;; removing one collapsible node does not make another
+              ;; collapsible node invalid.
+              (recur (graph/remove-nodes* net-graph spurious)))))
         ]
     net-graph))
 
