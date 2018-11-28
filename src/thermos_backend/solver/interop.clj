@@ -71,6 +71,12 @@
         (into {} (for [path paths] [(::candidate/id path) (path/cost path)]))
         
         cost-of-paths (fn [ids] (reduce + 0 (map cost-of-path ids)))
+
+        ;; delete all edges which do nothing
+        net-graph (graph/remove-edges*
+                   net-graph
+                   (filter (fn [e] (= (second e) (first e)))
+                           (graph/edges net-graph)))
         
         collapse-junction ;; this is a function to take a graph and
         ;; delete a node, preserving the identiy
@@ -88,7 +94,6 @@
                 graph (-> graph
                           (graph/remove-nodes node)
                           (graph/add-edges new-edge))
-
                 existing-ids (attr/attr graph new-edge :ids)
                 ]
             (if (or (empty? existing-ids)
@@ -109,6 +114,7 @@
               ;; removing one collapsible node does not make another
               ;; collapsible node invalid.
               (recur (reduce collapse-junction net-graph collapsible)))))
+        
         ]
     net-graph))
 
