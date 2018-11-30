@@ -94,6 +94,7 @@
       run-solver = pkgs.writeScript "run-solver"
           ''
           #! ${pkgs.bash}/bin/bash
+          exec 1> >(${pkgs.utillinux}/bin/logger -s -t solver) 2>&1
           python ${model-path}/main.py "$1" "${model-path}/instances/assumptions.json" "$2"
           '';
       in
@@ -114,18 +115,10 @@
     To restart the application: sudo systemctl restart thermos
     To restart the tileserver: sudo systemctl restart tiles
     
-    Solver processes to look for: glpsol / python
-    IF needs be, sudo pkill glpsol / pkill python will probably work
-
     To look in the db: psql -U postgres thermos
 
     Running / complete jobs will have data in /solver-work.
-    If this directory doesn't exists, system won't start.
-    
-    /max_pixel_values.json must exist when tiles service starts.
-    If it doesn't, it will be generated but the tileserver
-    won't produce any tiles until either every tile has been
-    considered, or you turn it off and on again.
+    This directory is shared as /_solver-work online, but with no privs.
     '';
 
     users.users.josh = {

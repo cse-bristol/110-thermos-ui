@@ -65,18 +65,14 @@
    ;; Build tooling dependencies:
 
    [adzerk/boot-cljs              "2.1.4"  :scope "test"]
-   [powerlaces/boot-figreload     "0.5.14"  :scope "test"]
-   [pandeiro/boot-http            "0.7.6"   :scope "test"]
+   [powerlaces/boot-figreload     "0.5.14"  :scope "test"
+    :exclusions [org.clojure/tools.nrepl]]
 
-   [adzerk/boot-cljs-repl         "0.4.0-SNAPSHOT"   :scope "test"]
-   [cider/piggieback              "0.3.8"   :scope "test"]
-   [weasel                        "0.7.0"   :scope "test"]
-   [org.clojure/tools.nrepl       "0.2.13"  :scope "test"]
-   [com.cemerick/piggieback       "0.2.2"   :scope "test"] ;; this is bad
+   [adzerk/boot-cljs-repl   "0.4.0"] ;; latest release
+   [cider/piggieback        "0.3.10"  :scope "test"]
+   [weasel                  "0.7.0"  :scope "test"]
+   [nrepl                   "0.4.5"  :scope "test"]
    
-   [binaryage/dirac               "RELEASE" :scope "test"]
-   [binaryage/devtools            "RELEASE" :scope "test"]
-   ;; [powerlaces/boot-cljs-devtools "0.2.0"   :scope "test"]
    [deraen/boot-less              "0.6.1"   :scope "test"]
    [adzerk/boot-test              "1.2.0"   :scope "test"]
 
@@ -86,8 +82,6 @@
 (require '[adzerk.boot-cljs              :refer [cljs]]
          '[adzerk.boot-cljs-repl         :refer [cljs-repl-env start-repl cljs-repl]]
          '[powerlaces.boot-figreload     :refer [reload]]
-         ;; '[powerlaces.boot-cljs-devtools :refer [dirac cljs-devtools]]
-         '[pandeiro.boot-http            :refer [serve]]
          '[deraen.boot-less              :refer [less]]
          '[adzerk.boot-test :refer :all]
 
@@ -142,7 +136,6 @@
          :optimizations :none
          :compiler-options
          {:parallel-build true
-          :preloads ['devtools.preload]
 
           :external-config
           {:devtools/config {:features-to-install [:formatters :hints :async]
