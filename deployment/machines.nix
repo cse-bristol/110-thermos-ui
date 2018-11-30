@@ -52,6 +52,11 @@
             proxy_send_timeout 7200;
             send_timeout 7200;
         }
+
+        location /_solver-work {
+            alias /solver-work/;
+            autoindex on;
+        }
       }
       '';
     };
