@@ -318,23 +318,21 @@
                                ::document/loan-rate
                                ::document/loan-term]))))))
 
-(defn- mark-unreachable [instance net-graph components]
-  (let [vertices (set (apply concat components))
-
-        paths
-        (->> (graph/edges net-graph)
-             (filter (fn [[i j]] (or (vertices i) (vertices j)) ))
-             (mapcat #(attr/attr net-graph % :ids))
+(defn- mark-unreachable [instance net-graph]
+  (let [ids-in-net-graph
+        (->> (graph/nodes net-graph)
+             (filter #(attr/attr net-graph % :real-vertex))
+             (concat
+              (->> (graph/edges net-graph)
+                   (mapcat #(attr/attr net-graph % :ids))))
              (set))
-        
-        candidates (::document/candidates instance)
-        is-candidate (fn [id] (contains? candidates id))
-        buildings (filter is-candidate vertices)]
+
+        ids-in-instance (set (keys (::document/candidates instance)))]
     
     (document/map-candidates
      instance
      #(assoc % ::solution/unreachable true)
-     (concat paths buildings))))
+     (set/difference ids-in-instance ids-in-net-graph))))
 
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
@@ -372,15 +370,10 @@
 
         _ (log/info "removing" (count invalid-ccs) "un-suppliable components"
                     "containing" (reduce + 0 (map count invalid-ccs)) "vertices")
-
-        net-graph-with-unreachable net-graph
         
         net-graph (reduce (fn [g cc] (graph/remove-nodes* g cc))
                           net-graph invalid-ccs)
-        
-        ;; * edges to nowhere
-        
-        
+                
         ;; This is now the topology we want. Every edge may be several
         ;; input edges, and nodes can either be real ones or junctions
         ;; that are needed topologically.
@@ -420,7 +413,7 @@
                ::solution/message (:message output-json)
                ::solution/runtime (/ (- end-time start-time) 1000.0))
               (merge-solution net-graph output-json)
-              (mark-unreachable net-graph-with-unreachable invalid-ccs))
+              (mark-unreachable net-graph))
           
           ]
       (spit (io/file working-directory "instance.edn") solved-instance)
