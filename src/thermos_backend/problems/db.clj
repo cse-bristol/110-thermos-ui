@@ -7,9 +7,9 @@
             [honeysql-postgres.helpers :refer :all]
             ))
 
-(defn insert! [db org name temp-file]
+(defn insert! [org name temp-file]
   (let [content (slurp temp-file)]
-    (db/with-connection [conn db]
+    (db/with-connection [conn]
       (-> (insert-into :problems)
           (values [{:org org :name name :content content}])
           (returning :id)
@@ -18,8 +18,8 @@
           (first)
           :id))))
 
-(defn- ls* [db restriction]
-  (db/with-connection [conn db]
+(defn- ls* [restriction]
+  (db/with-connection [conn]
     (-> (select :id :org :name :created :has_run)
         (from :problems)
         restriction
@@ -29,19 +29,19 @@
         )))
 
 (defn ls
-  ([db] (ls* db identity))
-  ([db org] (ls* db #(where % [:= :org org])))
-  ([db org name] (ls* db #(where % [:and [:= :org org] [:= :name name]]))))
+  ([] (ls* identity))
+  ([org] (ls* #(where % [:= :org org])))
+  ([org name] (ls* #(where % [:and [:= :org org] [:= :name name]]))))
 
-(defn delete! [db org name]
-  (db/with-connection [conn db]
+(defn delete! [org name]
+  (db/with-connection [conn]
     (-> (delete-from :problems)
         (where [:and [:= :org org] [:= :name name]])
         (sql/format)
         (->> (jdbc/execute conn)))))
 
-(defn get-content [db org name id]
-  (db/with-connection [conn db]
+(defn get-content [org name id]
+  (db/with-connection [conn]
     (->
      (select :content)
      (from :problems)
@@ -51,8 +51,8 @@
      (first)
      :content)))
 
-(defn get-details [db org name id]
-  (db/with-connection [conn db]
+(defn get-details [org name id]
+  (db/with-connection [conn]
     (->
      (select :content :job :has_run)
      (from :problems)
@@ -61,16 +61,16 @@
      (->> (jdbc/fetch conn))
      (first))))
 
-(defn add-solution [db org name id result]
-  (db/with-connection [conn db]
+(defn add-solution [org name id result]
+  (db/with-connection [conn]
     (-> (update :problems)
         (sset {:content result :has_run true})
         (where [:and [:= :org org] [:= :name name] [:= :id id]])
         (sql/format)
         (->> (jdbc/execute conn)))))
 
-(defn set-job-id [db org name id job-id]
-  (db/with-connection [conn db]
+(defn set-job-id [org name id job-id]
+  (db/with-connection [conn]
     (-> (update :problems)
         (sset {:job job-id})
         (where [:and [:= :org org] [:= :name name] [:= :id id]])

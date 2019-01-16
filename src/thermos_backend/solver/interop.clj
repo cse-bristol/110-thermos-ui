@@ -19,7 +19,8 @@
             [thermos-specs.demand :as demand]
             [thermos-specs.supply :as supply]
             [thermos-specs.path :as path]
-            [thermos-backend.solver.bounds :as bounds])
+            [thermos-backend.solver.bounds :as bounds]
+            [thermos-backend.config :refer [config]])
   (:import [java.io StringWriter]))
 
 (def HOURS-PER-YEAR 8766)
@@ -337,7 +338,7 @@
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
-  [label config instance]
+  [label instance]
   
   (let [instance (document/remove-solution instance) ;; throw away
         ;; any existing

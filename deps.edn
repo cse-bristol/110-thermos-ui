@@ -1,0 +1,50 @@
+{:paths ["src" "resources"]
+ :deps
+ {org.clojure/clojure {:mvn/version "1.9.0"}
+  
+  org.clojure/core.async {:mvn/version "0.3.443"}
+  cljsjs/leaflet {:mvn/version "1.2.0-0"}
+  cljsjs/jsts {:mvn/version "1.6.0-0"}
+  cljsjs/rbush {:mvn/version "2.0.1-0"}
+  cljsjs/react-virtualized {:mvn/version "9.11.1-1"
+                            :exclusions [cljsjs/react cljsjs/react-dom]}
+  cljsjs/leaflet-draw {:mvn/version "0.4.12-0"}
+  reagent {:mvn/version "0.7.0"}
+  re-com {:mvn/version "0.9.0"}
+  compojure {:mvn/version "1.6.1"}
+  ring/ring-core {:mvn/version "1.6.3"}
+  ring/ring-defaults {:mvn/version "0.3.1"}
+  ring/ring-json {:mvn/version "0.4.0"}
+  org.clojure/tools.logging {:mvn/version "0.4.1"}
+  log4j/log4j {:mvn/version "1.2.17"
+               :exclusions [javax.mail/mail
+                            javax.jms/jms
+                            com.sun.jmdk/jmxtools
+                            com.sun.jmx/jmxri]
+               }
+  org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"}
+  com.stuartsierra/component {:mvn/version "0.3.2"}
+  org.clojure/java.jdbc {:mvn/version "0.7.5"}
+  org.postgresql/postgresql {:mvn/version "9.4.1212.jre7"}
+  hiccup {:mvn/version "1.0.5"}
+  digest {:mvn/version "1.4.6"}
+  honeysql {:mvn/version "0.9.2"}
+  nilenso/honeysql-postgres {:mvn/version "0.2.3"}
+  ragtime {:mvn/version "0.7.2"}
+  org.clojure/data.json {:mvn/version "0.2.6"}
+  http-kit {:mvn/version "2.2.0"}
+  ring-logger {:mvn/version "1.0.0"}
+  funcool/clojure.jdbc {:mvn/version "0.9.0"}
+  hikari-cp {:mvn/version "1.2.4"}
+  org.clojure/data.csv {:mvn/version "0.1.4"}
+  aysylu/loom {:mvn/version "1.0.1"}
+  org.tobereplaced/nio.file {:mvn/version "0.4.0"}
+  org.apache.commons/commons-math3 {:mvn/version "3.6.1"}
+  javax.servlet/servlet-api {:mvn/version "2.5" :scope "test"}
+
+  mount {:mvn/version "0.1.15"}
+
+  ;; this needs converting to use deps.edn
+  thermos-importer {:local/root "/home/hinton/p/110-thermos/thermos-importer"}
+  }}
+

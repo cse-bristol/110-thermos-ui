@@ -17,32 +17,17 @@
    (.write w " ")
    (print-method (:value this) w))
 
-(defn consume-problem [config conn [org name id]]
+(defn consume-problem [conn [org name id]]
   ;; TODO I am reading off another connection here
   ;; rather than within my own transaction
   
   (let [problem-data (problem-db/get-content conn org name id)
         problem-data (edn/read-string {:default ->TaggedValue} problem-data)
         solved-problem (interop/solve (format "%s-%s-%s-" org name id)
-                                      config problem-data)
+                                      problem-data)
         ]
     (problem-db/add-solution conn
                              org name id
                              (pr-str solved-problem))))
 
-(defrecord Solver [config queue database]
-  component/Lifecycle
-  (start [component]
-    (println "Reading problems from queue...")
-    (let [config (:config component)]
-      (queue/consume queue :problems
-                     (fn [connection args]
-                       (consume-problem
-                        config
-                        connection
-                        args))))
-    component)
-  
-  (stop [component]))
 
-(defn new-solver [config] (map->Solver {:config config}))

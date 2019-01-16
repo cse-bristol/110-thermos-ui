@@ -30,7 +30,7 @@
 (defn- format-date [date]
   (.format (java.text.SimpleDateFormat. "dd/MM/yyyy - HH:mm") (java.util.Date. date)))
 
-(defn all [database]
+(def all
   (routes
    (GET "/" []
         (html5
@@ -47,7 +47,7 @@
    (GET "/:org-name/:problem" [org-name problem]
         "Redirect to the latest version if no version given."
         (let [problem-coll
-              (problems/ls database org-name problem)
+              (problems/ls org-name problem)
 
               latest-version-id (->> problem-coll
                                      (sort-by :created)
@@ -60,7 +60,7 @@
 
    (GET "/:org-name" [org-name]
         (let [org-problems
-              (problems/ls database org-name)
+              (problems/ls org-name)
 
               org-problems (group-by :name org-problems)
               ]

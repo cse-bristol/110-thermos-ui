@@ -9,7 +9,7 @@
 (defonce json-headers {"Content-Type" "application/json"
                        "Cache-Control" "no-store"})
 
-(defn all [db queue]
+(def all
   (routes
 
    ;; TODO make this work better using websockets and LISTEN/NOTIFY in
@@ -17,8 +17,8 @@
    ;; or a join from the problems table
    (GET "/problem/:org/:name/:id/status"
         [org name id]
-        (if-let [{job-id :job} (db/get-details db org name (Integer/parseInt id))]
-          (let [status (queue/status queue job-id)]
+        (if-let [{job-id :job} (db/get-details org name (Integer/parseInt id))]
+          (let [status (queue/status job-id)]
             {:status 200
              :headers json-headers
              :body status})
@@ -30,12 +30,12 @@
            problem :file
            run :run} :params :as params}
          (let [problem-file (problem :tempfile)
-               stored (db/insert! db org name problem-file)]
+               stored (db/insert! org name problem-file)]
            (if stored
              (let [problem-id (str stored)
-                   run-id (when run (queue/put queue :problems [org name stored]))
+                   run-id (when run (queue/put :problems [org name stored]))
                    ]
-               (when run-id (db/set-job-id db org name stored run-id))
+               (when run-id (db/set-job-id org name stored run-id))
                {:status 201
                 :headers (assoc json-headers
                                 "Location" (str stored)
@@ -48,13 +48,13 @@
 
    (GET "/problem/:org/:name/:id"
         [org name id]
-        (if-let [problem (db/get-content db org name (Integer/parseInt id))]
+        (if-let [problem (db/get-content org name (Integer/parseInt id))]
           {:status 200 :headers json-headers :body problem}
           {:status 404}))
 
    (DELETE "/problem/:org/:name"
            [org name]
-           (db/delete! db org name)
+           (db/delete! org name)
            {:status 204}))
   
   )

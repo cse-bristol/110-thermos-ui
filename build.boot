@@ -2,62 +2,12 @@
  :source-paths #{"src"}
  :resource-paths #{"resources"}
  :dependencies
- '[[org.clojure/clojure       "1.9.0-beta4" :scope "provided"]
-   [org.clojure/clojurescript "1.9.946" :scope "test"]
+ '[[seancorfield/boot-tools-deps "0.4.7" :scope "test"]
+   [org.clojure/clojure       "1.9.0" :scope "provided"]
+   [com.google.javascript/closure-compiler-unshaded "v20180805" :scope "test"]
+   [org.clojure/clojurescript "1.10.439" :scope "test"]
    [org.clojure/test.check    "0.9.0" :scope "test"]
-   [org.clojure/core.async    "0.3.443"]
-
-   [cljsjs/leaflet "1.2.0-0"]
-   [cljsjs/jsts    "1.6.0-0"]
-   [cljsjs/rbush   "2.0.1-0"]
-   [cljsjs/react-virtualized "9.11.1-1" :exclusions [cljsjs/react cljsjs/react-dom]]
-   [cljsjs/leaflet-draw "0.4.12-0"]
-
-   [reagent      "0.7.0"]
-   [re-com       "0.9.0"]
-
-   ;; Server-side dependencies
-   [compojure                 "1.6.1"]
-   [ring/ring-core            "1.6.3"]
-   [ring/ring-defaults        "0.3.1"]
-   [ring/ring-json            "0.4.0"]
-
-   [org.clojure/tools.logging "0.4.1"]
-   [log4j/log4j "1.2.17"
-    :exclusions [javax.mail/mail
-                 javax.jms/jms
-                 com.sun.jmdk/jmxtools
-                 com.sun.jmx/jmxri]]
-
-   ;; we need this because we have hikari thing which uses slf4j,
-   ;; which then does nothing if we don't have a logging doodad
-   [org.slf4j/slf4j-log4j12   "1.7.10"]
-
-   [com.stuartsierra/component "0.3.2"]
    
-   [org.clojure/java.jdbc     "0.7.5"]
-   [org.postgresql/postgresql "9.4.1212.jre7"]
-   [hiccup                    "1.0.5"] ;; for HTML templating
-   [digest                    "1.4.6"] ;; for MD5 convenience
-   [honeysql                  "0.9.2"] ;; for SQL generation
-   [nilenso/honeysql-postgres "0.2.3"] ;; postgres specific bits
-   [ragtime                   "0.7.2"] ;; for DB migrations
-   [org.clojure/data.json     "0.2.6"] ;; for parsing the geojson from the db.
-   ;; the actual server:
-   [http-kit                  "2.2.0"]
-   [ring-logger               "1.0.0"]
-   
-   [funcool/clojure.jdbc      "0.9.0"] ;; sensible db access
-   [hikari-cp                 "1.2.4"] ;; connection pooling
-
-
-   [org.clojure/data.csv      "0.1.4"]
-   [aysylu/loom               "1.0.1"] ;; Graph data structures / algo
-   [org.tobereplaced/nio.file "0.4.0"] ;; nio functions
-
-
-   ;; for doing density map
-   [org.apache.commons/commons-math3 "3.6.1"]
    
    [javax.servlet/servlet-api "2.5"    :scope "test"]
    [ring/ring-mock            "0.3.0"  :scope "test"]
@@ -75,8 +25,6 @@
    
    [deraen/boot-less              "0.6.1"   :scope "test"]
    [adzerk/boot-test              "1.2.0"   :scope "test"]
-
-   [org.danielsz/system "0.4.1"]
    ])
 
 (require '[adzerk.boot-cljs              :refer [cljs]]
@@ -85,24 +33,8 @@
          '[deraen.boot-less              :refer [less]]
          '[adzerk.boot-test :refer :all]
 
-         '[system.boot :refer [system]]
+         '[boot-tools-deps.core :refer [deps]]
          )
-
-(require 'clojure.java.shell)
-(require 'boot.filesystem)
-(in-ns 'boot.filesystem)
-(let [mkvisitor-0 mkvisitor]
-  (defn mkvisitor [^Path root tree & {:keys [ignore]}]
-    (let [^SimpleFileVisitor v0 (mkvisitor-0 root tree :ignore ignore)]
-      (proxy [SimpleFileVisitor] []
-        (postVisitDirectory [p e] (.postVisitDirectory v0 p e))
-        (preVisitDirectory [path attr] (.preVisitDirectory v0 path attr))
-        (visitFile [path attr] (.visitFile v0 path attr))
-        (visitFileFailed [path exc]
-          (clojure.java.shell/sh "notify-send" "ignoring a lockfile error"
-                                 (.getMessage exc))
-          FileVisitResult/CONTINUE)))))
-(in-ns 'boot.user)
 
 (deftask testing
   "Profile setup for running tests."
@@ -117,17 +49,19 @@
  aot {:namespace #{'thermos-backend.main}}
  jar {:main 'thermos-backend.main})
 
-
-(require '[thermos-backend.main :refer [create-system]])
+;; annoyingly, this can't work because we don't have the dependencies at this stage.
+;(require '[thermos-backend.main :refer [create-system]])
 
 (deftask dev
   "Run in development mode - this does live reload, and runs a repl.
    You can connect to the repl from e.g. emacs or by running boot repl -c"
   []
   (comp
+   (deps :quick-merge true)
    (watch :verbose true
           :debounce 50)
    (less :source-map true)
+   
    ;; (cljs-devtools)
    (reload)
    (cljs-repl)
@@ -142,16 +76,13 @@
                              :fn-symbol "λ"
                              :print-config-overrides true}}
           })
-
-   (system :sys #'create-system
-           :auto true
-           :files ["pages.clj" "handler.clj"])
    ))
 
 (deftask package
   "Create a runnable jar containing all the thermos stuff."
   []
   (comp
+   (deps)
    (less :compression true)
    (cljs :compiler-options {:preloads nil
                             :infer-externs true
@@ -176,19 +107,4 @@
    (jar :file "thermos.jar")
    (sift :include #{#".*\.jar"})
    (target)))
-
-
-;; (require '[boot.pod :as pod])
-
-
-;; (deftask run-server []
-;;   (let [worker (pod/make-pod (get-env))
-;;         start (delay
-;;                (pod/with-eval-in worker
-;;                  (require '[thermos-ui.backend.main :as app])
-;;                  (app/-main)))]
-;;     (with-pre-wrap fileset
-;;       @start
-;;       (info "Server started")
-;;       fileset)))
 

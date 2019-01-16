@@ -2,7 +2,7 @@
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :as str]
-            ))
+            [mount.core :refer [defstate]]))
 
 (def ^:private values (atom nil))
 
@@ -48,3 +48,5 @@
      (select-keys (system-environment) (keys defaults))
      (select-keys (system-properties) (keys defaults)))))
 
+(defstate config
+  :start (load-values))

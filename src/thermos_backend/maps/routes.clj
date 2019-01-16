@@ -6,7 +6,9 @@
             [ring.util.io :as ring-io]
             [ring.util.response :as response]
             [clojure.tools.logging :as log]
-            [thermos-backend.maps.heat-density :as heat-density])
+            [thermos-backend.maps.heat-density :as heat-density]
+            [mount.core :refer [defstate]]
+            )
   (:import [java.io ByteArrayInputStream]))
 
 
@@ -19,7 +21,18 @@
    :geometry (:geometry candidate)
    :properties (dissoc candidate :geometry)})
 
-(defn all [db]
+(defn- generate-and-insert [x y z]
+  (let [result (heat-density/density-image
+                :x x :y y :z z
+                :size 256
+                :bandwidth 30
+                :get-values db/density-points)
+        [max-val-here image-bytes] result]
+    (db/tile-cache-insert x y z max-val-here image-bytes)
+    result))
+
+(defstate all
+  :start
   (routes
    (GET "/map/candidates/:zoom/:x-tile/:y-tile"
         [zoom :<< as-int x-tile :<< as-int y-tile :<< as-int]
@@ -28,7 +41,7 @@
           {:status 200
            :body {:type :FeatureCollection
                   :features []}}
-          (let [candidates (db/find-tile db zoom x-tile y-tile)]
+          (let [candidates (db/find-tile zoom x-tile y-tile)]
             {:status 200
              :body {:type :FeatureCollection
                     :features (map candidate->feature candidates)}}
@@ -43,7 +56,6 @@
                    (fn [ostream]
                      (try (with-open [w (io/writer ostream)]
                             (db/insert!
-                             db
                              data
                              #(do (.write w (str % "\n"))
                                   (.flush w)
@@ -53,27 +65,46 @@
             }
            ))
 
+   (GET "/map/raw-density/:z/:x/:y.png"
+        [z :<< as-int x :<< as-int y :<< as-int]
+        ;; TODO add z-max, add db cachelayer. if storing the image
+        ;; result a change to z-max invalidates the cache, plus things
+        ;; will look wrong for first viewer
+        (-> (let [[max-val image-bytes]
+                  (db/tile-cache x y z)
+
+                  [max-here new-bytes]
+                  (when-not image-bytes
+                    (generate-and-insert x y z))
+
+                  max-val (max (or max-val 0) (or max-here 0))
+                  image-bytes (or image-bytes new-bytes)]
+              image-bytes)
+            
+            (ByteArrayInputStream.)
+            (response/response)
+            (response/content-type "image/png")))
+   
    (GET "/map/density/:z/:x/:y.png"
         [z :<< as-int x :<< as-int y :<< as-int]
         ;; TODO add z-max, add db cachelayer. if storing the image
         ;; result a change to z-max invalidates the cache, plus things
         ;; will look wrong for first viewer
-        (-> (let [[max-val image-bytes] (db/tile-cache db x y z)]
-              (if (and max-val image-bytes)
-                (heat-density/colour-float-matrix image-bytes max-val)
-                (let [[max-val-here image-bytes]
-                      (heat-density/density-image
-                       :x x :y y :z z
-                       :size 256
-                       :bandwidth 30
-                       :get-values
-                       (partial db/density-points db))]
-                  (db/tile-cache-insert db x y z max-val-here image-bytes)
-                  (heat-density/colour-float-matrix image-bytes (max (or max-val 0) max-val-here)))))
+        (-> (let [[max-val image-bytes]
+                  (db/tile-cache x y z)
+
+                  [max-here new-bytes]
+                  (when-not image-bytes
+                    (generate-and-insert x y z))
+
+                  max-val (max (or max-val 0) (or max-here 0))
+                  image-bytes (or image-bytes new-bytes)]
+              (heat-density/colour-float-matrix image-bytes max-val))
             
             (ByteArrayInputStream.)
             (response/response)
-            (response/content-type "image/png")))))
+            (response/content-type "image/png")))
+   ))
 
 
 

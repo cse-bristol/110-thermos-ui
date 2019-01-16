@@ -20,9 +20,9 @@
 (defn insert!
   "GEOJSON-FILE should be the path to a geojson file containing
   information about some candidates."
-  [db geojson-file progress]
+  [geojson-file progress]
   (log/info "Inserting candidates from" geojson-file)
-  (db/with-connection [conn db]
+  (db/with-connection [conn]
     (let [geojson-data (-> (io/file geojson-file)
                            (slurp)
                            (json/read-str :key-fn keyword))
@@ -110,11 +110,11 @@
       
       )))
 
-(defn find-tile [db zoom x-tile y-tile]
+(defn find-tile [zoom x-tile y-tile]
   (->> (make-bounding-points zoom x-tile y-tile)
-       (find-polygon db)))
+       (find-polygon)))
 
-(defn find-polygon [db points]
+(defn find-polygon [points]
   (let [query
         (-> (select :id :name :type :geometry :is_building
                     :demand_kwh_per_year :demand_kwp :connection_count :connection_ids
@@ -128,14 +128,14 @@
         tidy-fields
         #(into {} (filter second %)) ;; keep only map entries with non-nil values
         ]
-    (db/with-connection [conn db]
+    (db/with-connection [conn]
       (-> query
           (sql/format {:box box-string})
           (->> (jdbc/fetch conn)
                (map tidy-fields))))))
 
-(defn density-points [db [tl-x tl-y] [br-x br-y] bw]
-  (db/with-connection [conn db]
+(defn density-points [[tl-x tl-y] [br-x br-y] bw]
+  (db/with-connection [conn]
     (-> (select :x :y :demand)
         (from :heat_centroids)
         (where [:&& :geometry
@@ -160,8 +160,8 @@
                      :buffer bw})
         (->> (jdbc/fetch conn)))))
 
-(defn tile-cache [db x y z]
-  (db/with-connection [conn db]
+(defn tile-cache [x y z]
+  (db/with-connection [conn]
     (let [tile
           (-> (select :bytes)
               (from :tilecache)
@@ -182,8 +182,8 @@
           ]
       [max-val tile])))
 
-(defn tile-cache-insert [db x y z max-val image-bytes]
-  (db/with-connection [conn db]
+(defn tile-cache-insert [x y z max-val image-bytes]
+  (db/with-connection [conn]
     (jdbc/atomic
      conn
      (-> (insert-into :tilecache)

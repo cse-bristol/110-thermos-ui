@@ -1,5 +1,6 @@
 (ns thermos-backend.queue
   (:require [thermos-backend.db :as db]
+            [thermos-backend.config :refer [config]]
             [honeysql.format :refer [format-lock-clause]]
             [honeysql.core :as sql]
             [honeysql-postgres.helpers :refer :all]
@@ -8,7 +9,7 @@
             [jdbc.core :as jdbc]
             [clojure.edn :as edn]
             [clojure.set :refer [map-invert]]
-            [com.stuartsierra.component :as component]
+            [mount.core :refer [defstate]]
             ))
 
 (defmethod format-lock-clause :skip-locked [_] "FOR UPDATE SKIP LOCKED")
@@ -22,41 +23,29 @@
 
 (declare run-one-task)
 
-(defrecord Queue [database poll-threads consumers count]
-  component/Lifecycle
+(defstate queue
+  :start
+  (let [count (Integer/parseInt (:solver-count config))
 
-  (start [component]
-    (let [consumers (atom {})
+        consumers (atom {})
 
-          threads
-          (doall
-           
-           (for [i (range 0 (or count 1))]
-             (Thread. (fn []
-                        (try
-                          (loop []
-                            (run-one-task (:database component) @consumers)
-                            (Thread/sleep 1000)
-                            (recur))
-                          (catch InterruptedException e))))))
-          ]
-      (doseq [thread threads] (.start thread))
-      (println "Consumer threads started")
-      (assoc component
-             :poll-threads threads
-             :consumers consumers)))
-  
-  (stop [component]
-    (doseq [thread (:poll-threads component)]
-      (.interrupt thread))
-    
-    (assoc component
-           :poll-threads nil
-           :consumers nil)))
-
-(defn new-queue [config]
-  (map->Queue {:count
-               (Integer/parseInt (:solver-count config))}))
+        threads
+        (doall
+         (for [i (range 0 (or count 1))]
+           (Thread. (fn []
+                      (try
+                        (loop []
+                          (run-one-task @consumers)
+                          (Thread/sleep 1000)
+                          (recur))
+                        (catch InterruptedException e))))))
+        ]
+    (doseq [thread threads] (.start thread))
+    (println "Consumer threads started")
+    {:poll-threads threads :consumers consumers})
+  :stop
+  (doseq [thread (:poll-threads queue)]
+    (.interrupt thread)))
 
 (defn db->task [task]
   (-> task
@@ -65,8 +54,8 @@
       (clojure.core/update :queue keyword)))
 
 (defn put
-  ([q queue task]
-   (db/with-connection [conn (:database q)]
+  ([queue task]
+   (db/with-connection [conn]
      (-> (insert-into :jobs)
          (values [{:queue (name queue)
                    :args (pr-str task)
@@ -78,8 +67,8 @@
          :id))))
 
 (defn consume
-  ([q queue handler]
-   (swap! (:consumers q) assoc queue handler)))
+  ([queue-name handler]
+   (swap! (:consumers queue) assoc queue-name handler)))
 
 (defn- claim-job [conn consumers]
   (let [qs (vec (map name (keys consumers)))]
@@ -104,8 +93,8 @@
       (sql/format)
       (->> (jdbc/execute conn))))
 
-(defn- run-one-task [db consumers]
-  (db/with-connection [conn db]
+(defn- run-one-task [consumers]
+  (db/with-connection [conn]
     (when-let [[job consumer]
                (jdbc/atomic
                 conn
@@ -125,8 +114,8 @@
              (println "Job failed" job e)
              (set-state conn job :error))))))
 
-(defn ls [queue]
-  (db/with-connection [c (:database queue)]
+(defn ls []
+  (db/with-connection [c]
     (-> (select :id :queue :args :state)
         (from :jobs)
         (sql/format)
@@ -134,8 +123,8 @@
              (map db->task))
         )))
 
-(defn status [queue job-id]
-  (db/with-connection [c (:database queue)]
+(defn status [job-id]
+  (db/with-connection [c]
     (let [result (-> (select :id :queue :args :state)
                      (from :jobs)
                      (where [:= :id job-id])
@@ -156,8 +145,6 @@
                          (sql/format)
                          (->> (jdbc/fetch c))
                          (first)))
-          
-          
           ]
       
       (when result

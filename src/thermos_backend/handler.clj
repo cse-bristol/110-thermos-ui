@@ -8,9 +8,9 @@
             [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
             [ring.logger :as logger]
-            [com.stuartsierra.component :as component]
-
             [clojure.tools.logging :as log]
+            [thermos-backend.config :refer [config]]
+            [mount.core :refer [defstate]]
             ))
 
 (defn remove-trailing-slash
@@ -26,24 +26,22 @@
     (when-let [response (handler request)]
       (assoc-in response [:headers "Cache-Control"] "no-store"))))
 
-(defn all [no-cache? database queue]
-  (let [page-routes (pages/all database)
-        problem-api (problem-routes/all database queue)
-        map-api (map-routes/all database)
-        not-found (route/not-found "<h1>Not found</h1>")
-        ]
-
+(defstate all
+  :start
+  (let [disable-cache
+        (if (= "true" (config :web-server-disable-cache))
+          wrap-no-cache identity)]
     (-> (routes
-         page-routes
-         (context "/api" [] problem-api map-api)
-         not-found)
-        
-
+         pages/all
+         (context "/api" []
+                  problem-routes/all
+                  map-routes/all)
+         route/not-found)
         ;; middleware:
         (wrap-defaults (assoc-in site-defaults [:security :anti-forgery] false))
-        wrap-json-body
-        wrap-json-response
-        ((if no-cache? wrap-no-cache identity))
+        (wrap-json-body)
+        (wrap-json-response)
+        (disable-cache)
         (wrap-canonical-redirect remove-trailing-slash)
         (logger/wrap-with-logger))))
 
