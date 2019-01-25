@@ -33,7 +33,7 @@
                stored (db/insert! org name problem-file)]
            (if stored
              (let [problem-id (str stored)
-                   run-id (when run (queue/put :problems [org name stored]))
+                   run-id (when run (queue/enqueue :problems [org name stored]))
                    ]
                (when run-id (db/set-job-id org name stored run-id))
                {:status 201

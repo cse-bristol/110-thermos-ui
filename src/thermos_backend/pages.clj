@@ -65,7 +65,7 @@
               org-problems (group-by :name org-problems)
               ]
           (thermos-page
-           {:title (str "THERMOS: " org-name) :js ["/js/problems_list.js"]}
+           {:title org-name :js ["/js/problems_list.js"]}
            [:div.top-banner 
             [:div.container
              {:style "display:flex;align-items:center;"}
@@ -142,7 +142,7 @@
    & contents]
   (html5
    [:head
-    [:title title]
+    [:title (str "THERMOS: " title)]
     [:meta {:charset "UTF-8"}]
     [:meta {:name :viewport :content "width=device-width, initial-scale=1"}]
     (include-css "/css/pages.css" source-sans-pro)
@@ -150,7 +150,7 @@
    [:body
     [:header.page-header
      [:div.container
-      [:h1 "THERMOS"]]]
+      [:h1 "THERMOS - " title]]]
     [:div.page-content
      contents]
     [:footer.page-footer

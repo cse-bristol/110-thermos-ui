@@ -1,6 +1,6 @@
 (ns thermos-backend.solver.interop
   (:require [clojure.java.io :as io]
-            [org.tobereplaced.nio.file :as nio]
+            [thermos-backend.util :as util]
             [clojure.tools.logging :as log]
             [clojure.java.shell :refer [sh]]
             [clojure.edn :as edn]
@@ -340,15 +340,12 @@
   details in it. Probably needs running off the main thread."
   [label instance]
   
-  (let [instance (document/remove-solution instance) ;; throw away
-        ;; any existing
-        ;; solution
+  (let [instance (document/remove-solution instance)
+        ;; ^^throw away any existing solution
 
-        working-directory (nio/path (config :solver-directory))
-
-        _ (.mkdirs (.toFile working-directory))
-        
-        working-directory (.toFile (nio/create-temp-directory! working-directory label))
+        working-directory (util/create-temp-directory!
+                           (config :solver-directory)
+                           label)
         
         input-file (io/file working-directory "problem.json")
 
@@ -385,7 +382,7 @@
         input-json (instance->json instance net-graph)
         ]
     ;; write the scenario down
-    (log/info "Output scenario to %s" input-file)
+    (log/info "Output scenario to" input-file)
     (with-open [writer (io/writer input-file)]
       (json/write input-json writer :escape-unicode false))
     (log/info "Starting solver")
