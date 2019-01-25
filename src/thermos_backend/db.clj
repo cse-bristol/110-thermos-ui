@@ -2,6 +2,8 @@
   (:require [ragtime.jdbc]
             [ragtime.repl]
             [jdbc.core :as jdbc]
+            [clojure.tools.logging :as log]
+            [honeysql.core :as sql]
             [hikari-cp.core :as hikari]
             [mount.core :refer [defstate]]
             [thermos-backend.config :refer [config]]))
@@ -42,3 +44,25 @@
      ~@compute))
 
 
+(defn execute!
+  ([query]
+   (with-connection [conn] (execute! query conn)))
+  
+  ([query conn]
+   (let [query (if (map? query) (sql/format query) query)]
+     (try
+       (jdbc/execute conn query)
+       (catch Exception e
+         (log/error e "Exception executing query: " query)
+         (throw e))))))
+
+(defn fetch!
+  ([query]
+   (with-connection [conn] (fetch! query conn)))
+  ([query conn]
+   (let [query (if (map? query) (sql/format query) query)]
+     (try
+       (jdbc/fetch conn query)
+       (catch Exception e
+         (log/error e "Exception executing query: " query)
+         (throw e))))))

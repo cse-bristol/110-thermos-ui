@@ -1,4 +1,4 @@
-(ns thermos-backend.main
+(ns thermos-backend.core
   (:require [org.httpkit.server :as httpkit]
             [thermos-backend.config :refer [config]]
             [thermos-backend.handler :as handler]
@@ -20,10 +20,13 @@
   :stop
   (and server (server :timeout 100)))
 
+(defstate queue-consumer
+  :start
+  (queue/consume :problems solver/consume-problem))
+
 (defn -main [& args]
   (log/info "Starting THERMOS application")
   (mount/start)
-  (queue/consume :problems solver/consume-problem)
   ;; wait for stop.
   (.addShutdownHook (Runtime/getRuntime)
                     (Thread. #(mount/stop))))
