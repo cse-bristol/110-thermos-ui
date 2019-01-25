@@ -161,13 +161,20 @@
 (defn- run-peak-model [annual-demand]
   (+ peak-constant (* annual-demand peak-gradient)))
 
-(defn- load-benchmarks [source]
-  ;; TODO this should have some tests as it's a simple pure function.
-  (let [[header & rows]
-        (with-open [rdr (io/reader source)]
-          (doall (csv/read-csv rdr)))
+(defn- load-benchmarks
+  {:test
+   #(let [gadget (load-benchmarks ["cat1" "cat2" "demand-m" "demand-c" "peak-m" "peak-c"]
+                                  [["a" "b" "1" "2" "3" "4"]
+                                   ["c" "d" "1" "2" "3" "4"]])
+          result (gadget {:cat1 "a" :cat2 "b" :thermos-importer.lidar/floor-area 2})
+          ]
+      (assert
+       (= result
+          {:demand-kwh-per-year 4.0 :demand-kwp 10.0})))
+   }
+  [header rows]
 
-        header (map keyword header)
+  (let [header (map keyword header)
         rows   (map zipmap (repeat header) rows)
         rows   (for [row rows]
                  (-> row
@@ -207,6 +214,12 @@
                   ]
               {:demand-kwh-per-year demand :demand-kwp peak})))))))
 
+(def default-benchmark-predictor
+  (let [[header & rows]
+        (with-open [rdr (io/reader (io/resource "thermos_backend/importer/default-benchmarks.csv"))]
+          (doall (csv/read-csv rdr)))]
+    (load-benchmarks header rows)))
+
 (defn- produce-demands [state
                         {benchmarks-file    :benchmarks-file
                          default-benchmarks :default-benchmarks
@@ -214,9 +227,13 @@
                          given-peak         :given-peak
                          degree-days        :degree-days}]
   (let [benchmark-predictors
-        (cond-> (map load-benchmarks benchmarks-file)
+        (cond-> (map #(let [[header & rows]
+                            (with-open [rdr (io/reader source)]
+                              (doall (csv/read-csv rdr)))]
+                        (load-benchmarks header rows))
+                     benchmarks-file)
           default-benchmarks
-          (conj (load-benchmarks (io/resource "thermos_backend/importer/default-benchmarks.csv"))))
+          (conj default-benchmark-predictor))
 
         get-benchmark
         (fn [x]
