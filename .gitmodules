@@ -4,3 +4,6 @@
 [submodule "deployment/model"]
 	path = deployment/model
 	url = git@github.com:cse-bristol/110-thermos-model.git
+[submodule "libs/thermos-importer"]
+	path = libs/thermos-importer
+	url = git@github.com:cse-bristol/110-thermos-importer.git

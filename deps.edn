@@ -59,7 +59,7 @@
     javax.servlet/servlet-api {:mvn/version "2.5" :scope "test"}
 
     mount {:mvn/version "0.1.15"}
-    thermos-importer {:local/root "/home/hinton/p/110-thermos/thermos-importer"}}}
+    thermos-importer {:local/root "libs/thermos-importer"}}}
   }
  
  :deps
