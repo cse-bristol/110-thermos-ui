@@ -16,8 +16,14 @@
             
             [clojure.data.json :as json]
             [clojure.string :as str]
-            [clojure.data.csv :as csv])
-  (:import [org.locationtech.jts.geom Envelope]))
+            [clojure.data.csv :as csv]
+            [thermos-importer.spatial :as spatial])
+  (:import [org.locationtech.jts.geom
+            Envelope
+            GeometryFactory
+            PrecisionModel]
+           
+           ))
 
 (defn- as-double [v]
   (if (string? v)
@@ -55,23 +61,28 @@
   [args]
   (let [temp-dir (util/create-temp-directory!
                   (config :import-directory)
-                  ;; TODO this is unsafe
-                  (or (str/replace (:osm-area args) #"[^a-zA-Z0-9]+" "-") "-import"))
+                  (or (str/replace (:osm-area args) #"[^a-zA-Z0-9]+" "-") "file-"))
         buildings (io/file temp-dir "buildings")
         roads (io/file temp-dir "roads")
         benchmarks (io/file temp-dir "benchmarks")]
 
-    (.mkdir buildings)
-    (.mkdir roads)
-    (.mkdir benchmarks)
-
     (let [move-files-into
           (fn [files dir]
+            ;; the input files are actually from
+            ;; ring.middle.ware.multipart-params, which means they are
+            ;; maps which have keys :filename :tempfile.
+            ;; sadly, shapefiles have parts which are related only by name
+            ;; so if a user has uploaded several shapefiles with the same name
+            ;; from separate directories they will clobber each other.
+            
             (when (seq files)
+              (.mkdir dir)
               (doall
-               (for [file files]
-                 (.toString
-                  (nio/move! file (io/file dir (.getName file))))))))
+               (for [{filename :filename
+                      file :tempfile} files]
+                 ;; TODO ensure filename is safe
+                 (let [target (io/file dir (or filename (.getname file)))]
+                   (.toString (nio/move! file target)))))))
 
           args (-> args
                    (assoc :work-directory   (str temp-dir))
@@ -81,29 +92,56 @@
           ]
       (queue/enqueue :imports args))))
 
+(defn- clean-tag [t]
+  (and t (str/capitalize (str/replace t #"[_-]+" " "))))
+
+(defn- remap-building-type
+  "We did have a complicated program which took stuff from a file, but
+  this is what it boils down to:
+
+  1. If the building has an amenity tag, use that
+  2. If it has a non-yes building tag, use that
+  3. If it has a landuse (added by overpass.clj) use that"
+  [b]
+  (let [landuse  (:landuse b)
+        building (:building b)
+        amenity  (:amenity b)
+        building (when-not (= "yes" building) building)]
+    (clean-tag (or amenity building landuse))))
+
 (defn- query-osm [state job]
-  (let [get-roads (not (:roads-file job))
-        get-buildings (not (:buildings-file job))]
+  (let [get-roads          (not (:roads-file job))
+        get-buildings      (not (:buildings-file job))
+        set-building-type  #(assoc % :subtype (remap-building-type %))
+        set-road-type      #(assoc % :subtype (clean-tag (:highway %)))]
     (cond-> state
       (or get-roads get-buildings)
       (as-> state
           (let [query-results
                 (overpass/get-geometry
                  (:osm-area job)
-                 :include-buildings get-buildings :include-highways get-roads)
+                 :include-buildings get-buildings
+                 :include-highways get-roads)
 
-                ;; TODO harmonise OSM classifications here
-
+                query-results
+                (for [r query-results]
+                  (assoc r
+                         :orig-id (:osm-id r)
+                         :source (str "osm:" (:osm-area job))))
+                
                 buildings
-                (filter #(and (:building %)
-                              (= :polygon (::geoio/type %)))
-                        query-results)
+                (->> query-results
+                     (filter :building)
+                     (filter (comp #{:polygon} ::geoio/type))
+                     (map set-building-type))
 
                 highways
-                (filter #(and (:highway %)
-                              (= :line-string (::geoio/type %)))
-                        query-results)
+                (->> query-results
+                     (filter :highway)
+                     (filter (comp #{:line-string} ::geoio/type))
+                     (map set-road-type))
                 ]
+            
             (cond-> state
               get-buildings
               (assoc :buildings
@@ -113,10 +151,74 @@
               (assoc :roads
                      {::geoio/crs "EPSG:4326" ::geoio/features highways})))))))
 
-(defn- load-buildings [state job]
+(defn- distinct-by [v f]
+  (let [seen (volatile! #{})]
+    (reduce
+     (fn [a v]
+       (let [vf (f v)]
+         (if (@seen vf)
+           (do
+             (println "Removing duplicate:" vf v)
+             a)
+           (do (vswap! seen conj vf)
+               (cons v a)))))
+     nil v)))
+
+(defn- assoc-when [m k v] (if v (assoc m k v) m))
+(defn- get-double [m k]
+  (when-let [v (get m k)]
+    (cond
+      (number? v) v
+      (string? v) (try (Double/parseDouble v) (catch NumberFormatException e))
+      :else nil)))
+
+;; this way the last non-nil one wins for each feature.
+(defn- copy-fields [feature field-map]
+  (reduce
+   (fn [feature {field-name :field-name field-target :field-target}]
+     (case field-target
+       :height           (assoc-when feature ::lidar/height (get-double feature field-name))
+       :floor-area       (assoc-when feature ::lidar/floor-area (get-double feature field-name))
+       :unit-cost        (assoc-when feature :unit-cost (get-double feature field-name))
+       :connection-count (assoc-when feature :connection-count (get-double feature field-name))
+       :demand           (assoc-when feature :demand-kwh-per-year (get-double feature field-name))
+       :peak             (assoc-when feature :demand-kwp (get-double feature field-name))
+       :classification   (assoc-when feature :subtype (get feature field-name))
+       :orig-id          (assoc-when feature :orig-id (get feature field-name))
+       :name             (assoc-when feature :name (get feature field-name))
+
+       feature)) ;; do nothing
+   feature field-map))
+
+(defn- load-buildings [state
+                       {buildings-file :buildings-file
+                        buildings-fields :buildings-field-map}]
   (cond-> state
-    (:buildings-file job)
-    (assoc :buildings (geoio/read-from-multiple (:buildings-file job)))))
+    (seq buildings-file)
+    (assoc :buildings
+           (cond->
+               (geoio/read-from-multiple buildings-file :force-crs "EPSG:4326")
+
+             (seq buildings-fields) ;; only if there is something to do
+             (geoio/update-features :copy-fields copy-fields
+                                    (for [f buildings-fields]
+                                      (update f :field-name keyword)))))))
+
+(defn- load-roads [state
+                   {roads-file :roads-file
+                    roads-fields :roads-field-map}]
+  (cond-> state
+    (seq roads-file)
+    (assoc :roads (cond->
+                      (geoio/read-from-multiple roads-file :force-crs "EPSG:4326")
+
+                    (seq roads-fields)
+                    (geoio/update-features :copy-fields copy-fields
+                                           (for [f roads-fields]
+                                             (update f :field-name keyword)))
+                    ))))
+
+
 
 (defn- load-lidar-index []
   (when-let [lidar-directory (config :lidar-directory)]
@@ -127,20 +229,37 @@
                              (.endsWith name ".tiff")))))
          (lidar/rasters->index))))
 
+(def residential-subtypes
+  #{nil ;; no subtype = resi
+    "" ;; blank string = resi
+    "Residential"
+    "House"
+    "Apartments"
+    "Detached"
+    "Dormitory"
+    "Terrace"
+    "Houseboat"
+    "Bungalow"
+    "Static caravan"
+    "Cabin"})
+
+(defn- guess-residential [feature]
+  (if (contains? feature :residential) feature
+      ;; otherwise make it up
+      (assoc feature :residential
+             (contains? residential-subtypes
+                        (:subtype feature)))))
+
 (defn- produce-predictors [state
-                           {given-height :given-height
-                            use-lidar    :use-lidar}]
+                           {use-lidar    :use-lidar}]
   (-> state
       (update :buildings
-              lidar/add-lidar-to-shapes
-              (when use-lidar (load-lidar-index))
-              :given-height given-height)
+              lidar/add-lidar-to-shapes ;; TODO remove given-height, accept input height
+              (when use-lidar (load-lidar-index)))
+      
       (update :buildings
               geoio/update-features :add-resi
-              assoc :residential true
-              ;; TODO determine residential field here - maybe if it's
-              ;; not false but is missing set it to true?
-              )))
+              guess-residential)))
 
 (defn- run-svm-models [x degree-days]
   (let [x (->> (for [[k v] x
@@ -149,7 +268,6 @@
                  [(keyword (name k))
                   (if (= :residential k) (boolean v) v)])
                (into {}))
-        
         space-prediction  (or (svm-space-3d x) (svm-space-2d x) 0)
         water-prediction  (or (svm-water-3d x) (svm-water-2d x) 0)
         space-requirement (* space-prediction (Math/sqrt degree-days))]
@@ -216,19 +334,18 @@
 
 (def default-benchmark-predictor
   (let [[header & rows]
-        (with-open [rdr (io/reader (io/resource "thermos_backend/importer/default-benchmarks.csv"))]
+        (with-open [rdr (io/reader
+                         (io/resource "thermos_backend/importer/default-benchmarks.csv"))]
           (doall (csv/read-csv rdr)))]
     (load-benchmarks header rows)))
 
 (defn- produce-demands [state
                         {benchmarks-file    :benchmarks-file
                          default-benchmarks :default-benchmarks
-                         given-demand       :given-demand
-                         given-peak         :given-peak
                          degree-days        :degree-days}]
   (let [benchmark-predictors
         (cond-> (map #(let [[header & rows]
-                            (with-open [rdr (io/reader source)]
+                            (with-open [rdr (io/reader %)]
                               (doall (csv/read-csv rdr)))]
                         (load-benchmarks header rows))
                      benchmarks-file)
@@ -236,18 +353,20 @@
           (conj default-benchmark-predictor))
 
         get-benchmark
-        (fn [x]
-          (reduce merge {} (map #(% x) benchmark-predictors)))
+        (if (seq benchmark-predictors)
+          (fn [x]
+            (reduce merge {} (map #(% x) benchmark-predictors)))
+          (constantly {}))
 
         estimate-demand
         (fn [x]
           (let [b (get-benchmark x)
 
-                annual-demand (or (get-double x given-demand)
+                annual-demand (or (:demand-kwh-per-year x)
                                   (:demand-kwh-per-year b)
                                   (run-svm-models x degree-days))
 
-                peak-demand (or (get-double x given-peak)
+                peak-demand (or (:demand-kwp x)
                                 (:demand-kwp b)
                                 (run-peak-model annual-demand))]
             (assoc x
@@ -259,12 +378,6 @@
             :estimate-demand
             estimate-demand)))
 
-
-(defn- load-roads [state job]
-  (cond-> state
-    (:roads-file job)
-    (assoc :roads (geoio/read-from-multiple (:roads-file job)))))
-
 (defn- topo [{roads :roads buildings :buildings :as state} job]
   (let [crs (::geoio/crs roads)
 
@@ -272,47 +385,87 @@
         (topo/node-paths (::geoio/features roads))
         
         [buildings roads]
-        (topo/add-connections crs
-                              (::geoio/features buildings)
-                              (::geoio/features roads))
+        (topo/add-connections crs (::geoio/features buildings) roads)
         ]
     (-> state
         (assoc-in [:roads     ::geoio/features] roads)
         (assoc-in [:buildings ::geoio/features] buildings))))
 
-(defn add-to-database [state]
-  ;; let's also save it into the tenmp directory
+(defn add-to-database [state job]
   (geoio/write-to
    (:buildings state)
-   (io/file (:work-directory state) "buildings-out.json"))
+   (io/file (:work-directory job) "buildings-out.json"))
 
   (geoio/write-to
    (:roads state)
-   (io/file (:work-directory state) "roads-out.json"))
+   (io/file (:work-directory job) "roads-out.json"))
 
   (let [buildings (geoio/reproject (:buildings state) "EPSG:4326")
         roads     (geoio/reproject (:roads state)     "EPSG:4326")
-        box       (Envelope.)]
+        box       (Envelope.)
+        gf        (GeometryFactory. (PrecisionModel.) 4326)
+        ]
+    
     (doseq [{g ::geoio/geometry}
             (concat (::geoio/features buildings)
                     (::geoio/features roads))]
       (.expandToInclude box (.getEnvelopeInternal g)))
-    ;; TODO actually mangle the database here
-    ))
+
+    (map-db/erase-and-insert!
+     :erase-geometry (.toText (.toGeometry gf box))
+     :srid 4326
+     :format :wkt
+     :buildings
+
+     ;; uppercase the hyphens for database :(
+     
+     (for [b (::geoio/features buildings)]
+       {:id (::geoio/id b)
+        :orig_id (or (:orig-id b) "unknown")
+        :name (or (:name b) "")
+        :type (or (:subtype  b) "")
+        :geometry (.toText (::geoio/geometry b))
+        ;; insert array type here??
+        :connection_id (str/join "," (::spatial/connects-to-node b))
+        :demand_kwh_per_year (or (:demand-kwh-per-year b) 0)
+        :demand_kwp (or (:demand-kwp b) 0)
+        :connection_count (or (:connection-count b) 1)})
+     
+     :paths
+     (for [b (::geoio/features roads)]
+       {:id (::geoio/id b)
+        :orig_id (or (:orig-id b) "unknown")
+        :name (or (:name b) "")
+        :type (or (:subtype b) "")
+        :geometry (.toText (::geoio/geometry b))
+        :start_id (::geoio/id (::topo/start-node b))
+        :end_id   (::geoio/id (::topo/end-node b))
+        :length   (or (::topo/length b) 0)
+        :unit_cost (or (:unit-cost b) 500)}))))
+
+(defn dedup [state]
+  (-> state
+      (update-in [:buildings ::geoio/features] distinct-by ::geoio/id)
+      (update-in [:roads ::geoio/features] distinct-by ::geoio/id)))
 
 (defn run-import
   "Run an import job enqueued by `queue-import`"
   [job]
+  (with-open [log-writer (io/writer (io/file (:work-directory job) "log.txt"))]
+    (binding [*out* log-writer ]
+      (-> {}
+          (query-osm job)
 
-  (-> {}
-      (query-osm job)
+          (load-buildings job)
+          (produce-predictors job)
+          (produce-demands job)
+          
+          (load-roads job)
 
-      (load-buildings job)
-      (produce-predictors job)
-      (produce-demands job)
-      
-      (load-roads job)
-      (topo job)
-      (add-to-database)))
+          (dedup)
+          
+          (topo job)
 
-(queue/consume :imports run-import)
+          (add-to-database job)))))
+
+(queue/consume :imports 1 run-import)

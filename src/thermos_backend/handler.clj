@@ -15,7 +15,8 @@
             [thermos-backend.config :refer [config]]
             [mount.core :refer [defstate]]
 
-            [ring.util.response :as response]))
+            [ring.util.response :as response]
+            [clojure.edn :as edn]))
 
 (defn remove-trailing-slash
   "Remove the trailing '/' from a URI string, if it exists."
@@ -32,10 +33,12 @@
             (assoc-in response [:headers "Cache-Control"] "no-store"))))
     handler))
 
-(defn- file-vector [thing]
-  (if (vector? thing)
-    (vec (map :tempfile thing))
-    [(:tempfile thing)]))
+(defn- file-vector
+  [thing]
+  (if (vector? thing) thing
+      (if thing
+        [thing]
+        [])))
 
 (defn- as-double [x]
   (and x (try (Double/parseDouble x)
@@ -51,36 +54,32 @@
                    road-gis-files :<< file-vector
 
                    degree-days :<< as-double
-                   
+
                    osm-area
                    
-                   use-given-demand :<< boolean
-                   given-demand-field
+                   use-lidar :<< boolean
 
                    use-benchmarks :<< boolean
                    benchmarks-file :<< file-vector
-
-                   use-given-height :<< boolean
-                   given-height-field
-
-                   use-lidar :<< boolean
-
-                   use-given-peak :<< boolean
-                   given-peak-field]
-
+                   
+                   road-field-map :<< edn/read-string
+                   building-field-map :<< edn/read-string
+                   ]
         (importer/queue-import
          (cond-> {:osm-area osm-area
                   :degree-days degree-days}
-           use-given-demand  (assoc :given-demand (keyword given-demand-field))
            use-benchmarks    (cond-> (seq benchmarks-file)
                                (assoc :benchmarks-file benchmarks-file)
                                :else (assoc :default-benchmarks true))
-           use-given-height  (assoc :given-height (keyword given-height-field))
            use-lidar         (assoc :use-lidar true)
-           use-given-peak    (assoc :given-peak (keyword given-peak-field))
 
-           (not= building-source "openstreetmap") (assoc :buildings-file building-gis-files)
-           (not= road-source "openstreetmap") (assoc :roads-file road-gis-files)))
+           (not= building-source "openstreetmap")
+           (assoc :buildings-file building-gis-files
+                  :buildings-field-map building-field-map)
+           
+           (not= road-source "openstreetmap")
+           (assoc :roads-file road-gis-files
+                  :roads-field-map road-field-map)))
         
         (response/redirect "jobs")))
 
@@ -93,8 +92,7 @@
 
   (-> (routes
        (context "/admin" [] admin-routes)
-       pages/all
-       )
+       pages/all)
       (wrap-defaults site-defaults))
   
   (route/not-found "not-found"))

@@ -201,6 +201,12 @@
   ([]
    (-> (delete-from :jobs) (db/execute!))))
 
+(defn restart [id]
+  (-> (update :jobs)
+      (sset {:state READY_STATE})
+      (where [:= :id id])
+      (db/execute!)))
+
 (defn status [job-id])
 ;; (defn status [job-id]
 ;;   (db/with-connection [c]

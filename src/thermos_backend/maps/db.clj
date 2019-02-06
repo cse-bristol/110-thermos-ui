@@ -11,11 +11,81 @@
             [clojure.string :as string]
             [clojure.tools.logging :as log]
             [thermos-backend.db :as db]
-            ))
+
+            [jdbc.core :as jdbc]))
 
 (declare find-polygon find-tile make-bounding-points comma-separate space-separate)
 
 (def ^:dynamic *insert-block-size* 1000)
+
+(defn- geom-from-text
+  ([geom]
+   (sql/call :ST_GeomFromText geom))
+  ([geom srid]
+   (sql/call :ST_GeomFromText geom (sql/inline (int srid)))))
+
+(def candidates-keys
+  [:id :orig_id :name :type :geometry])
+
+(def buildings-keys
+  [:id :connection_id :demand_kwh_per_year :demand_kwp :connection_count])
+
+(def paths-keys
+  [:id :start_id :end_id :length :unit_cost])
+
+(defn erase-and-insert!
+  "Erase the region `erase-geometry`, and then insert the given features.
+  Format can be :wkt, and srid is an int for an EPSG code, ideally 4326.
+
+  Supersedes the below insert! function, as we are getting rid of that
+  anyway later.
+  "
+  [& {:keys [erase-geometry
+             srid
+             format
+             buildings
+             paths]
+      :or {srid 4326 format :wkt}}]
+  (db/with-connection [conn]
+    (jdbc/atomic
+     conn
+
+     ;; 1. Delete input region
+     (let [deleted
+           (-> (delete-from :candidates)
+               (where [:&& :geometry (geom-from-text erase-geometry srid)])
+               (db/execute!))]
+
+       ;; TODO this should delete all affected density tiles as well
+       (log/info "Deleted" deleted "candidates in target area"))
+
+     ;; 2. Insert features
+     (doseq [chunk (partition-all *insert-block-size* (concat buildings paths))]
+       (-> (insert-into :candidates)
+           (values (for [c chunk]
+                     (select-keys
+                      (clojure.core/update c :geometry #(geom-from-text % srid))
+                      candidates-keys)))
+           (db/execute!)))
+
+     (log/info "Insert" (count buildings) "buildings")
+     
+     (doseq [chunk (partition-all *insert-block-size* buildings)]
+       (-> (insert-into :buildings)
+           (values (for [b chunk]
+                     (select-keys
+                      (clojure.core/update b :connection_id
+                                           #(sql/call :regexp_split_to_array % ","))
+                      buildings-keys)))
+           (db/execute!)))
+
+     (log/info "Insert" (count paths) "paths")
+     
+     (doseq [chunk (partition-all *insert-block-size* paths)]
+       (-> (insert-into :paths)
+           (values (for [p chunk]
+                     (select-keys p paths-keys)))
+           (db/execute!))))))
 
 (defn insert!
   "GEOJSON-FILE should be the path to a geojson file containing

@@ -1,0 +1,50 @@
+amenity,,
+building,,
+landuse,,
+
+
+
+(def osm-building-types
+  (with-open [r (io/reader
+                 (io/resource "thermos_backend/importer/osm-building-types.csv"))]
+    (->> (csv/read-csv r)
+         (doall)
+         ;; triples of tag, value, subtype
+         (map-indexed #(conj %2 %1))
+         ;; quads of tag, value, subtype, rownumber
+         (group-by (comp keyword first))
+         ;; map from tag to quads
+         (map #(update % 1 (fn [rs] (group-by second rs))))
+         (into {}))))
+
+(defn- remap-building-type
+  "OSM has quite a fine-grained classification using lots of key/value pairs.
+  We just have a single classification field, which we want to make consistent.
+
+  For now, we have a list of rules in the adjacent osm-building-types.csv.
+  Each row in there gives a single tag/value pair, which produces a single subtype.
+  First matching row wins
+
+  If the subtype field in the file is empty, the value of the tag is
+  cleaned up and taken.
+
+  Finally we get rid of 'yes' since it's not much help to us."
+  [b]
+
+  ;; foreach key in osm-building-types we want to get the value
+  ;; then we want to lookup the value within said map
+  ;; that will give us a bunch of quadruples
+  ;; which we sort by last
+  ;; then take value from first.
+  (let [[key val st]
+        (->> (for [[k vs] osm-building-types
+                   :let [vb (get b k)]
+                   :when (and vb (not= vb "yes"))
+                   :let [tb (or (get vs vb) (get vs ""))]
+                   :when tb]
+               (first tb))
+             (sort-by last)
+             (first))]
+    (if (str/blank? st) ;; a blank in the file means to use the tag value
+      (clean-tag (get b (keyword key)))
+      st)))
