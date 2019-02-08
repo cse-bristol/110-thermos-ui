@@ -7,11 +7,14 @@
   "geotools" {:url "https://download.osgeo.org/webdav/geotools/"}
   }
  :aliases
- {:build {:extra-paths ["target/resources" "target/classes"]}
+ {:jar {:extra-paths ["target/resources" "target/classes"]}
 
   :dev ;; these are dependencies required to run dev.clj, which
        ;; provides a dev environment.
-  {:extra-paths ["target/resources"]
+  {:extra-paths ["build-src" "target/resources"]
+
+   :main-opts ["-m" "build.core"]
+
    :extra-deps
    {seancorfield/depstar {:mvn/version "0.1.5"}
 
