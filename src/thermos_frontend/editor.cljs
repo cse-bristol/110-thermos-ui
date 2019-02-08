@@ -122,9 +122,9 @@
 
          (let [run-state (state/is-running?)
                last-state @last-run-state]
-           (when (and (= :complete run-state)
+           (when (and (= :completed run-state)
                       (or (= :running last-state)
-                          (= :queued last-state)))
+                          (= :ready last-state)))
              (let [[org-name proj-name version] (state/get-last-save)]
                (state/load-document!
                 org-name proj-name version
@@ -136,7 +136,7 @@
            
            (reset! last-run-state run-state)
            
-           (when (#{:running :queued} run-state)
+           (when (#{:running :ready} run-state)
              [:div
               {:style {:position :absolute
                        :z-index 1000000
@@ -147,7 +147,7 @@
               [:b {:style {:color :white
                            :margin :auto
                            :font-size :3em}}
-               (if (= :queued run-state)
+               (if (= :ready run-state)
                  [:span "Number " (state/queue-position) " in queue"]
                  [:span "Running..."])]]))
          

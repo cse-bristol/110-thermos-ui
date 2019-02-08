@@ -21,6 +21,11 @@
 (def CANCELLED_STATE (sql/call :job_state "cancelled"))
 (def CANCELABLE_STATES #{READY_STATE RUNNING_STATE})
 
+(def BLOCKING_STATES #{READY_STATE
+                       RUNNING_STATE
+                       CANCEL_REQUESTED_STATE
+                       CANCELLING_STATE})
+
 (def FINISHED_STATES #{COMPLETE_STATE FAILED_STATE CANCELLED_STATE})
 
 (defmethod format-lock-clause :skip-locked [_] "FOR UPDATE SKIP LOCKED")
@@ -207,33 +212,25 @@
       (where [:= :id id])
       (db/execute!)))
 
-(defn status [job-id])
-;; (defn status [job-id]
-;;   (db/with-connection [c]
-;;     (let [result (-> (select :id :queue :args :state)
-;;                      (from :jobs)
-;;                      (where [:= :id job-id])
-;;                      (sql/format)
-;;                      (->> (jdbc/fetch c))
-;;                      (first)
-;;                      (db->task))
-
-;;           position (when result
-;;                      (-> (select :%count.*)
-;;                          (from :jobs)
-;;                          (where [:and
-;;                                  [:= :queue (name (:queue result))]
-;;                                  [:< :id (:id result)]
-;;                                  [:or
-;;                                   [:= :state (label->state :queued)]
-;;                                   [:= :state (label->state :running)]]])
-;;                          (sql/format)
-;;                          (->> (jdbc/fetch c))
-;;                          (first)))
-;;           ]
-      
-;;       (when result
-;;         (assoc result :after (:count position)))
-;;       )))
-
-
+(defn status
+  "Get the current state of this job"
+  [id]
+  (let [state (-> (select :state :queue_name :queued :updated)
+                  (from :jobs)
+                  (where [:= :id id])
+                  (db/fetch!)
+                  (first))]
+    (when state
+      (let [rank (-> (select :%count.*)
+                     (from :jobs)
+                     (where [:and
+                             [:= :queue_name (:queue_name state)]
+                             [:< :id id]
+                             [:in :state BLOCKING_STATES]])
+                     (db/fetch!)
+                     (first))]
+        (-> state
+            (clojure.core/update :queue_name keyword)
+            (clojure.core/update :state keyword)
+            ;; update state to a keyword?
+            (assoc :after rank))))))

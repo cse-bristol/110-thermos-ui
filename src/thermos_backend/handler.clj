@@ -88,19 +88,22 @@
                problem-routes/all
                map-routes/all)
       (wrap-json-body)
-      (wrap-json-response))
+      (wrap-json-response)
+      )
 
   (-> (routes
        (context "/admin" [] admin-routes)
        pages/all)
-      (wrap-defaults site-defaults))
+      )
   
   (route/not-found "not-found"))
 
 (defstate all
   :start
   (-> top-level
-      (wrap-defaults api-defaults)
+      (wrap-defaults (-> site-defaults
+                         (assoc-in [:security :anti-forgery] false)
+                         ))
       (wrap-no-cache)
       (wrap-canonical-redirect remove-trailing-slash)))
 

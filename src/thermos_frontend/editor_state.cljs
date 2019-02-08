@@ -71,14 +71,14 @@
          (swap! run-state assoc
                 :last-state state
                 :after after)
-         (when (#{:queued :running} state)
+         (when (#{:ready :running} state)
            (start-run-state-timer)))))))
 
 (defn maybe-update-run-state []
   (let [{last-state :last-state last-load :last-load} @run-state]
     (if (and last-load
              (or (nil? last-state)
-                 (#{:queued :running} last-state)))
+                 (#{:ready :running} last-state)))
       (update-run-state)
       (cancel-run-state-timer))))
 
