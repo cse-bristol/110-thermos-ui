@@ -1,0 +1,14 @@
+[{:main thermos-frontend.editor
+  :output-dir "target/resources/public/js/editor.out"
+  :output-to "target/resources/public/js/editor.js"
+  :asset-path "/js/editor.out"
+  :externs ["externs/leaflet-extra.js"]
+  }
+ {:main thermos-frontend.pages.database-import
+  :output-dir "target/resources/public/js/database_import.out"
+  :output-to "target/resources/public/js/database_import.js"
+  :asset-path "/js/database_import.out"}
+ {:main thermos-frontend.pages.problems-list
+  :output-dir "target/resources/public/js/problems_list.out"
+  :output-to "target/resources/public/js/problems_list.js"
+  :asset-path "/js/problems_list.out"}]

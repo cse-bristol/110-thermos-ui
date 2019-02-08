@@ -7,7 +7,41 @@
   "geotools" {:url "https://download.osgeo.org/webdav/geotools/"}
   }
  :aliases
- {:client
+ {:build {:extra-paths ["target/resources" "target/classes"]}
+
+  :dev ;; these are dependencies required to run dev.clj, which
+       ;; provides a dev environment.
+  {:extra-paths ["target/resources"]
+   :extra-deps
+   {seancorfield/depstar {:mvn/version "0.1.5"}
+
+    badigeon/badigeon
+    {:git/url "https://github.com/EwenG/badigeon.git"
+     :sha "dca97f9680a6ea204a2504c4414cafc4ba182a83"
+     :tag "0.0.6"}
+
+    nrepl/nrepl                 {:mvn/version "0.5.3"}
+    org.clojure/tools.namespace {:mvn/version "0.2.11"}
+    cider/cider-nrepl           {:mvn/version "0.20.0"}
+
+    github/deraen-less4clj
+    {:git/url
+     "https://github.com/Deraen/less4clj.git"
+     :sha
+     "002ec3f66b27a4bf71c3e795309c0296ab35aa18"}
+
+    ;; it would be nice to use figwheel main here, but we can't
+    ;; because it would force a clojurescript version bump and we
+    ;; depend on an outdated clojurescript feature for AMD modules.
+    com.cemerick/piggieback
+    {:mvn/version "0.2.2"
+     :exclusions  [com.google.javascript/closure-compiler]}
+    figwheel-sidecar
+    {:mvn/version "0.5.14"
+     :exclusions  [com.google.javascript/closure-compiler]}
+    }}
+
+  :client
   {:override-deps
    ;; our code only works with this version, because
    ;; we depend on some AMD modules, which have been
@@ -15,6 +49,7 @@
    {org.clojure/clojurescript {:mvn/version "1.9.946"}}
    :extra-deps
    {
+    org.clojure/clojurescript {:mvn/version "1.9.946"}
     cljsjs/leaflet {:mvn/version "1.2.0-0"}
     cljsjs/jsts {:mvn/version "1.6.0-0"}
     cljsjs/rbush {:mvn/version "2.0.1-0"}
@@ -25,6 +60,7 @@
     re-com {:mvn/version "0.9.0"}
     }
    }
+  
   :server
   {:extra-deps
    {compojure {:mvn/version "1.6.1"}
@@ -59,8 +95,7 @@
     javax.servlet/servlet-api {:mvn/version "2.5" :scope "test"}
 
     mount {:mvn/version "0.1.15"}
-    thermos-importer {:local/root "libs/thermos-importer"}}}
-  }
+    thermos-importer {:local/root "libs/thermos-importer"}}}}
  
  :deps
  {org.clojure/clojure {:mvn/version "1.9.0"}
