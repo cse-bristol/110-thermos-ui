@@ -28,8 +28,12 @@
      (assoc build
             :preloads nil
             :infer-externs true
-            :pretty-print true
-            :pseudo-names true)))
+            ;; for help with symbol mangling, swap
+            ;; optimizations advanced for the lower 2.
+            :optimizations :advanced
+            ;; :pretty-print true 
+            ;; :pseudo-names true
+            )))
 
   (red "less -> css")
   (less/build
