@@ -1,112 +1,43 @@
 #+TITLE: Thermos UI
+
+The THERMOS web interface.
+
+Builds using scripts in build-src.
+
+* System dependencies
+
+The application uses two external components
+
+- A postgres / postgis database
+- The model solver
+
+Nix expressions for creating a postgis server are in ~dev/pg-server.nix~.
+The solver is checked out as a submodule in ~deployment/model~.
+Nix expressions for a deployment system are in ~deployment~.
+
+* Configuration
+
+The application has a few config settings, defaults in ~resources/config.edn~.
+These are settable through the environment.
+
 * Tooling
 
-This builds using [[https://boot-clj.com][boot]] now. It seemed hard to get leiningen to handle
-live-reloading of server side & frontend & less, etc.
+We had leiningen, and then we had boot, which were both a pain as things got more complicated.
+Now there's some simple clojure programs in ~build-src~ which do the compilation or development.
 
-You can start a dev environment using 'boot dev'.
+They are a bit longer than equivalent ~build.boot~ but also easier to make work.
 
-You can run tests with 'boot testing run-tests'
+To run for development you can invoke
 
-* Interface parts
+clojure -Adev:server:client dev
 
-The program here is a tool for creating problem instances to send to
-Kamal's optimisation model, and for viewing the results that come
-back.
+and to build a combined jar you can invoke
 
-A problem instance is a set of decision variables and parameters
-following a particular structure. Here is a summary:
+clojure -Adev:server:client jar
 
-- For each building
-  - Is it allowed or required in a solution?
-  - Is it a site for heat supply or heat demand?
-  - If it's a site for supply, which technologies are allowed there?
-  - If it's a site for demand, what's the demand?
-- For each path segment
-  - Is it allowed or required in a solution?
-  - What is the cost of including that path segment?
-- For the problem as a whole
-  - What are some constraints, e.g.:
-    - Upper bound on emissions
-    - Upper bound on capital cost
-  - What are some objective terms, e.g.:
-    - How much does each fuel cost?
-    - How much can heat be sold for?
-  - For each technology:
-    - What are its cost parameters, etc. Detail to follow
+* Notes
 
-The interface has to help people pose these questions.
+We cannot upgrade the clojurescript compiler without reviewing other JS dependencies.
+Any later version of cljs (actually of google closure) has removed the feature for processing AMD modules into CommonJS modules, which we need.
 
-The editor is a single page application with three main views:
 
-** Spatial view
-
-This is the start page for the editor. It shows information about
-buildings & roads.
-
-*** Map pane
-
-On the left is the map pane. This should show the geometry for the
-buildings and roads in the problem.
-
-The map needs:
-
-- [X] Spatial selection
-  - [X] Click on things to select them
-  - [X] (At least) box drawing selection
-  - [X] Control / alt modifiers for union etc.
-- [ ] Right click edit panel
-  This should let users change the constraint status of the clicked
-  thing, and then:
-  - If a building, toggle supply / demand
-  - If a demand, edit kWh/year
-  - If a supply, select allowed technologies (tick box list or similar)
-  - If a road, edit road cost (maybe by changing a category, or
-    allowing a specific cost/m)
-- [ ] Pan to selection button
-- [ ] Key shortcuts for common edit ops.
-- [ ] Filtered items should be invisible / alpha
-- [ ] Map should have some special handling of results? Highlight
-  result parts differently?
-  Or filter for this?
-
-*** Candidate list pane
-
-Top right is the candidate list. This should be a table of all the
-candidates which the optimiser is allowed to select (i.e. things which
-are either required or optional).
-
-- [ ] Row selection should reflect the map selection.
-- [ ] Table should be sortable
-- [ ] Table should be filterable with some popup box when clicking on
-  column header filter button
-
-*** Selection pane
-
-Bottom right is the selection info box. This shows properties of the
-selection. Each property value shows the count of things with that
-property in a 'chip' or tag thing.
-
-- [ ] Deselect chip removes from selection
-- [ ] Select chip removes other from selection
-
-** Parameters view
-
-This should be another toplevel page. It needs to show & edit values
-for:
-
-- Technology cost curves / fuel types etc.
-- Road pricing categories (possibly?)
-- Optimisation constraints
-- Objective components
-
-We are waiting for Kamal to know the full detail of these things
-
-** Results view
-
-This is a third toplevel page. It should show information about
-results, if there are any results, probably in a big table.
-
-* Other parts
-
-We need to cook up some good data for each area.

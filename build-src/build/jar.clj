@@ -6,17 +6,7 @@
             [badigeon.clean :as clean]
             [badigeon.compile :as compile]
             [badigeon.classpath :as classpath]
-            [hf.depstar.uberjar :as uberjar]))
-
-(in-ns 'hf.depstar.uberjar)
-
-(let [clash-strategy-0 clash-strategy]
-  (defn clash-strategy [filename]
-    (cond
-      (= "META-INF/registryFile.jaiext" filename) :concat-lines
-      :else (clash-strategy-0 filename))))
-
-(in-ns 'build.jar)
+            [build.uberjar :as uberjar]))
 
 (defmacro red [& body]
   `(println "\u001B[31m"
@@ -60,19 +50,9 @@
   ;; library for doing this at the moment. Lots of people seem to have
   ;; made 95% of one, including depstar, and I am hacking the final 5%
   ;; here:
-
-  (def manifest-path "target/resources/META-INF/MANIFEST.MF")
-
-  (let [classpath (classpath/make-classpath {:aliases [:server :jar]})
-        manifest-path "target/resources/META-INF/MANIFEST.MF"]
-
-    (red "assemble uberjar")
-    ;; generate a manifest
-    ;; unfortunately depstar excludes this, which is a bit of a nuisance.
-    
-    (io/make-parents manifest-path)
-    (spit manifest-path
-          "Main-Class: thermos_backend.core$main\n")
-    
-    (System/setProperty "java.class.path" classpath)
-    (uberjar/run {:dest "target/thermos.jar"})))
+  (red "assemble uberjar")
+  (uberjar/create-uberjar
+   "target/thermos.jar"
+   :classpath (classpath/make-classpath {:aliases [:server :jar]})
+   :manifest {:Main-Class 'thermos-backend.core}
+   ))
