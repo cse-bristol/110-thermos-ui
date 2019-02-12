@@ -1,4 +1,4 @@
-(ns build.jar
+(ns build.pkg
   (:require [clojure.java.io :as io]
             [cljs.build.api :as cljs]
             [less4clj.api :as less]
