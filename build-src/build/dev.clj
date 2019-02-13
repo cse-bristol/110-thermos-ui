@@ -2,7 +2,6 @@
   (:require [mount.core :as mount]
             [clojure.tools.namespace :as tns]
             [clojure.java.io :as io]
-            [thermos-backend.core]
             [nrepl.server :as nrepl]
             [figwheel-sidecar.repl-api
               :as repl-api :refer [cljs-repl]]
@@ -18,12 +17,13 @@
 
 (defn start-dev []
   (reset! repl-server (nrepl/start-server :handler (nrepl-handler)))
-  (let [port (:port repl-server)
+  (let [port (:port @repl-server)
         port-file (io/file ".nrepl-port")]
     (println "Server-side nREPL port" port)
     (.deleteOnExit port-file)
     (spit port-file port))
 
+  (require 'thermos-backend.core)
   ;; run webserver
   (mount/start)
 
