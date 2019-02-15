@@ -15,8 +15,10 @@
 
 (defonce repl-server (atom nil))
 
-(defn start-dev []
-  (reset! repl-server (nrepl/start-server :handler (nrepl-handler)))
+(defn start-dev [{cider :cider}]
+  (reset! repl-server (if cider
+                        (nrepl/start-server :handler (nrepl-handler))
+                        (nrepl/start-server)))
   (let [port (:port @repl-server)
         port-file (io/file ".nrepl-port")]
     (println "Server-side nREPL port" port)
@@ -45,4 +47,3 @@
    {:source-paths ["resources"]
     :target-path "target/resources/"
     :auto true}))
-
