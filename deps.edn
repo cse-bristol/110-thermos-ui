@@ -21,6 +21,7 @@
      :sha "dca97f9680a6ea204a2504c4414cafc4ba182a83"
      :tag "0.0.6"}
 
+    proto-repl                  {:mvn/version "0.3.1"}
     nrepl/nrepl                 {:mvn/version "0.5.3"}
     org.clojure/tools.namespace {:mvn/version "0.2.11"}
     cider/cider-nrepl           {:mvn/version "0.20.0"}
@@ -61,7 +62,7 @@
     re-com {:mvn/version "0.9.0"}
     }
    }
-  
+
   :server
   {:extra-deps
    {compojure {:mvn/version "1.6.1"}
@@ -97,10 +98,9 @@
 
     mount {:mvn/version "0.1.15"}
     thermos-importer {:local/root "libs/thermos-importer"}}}}
- 
+
  :deps
  {org.clojure/clojure {:mvn/version "1.9.0"}
   org.clojure/core.async {:mvn/version "0.3.443"}
   org.clojure/tools.reader {:mvn/version "1.3.0"}}
  }
-
