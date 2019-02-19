@@ -1,5 +1,7 @@
-(ns thermos-frontend.pages.database-import
-  (:require [reagent.core :as reagent]))
+(ns thermos-frontend.pages.help
+  (:require [reagent.core :as reagent]
+            [goog.object :as o]
+            ))
 
 (enable-console-print!)
 
@@ -51,7 +53,13 @@
        {:content
         [:div
          [:p
-          "For the purposes of this tool version, the link shown above takes the user to a launch screen which lists problems which have been previously saved. This displays the title of the problem, the date the most recent solution was run and when the problem configuration was last updated. The problem titles and dates of the most recent solution are both hyperlinked, allowing the user to re-load the selected building cluster map by clicking on the problem title, or the solution by clicking on the date. This table also allows the user to delete problems from the list. A new problem can be launched by clicking on ‘New +’ at the top right of the screen – see below."]]}]
+          "For the purposes of this tool version, the link shown above takes the user to a launch screen which lists problems which have been previously saved. This displays the title of the problem, the date the most recent solution was run and when the problem configuration was last updated. The problem titles and dates of the most recent solution are both hyperlinked, allowing the user to re-load the selected building cluster map by clicking on the problem title, or the solution by clicking on the date. This table also allows the user to delete problems from the list. A new problem can be launched by clicking on ‘New +’ at the top right of the screen – see below."]
+         [:figure
+          {:id "new-problem-fig"}
+          [:img {:src "/img/problems_screen.png"
+                 :alt "Launching a new problem"}]
+          [:figcaption "Launching a new problem"]
+          ]]}]
       ["User interface"
        {:content
         [:div
@@ -60,6 +68,11 @@
          [:h4 "Map"]
          [:p
           "There are three main elements to the map section of the user interface which are displayed simultaneously: an interactive map, a candidate selection form and a table of network candidates. In the bar at the top of the screen (where it says ‘untitled’), the user can type in their own title when beginning an analysis and save the configuration at any time using the ‘Save’ function in the top right corner."]
+         [:figure
+          {:id "map-fig"}
+          [:img {:src "/img/map_ui.png"
+                 :alt "User interface map section"}]
+          [:figcaption "Elements of the user interface - map section"]]
 
          [:h4 "Interactive Map"]
          [:p
@@ -92,6 +105,13 @@
 
          [:p
           "The next step involves selecting candidates from the map by using one of the two selection buttons on the left. The user can choose to make selections by drawing a polygon or a rectangle. Alternatively, individual candidates can be selected by simply clicking on them (holding down the Ctrl key to select multiple items). Once candidates are selected, a summary of the selection is shown in the candidate selection form on the right hand side of the screen. The bottom selection button on the left of the map can then be used to ‘Zoom to selection’ if required."]
+         [:figure
+          {:id "map-controls-fig"}
+          [:img
+           {:src "/img/map_controls.png"
+            :alt "THERMOS map controls"
+            :style {:max-width "600px"}}]
+          [:figcaption "THERMOS map controls"]]
 
          [:h4 "Candidate selection form"]
          [:p
@@ -121,6 +141,12 @@
                [:td "The candidate will certainly be included in the subsequent network analysis and will appear in the ‘Table of network candidates’ at the bottom of the screen. Such candidates are coloured red on the map."]]]
              [:p
               "By default, all candidates are deemed to be ‘Forbidden’. The user can therefore change the constraint of any candidate by right-clicking on it (or on multiple candidate selections) in the map and selecting ‘Set inclusion’. In this way, candidates can be added or removed from the ‘Table of Network Candidates’. Note that candidates will only appear in the Candidate Selection Form when they are actively selected on the map (indicated by thicker coloured lines and, additionally in the case of buildings, darker shading of the polygon area)."]
+             [:figure
+              {:id "selected-candidates-fig"}
+              [:img
+               {:src "/img/selected_candidates.png"
+                :alt "THERMOS selected candidates"}]
+              [:figcaption "Candidates' selection"]]
              [:p
               "The button on the left of the map ‘Hide unconstrained candidates’ will hide all candidates that have not been selected as ‘required’ or ‘optional’ i.e. this will display only the candidates included in the ‘Table of Network Candidates’. Clicking again on this button will do the reverse i.e. ‘Show unconstrained candidates’."]]]
            [:tr
@@ -149,7 +175,13 @@
          [:p
           "At any time, a file of the selected candidates can be saved using the ‘Save’ button at the top right of the screen. The file is then saved on the remote server hosting the tool application, and the file is displayed on the Launch Screen."]
          [:p
-          "The ‘Optimise’ button at the top right of the screen will trigger a network optimisation analysis and a display of output results using the underlying THERMOS model. This takes the form of a new ‘Results’ section which appears in the UI (see Section 2.3) [TODO PUT LINK HERE]. However, current results will be based on rough estimates and only constitute an example of the outputs that will be provided to the user, i.e. they should not be used for further analysis given that the model is currently under development."]
+          "The ‘Optimise’ button at the top right of the screen will trigger a network optimisation analysis and a display of output results using the underlying THERMOS model. This takes the form of a new ‘Results’ section which appears in the UI (see "
+          [:a.section-link
+           {:href "#"
+            :data-target-section "Structure of the tool"
+            :data-target-subsection "Solver module"}
+           ""]
+          "). However, current results will be based on rough estimates and only constitute an example of the outputs that will be provided to the user, i.e. they should not be used for further analysis given that the model is currently under development."]
 
          [:h4 "Editing building and path characteristics"]
          [:p
@@ -169,6 +201,12 @@
            [:tr
             [:td "Optimisation parameters"]
             [:td "Indicates how close the solution should be to an ‘optimal’ one i.e. a measure of optimality. 10% is set by default. It is also possible to set a maximum runtime (the default is 3 hours)."]]]]
+         [:figure
+          {:id "thermos-options-fig"}
+          [:img
+           {:src "/img/thermos_options.png"
+            :alt "THERMOS options page"}]
+          [:figcaption "Elements of the user interface - options selection"]]
 
          [:p
           "Note that in this version, all costs within this section are expressed without a specific currency: the user is allowed to insert the data in the preferred currency, as long as there is a consistency within the values inserted."]
@@ -184,10 +222,28 @@
           "Once the problem (i.e. identification of the candidates – supply and demand points and connections) has been defined in the ‘map’ section of the UI and the main parameters (e.g. costs, revenues, carbon emissions limit) have been determined in the ‘options’ section, the THERMOS model will deliver the optimal solution to the problem via the ‘Optimise’ button. Note that in Version 3 the solver incorporates a queuing system for problems that have been submitted concurrently and a display may appear informing the user of the current place in the queue.  "]
          [:p
           "Once the model has run, a new ‘Results’ section is created in the UI. This section provides the user with the key parameters of the optimised network if a solution has indeed been found. In Version 4 of the THERMOS tool, this section is divided into 4 separate tabs. The ‘Summary’ tab provides an overview of the financial modelling outputs, including figures for capital costs (both principal and through finance), annual operating costs, costs related to emissions (also annual), and revenue from heat sales. The ‘Demands’ tab lists all of the candidate buildings, along with associated heat demand (Wh/yr), connection size (W), heat price (c/kWh), and revenue (¤/yr). Similarly, the ‘Network’ tab includes a list of all pipework sections, plus details of length (m), principal costs (¤), capacity (W) and diversity. The ‘Supply’ tab provides headline plant information, including capacity (MWp), output (GWh/yr), diversity factor and principal cost."]
+         [:figure
+          {:id "results-section-fig"}
+          [:img
+           {:src "/img/results_section.png"
+            :alt "THERMOS results section"}]
+          [:figcaption "Results section"]]
          [:p
           "All elements which were ‘sent’ to the solver and included in the analysis (i.e. those listed in the Table of Network Candidates) are then shown on the map section, but those that have subsequently been included in the optimal solution are shown in blue (optional) and red (required) as before, while those excluded from the optimal solutionthat are shown in  green are optional candidates that have not been included in the optimal solution, and those shown in purple are candidates that could not be connected  (see figure below). Building on this information, the user can continue the simulations by excluding elements from the problem and/or incorporating new buildings and connections."]
+         [:figure
+          {:id "results-in-map-fig"}
+          [:img
+           {:src "/img/results_in_map.png"
+            :alt "Results in map section"}]
+          [:figcaption "Results in the map section"]]
          [:p
           "The elements included in the optimal solution are also now highlighted in the Table of Network Candidates by means of a tick in a new right-hand column:"]
+         [:figure
+          {:id "candidates-in-optimal-solution-fig"}
+          [:img
+           {:src "/img/candidates_in_solution.png"
+            :alt "Candidates included in the optimal solution"}]
+          [:figcaption "Candidates included in the optimal solution"]]
          ]}]
       ]}
     ]
@@ -271,6 +327,21 @@
           "The THERMOS tool provides the user with a description of the networks specified, including key performance parameters and energy and economic indicators. The user would then assess and compare the descriptions."]]}]
       ]}]])
 
+;; This is so that if we want to we can reference figures from within the text.
+(defn get-figures-list []
+  (let [figures (atom [])
+        get-figures (fn [content-tree]
+                      (filter #(= (first %) :figure)
+                              (tree-seq sequential? rest content-tree)))]
+
+    (doseq [[title {content :content subsections :subsections}] document]
+      (swap! figures #(vec (concat % (get-figures content))))
+      (doseq [[title {content :content}] subsections]
+        (swap! figures #(vec (concat % (get-figures content))))))
+    @figures))
+
+(defonce figures (get-figures-list))
+
 
 (defn help-app
   []
@@ -319,7 +390,6 @@
                              (swap! state assoc :active-subsection-index prev-subsection-last-ind))))
 
         go-to-next (fn []
-                     (println active-subsection-index)
                      (let [last-section-index (dec (count document))
                            last-subsection-index (dec (count subsections))]
                        (cond
@@ -342,12 +412,53 @@
                          (swap! state update :active-subsection-index inc))))]
 
     [:div.help__content-panel
+     {:ref (fn [node]
+             (when node
+               ;; For any figures in this section, add "Figure #:" to the start of the caption
+               (doseq [fig (.from js/Array (.querySelectorAll node "figure"))]
+                 (let [fig-id (o/get fig "id")
+                       fig-index (first (first (filter (fn [[ind f]] (= (:id (second f)) fig-id))
+                                                       (map-indexed vector figures))))
+                       figcaption (.querySelector fig "figcaption")]
+
+                   (o/set figcaption "innerText"
+                          (str "Figure " (inc fig-index) ": " (o/get figcaption "innerText")))))
+
+               ;; Make any section links work
+               (doseq [link (.from js/Array (.querySelectorAll node "a.section-link"))]
+                 (let [target-section (.getAttribute link "data-target-section")
+                       target-subsection (.getAttribute link "data-target-subsection")
+                       target-section-index (first (first (filter (fn [[ind [title stuff]]]
+                                                                    (= title target-section))
+                                                                  (map-indexed vector document))))
+
+                       target-subsection-index (first (first (filter (fn [[ind [title stuff]]]
+                                                                       (= title target-section))
+                                                                     (map-indexed vector
+                                                                                  (-> document
+                                                                                      (get target-section-index)
+                                                                                      second
+                                                                                      :subsections)))))]
+
+                   ;; @TODO Finish this off
+
+                   ; (swap! state merge {:active-section-index target-section-index
+                   ;                     :active-subsection-index target-subsection-index})
+
+                   )
+                 )
+               ))}
+
      [:h2 (first (get document active-section-index))]
+
+     ;; If we are in a subsection, render it
      (if (:active-subsection-index @state)
        (let [[title {content :content}] (get subsections active-subsection-index)]
          [:div
           [:h3 title]
           content])
+
+       ;; Otherwise, display any top-level content and make a list of links to subsections, if they exist
        [:div
         (:content (second (get document active-section-index)))
         [:ul.help__content-panel-subsection-links
@@ -363,6 +474,8 @@
                 "# " title]]
               )
             subsections))]])
+
+     ;; Previous and Next buttons
      [:nav.help__nav
       (let [disabled? (and (= active-section-index 0)
                            (or (= active-subsection-index 0) (nil? active-subsection-index)))]

@@ -11,4 +11,8 @@
  {:main thermos-frontend.pages.problems-list
   :output-dir "target/resources/public/js/problems_list.out"
   :output-to "target/resources/public/js/problems_list.js"
-  :asset-path "/js/problems_list.out"}]
+  :asset-path "/js/problems_list.out"}
+{:main thermos-frontend.pages.help
+ :output-dir "target/resources/public/js/help.out"
+ :output-to "target/resources/public/js/help.js"
+ :asset-path "/js/help.out"}]
