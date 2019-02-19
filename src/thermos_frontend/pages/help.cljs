@@ -3,89 +3,14 @@
 
 (enable-console-print!)
 
-(declare menu-panel content-panel menu-item menu-subsection document)
-
-(println "Mark")
+(declare menu-panel content-panel menu-item menu-subsection)
 
 (defonce state
   (reagent/atom
    {:active-section-index 0
     :active-subsection-index nil}))
 
-(defn help-app
-  []
-  [:div.help__app-container
-   [menu-panel]
-   [:div.help__content-panel]
-   ])
-
-(defn menu-panel
-  []
-  [:div.help__menu-panel
-   [:h2 "THERMOS Help"]
-   [:input.help__search-input
-    {:type :text
-     :placeholder "Search help"}]
-   [:ul.help__menu-items
-    (doall
-      (map-indexed
-       (fn [index [title {content :content subsections :subsections}]]
-         [menu-item index title content subsections])
-       document))
-    ]
-   ])
-
-(defn content-panel
-  []
-  (let [title (first (get document (:active-section-index @state)))
-        content (:content (second (get document (:active-section-index @state))))
-        subsections (:subsections (second (get document (:active-section-index @state))))]
-    [:div.help__content-panel
-     [:h2 (first (get document (:active-section-index @state)))]
-     [:div (:content (second (get document (:active-section-index @state))))]
-     [:div
-      (doall
-        (map-indexed
-         (fn [idx [title {content :content}]]
-           [:div
-            [:h3 title]
-            content])
-         subsections))
-      ]]))
-
-(defn menu-item
-  [index title content subsections]
-  [:li.help__menu-item
-   {:key (str "section-" index)
-    :class (when (= index (:active-section-index @state))
-             "help__menu-item--active")
-    :on-click #(swap! state assoc :active-section-index index)}
-   (when (not-empty subsections)
-     [:span.help__menu-item-expandable-indicator "+"])
-   title
-   (when (and (not-empty subsections) (= index (:active-section-index @state)))
-     [:ul.help__menu-subsections
-      (doall
-        (map-indexed
-         (fn [idx [title {content :content}]] [menu-subsection index idx title content])
-         subsections))]
-     )])
-
-(defn menu-subsection
-  [parent-index index title content]
-  [:li.help__menu-subsection
-   {:key (str "subsection-" index)}
-   title])
-
-(reagent/render
- [menu-panel]
- (js/document.getElementById "help-menu-panel"))
-
-(reagent/render
- [content-panel]
- (js/document.getElementById "help-content-panel"))
-
-(def document
+(defonce document
   [["Introduction"
     {:content
      [:div
@@ -98,13 +23,23 @@
      :subsections []}]
    ["Keyboard shortcuts"
     {:content [:div
-               [:ul
-                [:li [:b "c"] " - rotate the Constraint status of the selection"]
-                [:li [:b "z"] " - zoom to fit the selection or document"]
-                [:li [:b "a"] " - select everything in the document"]
-                [:li [:b "e"] " - edit the selected objects"]
-                [:li [:b "s"] " - change the supply parameters of a building"]]
-               ]
+               [:table.help__definition-table
+                [:tbody
+                 [:tr
+                  [:td {:style {:width "20px"}} "c"]
+                  [:td "Rotate the Constraint status of the selection"]]
+                 [:tr
+                  [:td "z"]
+                  [:td "Zoom to fit the selection or document"]]
+                 [:tr
+                  [:td "a"]
+                  [:td "Select everything in the document"]]
+                 [:tr
+                  [:td "e"]
+                  [:td "Edit the selected objects"]]
+                 [:tr
+                  [:td "s"]
+                  [:td "Change the supply parameters of a building"]]]]]
      :subsections []}]
    ["Structure of the tool"
     {:content
@@ -261,12 +196,7 @@
     {:content
      [:div
       [:p
-       "This section describes the four main ‘use cases’ that the THERMOS tool will typically address according to the needs of the target users. These are:"]
-      [:ol
-       [:li "Adding new sites and connections to an existing network"]
-       [:li "Planning a new network based on a given heat source"]
-       [:li "Designing a new network to supply a given set of buildings using one or more potential heat sources"]
-       [:li "Assessing / comparing the performance of specific networks and/or non-networked solutions"]]]
+       "This section describes the four main ‘use cases’ that the THERMOS tool will typically address according to the needs of the target users. These are:"]]
      :subsections
      [["Adding new sites and connections to an existing network"
        {:content
@@ -340,3 +270,151 @@
          [:p
           "The THERMOS tool provides the user with a description of the networks specified, including key performance parameters and energy and economic indicators. The user would then assess and compare the descriptions."]]}]
       ]}]])
+
+
+(defn help-app
+  []
+  [:div.help__app-container
+   [menu-panel]
+   [:div.help__content-panel]
+   ])
+
+(defn menu-panel
+  []
+  [:div.help__menu-panel
+   [:h2 "THERMOS Help"]
+   [:input.help__search-input
+    {:type :text
+     :placeholder "Search help"}]
+   [:ul.help__menu-items
+    (doall
+      (map-indexed
+       (fn [index [title {content :content subsections :subsections}]]
+         [menu-item index title content subsections])
+       document))]])
+
+(defn content-panel
+  []
+  (let [title (first (get document (:active-section-index @state)))
+        content (:content (second (get document (:active-section-index @state))))
+        subsections (:subsections (second (get document (:active-section-index @state))))
+        active-section-index (:active-section-index @state)
+        active-subsection-index (:active-subsection-index @state)
+
+        go-to-previous (fn []
+                         (cond
+                           (pos? active-subsection-index)
+                           (swap! state update :active-subsection-index dec)
+
+                           (= active-subsection-index 0)
+                           (swap! state assoc :active-subsection-index nil)
+
+                           (pos? active-section-index)
+                           (let [prev-section (get document (dec active-section-index))
+                                 prev-subsections (:subsections (second prev-section))
+                                 prev-subsection-last-ind (if (not-empty prev-subsections)
+                                                            (dec (count prev-subsections))
+                                                            nil)]
+                             (swap! state update :active-section-index dec)
+                             (swap! state assoc :active-subsection-index prev-subsection-last-ind))))
+
+        go-to-next (fn []
+                     (println active-subsection-index)
+                     (let [last-section-index (dec (count document))
+                           last-subsection-index (dec (count subsections))]
+                       (cond
+                         (= active-subsection-index last-subsection-index)
+                         (swap! state merge {:active-section-index (inc active-section-index)
+                                             :active-subsection-index nil})
+
+                         (and (nil? active-subsection-index)
+                              (= active-section-index last-section-index)
+                              (not-empty subsections))
+                         (swap! state assoc :active-subsection-index 0)
+
+                         (and (nil? active-subsection-index)
+                              (< active-section-index last-section-index))
+                         (if (not-empty subsections)
+                           (swap! state assoc :active-subsection-index 0)
+                           (swap! state update :active-section-index inc))
+
+                         (< active-subsection-index last-subsection-index)
+                         (swap! state update :active-subsection-index inc))))]
+
+    [:div.help__content-panel
+     [:h2 (first (get document active-section-index))]
+     (if (:active-subsection-index @state)
+       (let [[title {content :content}] (get subsections active-subsection-index)]
+         [:div
+          [:h3 title]
+          content])
+       [:div
+        (:content (second (get document active-section-index)))
+        [:ul.help__content-panel-subsection-links
+         (doall
+           (map-indexed
+            (fn [ind [title {content :content}]]
+              [:li
+               [:a
+                {:key ind
+                 :href (str "#" active-section-index "." ind)
+                 :on-click (fn [e] (.preventDefault e)
+                             (swap! state assoc :active-subsection-index ind))}
+                "# " title]]
+              )
+            subsections))]])
+     [:nav.help__nav
+      (let [disabled? (and (= active-section-index 0)
+                           (or (= active-subsection-index 0) (nil? active-subsection-index)))]
+        (when-not disabled?
+          [:button.help__nav-previous-button
+           {:on-click #(go-to-previous)}
+           "Previous"]))
+
+      (let [disabled? (and (= active-section-index (dec (count document)))
+                          (if (not-empty subsections)
+                            (= active-subsection-index (dec (count subsections)))
+                            (nil? active-subsection-index)))]
+        (when-not disabled?
+          [:button.help__nav-next-button
+           {:on-click #(go-to-next)}
+           "Next"]))]
+     ]))
+
+(defn menu-item
+  [index title content subsections]
+
+  [:li.help__menu-item
+   {:key (str "section-" index)
+    :class (str (if (= index (:active-section-index @state))
+                  "help__menu-item--active" "")
+                (if (not-empty subsections)
+                  " help__menu-item--with-subsections" ""))}
+   [:span.help__menu-item-title
+    {:on-click (fn [] (swap! state assoc :active-section-index index)
+                (swap! state assoc :active-subsection-index nil))}
+    title]
+
+   (when (and (not-empty subsections) (= index (:active-section-index @state)))
+     [:ul.help__menu-subsections
+      (doall
+        (map-indexed
+         (fn [idx [title {content :content}]] [menu-subsection index idx title content])
+         subsections))]
+     )])
+
+(defn menu-subsection
+  [parent-index index title content]
+  [:li.help__menu-subsection
+   {:key (str "subsection-" index)
+    :class (when (= index (:active-subsection-index @state)) "help__menu-subsection--active")
+    :on-click #(swap! state assoc :active-subsection-index index)}
+   title])
+
+(reagent/render
+ [menu-panel]
+ (js/document.getElementById "help-menu-panel"))
+
+(reagent/render
+ [content-panel]
+ (js/document.getElementById "help-content-panel"))
