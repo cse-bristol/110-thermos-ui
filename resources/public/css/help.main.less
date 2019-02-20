@@ -281,3 +281,27 @@ body {
     background: #bbb;
   }
 }
+
+.help__search-term-highlighted {
+  background: orange;
+}
+.help__search-result-text-node {
+  margin-top: 15px;
+}
+.help__search-section-result {
+  padding-bottom: 30px;
+  margin-bottom: 30px;
+  border-bottom: 1px solid #bbb;
+  a {
+    color: @blue;
+    font-weight: bold;
+    font-size: 20px;
+    text-decoration: none;
+    &:hover {
+      color: darken(@blue, 10%);
+    }
+  }
+  &:last-child {
+    border-bottom: none;
+  }
+}

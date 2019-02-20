@@ -1,16 +1,18 @@
 (ns thermos-frontend.pages.help
   (:require [reagent.core :as reagent]
             [goog.object :as o]
+            [goog.functions :refer [debounce]]
             ))
 
 (enable-console-print!)
 
-(declare menu-panel content-panel menu-item menu-subsection)
+(declare menu-panel content-panel search-results menu-item menu-subsection)
 
 (defonce state
   (reagent/atom
    {:active-section-index 0
-    :active-subsection-index nil}))
+    :active-subsection-index nil
+    :search-term nil}))
 
 ;; This is all the documentation. It is split up into sections and subsections.
 ;; Each section looks like:
@@ -389,13 +391,29 @@
    [:h2 "THERMOS Help"]
    [:input.help__search-input
     {:type :text
-     :placeholder "Search help"}]
+     :placeholder "Search help"
+     :on-key-down (fn [e]
+                 (when (= (o/get e "key") "Enter")
+                   (let [search-term (o/getValueByKeys e "target" "value")]
+                     (swap! state merge {:search-term search-term
+                                         :active-section-index nil
+                                         :active-subsection-index nil})
+                     )))}]
    [:ul.help__menu-items
     (doall
       (map-indexed
        (fn [index [title {content :content subsections :subsections}]]
          [menu-item index title content subsections])
        document))]])
+
+(defn goto
+  "Navigate to a section/subsection."
+  [section subsection]
+  ;; Kind of annoying, but we need to wipe the search term to ensure
+  ;; the search results page doesn't appear
+  (swap! state merge {:active-section-index section
+                      :active-subsection-index subsection
+                      :search-term nil}))
 
 (defn content-panel
   []
@@ -469,7 +487,7 @@
         ;; When you click on an internal link, reset the state to go to the target section
         ;; and subsection
         (let [node (o/get e "target")]
-          (when (and (= (o/get node "nodeName") "A") (.hasAttribute node "data-target-section" ))
+          (when (and (= (o/get node "nodeName") "A") (.hasAttribute node "data-target-section"))
             (.preventDefault e)
             (let [target-section (.getAttribute node "data-target-section")
                   target-subsection (.getAttribute node "data-target-subsection")
@@ -484,8 +502,7 @@
                                                                                  (get target-section-index)
                                                                                  second
                                                                                  :subsections)))))]
-              (swap! state merge {:active-section-index target-section-index
-                                  :active-subsection-index target-subsection-index})
+              (goto target-section-index target-subsection-index)
 
               ;; Scroll back to the top
               (o/set (.getElementById js/document "help-content-panel") "scrollTop" 0)))
@@ -497,50 +514,107 @@
                      "scrollTop"
                      (- (o/get target-figure "offsetTop") 15))))))}
 
-     [:h2 (first (get document active-section-index))]
+     (if (:search-term @state)
+       ;; Search results page
+       [search-results (:search-term @state)]
 
-     ;; If we are in a subsection, render it
-     (if (:active-subsection-index @state)
-       (let [[title {content :content}] (get subsections active-subsection-index)]
-         [:div
-          [:h3 title]
-          content])
-
-       ;; Otherwise, display any top-level content and make a list of links to subsections, if they exist
+       ;; Documentation page
        [:div
-        (:content (second (get document active-section-index)))
-        [:ul.help__content-panel-subsection-links
-         (doall
-           (map-indexed
-            (fn [ind [title {content :content}]]
-              [:li
-               [:a
-                {:key ind
-                 :href (str "#" active-section-index "." ind)
-                 :on-click (fn [e] (.preventDefault e)
-                             (swap! state assoc :active-subsection-index ind))}
-                "# " title]]
-              )
-            subsections))]])
+        [:h2 (first (get document active-section-index))]
 
-     ;; Previous and Next buttons
-     [:nav.help__nav
-      (let [disabled? (and (= active-section-index 0)
-                           (or (= active-subsection-index 0) (nil? active-subsection-index)))]
-        (when-not disabled?
-          [:button.help__nav-previous-button
-           {:on-click #(go-to-previous)}
-           "Previous"]))
+        ;; If we are in a subsection, render it
+        (if (:active-subsection-index @state)
+          (let [[title {content :content}] (get subsections active-subsection-index)]
+            [:div
+             [:h3 title]
+             content])
 
-      (let [disabled? (and (= active-section-index (dec (count document)))
-                           (if (not-empty subsections)
-                             (= active-subsection-index (dec (count subsections)))
-                             (nil? active-subsection-index)))]
-        (when-not disabled?
-          [:button.help__nav-next-button
-           {:on-click #(go-to-next)}
-           "Next"]))]
+          ;; Otherwise, display any top-level content and make a list of links to subsections, if they exist
+          [:div
+           (:content (second (get document active-section-index)))
+           [:ul.help__content-panel-subsection-links
+            (doall
+              (map-indexed
+               (fn [ind [title {content :content}]]
+                 [:li
+                  [:a
+                   {:key ind
+                    :href (str "#" active-section-index "." ind)
+                    :on-click (fn [e] (.preventDefault e)
+                                (swap! state assoc :active-subsection-index ind))}
+                   "# " title]]
+                 )
+               subsections))]])
+
+        ;; Previous and Next buttons
+        [:nav.help__nav
+         (let [disabled? (and (= active-section-index 0)
+                              (or (= active-subsection-index 0) (nil? active-subsection-index)))]
+           (when-not disabled?
+             [:button.help__nav-previous-button
+              {:on-click #(go-to-previous)}
+              "Previous"]))
+
+         (let [disabled? (and (= active-section-index (dec (count document)))
+                              (if (not-empty subsections)
+                                (= active-subsection-index (dec (count subsections)))
+                                (nil? active-subsection-index)))]
+           (when-not disabled?
+             [:button.help__nav-next-button
+              {:on-click #(go-to-next)}
+              "Next"]))]])
      ]))
+
+;; Page for search results
+(defn search-results
+  [search-term]
+  (let [results (atom [])
+        create-result
+        (fn [section-title subsection-title content]
+          (let [text-nodes (filter string? (tree-seq sequential? rest content))
+                regex-pattern (re-pattern (str "(?i)" (clojure.string/lower-case search-term)))
+                matching-text-nodes (filter (fn [text]
+                                              (not-empty
+                                               (re-seq regex-pattern text)))
+                                            text-nodes)
+                ;; All the matching bits of text with the matches highlighted
+                highlighted-text-nodes (map
+                                        (fn [text]
+                                          (into
+                                           [:div.help__search-result-text-node]
+                                           (mapcat
+                                            (fn [surrounding-text match]
+                                              [surrounding-text [:span.help__search-term-highlighted match]])
+                                            (clojure.string/split text regex-pattern)
+                                            (conj (vec (re-seq regex-pattern text)) ""))))
+                                        matching-text-nodes)]
+            (if (not-empty highlighted-text-nodes)
+              (into [:div.help__search-section-result
+                     [:a
+                      {:href "#"
+                       :data-target-section section-title
+                       :data-target-subsection subsection-title}
+                      (if subsection-title
+                        (str "# " section-title " » " subsection-title)
+                        (str "# " section-title))]]
+                    highlighted-text-nodes)
+              ;; Return nil if there are no matches
+              nil)))]
+
+    (doseq [[section-title {content :content subsections :subsections}] document]
+      (when-let [result (create-result section-title nil content)]
+        (swap! results conj result))
+
+      ;; Search subsections
+      (doseq [[subsection-title {content :content}] subsections]
+        (when-let [result (create-result section-title subsection-title content)]
+          (swap! results conj result))))
+
+    (into [:div
+           [:h2 "Search Results"]
+           [:div (count @results) (if (= (count @results) 1) " page" " pages") " with matches found."]
+           [:br] [:br]]
+          @results)))
 
 (defn menu-item
   [index title content subsections]
@@ -552,8 +626,7 @@
                 (if (not-empty subsections)
                   " help__menu-item--with-subsections" ""))}
    [:span.help__menu-item-title
-    {:on-click (fn [] (swap! state assoc :active-section-index index)
-                (swap! state assoc :active-subsection-index nil))}
+    {:on-click #(goto index nil)}
     title]
 
    (when (and (not-empty subsections) (= index (:active-section-index @state)))
@@ -569,7 +642,7 @@
   [:li.help__menu-subsection
    {:key (str "subsection-" index)
     :class (when (= index (:active-subsection-index @state)) "help__menu-subsection--active")
-    :on-click #(swap! state assoc :active-subsection-index index)}
+    :on-click #(goto parent-index index)}
    title])
 
 (reagent/render
