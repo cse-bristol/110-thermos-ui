@@ -244,7 +244,13 @@
             :alt "THERMOS results section"}]
           [:figcaption "Results section"]]
          [:p
-          "All elements which were ‘sent’ to the solver and included in the analysis (i.e. those listed in the Table of Network Candidates) are then shown on the map section, but those that have subsequently been included in the optimal solution are shown in blue (optional) and red (required) as before, while those excluded from the optimal solutionthat are shown in  green are optional candidates that have not been included in the optimal solution, and those shown in purple are candidates that could not be connected  (see figure below). Building on this information, the user can continue the simulations by excluding elements from the problem and/or incorporating new buildings and connections."]
+          "All elements which were ‘sent’ to the solver and included in the analysis (i.e. those listed in the Table of Network Candidates) are then shown on the map section, but those that have subsequently been included in the optimal solution are shown in blue (optional) and red (required) as before, while those excluded from the optimal solutionthat are shown in  green are optional candidates that have not been included in the optimal solution, and those shown in purple are candidates that could not be connected  (see "
+
+          [:a {:href "#"
+               :data-target-figure "results-in-map-fig"}
+           "figure"]
+
+          "). Building on this information, the user can continue the simulations by excluding elements from the problem and/or incorporating new buildings and connections."]
          [:figure
           {:id "results-in-map-fig"}
           [:img
@@ -286,7 +292,12 @@
 
          [:h4 "Results"]
          [:p
-          "The THERMOS tool provides the user with the optimal solution, which may exclude some of the potential candidates for expansion identified (see Figure 11 below). In addition, the summary table including the main parameters of the optimal network is also provided (see "
+          "The THERMOS tool provides the user with the optimal solution, which may exclude some of the potential candidates for expansion identified (see "
+
+          [:a {:href "#"}
+           "[TODO: Put in figure and link to it]"]
+
+          "). In addition, the summary table including the main parameters of the optimal network is also provided (see "
 
           [:a {:href "#"
                :data-target-section "Structure of the tool"
@@ -453,12 +464,12 @@
               (o/set figcaption "innerText"
                      (str "Figure " (inc fig-index) ": " (o/get figcaption "innerText")))))))
 
-      ;; When you click on an internal link, reset the state to go to the target section
-      ;; and subsection
       :on-click
       (fn [e]
+        ;; When you click on an internal link, reset the state to go to the target section
+        ;; and subsection
         (let [node (o/get e "target")]
-          (when (and (.hasAttribute node "data-target-section"))
+          (when (and (= (o/get node "nodeName") "A") (.hasAttribute node "data-target-section" ))
             (.preventDefault e)
             (let [target-section (.getAttribute node "data-target-section")
                   target-subsection (.getAttribute node "data-target-subsection")
@@ -477,8 +488,14 @@
                                   :active-subsection-index target-subsection-index})
 
               ;; Scroll back to the top
-              (o/set (.getElementById js/document "help-content-panel") "scrollTop" 0)))))
-      }
+              (o/set (.getElementById js/document "help-content-panel") "scrollTop" 0)))
+
+          ;; When you click a link to a figure, scroll to that figure
+          (when (and (o/get node "nodeName") "A") (.hasAttribute node "data-target-figure")
+            (when-let [target-figure (.getElementById js/document (.getAttribute node "data-target-figure"))]
+              (o/set (.getElementById js/document "help-content-panel")
+                     "scrollTop"
+                     (- (o/get target-figure "offsetTop") 15))))))}
 
      [:h2 (first (get document active-section-index))]
 
