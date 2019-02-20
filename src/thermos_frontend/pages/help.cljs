@@ -12,6 +12,19 @@
    {:active-section-index 0
     :active-subsection-index nil}))
 
+;; This is all the documentation. It is split up into sections and subsections.
+;; Each section looks like:
+;; [<title>
+;;  {:content <html content of the section>
+;;   :subsections [<optional subsections>]}]
+;;
+;; Subsections look pretty much the same.
+;;
+;; Note: to put in a link to a section or subsection, use something like:
+;; [:a {:href "#"
+;;      :data-target-section "Structure of the tool"
+;;      :data-target-subsection "Solver module"}
+;;  "# Solver module"]
 (defonce document
   [["Introduction"
     {:content
@@ -130,15 +143,16 @@
             [:td
              [:p "This category can be user-defined by selecting candidates according to whether or not they will be included in the Table of Network Candidates (bottom of screen) and therefore included in the network optimisation analysis to follow. These can be categorised as:"]
              [:table.help__definition-table
-              [:tr
-               [:td "Forbidden"]
-               [:td "The candidate will not be considered in the subsequent network analysis and will not appear in the ‘Table of network candidates’ at the bottom of the screen. Such candidates are coloured white on the map."]]
-              [:tr
-               [:td "Optional"]
-               [:td "The candidate may potentially be included in the subsequent network analysis and will appear in the ‘Table of network candidates’ at the bottom of the screen. Such candidates are coloured blue on the map. "]]
-              [:tr
-               [:td "Required"]
-               [:td "The candidate will certainly be included in the subsequent network analysis and will appear in the ‘Table of network candidates’ at the bottom of the screen. Such candidates are coloured red on the map."]]]
+              [:tbody
+               [:tr
+                [:td "Forbidden"]
+                [:td "The candidate will not be considered in the subsequent network analysis and will not appear in the ‘Table of network candidates’ at the bottom of the screen. Such candidates are coloured white on the map."]]
+               [:tr
+                [:td "Optional"]
+                [:td "The candidate may potentially be included in the subsequent network analysis and will appear in the ‘Table of network candidates’ at the bottom of the screen. Such candidates are coloured blue on the map. "]]
+               [:tr
+                [:td "Required"]
+                [:td "The candidate will certainly be included in the subsequent network analysis and will appear in the ‘Table of network candidates’ at the bottom of the screen. Such candidates are coloured red on the map."]]]]
              [:p
               "By default, all candidates are deemed to be ‘Forbidden’. The user can therefore change the constraint of any candidate by right-clicking on it (or on multiple candidate selections) in the map and selecting ‘Set inclusion’. In this way, candidates can be added or removed from the ‘Table of Network Candidates’. Note that candidates will only appear in the Candidate Selection Form when they are actively selected on the map (indicated by thicker coloured lines and, additionally in the case of buildings, darker shading of the polygon area)."]
              [:figure
@@ -176,11 +190,12 @@
           "At any time, a file of the selected candidates can be saved using the ‘Save’ button at the top right of the screen. The file is then saved on the remote server hosting the tool application, and the file is displayed on the Launch Screen."]
          [:p
           "The ‘Optimise’ button at the top right of the screen will trigger a network optimisation analysis and a display of output results using the underlying THERMOS model. This takes the form of a new ‘Results’ section which appears in the UI (see "
-          [:a.section-link
-           {:href "#"
-            :data-target-section "Structure of the tool"
-            :data-target-subsection "Solver module"}
-           ""]
+
+          [:a {:href "#"
+               :data-target-section "Structure of the tool"
+               :data-target-subsection "Solver module"}
+           "# Solver module"]
+
           "). However, current results will be based on rough estimates and only constitute an example of the outputs that will be provided to the user, i.e. they should not be used for further analysis given that the model is currently under development."]
 
          [:h4 "Editing building and path characteristics"]
@@ -271,7 +286,14 @@
 
          [:h4 "Results"]
          [:p
-          "The THERMOS tool provides the user with the optimal solution, which may exclude some of the potential candidates for expansion identified (see Figure 11 below). In addition, the summary table including the main parameters of the optimal network is also provided (see Section 2.3)."]
+          "The THERMOS tool provides the user with the optimal solution, which may exclude some of the potential candidates for expansion identified (see Figure 11 below). In addition, the summary table including the main parameters of the optimal network is also provided (see "
+
+          [:a {:href "#"
+               :data-target-section "Structure of the tool"
+               :data-target-subsection "Solver module"}
+           "# Solver module"]
+
+          ")."]
          ]}]
 
       ["Planning a new network based on a given heat source"
@@ -387,7 +409,9 @@
                                                             (dec (count prev-subsections))
                                                             nil)]
                              (swap! state update :active-section-index dec)
-                             (swap! state assoc :active-subsection-index prev-subsection-last-ind))))
+                             (swap! state assoc :active-subsection-index prev-subsection-last-ind)))
+                         ;; Scroll back to top
+                         (o/set (.getElementById js/document "help-content-panel") "scrollTop" 0))
 
         go-to-next (fn []
                      (let [last-section-index (dec (count document))
@@ -409,45 +433,52 @@
                            (swap! state update :active-section-index inc))
 
                          (< active-subsection-index last-subsection-index)
-                         (swap! state update :active-subsection-index inc))))]
+                         (swap! state update :active-subsection-index inc))
+                       ;; Scroll back to top
+                       (o/set (.getElementById js/document "help-content-panel") "scrollTop" 0)
+                       ))]
 
     [:div.help__content-panel
-     {:ref (fn [node]
-             (when node
-               ;; For any figures in this section, add "Figure #:" to the start of the caption
-               (doseq [fig (.from js/Array (.querySelectorAll node "figure"))]
-                 (let [fig-id (o/get fig "id")
-                       fig-index (first (first (filter (fn [[ind f]] (= (:id (second f)) fig-id))
-                                                       (map-indexed vector figures))))
-                       figcaption (.querySelector fig "figcaption")]
+     {;; For any figures in this section, add "Figure #:" to the start of the caption
+      :ref
+      (fn [node]
+        (when node
 
-                   (o/set figcaption "innerText"
-                          (str "Figure " (inc fig-index) ": " (o/get figcaption "innerText")))))
+          (doseq [fig (.from js/Array (.querySelectorAll node "figure"))]
+            (let [fig-id (o/get fig "id")
+                  fig-index (first (first (filter (fn [[ind f]] (= (:id (second f)) fig-id))
+                                                  (map-indexed vector figures))))
+                  figcaption (.querySelector fig "figcaption")]
 
-               ;; Make any section links work
-               (doseq [link (.from js/Array (.querySelectorAll node "a.section-link"))]
-                 (let [target-section (.getAttribute link "data-target-section")
-                       target-subsection (.getAttribute link "data-target-subsection")
-                       target-section-index (first (first (filter (fn [[ind [title stuff]]]
-                                                                    (= title target-section))
-                                                                  (map-indexed vector document))))
+              (o/set figcaption "innerText"
+                     (str "Figure " (inc fig-index) ": " (o/get figcaption "innerText")))))))
 
-                       target-subsection-index (first (first (filter (fn [[ind [title stuff]]]
-                                                                       (= title target-section))
-                                                                     (map-indexed vector
-                                                                                  (-> document
-                                                                                      (get target-section-index)
-                                                                                      second
-                                                                                      :subsections)))))]
+      ;; When you click on an internal link, reset the state to go to the target section
+      ;; and subsection
+      :on-click
+      (fn [e]
+        (let [node (o/get e "target")]
+          (when (and (.hasAttribute node "data-target-section"))
+            (.preventDefault e)
+            (let [target-section (.getAttribute node "data-target-section")
+                  target-subsection (.getAttribute node "data-target-subsection")
+                  target-section-index (first (first (filter (fn [[ind [title stuff]]]
+                                                               (= title target-section))
+                                                             (map-indexed vector document))))
 
-                   ;; @TODO Finish this off
+                  target-subsection-index (first (first (filter (fn [[ind [title stuff]]]
+                                                                  (= title target-subsection))
+                                                                (map-indexed vector
+                                                                             (-> document
+                                                                                 (get target-section-index)
+                                                                                 second
+                                                                                 :subsections)))))]
+              (swap! state merge {:active-section-index target-section-index
+                                  :active-subsection-index target-subsection-index})
 
-                   ; (swap! state merge {:active-section-index target-section-index
-                   ;                     :active-subsection-index target-subsection-index})
-
-                   )
-                 )
-               ))}
+              ;; Scroll back to the top
+              (o/set (.getElementById js/document "help-content-panel") "scrollTop" 0)))))
+      }
 
      [:h2 (first (get document active-section-index))]
 
@@ -485,9 +516,9 @@
            "Previous"]))
 
       (let [disabled? (and (= active-section-index (dec (count document)))
-                          (if (not-empty subsections)
-                            (= active-subsection-index (dec (count subsections)))
-                            (nil? active-subsection-index)))]
+                           (if (not-empty subsections)
+                             (= active-subsection-index (dec (count subsections)))
+                             (nil? active-subsection-index)))]
         (when-not disabled?
           [:button.help__nav-next-button
            {:on-click #(go-to-next)}
