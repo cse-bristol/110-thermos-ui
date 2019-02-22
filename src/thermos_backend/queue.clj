@@ -61,11 +61,11 @@
                       (->
                        (select :*)
                        (from
-                        [(-> (select :id :queue_name :args)
+                        [(-> (select :id :queue-name :args)
                              (from :jobs)
                              (where [:and
                                      [:= :state READY_STATE]
-                                     [:= :queue_name (name queue-name)]])
+                                     [:= :queue-name (name queue-name)]])
                              (lock :mode :skip-locked)
                              (limit n))
                          :stuff
@@ -86,13 +86,13 @@
                  (db/execute! conn)))
            (for [job jobs-to-claim]
              (-> job
-                 (clojure.core/update :queue_name keyword)
+                 (clojure.core/update :queue-name keyword)
                  (clojure.core/update :args edn/read-string))
              )))))))
 
 (defn run-jobs [claimed-jobs]
   (let [consumers @consumers]
-    (doseq [{job-id :id job-args :args queue-name :queue_name} claimed-jobs]
+    (doseq [{job-id :id job-args :args queue-name :queue-name} claimed-jobs]
       (log/info "Running job" job-id " from " queue-name "(args = " job-args ")")
       (let [consumer (:consumer (consumers queue-name))
             ;; at this point we could check for too many jobs and return the job to queue
@@ -168,7 +168,7 @@
 
 (defn enqueue [queue-name args]
   (-> (insert-into :jobs)
-      (values [{:queue_name (name queue-name) :args (pr-str args)}])
+      (values [{:queue-name (name queue-name) :args (pr-str args)}])
       (returning :id)
       (db/fetch!)
       (first)
@@ -185,15 +185,15 @@
 (defn list-tasks
   "List tasks on all queues, or a given queue"
   ([]
-   (-> (select :id :queue_name :state :queued :updated)
+   (-> (select :id :queue-name :state :queued :updated)
        (from :jobs)
        (order-by :queued)
        (db/fetch!)))
   ([queue-name]
-   (-> (select :id :queue_name :state :queued :updated)
+   (-> (select :id :queue-name :state :queued :updated)
        (from :jobs)
        (order-by :queued)
-       (where [:= :queue_name (name queue-name)])
+       (where [:= :queue-name (name queue-name)])
        (db/fetch!))))
 
 (defn clean-up
@@ -215,7 +215,7 @@
 (defn status
   "Get the current state of this job"
   [id]
-  (let [state (-> (select :state :queue_name :queued :updated)
+  (let [state (-> (select :state :queue-name :queued :updated)
                   (from :jobs)
                   (where [:= :id id])
                   (db/fetch!)
@@ -224,13 +224,13 @@
       (let [rank (-> (select :%count.*)
                      (from :jobs)
                      (where [:and
-                             [:= :queue_name (:queue_name state)]
+                             [:= :queue-name (:queue-name state)]
                              [:< :id id]
                              [:in :state BLOCKING_STATES]])
                      (db/fetch!)
                      (first))]
         (-> state
-            (clojure.core/update :queue_name keyword)
+            (clojure.core/update :queue-name keyword)
             (clojure.core/update :state keyword)
             ;; update state to a keyword?
             (assoc :after rank))))))

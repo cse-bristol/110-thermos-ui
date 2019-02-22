@@ -1,0 +1,61 @@
+/**
+ * Base stuff
+ */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+html {
+  font-family: 'Source Sans Pro', Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  color: #555;
+}
+body {
+  margin: 0;
+  background: #eee;
+}
+body, html {
+  height: 100vh;
+}
+
+h1, h2, h3, h4, h5 {
+  font-size: 1.1em;
+  font-weight: normal;
+  margin: 0;
+  display: inline-block;
+}
+
+.flex-rows {
+    display:flex;
+    flex-direction:column;
+}
+
+.flex-grow {
+    flex-grow: 1;
+}
+
+header {
+    background:white;
+    padding: 1em;
+    box-shadow: 0 0 5px 5px #aaa;
+}
+
+footer {
+    background: #333;
+    color: #eee;
+    padding: 1em;
+}
+
+
+.card {
+    margin:1em;
+    padding:1em;
+    background:#fff;
+    border: 1px #eee solid;
+    box-shadow: 0 0 2px 2px #dedede;
+}
+
+.card h1 {
+    font-size: 1.2em;
+    font-weight: bold;
+    display: block;
+}

@@ -2,11 +2,17 @@
   (:require [ragtime.jdbc]
             [ragtime.repl]
             [jdbc.core :as jdbc]
+            [jdbc.proto :as proto]
             [clojure.tools.logging :as log]
             [honeysql.core :as sql]
             [hikari-cp.core :as hikari]
             [mount.core :refer [defstate]]
-            [thermos-backend.config :refer [config]]))
+            [thermos-backend.config :refer [config]]
+            [honeysql.helpers :as h]
+            [honeysql-postgres.helpers :as p]
+            [clojure.string :as string]
+            [clojure.data.json :as json])
+  (:import [org.postgresql.util PGobject]))
 
 (defstate conn
   :start
@@ -37,14 +43,20 @@
   :stop
   (hikari/close-datasource conn))
 
+(defn- normalize-column-name ^String [^String c]
+  (-> c (string/lower-case) (.replace \_ \-)))
+
 (defmacro with-connection
   "Run some computation with a connection open and bound, closing it afterwards."
   [[binding] & compute]
   `(with-open [~binding (jdbc/connection conn)]
      ~@compute))
 
-
 (defn execute!
+  "Run a query for side-effects which returns no results.
+  If the query is a map, it's formatted with `sql/format`. If you
+  supply a connection, the query is run in that connection. Analogous
+  to `fetch!`."
   ([query]
    (with-connection [conn] (execute! query conn)))
   
@@ -57,12 +69,41 @@
          (throw e))))))
 
 (defn fetch!
+  "Run a query which returns some results.
+  If the query is a map, it's put through `sql/format`. Optionally you
+  can supply a database connection as the 2nd argument, which you
+  could acquire using `with-connection`, which see. This is useful if
+  you are doing many database operations in a row or want to use
+  `jdbc/atomic`"
   ([query]
    (with-connection [conn] (fetch! query conn)))
   ([query conn]
    (let [query (if (map? query) (sql/format query) query)]
      (try
-       (jdbc/fetch conn query)
+       (jdbc/fetch
+        conn query
+        {:identifiers normalize-column-name})
        (catch Exception e
          (log/error e "Exception executing query: " query)
          (throw e))))))
+
+(defn insert-one!
+  ([table record]
+   (with-connection [conn] (insert-one! record table conn)))
+  ([table record conn]
+   (-> (h/insert-into table)
+       (h/values [record])
+       (p/returning :id)
+       (fetch!)
+       (first)
+       (:id))))
+
+;; This should allow us to read json results transparently from the
+;; database. It's useful in concert with the functions to_json and
+;; json_agg etc, effectively returning subquery hierarchy in one go.
+(extend-protocol proto/ISQLResultSetReadColumn
+  PGobject
+  (from-sql-type [pgobj conn metadata index]
+    (cond-> (.getValue pgobj)
+      (= "json" (.getType pgobj))
+      (json/read-str :key-fn #(keyword (normalize-column-name %))))))

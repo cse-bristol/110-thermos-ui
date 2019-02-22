@@ -2,9 +2,7 @@
   (:require [compojure.core :refer :all]
             [thermos-backend.problems.db :as problems]
             [hiccup.page :refer :all]
-            [ring.util.response :refer [resource-response]]
-            ))
-
+            [ring.util.response :refer [resource-response]]))
 
 (declare delete-problem-modal-html thermos-page)
 
@@ -23,9 +21,6 @@
     [:div#app
      [:h1 "Loading, please wait"]]
     (include-js "/js/editor.js")]))
-
-;; TODO can these be directly related to the API by using accepts
-;; header?
 
 (defn- format-date [date]
   (.format (java.text.SimpleDateFormat. "dd/MM/yyyy - HH:mm") (java.util.Date. date)))
