@@ -12,7 +12,7 @@
             [thermos-importer.svm-predict :as svm]
             [thermos-importer.spatial :as topo]
 
-            [thermos-backend.maps.db :as map-db]
+            [thermos-backend.db.maps :as db]
             
             [clojure.data.json :as json]
             [clojure.string :as str]
@@ -21,9 +21,13 @@
   (:import [org.locationtech.jts.geom
             Envelope
             GeometryFactory
-            PrecisionModel]
-           
-           ))
+            PrecisionModel]))
+
+
+(defn- check-interrupt
+  ([x] (check-interrupt) x)
+  ([] (when (.isInterrupted (Thread/currentThread))
+        (throw (InterruptedException.)))))
 
 (defn- as-double [v]
   (if (string? v)
@@ -256,7 +260,7 @@
       (update :buildings
               lidar/add-lidar-to-shapes ;; TODO remove given-height, accept input height
               (when use-lidar (load-lidar-index)))
-      
+
       (update :buildings
               geoio/update-features :add-resi
               guess-residential)))
@@ -411,7 +415,9 @@
                     (::geoio/features roads))]
       (.expandToInclude box (.getEnvelopeInternal g)))
 
-    (map-db/erase-and-insert!
+    (db/insert-into-map!
+     :map-id (:map-id job)
+     
      :erase-geometry (.toText (.toGeometry gf box))
      :srid 4326
      :format :wkt
@@ -421,32 +427,35 @@
      
      (for [b (::geoio/features buildings)]
        {:id (::geoio/id b)
-        :orig_id (or (:orig-id b) "unknown")
+        :orig-id (or (:orig-id b) "unknown")
         :name (or (:name b) "")
         :type (or (:subtype  b) "")
         :geometry (.toText (::geoio/geometry b))
         ;; insert array type here??
-        :connection_id (str/join "," (::spatial/connects-to-node b))
-        :demand_kwh_per_year (or (:demand-kwh-per-year b) 0)
-        :demand_kwp (or (:demand-kwp b) 0)
-        :connection_count (or (:connection-count b) 1)})
+        :connection-id (str/join "," (::spatial/connects-to-node b))
+        :demand-kwh-per-year (or (:demand-kwh-per-year b) 0)
+        :demand-kwp (or (:demand-kwp b) 0)
+        :connection-count (or (:connection-count b) 1)})
      
      :paths
      (for [b (::geoio/features roads)]
        {:id (::geoio/id b)
-        :orig_id (or (:orig-id b) "unknown")
+        :orig-id (or (:orig-id b) "unknown")
         :name (or (:name b) "")
         :type (or (:subtype b) "")
         :geometry (.toText (::geoio/geometry b))
-        :start_id (::geoio/id (::topo/start-node b))
-        :end_id   (::geoio/id (::topo/end-node b))
+        :start-id (::geoio/id (::topo/start-node b))
+        :end-id   (::geoio/id (::topo/end-node b))
         :length   (or (::topo/length b) 0)
-        :unit_cost (or (:unit-cost b) 500)}))))
+        :unit-cost (or (:unit-cost b) 500)}))))
 
 (defn dedup [state]
   (-> state
       (update-in [:buildings ::geoio/features] distinct-by ::geoio/id)
       (update-in [:roads ::geoio/features] distinct-by ::geoio/id)))
+
+(defn- status [x str]
+  (println str) x)
 
 (defn run-import
   "Run an import job enqueued by `queue-import`"
@@ -454,18 +463,37 @@
   (with-open [log-writer (io/writer (io/file (:work-directory job) "log.txt"))]
     (binding [*out* log-writer ]
       (-> {}
+          (status "Querying OSM...")
           (query-osm job)
+          (check-interrupt)
 
+          (status "Loading buildings...")
           (load-buildings job)
+          (check-interrupt)
+
+          (status "Creating predictors...")
           (produce-predictors job)
+          (check-interrupt)
+
+          (status "Running demand models...")
           (produce-demands job)
-          
+          (check-interrupt)
+
+          (status "Loading roads...")
           (load-roads job)
+          (check-interrupt)
 
+          (status "Removing duplicates...")
           (dedup)
-          
-          (topo job)
+          (check-interrupt)
 
-          (add-to-database job)))))
+          (status "Noding...")
+          (topo job)
+          (check-interrupt)
+
+          (status "Adding to database...")
+          (add-to-database job)
+
+          (status "Finished!")))))
 
 (queue/consume :imports 1 run-import)

@@ -6,12 +6,14 @@
             [honeysql.helpers :as sql]
             [ring.util.response :as response]
             [buddy.hashers :as hash]
-            [compojure.core :refer :all]
+            [compojure.core :as compojure]
             [clojure.string :as string]
             [thermos-backend.pages.login-form :refer [login-form]]
+            [thermos-backend.current-uri :refer [*current-uri*]]
             [clojure.tools.logging :as log]))
 
 (def ^:dynamic *current-user* nil)
+(def ^:dynamic *current-restriction* {:public true})
 
 (defn authorized
   "Determine whether `this-user` is authorized according to the requirements:
@@ -19,12 +21,13 @@
   `user` has access to `project`
   `user` is admin on `project-admin`
   `user` is `sysadmin`"
-  [{user :user
+  [{public :public
+    user :user
     project :project
     project-admin :project-admin
     sysadmin :sysadmin}
    this-user]
-  (and this-user
+  (and (or public this-user)
        (or (not user)
            (= user (:id this-user)))
        (or (not project)
@@ -50,41 +53,42 @@
         (h r)))))
 
 (defmacro restrict [to & body]
-  `(cond
-     (not *current-user*) ;; some login required
-     (response/redirect "/login") ;; 401, render page here? is that mad? redirect?
-     
-     (not (authorized ~to *current-user*))
-     {:status 401 :body "Forbidden"} ;; 401 straight error
+  `(if (not (authorized ~to *current-user*))
+     (-> 
+      (if *current-user*
+        (-> (response/response "Unauthorized")
+            (response/status 401))
 
-     :else (do ~@body)))
+        (response/redirect (str "/login?redirect-to=" *current-uri*)))
+      
+      (response/header "Cache-Control" "no-store"))
 
-(defmacro with-restrict [to & h]
-  `(let [h# (routes ~@h)]
-     ;; we don't want to reevalute h on every request
-     ;; but we do need to reevalute to on every request
-     ;; in case it is e.g. a variable we are closing over
-     (fn [request#] (restrict ~to (h# request#)))))
+     (do ~@body)))
+
+(defmacro with-restrict [to & stuff]
+  `(let [handler# (compojure/routes ~@stuff)]
+     (fn [request#]
+       (binding [*current-restriction* ~to]
+         (handler# request#)))))
 
 (defn handle-login [email password redirect-to]
   (let [email (string/lower-case email)]
     (if (db/correct-password? email password)
       (do (log/info email "logged in")
-          (-> (response/redirect "/")
+          (-> (response/redirect (or redirect-to "/"))
               (update :session assoc ::user-id email)))
-      (log/info email "login failed!")
-      )))
+      (log/info email "login failed!"))))
 
 (defn handle-logout []
   (-> (response/redirect "/")
       (update :session dissoc ::user-id)))
 
-(defroutes auth-routes
-  (GET "/login" [target flash]
+(compojure/defroutes auth-routes
+  (compojure/GET "/login" [target flash]
     (login-form target flash))
   
-  (POST "/login" [username password redirect-to
-                  create login forgot]
+  (compojure/POST "/login" [username password redirect-to
+                            create login forgot]
     (cond
       create
       (if (db/create-user! username username password)
@@ -95,11 +99,25 @@
       (handle-login username password redirect-to)
 
       forgot
-      1
-      ;; deal with forgot token
-      
+      "not implemented yet"
       )
     )
 
-  (GET "/logout" []
+  (compojure/GET "/logout" []
        (handle-logout)))
+
+(defmacro GET [path args & body]
+  `(compojure/GET ~path ~args
+     (restrict *current-restriction* ~@body)))
+
+(defmacro HEAD [path args & body]
+  `(compojure/HEAD ~path ~args
+     (restrict *current-restriction* ~@body)))
+
+(defmacro POST [path args & body]
+  `(compojure/POST ~path ~args
+     (restrict *current-restriction* ~@body)))
+
+(defmacro DELETE [path args & body]
+  `(compojure/DELETE ~path ~args
+     (restrict *current-restriction* ~@body)))

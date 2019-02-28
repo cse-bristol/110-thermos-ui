@@ -120,7 +120,8 @@
                                  (where [:= :id job-id])
                                  (db/execute!)))
                            (finally 
-                             (swap! running-jobs clojure.core/update queue-name dissoc job-id))))
+                             (swap! running-jobs clojure.core/update queue-name dissoc job-id)))
+                     (format "Execution of %s job %d" queue-name job-id))
             ]
         (swap! running-jobs assoc-in [queue-name job-id] run-thread)
         (.start run-thread)))))
@@ -144,7 +145,7 @@
                             (returning :id)
                             (db/fetch!)))]
     (doseq [id ids-to-cancel]
-      (try (.interrupt (jobs-by-id id))
+      (try (.interrupt ^Thread (jobs-by-id id))
            (catch Exception e)))))
 
 (defstate poll-thread
@@ -159,7 +160,7 @@
     (.start thread)
     thread)
   :stop
-  (.interrupt poll-thread))
+  (.interrupt ^Thread poll-thread))
 
 (defn consume
   ([queue-name consumer] (consume queue-name 10 consumer))

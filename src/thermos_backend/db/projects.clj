@@ -3,20 +3,32 @@
             [thermos-backend.db.users :as users]
             [honeysql.helpers :as h]
             [honeysql-postgres.helpers :as p]
+            [clojure.tools.logging :as log]
             [honeysql-postgres.format]
             [clojure.string :as string]
+            [jdbc.core :as jdbc]
             [honeysql.core :as sql]))
 
 (defn get-project
   "Select project details for `project-id`.
   Gets everything from the projects table and the maps relation
-  under :maps."
+  under :maps, and then everything under networks"
   [project-id]
   {:pre [(int? project-id)]}
   (-> (h/select :projects.*
                 [(sql/call :json_agg (sql/call :to_json :maps.*)) :maps])
       (h/from :projects)
-      (h/left-join :maps [:= :projects.id :maps.project-id])
+      (h/left-join
+       [(-> (h/select :maps.*
+                      [(sql/call :json_agg (sql/call :json_build_object
+                                                     "id" :networks.id
+                                                     "name" :networks.name))
+                       :networks])
+            (h/from :maps)
+            (h/left-join :networks
+                         [:= :maps.id :networks.map-id])
+            (h/group :maps.id)) :maps]
+       [:= :projects.id :maps.project-id])
       (h/group :projects.id)
       (h/where [:= :projects.id project-id])
       (db/fetch!)
@@ -40,7 +52,7 @@
                    (string? n)
                    (contains? #{nil :admin :read :write} a)))
             users)
-    (any? (fn [{a :auth}] (= a :admin)) users)
+    (some (fn [{a :auth}] (= a :admin)) users)
     ]}
 
   ;; TODO uniquify emails
@@ -67,7 +79,9 @@
                     {:project-id project-id
                      :user-id e
                      :auth (sql/call :project_auth (name (or :read a)))}))
-        (db/execute!))))
+        (db/execute!))
+
+    project-id))
 
 (defn user-projects
   "Return a list of the projects for `user-id`."
@@ -80,14 +94,45 @@
       (h/where [:= :users-projects.user-id user-id])
       (db/fetch!)))
 
-(defn create-map!
-  "Create a new map within the project."
-  [project-id map-name description]
+(defn get-network
+  "Get a network problem for `network-id`"
+  [network-id & {:keys [include-content]}]
+  {:pre [(int? network-id)]}
+
+  (-> (h/select :networks.map-id
+                :networks.name
+                :networks.created
+                :networks.has-run
+                :networks.job-id
+                :ranked-jobs.state
+                :ranked-jobs.queue-position)
+      (cond-> include-content
+        (h/merge-select :networks.content))
+      (h/from :networks)
+      (h/left-join :ranked-jobs [:= :networks.job-id :ranked-jobs.id])
+      (h/where [:= :networks.id network-id])
+      (db/fetch-one!)
+      (update :state keyword)))
+
+(defn save-network! [project-id map-id name content]
   {:pre [(int? project-id)
-         (string? map-name)
-         (string? description)
-         (not (string/blank? map-name))]}
-
+         (int? map-id)
+         (string? name)
+         (string? content)]}
   (db/insert-one!
-   :maps {:project-id project-id :name map-name}))
+   :networks
+   {:map-id map-id
+    :name name
+    :content content}))
 
+(defn add-solution! [network-id content]
+  (-> (h/update :networks)
+      (h/sset {:content content :has-run true})
+      (h/where [:= :id network-id])
+      (db/execute!)))
+
+(defn associate-job! [network-id job-id]
+  (-> (h/update :networks)
+      (h/sset {:job-id job-id})
+      (h/where [:= :id network-id])
+      (db/execute!)))

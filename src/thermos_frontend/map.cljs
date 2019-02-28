@@ -82,7 +82,7 @@
 
 (def heat-density-layer
   (js/L.tileLayer
-   "/api/map/density/{z}/{x}/{y}.png"
+   "../d/{z}/{x}/{y}.png"
    (clj->js {:opacity 0.6
              :minZoom 12
              :maxZoom 20})))
@@ -446,9 +446,8 @@
                      (list (reagent/track!
                             (fn []
                               (when @showing-forbidden?
-                                (state/load-tile! doc (.-x coords) (.-y coords) (.-z coords)))
-                              )
-                            )
+                                (state/load-tile! doc (.-x coords) (.-y coords) (.-z coords)))))
+                           
 
                            (reagent/track!
                             (fn []
@@ -465,7 +464,8 @@
                               )
 
 
-                            ))))
+                            ))
+                     ))
             canvas))
 
         create-tile (fn [coords] (this-as layer (make-tile coords layer)))

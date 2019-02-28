@@ -4,7 +4,6 @@
             [compojure.middleware :refer [wrap-canonical-redirect]]
 
             [ring.middleware.defaults :refer [wrap-defaults site-defaults api-defaults]]
-            [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
 
             [ring.logger :as logger]
             [clojure.tools.logging :as log]

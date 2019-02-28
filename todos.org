@@ -1,0 +1,22 @@
+* TODO Make run state pass through to editor
+- [X] Client side timer to poll for status
+- [X] Server side HEAD request status
+- [X] Lock editor during run
+- [ ] Switch tab to solution when complete
+- [ ] Show running count only when enqueued
+* DONE Make save name editable client-side
+* TODO Identify solutions & past versions in project page
+* DONE Group networks by name in project page
+* DONE Show thumbnails in project page
+ST_AsRaster for this.
+Has a bit of crud related to GDAL driver format stuff.
+* DONE Make heat density tile layer work
+* DONE Invalidate tile cache on data changes
+* TODO Show running jobs in project page (maybe)
+* TODO Show/manage participants in project page
+* TODO Hook up email invites and so on
+* TODO Remove unused code
+* TODO Make solver cancellable (may already work)
+* DONE Look at SVM predict performance
+* TODO Make resi field importable
+* TODO Add delete buttons

@@ -1,6 +1,6 @@
 (ns thermos-frontend.editor-state
   (:require [goog.object :as o]
-
+            [goog.net.XhrIo :as xhr]
             [thermos-frontend.spatial :as spatial]
             [thermos-frontend.io :as io]
             [thermos-specs.candidate :as candidate]
@@ -11,76 +11,78 @@
             
             [thermos-specs.document :as document]
             [thermos-specs.defaults :refer [default-document]]
+            [thermos-frontend.preload :as preload]
             [reagent.core :as reagent :refer [atom]]
 
-            [thermos-frontend.operations :as operations]
+            [thermos-frontend.operations :as operations]))
 
-            ))
+(defonce save-state
+  (let [[_ project-id map-id network-id]
+        (re-find #"/project/(\d+)/map/(\d+)/net/(new|\d+)"
+                 (.-pathname js/window.location))
+        project-id (js/parseInt project-id)
+        map-id (js/parseInt map-id)
+        network-id (if (= "new" network-id) :new (js/parseInt network-id))
+        ]
+    (atom {:project-id project-id
+           :map-id map-id
+           :network-id network-id
+           :needs-save false
+           :needs-load (not= :new network-id)
+           :queue-position 0
+           :run-state nil})))
 
-;; The document we are editing
-(defonce state (atom default-document))
+(defn- update-url [new-url]
+  (let [[_ project-id map-id network-id]
+        (re-find #"/project/(\d+)/map/(\d+)/net/(new|\d+)" new-url)
+        project-id (js/parseInt project-id)
+        map-id (js/parseInt map-id)
+        network-id (if (= "new" network-id) :new (js/parseInt network-id))]
+    (swap! save-state
+           assoc
+           :project-id project-id
+           :map-id map-id
+           :network-id network-id
+           :needs-load (not= :new network-id))
+    (when-not (= (.-pathname js/window.location) new-url)
+      (js/window.history.replaceState nil "Editor" new-url))))
 
-(defonce run-state (atom
-                    {:last-state nil
-                     :needs-save nil
-                     :last-load nil}))
+(update-url (.-pathname js/window.location))
 
-(defonce run-state-timer (atom nil))
+(defonce state
+  (atom
+   (let [p (preload/get-value :initial-state :clear true)]
+     (if p
+       (spatial/update-index (cljs.reader/read-string p))
+       ;; default-document
+       (operations/move-map
+        default-document
+        (let [{x :x y :y} (preload/get-value :map-centre)]
+          {:north (+ y 0.05)
+           :south (- y 0.05)
+           :east  (+ x 0.05)
+           :west  (- x 0.05)}
+          )
+        )
+       ))))
 
+(set! js/thermos_initial_state nil)
 
-
-(declare maybe-update-run-state)
-
-(defn start-run-state-timer []
-  (swap! run-state-timer
-         (fn [t]
-           (or t
-               (js/setInterval
-                maybe-update-run-state
-                1500)))))
-
-(defn cancel-run-state-timer []
-  (swap! run-state-timer
-         (fn [t]
-           (when t (js/clearInterval t))
-           nil)))
-
-(defn is-running? [] (:last-state @run-state))
-(defn queue-position [] (:after @run-state))
-(defn needs-save? [] (:needs-save @run-state))
+(def running-state? #{:ready :running :cancel :cancelling})
+(defn is-running? [] (running-state? (:run-state @save-state)))
+(defn needs-save? [] (:needs-save @save-state))
+(defn queue-position [] (:queue-position @save-state))
 
 (defonce watch-state-for-save
-  (add-watch state
-             :watch-for-save
-             (fn [_ _ old-state new-state]
-               (when-not (needs-save?)
-                 (let [old-state (document/keep-interesting old-state)
-                       new-state (document/keep-interesting new-state)]
-                   (swap! run-state assoc :needs-save
-                          (not= old-state new-state)))))))
-
-(defn get-last-save [] (:last-load @run-state))
-
-(defn update-run-state []
-  (let [{[org proj id] :last-load} @run-state]
-    (io/get-run-status
-     org proj id
-     (fn [result]
-       (let [state (keyword (get result "state"))
-             after (get result "after")]
-         (swap! run-state assoc
-                :last-state state
-                :after after)
-         (when (#{:ready :running} state)
-           (start-run-state-timer)))))))
-
-(defn maybe-update-run-state []
-  (let [{last-state :last-state last-load :last-load} @run-state]
-    (if (and last-load
-             (or (nil? last-state)
-                 (#{:ready :running} last-state)))
-      (update-run-state)
-      (cancel-run-state-timer))))
+  (add-watch
+   state
+   :watch-for-save
+   (fn [_ _ old-state new-state]
+     (when-not (needs-save?)
+       (let [old-state (document/keep-interesting old-state)
+             new-state (document/keep-interesting new-state)]
+         (swap! save-state assoc :needs-save
+                (not= old-state new-state)))))))
 
 (defn edit!
   "Update the document, but please do not change the spatial details this way!"
@@ -102,7 +104,7 @@
         
         empty->nil #(if (or (nil? %) (= "" %)) nil %)
 
-        type (if (o/get properties "is_building" false)
+        type (if (o/get properties "is-building" false)
                :building :path)
         name (empty->nil (o/get properties "name"))
         subtype (empty->nil (o/get properties "type"))
@@ -119,38 +121,15 @@
       :path
       (assoc basics
              ::path/length     (o/get properties "length")
-             ::path/cost-per-m (o/get properties "unit_cost")
-             ::path/start      (o/get properties "start_id")
-             ::path/end        (o/get properties "end_id"))
+             ::path/cost-per-m (o/get properties "unit-cost")
+             ::path/start      (o/get properties "start-id")
+             ::path/end        (o/get properties "end-id"))
       :building
       (assoc basics
-             ::demand/kwh              (o/get properties "demand_kwh_per_year" nil)
-             ::demand/kwp              (o/get properties "demand_kwp" nil)
-             ::demand/connection-count (o/get properties "connection_count" 1)
-             ::candidate/connections   (string/split (o/get properties "connection_ids") #",")))))
-
-(defn load-document! [org-name proj-name doc-version cb]
-  (io/load-document
-   org-name proj-name doc-version
-   #(do
-      (swap! run-state assoc
-             :last-load [org-name proj-name doc-version]
-             :needs-save nil)
-      (maybe-update-run-state)
-      (edit-geometry! state operations/load-document %)
-      (cb))))
-
-(defn save-document! [org-name proj-name run cb]
-  (let [state @state]
-    (io/save-document
-     org-name proj-name
-     (document/keep-interesting state)
-     run
-     #(do (swap! run-state assoc
-                 :last-load [org-name proj-name %]
-                 :needs-save nil)
-          (cb org-name proj-name %)
-          (update-run-state)))))
+             ::demand/kwh              (o/get properties "demand-kwh-per-year" nil)
+             ::demand/kwp              (o/get properties "demand-kwp" nil)
+             ::demand/connection-count (o/get properties "connection-count" 1)
+             ::candidate/connections   (string/split (o/get properties "connection-ids") #",")))))
 
 (defn load-tile! [document x y z]
   (io/request-geometry
@@ -167,5 +146,120 @@
        ;; 2: update the document to contain the new candidates
        (edit-geometry! document
               operations/insert-candidates
-              candidates)
-       ))))
+              candidates)))))
+
+(declare poll!)
+
+(defn- get-run-state [e]
+  (let [s (.getResponseHeader (.. e -target) "x-run-state")]
+    (when s
+      (keyword (.substring s 1)))))
+
+(defn- get-queue-position [e]
+  (let [s (.getResponseHeader (.. e -target) "x-queue-position")]
+    (when s (js/parseInt s))))
+
+(defn save!
+  "Save the current state to the server."
+  [title & {:keys [run callback]}]
+
+  (xhr/send
+   (if run "?run=1" "")
+   (fn on-success [e]
+     (update-url
+      (.getResponseHeader (.. e -target) "Location"))
+     
+     (swap! save-state
+            assoc
+            :needs-save false
+            :needs-load false
+            :run-state (get-run-state e)
+            :queue-position (get-queue-position e))
+     
+
+     (when run (poll!))
+     (when callback (callback)))
+
+   "POST"
+   (let [data (js/FormData.)
+         doc (pr-str (document/keep-interesting @state))
+         blob (js/Blob. #js [doc] #js {"type" "application/edn"})]
+     (.append data "name" title)
+     (.append data "content" blob "content.edn")
+     data)))
+
+(defn load!
+  "Try and load the state associated with the save-state."
+  [& {:keys [callback]}]
+  (when (not= :new (:network-id @save-state))
+    (xhr/send
+     ""
+     (fn on-success [e]
+       (let [new-state (->> (.-target e)
+                            (.getResponseText)
+                            (cljs.reader/read-string))]
+         (edit-geometry! state operations/load-document new-state)
+         (swap! save-state
+                assoc
+                :needs-save false
+                :needs-load false
+                :run-state (get-run-state e)
+                :queue-position (get-queue-position e))
+         
+         (when callback (callback))()))
+     "GET"
+     nil
+     #js {"Accept" "application/edn"})))
+
+(defonce poll-timer (atom nil))
+
+(defn poll! []
+  (xhr/send
+   ""
+   (fn on-success [e]
+     (let [last-run-state (:run-state @save-state)
+           run-state (get-run-state e)]
+       (swap! save-state assoc
+              :run-state run-state
+              :queue-position (get-queue-position e))
+       (case run-state
+         :completed
+         (case last-run-state
+           (:ready :running)
+           (do
+             (swap! poll-timer
+                (fn [t]
+                  (when t (js/window.clearTimeout t))
+                  nil))
+
+             ;; TODO switch tab
+             ;; (let [run-state (state/is-running?)
+             ;;       last-state @last-run-state]
+             ;;   (when (and (= :completed run-state)
+             ;;              (or (= :running last-state)
+             ;;                  (= :ready last-state)))
+             ;;     (let [[org-name proj-name version] (state/get-last-save)]
+             ;;       (state/load-document!
+             ;;        org-name proj-name version
+             ;;        (fn []
+             ;;          (state/edit! state/state
+             ;;                       assoc-in
+             ;;                       [::view/view-state ::view/selected-tab]
+             ;;                       :solution)))))
+             
+             (load!))
+
+           nil)
+         
+
+         (:ready :running :cancelling :cancel)
+         (swap! poll-timer
+                (fn [t]
+                  (when t (js/window.clearTimeout t))
+                  (js/window.setInterval poll! 1000)))
+
+         nil)))
+   
+   "HEAD"))
+
+(poll!)
