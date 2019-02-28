@@ -14,9 +14,10 @@ Has a bit of crud related to GDAL driver format stuff.
 * DONE Invalidate tile cache on data changes
 * TODO Show running jobs in project page (maybe)
 * TODO Show/manage participants in project page
-* TODO Hook up email invites and so on
+* TODO Make email invites work
 * TODO Remove unused code
 * TODO Make solver cancellable (may already work)
 * DONE Look at SVM predict performance
 * TODO Make resi field importable
 * TODO Add delete buttons
+* TODO Add geojson download for map and network

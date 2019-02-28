@@ -114,6 +114,7 @@
               (when-let [map-id (maps/create-map! project-id map-name map-description)]
                 (handle-map-import map-id request)
                 (response/redirect "../")))
+            
             (context "/:map-id" [map-id :<< as-int]
               (wrap-json-response
                (GET "/t/:z/:x/:y" [z :<< as-int x :<< as-int y :<< as-int]
@@ -134,6 +135,10 @@
                     (ByteArrayInputStream.)
                     (response/response)
                     (response/content-type "image/png")))
+
+              (GET "/data.json" []
+                "not impl"
+                )
               
               (context "/net/:net-id" [net-id]
                 (GET "/" {{accept "accept"} :headers}

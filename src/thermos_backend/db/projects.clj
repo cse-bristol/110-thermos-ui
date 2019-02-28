@@ -9,6 +9,24 @@
             [jdbc.core :as jdbc]
             [honeysql.core :as sql]))
 
+(defn- join-json [& fields]
+  (sql/call
+   :case
+   [:=
+    (sql/call :count (first fields))
+    (sql/inline 0)]
+   :null
+
+   :else
+   (sql/call
+    :json_agg
+    (if (some #(.contains (name %) "*")
+             fields)
+      (apply sql/call :to_json fields)
+      (apply sql/call :json_build_object
+             (flatten (for [f fields]
+                        [(last (.split (name f) "\\.")) f])))))))
+
 (defn get-project
   "Select project details for `project-id`.
   Gets everything from the projects table and the maps relation
@@ -16,14 +34,11 @@
   [project-id]
   {:pre [(int? project-id)]}
   (-> (h/select :projects.*
-                [(sql/call :json_agg (sql/call :to_json :maps.*)) :maps])
+                [(join-json :maps.*) :maps])
       (h/from :projects)
       (h/left-join
        [(-> (h/select :maps.*
-                      [(sql/call :json_agg (sql/call :json_build_object
-                                                     "id" :networks.id
-                                                     "name" :networks.name))
-                       :networks])
+                      [(join-json :networks.id :networks.name) :networks])
             (h/from :maps)
             (h/left-join :networks
                          [:= :maps.id :networks.map-id])

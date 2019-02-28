@@ -32,6 +32,8 @@
                [:div
                 [:a {:href (str "map/" (:id m) "/delete")} "DELETE MAP"]
                 " • "
+                [:a {:href (str "map/" (:id m) "/data.json")} "DOWNLOAD"]
+                " • "
                 [:a {:href (str "map/" (:id m) "/net/new")} "NEW NETWORK"]
                 ]
                ]
@@ -45,9 +47,10 @@
                 [:div.flex-grid
                  (for [[name ns] (group-by :name networks)]
                    [:div.card
-                    [:h1 [:a {:href (str
-                                     "map/" (:id m)
-                                     "/net/" (reduce max (map :id ns)))} name]]
+                    [:div
+                     [:h1 [:a {:href (str
+                                      "map/" (:id m)
+                                      "/net/" (reduce max (map :id ns)))} name]]]
                     [:span
                      (count ns) " version"
                      (if (seq (rest ns)) "s" "")]
