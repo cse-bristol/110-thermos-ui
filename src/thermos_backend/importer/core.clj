@@ -449,6 +449,7 @@
         :length   (or (::topo/length b) 0)
         :unit-cost (or (:unit-cost b) 500)}))))
 
+
 (defn dedup [state]
   (-> state
       (update-in [:buildings ::geoio/features] distinct-by ::geoio/id)

@@ -108,7 +108,11 @@
     ;; (re)generate map icon and so on
     (-> (h/select (sql/call :update_map (int map-id)))
         (db/fetch! conn))
-    ))
+
+    (-> (h/update :maps)
+        (h/sset {:import-completed true})
+        (h/where [:= :id map-id])
+        (db/execute! conn))))
 
 (defn- make-bounding-points [zoom x-tile y-tile]
   (let [n (Math/pow 2 zoom)
@@ -254,3 +258,8 @@
       (h/where [:= :map-id map-id])
       (db/fetch-one!)
       (:png)))
+
+(defn delete-map! [map-id]
+  (-> (h/delete-from :maps)
+      (h/where [:= :id map-id])
+      (db/execute!)))

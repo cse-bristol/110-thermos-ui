@@ -17,8 +17,20 @@
                 :placeholder "A map for my city"}]]]
      
      ;; The below is the bit produced by the js
-     [:div#form]]])
+     [:div#form]]]))
 
-  )
+(defn delete-map-page []
+  (page {:title "Delete map"}
+        [:div
+         "Do you really want to delete this map?"]
+        [:div
+         "Deleting the map will delete all of the network designs that use it."]
+
+        [:div
+         [:form {:method :POST}
+          [:input {:type :submit :value "DELETE"}]]
+         
+         ]
+        ))
 
 

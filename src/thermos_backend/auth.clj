@@ -6,14 +6,13 @@
             [honeysql.helpers :as sql]
             [ring.util.response :as response]
             [buddy.hashers :as hash]
-            [compojure.core :as compojure]
+            [compojure.core :refer :all]
             [clojure.string :as string]
             [thermos-backend.pages.login-form :refer [login-form]]
             [thermos-backend.current-uri :refer [*current-uri*]]
             [clojure.tools.logging :as log]))
 
 (def ^:dynamic *current-user* nil)
-(def ^:dynamic *current-restriction* {:public true})
 
 (defn authorized
   "Determine whether `this-user` is authorized according to the requirements:
@@ -21,21 +20,34 @@
   `user` has access to `project`
   `user` is admin on `project-admin`
   `user` is `sysadmin`"
-  [{public :public
-    user :user
-    project :project
-    project-admin :project-admin
-    sysadmin :sysadmin}
-   this-user]
-  (and (or public this-user)
-       (or (not user)
-           (= user (:id this-user)))
-       (or (not project)
-           (contains? (:projects this-user) project))
-       (or (not project-admin)
-           (= :admin (get-in this-user [:projects project :auth] )))
-       (or (not sysadmin)
-           (= :admin (:auth this-user)))))
+
+  ([{logged-in :logged-in
+     user :user
+     project :project
+     project-admin :project-admin
+     sysadmin :sysadmin :as restrict}]
+   (authorized restrict *current-user*))
+  
+  ([{logged-in :logged-in
+     user :user
+     project :project
+     project-admin :project-admin
+     sysadmin :sysadmin}
+    this-user]
+   (and (or (not logged-in) this-user)
+        (or (not user)
+            (= user (:id this-user)))
+        (or (not project)
+            (contains? (:projects this-user) project))
+        (or (not project-admin)
+            (= :admin (get-in this-user [:projects project :auth] )))
+        (or (not sysadmin)
+            (= :admin (:auth this-user))))))
+
+(defn- do? [stuff]
+  (if (seq (rest stuff))
+    (cons 'do stuff)
+    (first stuff)))
 
 (defn wrap-auth
   "Ring middleware that gets the ::user-id out of the session
@@ -52,24 +64,25 @@
       (binding [*current-user* user]
         (h r)))))
 
-(defmacro restrict [to & body]
-  `(if (not (authorized ~to *current-user*))
-     (-> 
-      (if *current-user*
-        (-> (response/response "Unauthorized")
-            (response/status 401))
+(defn restricted* [handler requirement]
+  (fn [request]
+    (if (authorized requirement)
+      (handler request)
+      (-> (if *current-user*
+            (-> (response/response "Unauthorized")
+                (response/status 401))
 
-        (response/redirect (str "/login?redirect-to=" *current-uri*)))
-      
-      (response/header "Cache-Control" "no-store"))
+            (response/redirect (str "/login?redirect-to=" *current-uri*)))
+          (response/header "Cache-Control" "no-store")))))
 
-     (do ~@body)))
-
-(defmacro with-restrict [to & stuff]
-  `(let [handler# (compojure/routes ~@stuff)]
-     (fn [request#]
-       (binding [*current-restriction* ~to]
-         (handler# request#)))))
+(defmacro restricted [requirement & inner]
+  (let [inner (if (seq (rest inner))
+                (cons 'routes inner)
+                (first inner))]
+    `(wrap-routes
+      ~inner
+      restricted*
+      ~requirement)))
 
 (defn handle-login [email password redirect-to]
   (let [email (string/lower-case email)]
@@ -83,12 +96,19 @@
   (-> (response/redirect "/")
       (update :session dissoc ::user-id)))
 
-(compojure/defroutes auth-routes
-  (compojure/GET "/login" [target flash]
+(defroutes auth-routes
+  (GET "/login" [target flash]
     (login-form target flash))
-  
-  (compojure/POST "/login" [username password redirect-to
-                            create login forgot]
+
+  (GET "/token/:token" [token]
+    ;; since the token is sent by email, knowing it is as good as a password.
+    ;; we want to go to the user settings page when we handle it.
+    (when-let [user-id (db/verify-reset-token token)]
+      (-> (response/redirect "/settings")
+          (update :session assoc ::user-id user-id))))
+    
+  (POST "/login" [username password redirect-to
+                  create login forgot]
     (cond
       create
       (if (db/create-user! username username password)
@@ -99,25 +119,11 @@
       (handle-login username password redirect-to)
 
       forgot
-      "not implemented yet"
-      )
+      (do (db/emit-reset-token! username)
+          (response/redirect "/login?flash=check-mail")))
+    
     )
 
-  (compojure/GET "/logout" []
-       (handle-logout)))
+  (GET "/logout" []
+    (handle-logout)))
 
-(defmacro GET [path args & body]
-  `(compojure/GET ~path ~args
-     (restrict *current-restriction* ~@body)))
-
-(defmacro HEAD [path args & body]
-  `(compojure/HEAD ~path ~args
-     (restrict *current-restriction* ~@body)))
-
-(defmacro POST [path args & body]
-  `(compojure/POST ~path ~args
-     (restrict *current-restriction* ~@body)))
-
-(defmacro DELETE [path args & body]
-  `(compojure/DELETE ~path ~args
-     (restrict *current-restriction* ~@body)))

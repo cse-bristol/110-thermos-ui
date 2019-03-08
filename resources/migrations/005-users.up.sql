@@ -9,7 +9,9 @@ CREATE TABLE maps (
    project_id integer
       references projects(id)
       on delete cascade,
-   name text not null
+   name text not null,
+   import_completed boolean default false,
+   job_id int references jobs(id) on delete set null
 )
 --;;
 CREATE TYPE user_auth AS ENUM ( 'normal', 'admin' )
@@ -18,7 +20,8 @@ CREATE TABLE users (
    id text not null primary key,   -- email address
    name text not null, -- display name
    auth user_auth not null, -- user type
-   password text not null
+   password text not null,
+   reset_token text
 )
 --;;
 CREATE TYPE project_auth AS ENUM ( 'read', 'write', 'admin' )

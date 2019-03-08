@@ -1,81 +1,72 @@
 (ns thermos-backend.pages.projects
-  (:require [thermos-backend.pages.common :refer [page style]]))
+  (:require [thermos-backend.pages.common :refer [page]]
+            [thermos-pages.common :refer [style]]
+            [thermos-pages.projects :refer [project-page-body]]))
 
 (defn new-project-page []
   (page
    {:title "New Project"}
-   [:form {:method :POST}
-    [:input {:name "name" :type "text" :placeholder "Project name"}]
+   [:form.flex-rows {:method :POST
+           
+           }
+    [:input
+     {:style (style :border "1px #aaa solid"
+                    :font-size :2em
+                    :border-radius :5px
+                    :padding :5px
+                    :margin-bottom :0.5em
+                    )
+
+      :name "name" :type "text" :placeholder "Project name"}]
     [:div
-     [:textarea {:name "description" :rows 5 :placeholder "Project description"}]]
-    [:div
-     [:h2 "Project members"]
-     [:textarea {:name "members" :rows 5 :placeholder "Joe Smith <joe@smith.com>"}]]
-    [:div
-     [:input {:type :submit :value "Create Project"}]]]))
+     [:textarea {:style (style :width :100%
+                               :padding :5px
+                               :font-family :Sans)
+                 :name "description" :rows 5 :placeholder "Project description"}]]
+    [:div {:style (style :margin-bottom :0.5em)}
+     [:div "Project members"]
+     [:textarea {:style (style :width :100%
+                               :padding :5px
+                               :font-family :Sans)
+                 :name "members" :rows 5 :placeholder "Joe Smith <joe@smith.com>"}]]
+    [:div.flex-rows
+     [:input.button
+      {:style (style :margin-left :auto)
+       :type :submit :value "Create Project"}]]]))
 
 (defn project-page [project]
-  (page {:title (:name project)}
+  ;; TODO filter out delete links for non-admin users
+  (page {:title (:name project) :js ["/js/projects.js"]}
+        (project-page-body project)))
+
+(defn delete-project-page [project wrong-name]
+  (page {:title (str "Delete " (:name project) "?")}
+        [:div "Do you really want to delete this project?"]
+        [:div "This will delete everything related to it:"
+         [:ul
+          (for [m (:maps project)]
+            [:li [:b (:name m)] " (map)"
+             [:ul
+              (for [n (:networks m)]
+                [:li [:b (:name n)] " (network)"])]])]]
         [:div
-         [:div.card.flex-cols
-          [:div {:style (style :flex-grow 1)}
-           (:description project)]
-          [:div [:a {:href "map/new"} "IMPORT NEW MAP"]]
-
-          ]
-         (if-let [maps (seq (:maps project))]
-           (for [m maps]
-             [:div.card
-              [:div.flex-cols
-               [:h1 {:style (style :flex-grow 1)}
-                (:name m)]
-               [:div
-                [:a {:href (str "map/" (:id m) "/delete")} "DELETE MAP"]
-                " • "
-                [:a {:href (str "map/" (:id m) "/data.json")} "DOWNLOAD"]
-                " • "
-                [:a {:href (str "map/" (:id m) "/net/new")} "NEW NETWORK"]
-                ]
-               ]
-              
-              [:span (:description m)]
-              [:img {:style (style :float :right)
-                     :src (str "map/" (:id m) "/icon.png")
-                     :alt (str "An image for the map " (:name m)) }]
-              
-              (if-let [networks (seq (:networks m))]
-                [:div.flex-grid
-                 (for [[name ns] (group-by :name networks)]
-                   [:div.card
-                    [:div
-                     [:h1 [:a {:href (str
-                                      "map/" (:id m)
-                                      "/net/" (reduce max (map :id ns)))} name]]]
-                    [:span
-                     (count ns) " version"
-                     (if (seq (rest ns)) "s" "")]
-                    
-                    ])]
-
-                [:div
-                 "This map has no network designs associated with it yet."])
-
-              [:br {:style (style :clear :both)}]])
-           [:div
-            "This project has no maps in it yet. "
-            "Get started by creating a new map."]
-           
-           )
-         
-         
-         ]
-        )
-  )
-
-(defn new-map-page [project]
-  (page {:title (str "New map for " (:name project))}
+         {:style (style :margin-bottom :1em)}
+         "If you really want to delete the project enter its name "
+         [:span {:style (style :font-family :Monospace
+                               :font-size :2em
+                               :border "1px #aaa solid"
+                               :background "#fff")}
+          (:name project)]
+         " below and click delete"]
+        (when wrong-name
+          [:div "The project name was not entered correctly. "
+           "You need to enter the project name below to delete the project."])
         [:div
-         "this is the import page really"
-         ]
+         [:form {:method :POST}
+          [:input {:style (style :font-size :2em
+                                 :background "#faa"
+                                 :color :black)
+                   :type :text :name :project-name}]
+          [:input.button.button--danger {:type :submit :value "DELETE"}]]]
         )
   )

@@ -3,7 +3,9 @@
             [hiccup.util :refer [raw-string]]
             [hiccup.page :refer [include-js include-css]]
             [ring.util.anti-forgery :as anti-forgery]
+            [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
             [thermos-backend.current-uri :refer [*current-uri*]]
+            [thermos-pages.common :refer [style]]
             [clojure.data.json :as json]
             [clojure.string :as string]))
 
@@ -17,44 +19,48 @@
          (json/write-str values)
          ";\n"))])
 
-(defn style
-  "Convert a map into an inline stylesheet"
-  [& {:keys [] :as m}]
-  {:test #(assert (and
-                   (= "display:flex;"
-                      (style :display :flex))
-                   (= "display:flex;position:absolute;"
-                      (style :display :flex :position :absolute))
-                   (= "width:100%;"
-                      (style :width :100%))))}
-  (when (seq m)
-    (str
-     (string/join
-      ";"
-      (for [[k v] m]
-        (str
-         (if (keyword k) (name k) (str k)) ":"
-         (if (keyword v) (name v) (str v)))))
-     ";")))
-
 (defmacro page [atts & body]
   `(str
     (html
      [:head
       [:title (str "THERMOS: " ~(:title atts))]
       (when (and *current-uri*
-                 (not= *current-uri* "/"))
+                 (not (.endsWith *current-uri* "/")))
         [:base {:href (str *current-uri* "/")}])
       [:meta {:charset "UTF-8"}]
       [:meta {:name :viewport :content "width=device-width, initial-scale=1"}]
-      (include-css "/css/common.css" source-sans-pro)]
+      (let [aft# (if (bound? #'*anti-forgery-token*)
+                   (force *anti-forgery-token*)
+                   false)]
+        [:script {:type "text/javascript"}
+         (raw-string
+          (str "var ring_anti_forgery = " (json/write-str aft#) ";\n"))])
+      
+      (include-css "/css/common.css" source-sans-pro
+                   ~@(:css atts))
+      ]
      [:body.flex-rows
-      [:header [:h1 "THERMOS - " ~(:title atts)]]
-      [:div.flex-grow
+      [:header.flex-cols {:style (style :flex-shrink 0 :flex-grow 0)}
+       
+       [:h1  "THERMOS - " ~(:title atts)]
+       [:span.menu {:style (style :margin-left :auto)}
+        [:button {:style (style :vertical-align :middle)}
+         [:img {:style (style :vertical-align :middle)
+                :src "/favicon.ico" :width "16"}]
+         [:span {:style (style :color "#ddd")} " ▼"]]
+        
+        [:div
+         [:div [:a {:href "/"} "Home"]]
+         [:div [:a {:href "/settings"} "Settings"]]
+         [:div "Help"]
+         [:div [:a {:href "/logout"} "Logout"]]]]
+       ]
+      [:div#page-body.flex-grow
        {:style {:margin "1em"}}
        ~@body]
-      [:footer
-       "Some footer stuff"]
+      ;; [:footer
+      ;;  "Some footer stuff"]
+
       ~@(for [js-file (:js atts)] `(include-js ~js-file))
       ])))
 

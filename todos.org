@@ -1,23 +1,41 @@
+* DONE [#A] Make a video about THERMOS editor
+* TODO Make resi field importable
+* TODO Make import wizard a bit more friendly
+- Validation
+- Multiple pages
 * TODO Make run state pass through to editor
 - [X] Client side timer to poll for status
 - [X] Server side HEAD request status
 - [X] Lock editor during run
 - [ ] Switch tab to solution when complete
 - [ ] Show running count only when enqueued
-* DONE Make save name editable client-side
 * TODO Identify solutions & past versions in project page
-* DONE Group networks by name in project page
-* DONE Show thumbnails in project page
-ST_AsRaster for this.
-Has a bit of crud related to GDAL driver format stuff.
-* DONE Make heat density tile layer work
-* DONE Invalidate tile cache on data changes
-* TODO Show running jobs in project page (maybe)
+Perhaps a button in the widget that expands it to be bigger
+* TODO Button to delete networks
+* TODO Show running jobs in project page
+* DONE Show import progress in project page
 * TODO Show/manage participants in project page
-* TODO Make email invites work
-* TODO Remove unused code
+What should this look like?
+* DONE Make email work
 * TODO Make solver cancellable (may already work)
-* DONE Look at SVM predict performance
-* TODO Make resi field importable
-* TODO Add delete buttons
-* TODO Add geojson download for map and network
+* TODO Security on IDs (currently 100% bogus)
+* DONE Add delete button for map
+* DONE Auto-refresh bits of project page
+** DONE Fix reagent first-render flicker in projects.clj
+This is simpler than I thought; can use ReactDOM/rehydrate and it mostly works.
+There is some stuff about exactly matching text nodes that needs thought
+* DONE Add delete button for project
+* TODO geojson download for map
+* TODO geojson download for network
+* TODO Remove unused code
+* TODO Sysadmin pages
+* TODO Pipe cost parameters in interface
+* TODO [#A] Put LIDAR info onto v4.1 server
+- Jelgava
+- Granollers
+- London tiles?
+- Warsaw
+- Berlin
+- Alba Iulia
+- Cascais
+* TODO [#A] Contact SCIP

@@ -17,13 +17,6 @@
             [thermos-backend.auth :as auth]
             [thermos-backend.current-uri :as current-uri]))
 
-(defn remove-trailing-slash
-  "Remove the trailing '/' from a URI string, if it exists."
-  [^String uri]
-  (if (and (not= uri "/") (.endsWith uri "/"))
-    (.substring uri 0 (dec (.length uri)))
-    uri))
-
 (defn wrap-no-cache [handler]
   (if (= "true" (config :web-server-disable-cache))
     (do (log/info "Disabling caching")
@@ -40,10 +33,43 @@
 (defstate all
   :start
   (-> site-routes
+      ;;(wrap-canonical-redirect)
       (auth/wrap-auth)
+      (current-uri/wrap-current-uri)
       (wrap-defaults (-> site-defaults
                          (assoc-in [:security :anti-forgery] false)))
       (wrap-no-cache)
-      (current-uri/wrap-current-uri)
-      (wrap-canonical-redirect remove-trailing-slash)))
+;      (wrap-canonical-redirect)
+      ))
+
+;; (in-ns 'compojure.middleware)
+
+
+;; (defn wrap-canonical-redirect
+;;   "Middleware that permanently redirects any non-canonical route to its
+;;   canonical equivalent, based on a make-canonical function that changes a URI
+;;   string into its canonical form. If not supplied, the make-canonical function
+;;   will default to [[remove-trailing-slash]]."
+;;   ([handler]
+;;    (wrap-canonical-redirect handler remove-trailing-slash))
+;;   ([handler make-canonical]
+;;    (let [redirect-handler (wrap-routes handler (constantly redirect-to-canonical))]
+;;      (fn
+;;        ([{uri :uri :as request}]
+;;         (println "maybe redirect")
+;;         (let [canonical-uri (make-canonical uri)]
+;;           (if (= uri canonical-uri)
+;;             (do
+;;               (println "dont redirect")
+;;               (handler request))
+;;             (do
+;;               (println "do redirect")
+;;               (redirect-handler (assoc-path request canonical-uri))))))
+;;        ([{uri :uri :as request} respond raise]
+;;         (let [canonical-uri (make-canonical uri)]
+;;           (if (= uri canonical-uri)
+;;             (do (println "no redir 2")
+;;                 (handler request respond raise))
+;;             (do (println "do redir 2")
+;;                 (redirect-handler (assoc-path request canonical-uri) respond raise)))))))))
 

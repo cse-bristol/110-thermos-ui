@@ -1,6 +1,7 @@
 (ns thermos-backend.db.projects
   (:require [thermos-backend.db :as db]
             [thermos-backend.db.users :as users]
+            [thermos-backend.db.json-functions :as json]
             [honeysql.helpers :as h]
             [honeysql-postgres.helpers :as p]
             [clojure.tools.logging :as log]
@@ -27,23 +28,51 @@
              (flatten (for [f fields]
                         [(last (.split (name f) "\\.")) f])))))))
 
+
+(comment
+  (get-project 10)
+  )
+
 (defn get-project
   "Select project details for `project-id`.
+  A bit of an omni-join which is not beautiful.
+  
   Gets everything from the projects table and the maps relation
-  under :maps, and then everything under networks"
+  under :maps, and then everything under :networks in each map"
   [project-id]
   {:pre [(int? project-id)]}
   (-> (h/select :projects.*
-                [(join-json :maps.*) :maps])
+                [(join-json :maps.*) :maps]
+                [(sql/call
+                  :json_agg
+                  (-> (h/select
+                       (json/build-object
+                        :id :users.id
+                        :name :users.name
+                        :auth :users-projects.auth))
+                      
+                      (h/from :users)
+                      (h/join :users-projects
+                              [:= :users.id
+                               :users-projects.user-id])
+                      (h/where [:= :users-projects.project-id
+                                :projects.id])))
+                 :users])
+      
       (h/from :projects)
       (h/left-join
        [(-> (h/select :maps.*
+                      :jobs.state
                       [(join-json :networks.id :networks.name) :networks])
             (h/from :maps)
             (h/left-join :networks
-                         [:= :maps.id :networks.map-id])
-            (h/group :maps.id)) :maps]
+                         [:= :maps.id :networks.map-id]
+                         :jobs
+                         [:= :maps.job-id :jobs.id])
+            
+            (h/group :maps.id :jobs.state)) :maps]
        [:= :projects.id :maps.project-id])
+      
       (h/group :projects.id)
       (h/where [:= :projects.id project-id])
       (db/fetch!)
@@ -52,23 +81,25 @@
 (defn create-project!
   "Create a new project with the given `name` and `description`.
 
+  The `creator` should have :id and :name, and is set as an admin of
+  the project.
+  
   The `users` are all given :write :auth to the project unless
-  you say otherwise. You must supply at least one user with :admin
-  authority.
+  you say otherwise. They should have :id, :name and maybe :auth.
 
   Any user who does not exist will be created and sent an invitation
   email."
-  [project-name description users]
+  [creator project-name description users]
   {:pre
-   [(string? project-name)
+   [(string? (:id creator))
+    (string? (:name creator))
+    (string? project-name)
     (string? description)
-    (every? (fn [{e :email n :name a :auth}]
+    (every? (fn [{e :id n :name a :auth}]
               (and (string? e)
                    (string? n)
                    (contains? #{nil :admin :read :write} a)))
-            users)
-    (some (fn [{a :auth}] (= a :admin)) users)
-    ]}
+            users)]}
 
   ;; TODO uniquify emails
   ;; TODO do this all in a transaction? does it really matter?
@@ -85,16 +116,20 @@
          :name project-name
          :description description}
         ]
+    
     ;; 2. ensure the users exist, and send them invitations if need be
-    (run! #(users/invite! % project) users)
+    ;;    the creator should already exist.
+    (run! #(users/invite! (:name creator) % project) users)
 
     ;; 3. give the users read-auth on the project
-    (-> (h/insert-into :users-projects)
-        (h/values (for [{e :email a :auth} users]
-                    {:project-id project-id
-                     :user-id e
-                     :auth (sql/call :project_auth (name (or :read a)))}))
-        (db/execute!))
+    (let [users (conj users (assoc creator :auth :admin))]
+      (-> (h/insert-into :users-projects)
+          (h/values (for [{e :id a :auth} users]
+                      {:project-id project-id
+                       :user-id e
+                       :auth (sql/call :project_auth
+                                       (name (or a :read)))}))
+          (db/execute!)))
 
     project-id))
 
@@ -150,4 +185,9 @@
   (-> (h/update :networks)
       (h/sset {:job-id job-id})
       (h/where [:= :id network-id])
+      (db/execute!)))
+
+(defn delete-project! [project-id]
+  (-> (h/delete-from :projects)
+      (h/where [:= :id project-id])
       (db/execute!)))

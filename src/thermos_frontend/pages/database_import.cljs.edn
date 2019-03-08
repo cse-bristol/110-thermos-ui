@@ -1,6 +1,0 @@
-{:require [thermos-frontend.pages.database-import]
- :compiler-options {
-                    :output-dir "public/js/database_import.out"
-                    :output-to "public/js/database_import.js"
-                    :asset-path "/js/database_import.out"}}
-

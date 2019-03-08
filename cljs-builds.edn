@@ -8,7 +8,9 @@
   :output-dir "target/resources/public/js/database_import.out"
   :output-to "target/resources/public/js/database_import.js"
   :asset-path "/js/database_import.out"}
- {:main thermos-frontend.pages.problems-list
-  :output-dir "target/resources/public/js/problems_list.out"
-  :output-to "target/resources/public/js/problems_list.js"
-  :asset-path "/js/problems_list.out"}]
+
+ {:main thermos-frontend.pages.projects
+  :output-dir "target/resources/public/js/projects.out"
+  :output-to "target/resources/public/js/projects.js"
+  :asset-path "/js/projects.out"}
+ ]
