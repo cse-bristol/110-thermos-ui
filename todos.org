@@ -39,3 +39,13 @@ There is some stuff about exactly matching text nodes that needs thought
 - Alba Iulia
 - Cascais
 * TODO [#A] Contact SCIP
+* TODO Look into better serverside rendering
+
+Is there some way I can make client-side event handlers not a source of trouble?
+At the moment, :on-click #(js/foo) will break on the server side.
+
+Transforming the hiccup input server-side would work but any server-side component that contains this stuff would need to go through said macro.
+
+This is probably roughly acceptable with a bit of work.
+
+Alternatively use someone else's thing (rum) which allegedly works already.
