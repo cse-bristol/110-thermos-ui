@@ -1,25 +1,30 @@
 (ns thermos-backend.email
   "Stuff for emailing people about their user account & jobs"
   (:require [postal.core :as postal]
-            [thermos-backend.config :refer [config]]))
+            [thermos-backend.config :refer [config]]
+            [clojure.tools.logging :as log]))
 
 (defn- send-message [message]
-  (postal/send-message
-   (cond-> {}
-     (:smtp-host config)
-     (assoc :host (:smtp-host config))
-     (:smtp-port config)
-     (assoc :port (Integer/parseInt (:smtp-port config)))
-     (:smtp-user config)
-     (assoc :user (:smtp-user config))
-     (:smtp-password config)
-     (assoc :pass (:smtp-password config))
-     (:smtp-ssl config)
-     (assoc :ssl (= "true" (:smtp-ssl config)))
-     (:smtp-tls config)
-     (assoc :tls (= "true" (:smtp-tls config))))
-   
-   (assoc message :from (:smtp-from-address config))))
+  (let [smtp-config
+        (cond-> {}
+          (:smtp-host config)
+          (assoc :host (:smtp-host config))
+          (:smtp-port config)
+          (assoc :port (Integer/parseInt (:smtp-port config)))
+          (:smtp-user config)
+          (assoc :user (:smtp-user config))
+          (:smtp-password config)
+          (assoc :pass (:smtp-password config))
+          (:smtp-ssl config)
+          (assoc :ssl (= "true" (:smtp-ssl config)))
+          (:smtp-tls config)
+          (assoc :tls (= "true" (:smtp-tls config))))
+        
+        message (assoc message :from (:smtp-from-address config))]
+    
+    (try (postal/send-message smtp-config message)
+         (catch Exception e
+           (log/error e "Unable to send message" smtp-config message)))))
 
 (defn- format-token [token]
   (str (:base-url config) "/token/" token))
