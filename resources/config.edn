@@ -12,4 +12,15 @@
  :solver-count 4
 
  :import-directory "import-work"
+
+ :smtp-host ""
+ :smtp-port 25
+ :smtp-tls true
+ :smtp-ssl false
+
+ :smtp-user ""
+ :smtp-password ""
+ :smtp-from-address ""
+
+ :base-url ""
  }
