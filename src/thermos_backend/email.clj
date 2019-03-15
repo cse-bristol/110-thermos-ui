@@ -24,7 +24,7 @@
     
     (try (postal/send-message smtp-config message)
          (catch Exception e
-           (log/error e "Unable to send message" smtp-config message)))))
+           (log/error e "Unable to send message" config smtp-config message)))))
 
 (defn- format-token [token]
   (str (:base-url config) "/token/" token))
