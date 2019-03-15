@@ -388,7 +388,7 @@
 (defn menu-panel
   []
   [:div.help__menu-panel
-   [:h2 "THERMOS Help"]
+   [:br]
    [:input.help__search-input
     {:type :text
      :placeholder "Search help"
