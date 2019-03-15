@@ -54,8 +54,8 @@
         :on-key-press #(.stopPropagation %)
         :ref (fn [e]
                (reset! element e)
-               (when-not (:name @state)
-                 (.focus e)))
+               (when e
+                 (when-not (:name @state) (.focus e))))
         }]
       ]
      

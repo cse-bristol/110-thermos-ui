@@ -52,8 +52,7 @@
   (xhr/send
    (urls/document org problem)
    callback
-   "DELETE")
-  )
+   "DELETE"))
 
 (let [pool (goog.net.XhrManager.)]
   (defn request-geometry
@@ -65,7 +64,8 @@
     (.abort pool (str x y z) true)
     (.send pool
            (str x y z)
-           (urls/tile x y z)
+           (str "../t/" z "/" x "/" y)
+           ;; (urls/tile x y z)
            nil nil nil nil
            #(handler (.. % -target getResponseJson)))
     )

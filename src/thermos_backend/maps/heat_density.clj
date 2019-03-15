@@ -191,7 +191,7 @@
       (dotimes [j (.getHeight image-in)]
         (let [value (.getRGB image-in i j)
               value (Float/intBitsToFloat (int value))
-              value (/ value max-value)
+              value (if (zero? value) 0 (/ value max-value))
               c (min 255 (int (* value 255)))
               ;; we could pack a float directly into this image and not scale it
               c (unchecked-int

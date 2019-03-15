@@ -9,6 +9,7 @@
             [compojure.core :refer :all]
             [clojure.string :as string]
             [thermos-backend.pages.login-form :refer [login-form]]
+            [thermos-backend.current-uri :refer [*current-uri*]]
             [clojure.tools.logging :as log]))
 
 (def ^:dynamic *current-user* nil)
@@ -19,20 +20,34 @@
   `user` has access to `project`
   `user` is admin on `project-admin`
   `user` is `sysadmin`"
-  [{user :user
-    project :project
-    project-admin :project-admin
-    sysadmin :sysadmin}
-   this-user]
-  (and this-user
-       (or (not user)
-           (= user (:id this-user)))
-       (or (not project)
-           (contains? (:projects this-user) project))
-       (or (not project-admin)
-           (= :admin (get-in this-user [:projects project :auth] )))
-       (or (not sysadmin)
-           (= :admin (:auth this-user)))))
+
+  ([{logged-in :logged-in
+     user :user
+     project :project
+     project-admin :project-admin
+     sysadmin :sysadmin :as restrict}]
+   (authorized restrict *current-user*))
+  
+  ([{logged-in :logged-in
+     user :user
+     project :project
+     project-admin :project-admin
+     sysadmin :sysadmin}
+    this-user]
+   (and (or (not logged-in) this-user)
+        (or (not user)
+            (= user (:id this-user)))
+        (or (not project)
+            (contains? (:projects this-user) project))
+        (or (not project-admin)
+            (= :admin (get-in this-user [:projects project :auth] )))
+        (or (not sysadmin)
+            (= :admin (:auth this-user))))))
+
+(defn- do? [stuff]
+  (if (seq (rest stuff))
+    (cons 'do stuff)
+    (first stuff)))
 
 (defn wrap-auth
   "Ring middleware that gets the ::user-id out of the session
@@ -49,31 +64,33 @@
       (binding [*current-user* user]
         (h r)))))
 
-(defmacro restrict [to & body]
-  `(cond
-     (not *current-user*) ;; some login required
-     (response/redirect "/login") ;; 401, render page here? is that mad? redirect?
-     
-     (not (authorized ~to *current-user*))
-     {:status 401 :body "Forbidden"} ;; 401 straight error
+(defn restricted* [handler requirement]
+  (fn [request]
+    (if (authorized requirement)
+      (handler request)
+      (-> (if *current-user*
+            (-> (response/response "Unauthorized")
+                (response/status 401))
 
-     :else (do ~@body)))
+            (response/redirect (str "/login?redirect-to=" *current-uri*)))
+          (response/header "Cache-Control" "no-store")))))
 
-(defmacro with-restrict [to & h]
-  `(let [h# (routes ~@h)]
-     ;; we don't want to reevalute h on every request
-     ;; but we do need to reevalute to on every request
-     ;; in case it is e.g. a variable we are closing over
-     (fn [request#] (restrict ~to (h# request#)))))
+(defmacro restricted [requirement & inner]
+  (let [inner (if (seq (rest inner))
+                (cons 'routes inner)
+                (first inner))]
+    `(wrap-routes
+      ~inner
+      restricted*
+      ~requirement)))
 
 (defn handle-login [email password redirect-to]
   (let [email (string/lower-case email)]
     (if (db/correct-password? email password)
       (do (log/info email "logged in")
-          (-> (response/redirect "/")
+          (-> (response/redirect (or redirect-to "/"))
               (update :session assoc ::user-id email)))
-      (log/info email "login failed!")
-      )))
+      (log/info email "login failed!"))))
 
 (defn handle-logout []
   (-> (response/redirect "/")
@@ -82,7 +99,14 @@
 (defroutes auth-routes
   (GET "/login" [target flash]
     (login-form target flash))
-  
+
+  (GET "/token/:token" [token]
+    ;; since the token is sent by email, knowing it is as good as a password.
+    ;; we want to go to the user settings page when we handle it.
+    (when-let [user-id (db/verify-reset-token token)]
+      (-> (response/redirect "/settings")
+          (update :session assoc ::user-id user-id))))
+    
   (POST "/login" [username password redirect-to
                   create login forgot]
     (cond
@@ -95,11 +119,11 @@
       (handle-login username password redirect-to)
 
       forgot
-      1
-      ;; deal with forgot token
-      
-      )
+      (do (db/emit-reset-token! username)
+          (response/redirect "/login?flash=check-mail")))
+    
     )
 
   (GET "/logout" []
-       (handle-logout)))
+    (handle-logout)))
+

@@ -19,7 +19,7 @@
          )
        [:div
         [:h1 "You have no projects"]
-        [:span "Click " [:em "New Project"] " to begin"]
+        [:div "Click " [:em "New Project"] " to begin"]
         ]
        )
      ]

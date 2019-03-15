@@ -12,6 +12,7 @@
             [honeysql-postgres.helpers :as p]
             [clojure.string :as string]
             [clojure.data.json :as json])
+  
   (:import [org.postgresql.util PGobject]))
 
 (defstate conn
@@ -49,7 +50,7 @@
 (defmacro with-connection
   "Run some computation with a connection open and bound, closing it afterwards."
   [[binding] & compute]
-  `(with-open [~binding (jdbc/connection conn)]
+  `(with-open [~binding ^java.io.Closeable (jdbc/connection conn)]
      ~@compute))
 
 (defn execute!
@@ -64,6 +65,19 @@
    (let [query (if (map? query) (sql/format query) query)]
      (try
        (jdbc/execute conn query)
+       (catch Exception e
+         (log/error e "Exception executing query: " query)
+         (throw e))))))
+
+(defn fetch-one!
+  ([query]
+   (with-connection [conn] (fetch-one! query conn)))
+  ([query conn]
+   (let [query (if (map? query) (sql/format query) query)]
+     (try
+       (jdbc/fetch-one
+        conn query
+        {:identifiers normalize-column-name})
        (catch Exception e
          (log/error e "Exception executing query: " query)
          (throw e))))))
@@ -89,8 +103,9 @@
 
 (defn insert-one!
   ([table record]
-   (with-connection [conn] (insert-one! record table conn)))
+   (with-connection [conn] (insert-one! table record conn)))
   ([table record conn]
+   {:pre [(keyword? table) (map? record)]}
    (-> (h/insert-into table)
        (h/values [record])
        (p/returning :id)
@@ -107,3 +122,4 @@
     (cond-> (.getValue pgobj)
       (= "json" (.getType pgobj))
       (json/read-str :key-fn #(keyword (normalize-column-name %))))))
+

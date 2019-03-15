@@ -20,10 +20,6 @@
   :stop
   (and server (server :timeout 100)))
 
-(defstate queue-consumer
-  :start
-  (queue/consume :problems solver/consume-problem))
-
 (defn -main [& args]
   (log/info "Starting THERMOS application")
   (mount/start)

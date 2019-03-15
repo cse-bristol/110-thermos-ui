@@ -63,8 +63,10 @@
     cljsjs/react-virtualized {:mvn/version "9.11.1-1"
                               :exclusions [cljsjs/react cljsjs/react-dom]}
     cljsjs/leaflet-draw {:mvn/version "0.4.12-0"}
-    reagent {:mvn/version "0.7.0"}
-    re-com {:mvn/version "0.9.0"}
+    reagent {:mvn/version "0.8.1"}
+    re-com {:mvn/version "2.4.0"}
+
+    com.cognitect/transit-cljs {:mvn/version "0.8.256"}
     }
    }
 
@@ -108,10 +110,13 @@
     buddy/buddy-hashers {:mvn/version "1.3.0"}
 
     com.draines/postal {:mvn/version "2.0.2"}
+
+    com.cognitect/transit-clj {:mvn/version "0.8.313"}
     }}}
  
  :deps
  {org.clojure/clojure {:mvn/version "1.9.0"}
   org.clojure/core.async {:mvn/version "0.3.443"}
   org.clojure/tools.reader {:mvn/version "1.3.0"}}
+ 
  }

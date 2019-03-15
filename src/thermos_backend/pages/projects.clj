@@ -1,56 +1,72 @@
 (ns thermos-backend.pages.projects
-  (:require [thermos-backend.pages.common :refer [page]]))
+  (:require [thermos-backend.pages.common :refer [page]]
+            [thermos-pages.common :refer [style]]
+            [thermos-pages.projects :refer [project-page-body]]))
 
 (defn new-project-page []
   (page
    {:title "New Project"}
-   [:form {:method :POST}
-    [:input {:name "name" :type "text" :placeholder "Project name"}]
+   [:form.flex-rows {:method :POST
+           
+           }
+    [:input
+     {:style (style :border "1px #aaa solid"
+                    :font-size :2em
+                    :border-radius :5px
+                    :padding :5px
+                    :margin-bottom :0.5em
+                    )
+
+      :name "name" :type "text" :placeholder "Project name"}]
     [:div
-     [:textarea {:name "description" :rows 5 :placeholder "Project description"}]]
-    [:div
-     [:h2 "Project members"]
-     ;; this needs some js glued onto it really
-     [:textarea {:name "members" :rows 5 :placeholder "Joe Smith <joe@smith.com>"}]]
-    [:div
-     [:input {:type :submit :value "Create Project"}]]]))
+     [:textarea {:style (style :width :100%
+                               :padding :5px
+                               :font-family :Sans)
+                 :name "description" :rows 5 :placeholder "Project description"}]]
+    [:div {:style (style :margin-bottom :0.5em)}
+     [:div "Project members"]
+     [:textarea {:style (style :width :100%
+                               :padding :5px
+                               :font-family :Sans)
+                 :name "members" :rows 5 :placeholder "Joe Smith <joe@smith.com>"}]]
+    [:div.flex-rows
+     [:input.button
+      {:style (style :margin-left :auto)
+       :type :submit :value "Create Project"}]]]))
 
 (defn project-page [project]
-  (page {:title (:name project)}
-        [:div
-         [:div.card (:description project)]
-         (if-let [maps (seq (:maps project))]
-           (for [m maps]
-             [:div.card
-              [:h1 (:name m)]
-              [:span "Info about this map should go here, like a picture or bbox"]
-              (if-let [problems (seq (:problems m))]
-                (for [p problems]
-                  [:div.card
-                   [:h1 (:name p)]
-                   [:span "Info about a network should go here perhaps"]
-                   ])
-                [:div
-                 "This map has no network designs associated with it yet."])
-              [:a {:href (str "map/" (:id m) "/network/new")}
-               "New network"
-               ]
-              ])
-           [:div
-            "This project has no maps in it yet. "
-            "Get started by creating a new map:"]
-           
-           )
-         
-         [:a {:href "map/new"} "New map"]
-         ]
-        )
-  )
+  ;; TODO filter out delete links for non-admin users
+  (page {:title (:name project) :js ["/js/projects.js"]}
+        (project-page-body project)))
 
-(defn new-map-page [project]
-  (page {:title (str "New map for " (:name project))}
+(defn delete-project-page [project wrong-name]
+  (page {:title (str "Delete " (:name project) "?")}
+        [:div "Do you really want to delete this project?"]
+        [:div "This will delete everything related to it:"
+         [:ul
+          (for [m (:maps project)]
+            [:li [:b (:name m)] " (map)"
+             [:ul
+              (for [n (:networks m)]
+                [:li [:b (:name n)] " (network)"])]])]]
         [:div
-         "this is the import page really"
-         ]
+         {:style (style :margin-bottom :1em)}
+         "If you really want to delete the project enter its name "
+         [:span {:style (style :font-family :Monospace
+                               :font-size :2em
+                               :border "1px #aaa solid"
+                               :background "#fff")}
+          (:name project)]
+         " below and click delete"]
+        (when wrong-name
+          [:div "The project name was not entered correctly. "
+           "You need to enter the project name below to delete the project."])
+        [:div
+         [:form {:method :POST}
+          [:input {:style (style :font-size :2em
+                                 :background "#faa"
+                                 :color :black)
+                   :type :text :name :project-name}]
+          [:input.button.button--danger {:type :submit :value "DELETE"}]]]
         )
   )

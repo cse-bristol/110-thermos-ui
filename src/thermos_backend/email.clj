@@ -1,0 +1,58 @@
+(ns thermos-backend.email
+  "Stuff for emailing people about their user account & jobs"
+  (:require [postal.core :as postal]
+            [thermos-backend.config :refer [config]]))
+
+(defn- send-message [message]
+  (postal/send-message
+   (cond-> {}
+     (:smtp-host config)
+     (assoc :host (:smtp-host config))
+     (:smtp-port config)
+     (assoc :port (Integer/parseInt (:smtp-port config)))
+     (:smtp-user config)
+     (assoc :user (:smtp-user config))
+     (:smtp-password config)
+     (assoc :pass (:smtp-password config))
+     (:smtp-ssl config)
+     (assoc :ssl (= "true" (:smtp-ssl config)))
+     (:smtp-tls config)
+     (assoc :tls (= "true" (:smtp-tls config))))
+   
+   (assoc message :from (:smtp-from-address config))))
+
+(defn- format-token [token]
+  (str (:base-url config) "/token/" token))
+
+(defn send-password-reset-token [user token]
+  (send-message
+   {:to user
+    :subject "THERMOS password reset"
+    :body (str
+           "To reset your THERMOS password, visit:\n\n"
+           (format-token token)
+           "\n\n"
+           "If you have not forgotten your password you can safely ignore this.")}))
+
+(defn send-invitation-message
+  "Send an invitation to join a project to a user.
+  If `token` is not nil, it's assumed the account is newly created by
+  the invitation, and the token will be included in the email so they
+  can log in."
+  [user invited-by project-name
+   token]
+  (postal/send-message
+   {:to user
+    :body
+    (if token
+      (str
+       invited-by " has invited you to use THERMOS, a heat network modelling tool, "
+       "to work on a project called " project-name "\n\n"
+       "If you are interested, you can login by visiting:\n\n"
+       (format-token token)
+       "\n"
+       "If not, you can safely ignore this message.")
+
+      (str
+       invited-by " has invited you to a THERMOS project called " project-name "."
+       ))}))

@@ -2,17 +2,16 @@
   :output-dir "target/resources/public/js/editor.out"
   :output-to "target/resources/public/js/editor.js"
   :asset-path "/js/editor.out"
-  :externs ["externs/leaflet-extra.js"]
-  }
+  :externs ["externs/leaflet-extra.js"]}
  {:main thermos-frontend.pages.database-import
   :output-dir "target/resources/public/js/database_import.out"
   :output-to "target/resources/public/js/database_import.js"
   :asset-path "/js/database_import.out"}
- {:main thermos-frontend.pages.problems-list
-  :output-dir "target/resources/public/js/problems_list.out"
-  :output-to "target/resources/public/js/problems_list.js"
-  :asset-path "/js/problems_list.out"}
-{:main thermos-frontend.pages.help
- :output-dir "target/resources/public/js/help.out"
- :output-to "target/resources/public/js/help.js"
- :asset-path "/js/help.out"}]
+ {:main thermos-frontend.pages.projects
+  :output-dir "target/resources/public/js/projects.out"
+  :output-to "target/resources/public/js/projects.js"
+  :asset-path "/js/projects.out"}
+ {:main thermos-frontend.pages.help
+  :output-dir "target/resources/public/js/help.out"
+  :output-to "target/resources/public/js/help.js"
+  :asset-path "/js/help.out"}]
