@@ -7,7 +7,7 @@
 {
   network.description = "THERMOS dev database server";
 
-  thermos-app = {pkgs, config, ...} :
+  thermos-server = {pkgs, config, ...} :
   let
     pg = pkgs.postgresql;
   pgis = pkgs.postgis.override { postgresql = pg; };

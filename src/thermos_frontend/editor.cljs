@@ -77,7 +77,7 @@
                  {:style {:width :100%}}
                  [network-candidates-panel/component document]]
        ])
-    
+
     )
   (defn main-page []
     (r/with-let [selected-tab (r/cursor state/state [::view/view-state ::view/selected-tab])
@@ -91,7 +91,7 @@
                                                   (not (.contains popover-menu-node e.target)))
                     ]
                 (when click-is-outside-popover (popover/close!))))
-            
+
             close-table-filter
             (fn [e]
               (when (operations/table-filter-open? @state/state)
@@ -133,9 +133,9 @@
                                assoc-in
                                [::view/view-state ::view/selected-tab]
                                :solution)))))
-           
+
            (reset! last-run-state run-state)
-           
+
            (when (#{:running :ready} run-state)
              [:div
               {:style {:position :absolute
@@ -150,7 +150,7 @@
                (if (= :ready run-state)
                  [:span "Number " (state/queue-position) " in queue"]
                  [:span "Running..."])]]))
-         
+
          (case (or @selected-tab :candidates)
            :candidates
            [map-page state/state]
@@ -160,18 +160,18 @@
 
            :solution
            [solution-view/component state/state]
-           
+
            :help
            [:iframe {:src "/help/index.html"
-                     :style {:height :500px
+                     :style {:height :100%
                              :width :100%
                              :margin 0
                              :padding 0
                              :border :none}
                      }]
-           
+
            )
-         
+
          [popover/component state/state]
          [toaster/component]]
         )))
