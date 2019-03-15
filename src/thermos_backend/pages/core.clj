@@ -6,6 +6,7 @@
             [thermos-backend.pages.user-settings :refer [settings-page]]
             [thermos-backend.pages.projects :refer [new-project-page project-page delete-project-page]]
             [thermos-backend.pages.maps :refer [create-map-form delete-map-page]]
+            [thermos-backend.pages.help :refer [help-page]]
             [thermos-backend.pages.editor :refer [editor-page]]
             [ring.util.response :as response]
 
@@ -99,6 +100,9 @@
 (defroutes page-routes
   (GET "/favicon.ico" [] (response/resource-response "/public/favicon.ico"))
 
+  (GET "/help" []
+    (help-page))
+  
   (auth/restricted
    {:logged-in true}
    (GET "/" []

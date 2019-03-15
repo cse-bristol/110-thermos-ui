@@ -29,14 +29,21 @@
      [:span {:style {:display :flex :margin-right :auto}}
       (for [tab (filter identity tabs)]
 
-        [(if (= (:key tab) selected-tab)
-           :button.button--tab.button--tab--selected
-           :button.button--tab
-           )
-         {:key (:key tab)
-          :on-click #(on-tab-switch (:key tab))
-          }
-         (:label tab)]
+        [(cond
+           (:href tab) :a
+           (= (:key tab) selected-tab) :button.button--tab.button--tab--selected
+           :else :button.button--tab)
+         
+         (cond
+           (:href tab) {:href (:href tab) :target "_blank"
+                        :style {:display :flex}}
+           :else {:key (:key tab) :on-click #(on-tab-switch (:key tab))})
+
+         (cond
+           (:href tab) [:button.button--tab (:label tab)]
+           :else (:label tab))
+         
+         ]
         )
       ]
 

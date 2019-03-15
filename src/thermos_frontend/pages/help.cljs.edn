@@ -1,5 +1,0 @@
-{:require [thermos-frontend.pages.help]
- :compiler-options {
-                    :output-dir "public/js/help.out"
-                    :output-to "public/js/help.js"
-                    :asset-path "/js/help.out"}}

@@ -110,7 +110,7 @@
           {:key :candidates :label "Map"}
           {:key :parameters :label "Options"}
           (when @has-solution? {:key :solution :label "Result"})
-          {:key :help :label "Help"}
+          {:key :help :label "Help" :href "/help"}
           ]
          }]
 
@@ -139,18 +139,7 @@
          [model-parameters/parameter-editor state/state]
 
          :solution
-         [solution-view/component state/state]
-         
-         :help
-         [:iframe {:src "/help/index.html"
-                   :style {:height :500px
-                           :width :100%
-                           :margin 0
-                           :padding 0
-                           :border :none}
-                   }]
-         
-         )
+         [solution-view/component state/state])
        
        [popover/component state/state]
        [toaster/component]]

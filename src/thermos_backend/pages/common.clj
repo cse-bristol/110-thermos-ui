@@ -19,11 +19,13 @@
          (json/write-str values)
          ";\n"))])
 
-(defmacro page [atts & body]
+(defmacro page [{:keys [title body-style css js]
+                 :or {body-style {:margin "1em"}}}
+                & body]
   `(str
     (html
      [:head
-      [:title (str "THERMOS: " ~(:title atts))]
+      [:title (str "THERMOS: " ~title)]
       (when (and *current-uri*
                  (not (.endsWith *current-uri* "/")))
         [:base {:href (str *current-uri* "/")}])
@@ -37,12 +39,12 @@
           (str "var ring_anti_forgery = " (json/write-str aft#) ";\n"))])
       
       (include-css "/css/common.css" source-sans-pro
-                   ~@(:css atts))
+                   ~@css)
       ]
      [:body.flex-rows
       [:header.flex-cols {:style (style :flex-shrink 0 :flex-grow 0)}
        
-       [:h1  "THERMOS - " ~(:title atts)]
+       [:h1  "THERMOS - " ~title]
        [:span.menu {:style (style :margin-left :auto)}
         [:button {:style (style :vertical-align :middle)}
          [:img {:style (style :vertical-align :middle)
@@ -52,16 +54,16 @@
         [:div
          [:div [:a {:href "/"} "Home"]]
          [:div [:a {:href "/settings"} "Settings"]]
-         [:div "Help"]
+         [:div [:a {:href "/help"} "Help"]]
          [:div [:a {:href "/logout"} "Logout"]]]]
        ]
       [:div#page-body.flex-grow
-       {:style {:margin "1em"}}
+       {:style ~body-style}
        ~@body]
       ;; [:footer
       ;;  "Some footer stuff"]
 
-      ~@(for [js-file (:js atts)] `(include-js ~js-file))
+      ~@(for [js-file js] `(include-js ~js-file))
       ])))
 
 (defn anti-forgery-field
