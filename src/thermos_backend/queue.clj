@@ -163,6 +163,9 @@
   (.interrupt ^Thread poll-thread))
 
 (defn consume
+  "Add a consumer function to the given queue.
+  While the queue system is running, this function will be called with
+  jobs posted on the queue."
   ([queue-name consumer] (consume queue-name 10 consumer))
   ([queue-name capacity consumer]
    (swap! consumers assoc queue-name {:consumer consumer :capacity capacity})))

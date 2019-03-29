@@ -11,6 +11,9 @@
 - [ ] Show running count only when enqueued
 * TODO Identify solutions & past versions in project page
 Perhaps a button in the widget that expands it to be bigger
+Or maybe put the history in the page?
+This is effectively name + map_id as key
+
 * TODO Button to delete networks
 * TODO Show running jobs in project page
 * DONE Show import progress in project page
@@ -49,3 +52,4 @@ Transforming the hiccup input server-side would work but any server-side compone
 This is probably roughly acceptable with a bit of work.
 
 Alternatively use someone else's thing (rum) which allegedly works already.
+* TODO Use better diversity curve shape

@@ -1,0 +1,51 @@
+@import (less) "cljsjs/leaflet/common/leaflet.inc.css";
+@import (less) "cljsjs/leaflet-draw/common/leaflet-draw.inc.css";
+// Putting in the icons in the control which are missing
+@import (less) "external/leaflet_draw.less";
+
+div.search {
+    position:relative;
+
+    div.results {
+        z-index:2000;
+        background:#fff;
+        position:absolute;
+        left:0;
+        box-shadow: #ddd 2px 2px 50px 4px;
+        border-bottom: 1px #ccc solid;
+        border-left: 1px #ccc solid;
+        border-right: 1px #ccc solid;
+        div.result {
+            cursor:pointer;
+        }
+
+        div.result:hover {
+            background:#ddd;
+        }
+    }
+}
+
+div.drop-target {
+    font-size: 1.5em;
+    border: 3px #eee dashed;
+    label {
+        color: #66f;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    label:hover {
+        text-decoration:underline;
+    }
+}
+
+div.drop-target.dragging {
+    background:#ccc;
+}
+
+dt {
+    font-weight:bold;
+}
+
+dl {
+    font-size:1.2em;
+}

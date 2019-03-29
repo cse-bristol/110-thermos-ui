@@ -20,7 +20,7 @@ CREATE TABLE users (
    id text not null primary key,   -- email address
    name text not null, -- display name
    auth user_auth not null, -- user type
-   password text not null,
+   password text,
    reset_token text
 )
 --;;

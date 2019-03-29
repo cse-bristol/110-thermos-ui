@@ -2,7 +2,10 @@
   "Stuff for emailing people about their user account & jobs"
   (:require [postal.core :as postal]
             [thermos-backend.config :refer [config]]
-            [clojure.tools.logging :as log]))
+            [clojure.tools.logging :as log]
+            [thermos-backend.queue :as queue]))
+
+;; emails are processed on the queue - no idea if this is good
 
 (defn- send-message [message]
   (let [smtp-config
@@ -26,11 +29,16 @@
          (catch Exception e
            (log/error e "Unable to send message" config smtp-config message)))))
 
+(defn- queue-message [message]
+  (queue/enqueue :emails message))
+
+(queue/consume :emails send-message)
+
 (defn- format-token [token]
   (str (:base-url config) "/token/" token))
 
 (defn send-password-reset-token [user token]
-  (send-message
+  (queue-message
    {:to user
     :subject "THERMOS password reset"
     :body (str
@@ -46,8 +54,9 @@
   can log in."
   [user invited-by project-name
    token]
-  (postal/send-message
+  (queue-message
    {:to user
+    :subject (str "Invitation to THERMOS project " project-name)
     :body
     (if token
       (str

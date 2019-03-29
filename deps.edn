@@ -21,6 +21,8 @@
      :sha "dca97f9680a6ea204a2504c4414cafc4ba182a83"
      :tag "0.0.6"}
 
+    ring/ring-devel               {:mvn/version "1.7.1"}
+    
     org.clojure/tools.cli         {:mvn/version "0.4.1"}
     proto-repl                    {:mvn/version "0.3.1"}
     nrepl/nrepl                   {:mvn/version "0.6.0"}
@@ -65,7 +67,8 @@
     cljsjs/leaflet-draw {:mvn/version "0.4.12-0"}
     reagent {:mvn/version "0.8.1"}
     re-com {:mvn/version "2.4.0"}
-
+    sablono {:mvn/version "0.8.5"}
+    
     com.cognitect/transit-cljs {:mvn/version "0.8.256"}
     }
    }
@@ -112,11 +115,16 @@
     com.draines/postal {:mvn/version "2.0.2"}
 
     com.cognitect/transit-clj {:mvn/version "0.8.313"}
+
+    metosin/muuntaja {:mvn/version "0.6.3"}
     }}}
  
  :deps
  {org.clojure/clojure {:mvn/version "1.9.0"}
   org.clojure/core.async {:mvn/version "0.3.443"}
-  org.clojure/tools.reader {:mvn/version "1.3.0"}}
- 
+  org.clojure/tools.reader {:mvn/version "1.3.0"}
+  net.cgrand/macrovich {:mvn/version "0.2.1"}
+  com.rpl/specter {:mvn/version "1.1.2"}
+  rum {:mvn/version "0.11.3"}
+  cljs-ajax {:mvn/version "0.8.0"}}
  }

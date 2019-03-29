@@ -47,6 +47,22 @@
 (defn- normalize-column-name ^String [^String c]
   (-> c (string/lower-case) (.replace \_ \-)))
 
+(def ignore-close
+  (reify
+    java.io.Closeable
+    (close [_])))
+
+(defmacro or-connection
+  "Run some computation with a connection open and bound, closing it afterwards.
+  If the connection is already there, just run the computation"
+  {:style/indent :defn}
+  [[binding] & compute]
+  `(with-open [maybe-nothing#
+               ^java.io.Closeable
+               (if ~binding ignore-close (jdbc/connection conn))]
+     (let [~binding (or ~binding maybe-nothing#)]
+       ~@compute)))
+
 (defmacro with-connection
   "Run some computation with a connection open and bound, closing it afterwards."
   [[binding] & compute]

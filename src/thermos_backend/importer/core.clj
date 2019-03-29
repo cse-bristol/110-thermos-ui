@@ -11,13 +11,15 @@
             [thermos-importer.lidar :as lidar]
             [thermos-importer.svm-predict :as svm]
             [thermos-importer.spatial :as topo]
+            [thermos-importer.util :refer [has-extension file-extension]]
 
             [thermos-backend.db.maps :as db]
             
             [clojure.data.json :as json]
             [clojure.string :as str]
             [clojure.data.csv :as csv]
-            [thermos-importer.spatial :as spatial])
+            [thermos-importer.spatial :as spatial]
+            [clojure.string :as string])
   (:import [org.locationtech.jts.geom
             Envelope
             GeometryFactory
@@ -498,3 +500,44 @@
           (status "Finished!")))))
 
 (queue/consume :imports 1 run-import)
+
+(defn- primary-file [file-or-directory]
+  (cond
+    (.isDirectory file-or-directory)
+    (let [contents (.listFiles file-or-directory)
+          n (count contents)]
+      (cond
+        (zero? n) nil
+        (= 1 n) (first contents)
+        :else (first
+               (filter
+                #(has-extension % "shp")
+                contents))))
+    (.isFile file-or-directory) file-or-directory))
+
+(defn get-file-info [file-or-directory]
+  (let [file (-> file-or-directory io/file primary-file)]
+    (when file
+      ;; try and open the file and get info on it!!!
+      (let [extension (file-extension file)]
+        (cond
+          (geoio/can-read? file)
+          ;; get geospatial info
+          (let [{features ::geoio/features} (geoio/read-from file :key-transform identity) 
+                all-keys (into #{} (mapcat keys features))
+                geometry-types (into #{} (map ::geoio/type features))]
+            {:keys (set (filter string? all-keys))
+             :geometry-types geometry-types})
+          
+          (= "csv" extension)
+          {:keys (set
+                  (with-open [r (io/reader file)]
+                    (first (csv/read-csv r))))}
+          
+
+          (or (= "tsv" extension)
+              (= "tab" extension))
+          {:keys (set
+                  (with-open [r (io/reader file)]
+                    (first (csv/read-csv r :separator \t))))})))))
+

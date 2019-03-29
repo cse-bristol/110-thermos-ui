@@ -2,9 +2,11 @@
   (:require [compojure.core :refer :all]
             [compojure.route :as route]
             [compojure.middleware :refer [wrap-canonical-redirect]]
-
+            [muuntaja.middleware :as muuntaja]
+            
             [ring.middleware.defaults :refer [wrap-defaults site-defaults api-defaults]]
-
+            [ring.middleware.stacktrace :refer [wrap-stacktrace]]
+            
             [ring.logger :as logger]
             [clojure.tools.logging :as log]
             [thermos-backend.config :refer [config]]
@@ -34,42 +36,31 @@
   :start
   (-> site-routes
       ;;(wrap-canonical-redirect)
+      (wrap-stacktrace)
       (auth/wrap-auth)
       (current-uri/wrap-current-uri)
+      (muuntaja/wrap-params)
+      (muuntaja/wrap-format)
       (wrap-defaults (-> site-defaults
                          (assoc-in [:security :anti-forgery] false)))
-      (wrap-no-cache)
-;      (wrap-canonical-redirect)
-      ))
+      (wrap-no-cache)))
 
-;; (in-ns 'compojure.middleware)
-
-
-;; (defn wrap-canonical-redirect
-;;   "Middleware that permanently redirects any non-canonical route to its
-;;   canonical equivalent, based on a make-canonical function that changes a URI
-;;   string into its canonical form. If not supplied, the make-canonical function
-;;   will default to [[remove-trailing-slash]]."
-;;   ([handler]
-;;    (wrap-canonical-redirect handler remove-trailing-slash))
-;;   ([handler make-canonical]
-;;    (let [redirect-handler (wrap-routes handler (constantly redirect-to-canonical))]
-;;      (fn
-;;        ([{uri :uri :as request}]
-;;         (println "maybe redirect")
-;;         (let [canonical-uri (make-canonical uri)]
-;;           (if (= uri canonical-uri)
-;;             (do
-;;               (println "dont redirect")
-;;               (handler request))
-;;             (do
-;;               (println "do redirect")
-;;               (redirect-handler (assoc-path request canonical-uri))))))
-;;        ([{uri :uri :as request} respond raise]
-;;         (let [canonical-uri (make-canonical uri)]
-;;           (if (= uri canonical-uri)
-;;             (do (println "no redir 2")
-;;                 (handler request respond raise))
-;;             (do (println "do redir 2")
-;;                 (redirect-handler (assoc-path request canonical-uri) respond raise)))))))))
-
+(comment
+  (let [h (fn [r]
+            (println r)
+            {:status 200 :body {:hello :world}})
+        h (-> h
+              (muuntaja/wrap-params)
+              (muuntaja/wrap-format)
+              (wrap-defaults
+               (-> site-defaults
+                   (assoc-in [:security :anti-forgery] false)))
+              
+              )
+        ]
+    
+    (h {:headers {"accept" "application/transit+json"}
+        :body "asdf"})
+    )
+  
+  )

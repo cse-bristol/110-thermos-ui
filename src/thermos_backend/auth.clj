@@ -32,17 +32,24 @@
      user :user
      project :project
      project-admin :project-admin
-     sysadmin :sysadmin}
+     sysadmin :sysadmin
+     :as restrict}
     this-user]
-   (and (or (not logged-in) this-user)
-        (or (not user)
-            (= user (:id this-user)))
-        (or (not project)
-            (contains? (:projects this-user) project))
-        (or (not project-admin)
-            (= :admin (get-in this-user [:projects project :auth] )))
-        (or (not sysadmin)
-            (= :admin (:auth this-user))))))
+   
+   (let [result (and (or (not logged-in) this-user)
+                     (or (not user)
+                         (= user (:id this-user)))
+                     (or (not project)
+                         (contains? (:projects this-user) project))
+                     (or (not project-admin)
+                         (= :admin (get-in this-user [:projects project-admin :auth] )))
+                     (or (not sysadmin)
+                         (= :admin (:auth this-user))))]
+     (when-not result
+       (log/warn "Authorization failure" this-user restrict)
+       )
+     result)))
+
 
 (defn- do? [stuff]
   (if (seq (rest stuff))

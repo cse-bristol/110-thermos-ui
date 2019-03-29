@@ -7,7 +7,9 @@
    :json_build_object
    (map-indexed
     #(if (even? %1)
-       (name %2)
+       (name %2) ;; TODO it would be nice to inline this
        %2)
     kvs)))
 
+(defn agg [v]
+  (sql/call :json_agg v))

@@ -8,7 +8,8 @@
             [honeysql-postgres.format]
             [clojure.string :as string]
             [jdbc.core :as jdbc]
-            [honeysql.core :as sql]))
+            [honeysql.core :as sql]
+            [com.rpl.specter :refer :all]))
 
 (defn- join-json [& fields]
   (sql/call
@@ -28,11 +29,6 @@
              (flatten (for [f fields]
                         [(last (.split (name f) "\\.")) f])))))))
 
-
-(comment
-  (get-project 10)
-  )
-
 (defn get-project
   "Select project details for `project-id`.
   A bit of an omni-join which is not beautiful.
@@ -43,20 +39,20 @@
   {:pre [(int? project-id)]}
   (-> (h/select :projects.*
                 [(join-json :maps.*) :maps]
-                [(sql/call
-                  :json_agg
-                  (-> (h/select
+                [(-> (h/select
+                      
+                      (json/agg
                        (json/build-object
                         :id :users.id
                         :name :users.name
-                        :auth :users-projects.auth))
-                      
-                      (h/from :users)
-                      (h/join :users-projects
-                              [:= :users.id
-                               :users-projects.user-id])
-                      (h/where [:= :users-projects.project-id
-                                :projects.id])))
+                        :auth :users-projects.auth)))
+                     
+                     (h/from :users)
+                     (h/join :users-projects
+                             [:= :users.id
+                              :users-projects.user-id])
+                     (h/where [:= :users-projects.project-id
+                               :projects.id]))
                  :users])
       
       (h/from :projects)
@@ -76,7 +72,13 @@
       (h/group :projects.id)
       (h/where [:= :projects.id project-id])
       (db/fetch!)
-      (first)))
+      (first)
+
+      ;; these are specter functions used to tidy up / group a bit.
+      (->>
+       (transform [:users ALL :auth] keyword)
+       (transform [:maps ALL :networks] #(group-by :name %))
+       (setval [:maps ALL :networks MAP-VALS ALL :name] NONE))))
 
 (defn create-project!
   "Create a new project with the given `name` and `description`.
@@ -119,17 +121,12 @@
     
     ;; 2. ensure the users exist, and send them invitations if need be
     ;;    the creator should already exist.
-    (run! #(users/invite! (:name creator) % project) users)
+    (when (seq users)
+      (users/invite! project-id creator users))
 
     ;; 3. give the users read-auth on the project
     (let [users (conj users (assoc creator :auth :admin))]
-      (-> (h/insert-into :users-projects)
-          (h/values (for [{e :id a :auth} users]
-                      {:project-id project-id
-                       :user-id e
-                       :auth (sql/call :project_auth
-                                       (name (or a :read)))}))
-          (db/execute!)))
+      (users/authorize! project-id users))
 
     project-id))
 
@@ -191,3 +188,46 @@
   (-> (h/delete-from :projects)
       (h/where [:= :id project-id])
       (db/execute!)))
+
+(defn set-users!
+  "Set the authority of the given users for the given project.
+  - `users` should be a list of maps having
+    - :id - the user email address
+    - :auth - the user's authority
+
+  If a user does not exist, they will be created and sent an email
+  If they do exist, but are not on the project, they will be put on and sent an email
+  If they exist and are on the project their authority will be set, unless this leaves the project with no admin.
+  If this is what would happen all the current admins are retained.
+  Any users currently on the project who are not in the list will be removed, subject to the same proviso.
+  "
+  [project-id current-user users & [conn]]
+  (db/or-connection [conn]
+    (let [current-users (-> (h/select :*)
+                            (h/from :users-projects)
+                            (h/where [:= :project-id project-id])
+                            (db/fetch! conn))
+
+          any-admins? (some #{:admin} (map :auth users))
+          existing-admins (filter (comp #{:admin} :auth) current-users)
+          
+          users (if any-admins?
+                  users
+                  (concat users existing-admins))
+          
+          desired-user-ids (set (map :id users))
+          current-user-ids (set (map :user-id current-users))
+          
+          users-to-invite (remove (comp current-user-ids :id) users)
+          users-to-remove (remove (comp desired-user-ids :user-id) current-users)
+          ]
+      (log/info "Remove" users-to-remove "from" project-id)
+      (log/info "Invite" users-to-invite "to" project-id)
+      (log/info "Authorize" users "for" project-id)
+      (jdbc/atomic
+       conn
+       (users/uninvite! project-id (map :user-id users-to-remove) conn)
+       (users/invite! project-id current-user users-to-invite conn)
+       (users/authorize! project-id users conn)))))
+
+

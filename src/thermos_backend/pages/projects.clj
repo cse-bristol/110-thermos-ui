@@ -1,14 +1,15 @@
 (ns thermos-backend.pages.projects
   (:require [thermos-backend.pages.common :refer [page]]
             [thermos-pages.common :refer [style]]
-            [thermos-pages.projects :refer [project-page-body]]))
+            [hiccup.util :refer [raw-string]]
+            [thermos-pages.project-components :refer [project-page-body
+                                                      delete-project-widget]]
+            [rum.core :as rum]))
 
 (defn new-project-page []
   (page
    {:title "New Project"}
-   [:form.flex-rows {:method :POST
-           
-           }
+   [:form.flex-rows {:method :POST}
     [:input
      {:style (style :border "1px #aaa solid"
                     :font-size :2em
@@ -37,36 +38,12 @@
 (defn project-page [project]
   ;; TODO filter out delete links for non-admin users
   (page {:title (:name project) :js ["/js/projects.js"]}
-        (project-page-body project)))
+        (raw-string
+         (rum/render-html (project-page-body project)))))
 
 (defn delete-project-page [project wrong-name]
   (page {:title (str "Delete " (:name project) "?")}
-        [:div "Do you really want to delete this project?"]
-        [:div "This will delete everything related to it:"
-         [:ul
-          (for [m (:maps project)]
-            [:li [:b (:name m)] " (map)"
-             [:ul
-              (for [n (:networks m)]
-                [:li [:b (:name n)] " (network)"])]])]]
-        [:div
-         {:style (style :margin-bottom :1em)}
-         "If you really want to delete the project enter its name "
-         [:span {:style (style :font-family :Monospace
-                               :font-size :2em
-                               :border "1px #aaa solid"
-                               :background "#fff")}
-          (:name project)]
-         " below and click delete"]
-        (when wrong-name
-          [:div "The project name was not entered correctly. "
-           "You need to enter the project name below to delete the project."])
-        [:div
-         [:form {:method :POST}
-          [:input {:style (style :font-size :2em
-                                 :background "#faa"
-                                 :color :black)
-                   :type :text :name :project-name}]
-          [:input.button.button--danger {:type :submit :value "DELETE"}]]]
-        )
-  )
+        [:form {:method :POST}
+         (raw-string
+          (rum/render-html (delete-project-widget project wrong-name)))
+         [:input.button.button--danger {:type :submit :value "DELETE"}]]))

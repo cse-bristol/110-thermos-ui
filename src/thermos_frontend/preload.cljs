@@ -4,10 +4,14 @@
 
   This is the other half of that, providing access to them. The
   purpose is to pass some info into a cljs page without having to load
-  it and then fire off an xmlhttprequest.")
+  it and then fire off an xmlhttprequest."
+  (:require [cljs.reader :refer [read-string]]))
 
 (def preloaded-values
-  (atom (js->clj (aget js/window "thermos_preloads") :keywordize-keys true)))
+  (atom (read-string
+         (aget js/window "thermos_preloads"))))
+
+(aset js/window "thermos_preloads" nil)
 
 (defn get-value [key & {:keys [clear]}]
   (let [out (get @preloaded-values key)]

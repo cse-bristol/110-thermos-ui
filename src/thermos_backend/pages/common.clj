@@ -6,8 +6,10 @@
             [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
             [thermos-backend.current-uri :refer [*current-uri*]]
             [thermos-pages.common :refer [style]]
+            [thermos-pages.menu :refer [menu]]
             [clojure.data.json :as json]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [rum.core :as rum]))
 
 (def source-sans-pro
   "https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i,700,700i")
@@ -16,10 +18,10 @@
   [:script {:type "text/javascript"}
    (raw-string
     (str "var thermos_preloads = "
-         (json/write-str values)
+         (json/write-str (pr-str values))
          ";\n"))])
 
-(defmacro page [{:keys [title body-style css js]
+(defmacro page [{:keys [title body-style css js preload]
                  :or {body-style {:margin "1em"}}}
                 & body]
   `(str
@@ -31,6 +33,7 @@
         [:base {:href (str *current-uri* "/")}])
       [:meta {:charset "UTF-8"}]
       [:meta {:name :viewport :content "width=device-width, initial-scale=1"}]
+      (when-let [preload# ~preload] (preloaded-values preload#))
       (let [aft# (if (bound? #'*anti-forgery-token*)
                    (force *anti-forgery-token*)
                    false)]
@@ -44,19 +47,13 @@
      [:body.flex-rows
       [:header.flex-cols {:style (style :flex-shrink 0 :flex-grow 0)}
        
-       [:h1  "THERMOS - " ~title]
-       [:span.menu {:style (style :margin-left :auto)}
-        [:button {:style (style :vertical-align :middle)}
-         [:img {:style (style :vertical-align :middle)
-                :src "/favicon.ico" :width "16"}]
-         [:span {:style (style :color "#ddd")} " ▼"]]
-        
-        [:div
-         [:div [:a {:href "/"} "Home"]]
-         [:div [:a {:href "/settings"} "Settings"]]
-         [:div [:a {:href "/help"} "Help"]]
-         [:div [:a {:href "/logout"} "Logout"]]]]
-       ]
+       (menu
+        [:a {:href "/"} "Home"]
+        [:a {:href "/settings"} "Settings"]
+        [:a {:href "/help"} "Help"]
+        [:a {:href "/logout"} "Logout"])
+       [:h1  "THERMOS - " ~title]]
+      
       [:div#page-body.flex-grow
        {:style ~body-style}
        ~@body]
@@ -70,3 +67,6 @@
   "`ring.util.anti-forgery` but compatible with hiccup2"
   []
   (raw-string (anti-forgery/anti-forgery-field)))
+
+(defn prerender-rum [component]
+  (raw-string (rum/render-html component)))

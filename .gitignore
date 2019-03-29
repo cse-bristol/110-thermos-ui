@@ -15,3 +15,5 @@ pom.xml
 .lein-failures
 node_modules
 package.json
+solver-work/
+import-work/

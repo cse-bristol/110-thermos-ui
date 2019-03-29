@@ -2,10 +2,11 @@
   (:require [compojure.core :refer :all]
             [compojure.coercions :refer [as-int]]
             [thermos-backend.auth :as auth]
+            [thermos-backend.config :refer [config]]
             [thermos-backend.pages.landing-page :refer [landing-page]]
             [thermos-backend.pages.user-settings :refer [settings-page]]
             [thermos-backend.pages.projects :refer [new-project-page project-page delete-project-page]]
-            [thermos-backend.pages.maps :refer [create-map-form delete-map-page]]
+            [thermos-backend.pages.maps :as map-pages]
             [thermos-backend.pages.help :refer [help-page]]
             [thermos-backend.pages.editor :refer [editor-page]]
             [ring.util.response :as response]
@@ -18,7 +19,8 @@
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
             [thermos-backend.solver.core :as solver]
             [cognitect.transit :as transit]
-            [thermos-backend.db.users :as users])
+            [thermos-backend.db.users :as users]
+            [clojure.java.io :as io])
   
   (:import [javax.mail.internet InternetAddress]
            [java.io ByteArrayInputStream]))
@@ -97,6 +99,15 @@
     (-> (response/response (.toString stream))
         (response/content-type "application/transit+json; charset=utf-8"))))
 
+(defn- get-project [id]
+  (let [project (projects/get-project id)]
+    (assoc project :user-is-admin
+           (some #{:admin}
+                 (->> (:users project)
+                      (filter (comp #{(:id auth/*current-user*)} :id))
+                      (map :auth))
+                 ))))
+
 (defroutes page-routes
   (GET "/favicon.ico" [] (response/resource-response "/public/favicon.ico"))
 
@@ -133,11 +144,11 @@
         {:project-id project-id}
         (GET "/" []
           (project-page
-           (projects/get-project project-id)))
+           (get-project project-id)))
 
         (GET "/poll.t" []
           (transit-json-response
-           (projects/get-project project-id)))
+           (get-project project-id)))
 
         (auth/restricted
          {:project-admin project-id}
@@ -149,20 +160,43 @@
                   (string/lower-case (:name (projects/get-project project-id))))
              (do (projects/delete-project! project-id)
                  (response/redirect "/"))
-             (response/redirect "delete?wrong-name=1"))))
+             (response/redirect "delete?wrong-name=1")))
+
+         (POST "/users" [users :as r]
+           (projects/set-users! project-id auth/*current-user* users)
+           (response/redirect ".")))
         
         (context "/map" []
-          (GET "/new" [] (create-map-form))
+          (GET "/new" []
+            (map-pages/create-map-form))
 
           (POST "/new" [map-name map-description :as request]
             (when-let [map-id (maps/create-map! project-id map-name map-description)]
               (handle-map-import map-id request)
               (response/redirect "../")))
 
+          (POST "/new/add-file" [file :as {s :session}]
+            (let [files (if (vector? file) file [file])
+                  ident (str (java.util.UUID/randomUUID))
+                  target-dir (io/file (:import-directory config) ident)]
+              
+              (.mkdirs target-dir)
+
+              (doseq [file files]
+                (let [target-file ^java.io.File (io/file target-dir (:filename file))]
+                  (java.nio.file.Files/move
+                   (.toPath (:tempfile file))
+                   (.toPath target-file)
+                   (into-array java.nio.file.CopyOption []))))
+              
+              (response/response
+               (assoc (importer/get-file-info target-dir)
+                      :id ident))))
+          
           (context "/:map-id" [map-id :<< as-int]
             (auth/restricted
              {:project-admin project-id}
-             (GET "/delete" [] (delete-map-page))
+             (GET "/delete" [] (map-pages/delete-map-page))
              (POST "/delete" []
                (maps/delete-map! map-id)
                (response/redirect "../..")))
@@ -227,10 +261,5 @@
                   (when run (solver/queue-problem new-id))
                   (-> (response/created (str new-id))
                       (response/header "X-ID" new-id)))))
-            
             )))
        ))))
-
-
-
-
