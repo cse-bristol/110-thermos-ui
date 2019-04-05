@@ -1,7 +1,5 @@
 (ns thermos-backend.db
-  (:require [ragtime.jdbc]
-            [ragtime.repl]
-            [jdbc.core :as jdbc]
+  (:require [jdbc.core :as jdbc]
             [jdbc.proto :as proto]
             [clojure.tools.logging :as log]
             [honeysql.core :as sql]
@@ -11,7 +9,8 @@
             [honeysql.helpers :as h]
             [honeysql-postgres.helpers :as p]
             [clojure.string :as string]
-            [clojure.data.json :as json])
+            [clojure.data.json :as json]
+            [thermos-backend.db.migration :refer [migrate]])
   
   (:import [org.postgresql.util PGobject]))
 
@@ -22,11 +21,6 @@
                    :host     (config :pg-host)
                    :user     (config :pg-user)
                    :password (config :pg-password)}
-
-        ragtime-config
-        {:datastore (ragtime.jdbc/sql-database db-config)
-         :migrations (ragtime.jdbc/load-resources "migrations")}
-
         datasource (hikari/make-datasource
                     {:connection-timeout 30000
                      :idle-timeout 600000
@@ -39,7 +33,9 @@
                      :database-name (:dbname db-config)
                      :server-name (:host db-config)
                      :port-number 5432})]
-    (ragtime.repl/migrate ragtime-config)
+    
+    (with-open [conn (jdbc/connection datasource)]
+      (migrate conn))
     datasource)
   :stop
   (hikari/close-datasource conn))
