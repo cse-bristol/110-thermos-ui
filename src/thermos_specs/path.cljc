@@ -4,10 +4,11 @@
 (s/def ::path
   (s/and
    #(= (::type % :path))
-   (s/keys :req [::length ::cost-per-m ::start ::end ])))
+   (s/keys :req [::length ::cost-per-m ::cost-per-m-mm ::start ::end ])))
 
 (s/def ::length number?)
 (s/def ::cost-per-m number?)
+(s/def ::cost-per-m-mm number?)
 (s/def ::start string?)
 (s/def ::end string?)
 

@@ -120,15 +120,17 @@
     (case type
       :path
       (assoc basics
-             ::path/length     (o/get properties "length")
-             ::path/cost-per-m (o/get properties "unit-cost")
-             ::path/start      (o/get properties "start-id")
-             ::path/end        (o/get properties "end-id"))
+             ::path/length        (o/get properties "length")
+             ::path/cost-per-m    (o/get properties "fixed-cost")
+             ::path/cost-per-m-mm (o/get properties "variable-cost")
+             ::path/start         (o/get properties "start-id")
+             ::path/end           (o/get properties "end-id"))
       :building
       (assoc basics
              ::demand/kwh              (o/get properties "demand-kwh-per-year" nil)
              ::demand/kwp              (o/get properties "demand-kwp" nil)
              ::demand/connection-count (o/get properties "connection-count" 1)
+             ::demand/connection-cost  (o/get properties "connection-cost" 1)
              ::candidate/connections   (string/split (o/get properties "connection-ids") #",")))))
 
 (defn load-tile! [document x y z]
