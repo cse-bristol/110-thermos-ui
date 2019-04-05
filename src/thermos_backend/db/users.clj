@@ -74,9 +74,8 @@
                   (not (string/blank? password))))
          (and (string? email)
               (not (string/blank? email)))
-         (string? name)
-         (not (nil? conn))]}
-  (db/or-connection [conn]
+         (string? name)]}
+    (db/or-connection [conn]
     (jdbc/atomic
      conn
      (let [exists-already
