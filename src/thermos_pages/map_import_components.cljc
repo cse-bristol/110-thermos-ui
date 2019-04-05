@@ -129,7 +129,7 @@
     on-draw-box :on-draw-box
     map-position :map-position}]
   
-  [:div {:style {:width :100% :height :300px}
+  [:div {:style {:width :100% :height :50%}
          :ref :container}])
 
 #?(:cljs
