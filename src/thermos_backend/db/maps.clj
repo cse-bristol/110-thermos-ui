@@ -55,7 +55,7 @@
   [:map-id :id :orig-id :name :type :geometry])
 
 (def buildings-keys
-  [:map-id :id :connection-id :demand-kwh-per-year :demand-kwp :connection-count])
+  [:map-id :id :connection-id :demand-kwh-per-year :demand-kwp :connection-count :connection-cost])
 
 (def paths-keys
   [:map-id :id :start-id :end-id :length :fixed-cost :variable-cost])
@@ -155,7 +155,7 @@
 (defn get-polygon [map-id points]
   (let [query
         (-> (h/select :id :name :type :geometry :is_building
-                      :demand_kwh_per_year :demand_kwp :connection_count :connection_ids
+                      :demand_kwh_per_year :demand_kwp :connection_count :connection_ids :connection_cost
                       :start_id :end_id :length :fixed_cost :variable_cost)
             (h/from :joined_candidates) ;; this view is defined in the migration SQL
             (h/where [:and
