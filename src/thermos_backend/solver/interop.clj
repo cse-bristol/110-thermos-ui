@@ -59,10 +59,15 @@
                           net-graph
                           buildings)
 
-        ;; tag all the edges with their path IDs
+        ;; tag all the edges with their path IDs and cost parameters
         net-graph (reduce (fn [g p]
-                            (attr/add-attr g (::path/start p) (::path/end p)
-                                           :ids #{(::candidate/id p)}))
+                            (-> g
+                                (attr/add-attr (::path/start p) (::path/end p)
+                                               :ids #{(::candidate/id p)})
+                                (attr/add-attr (::path/start p) (::path/end p)
+                                               :variable-cost (::path/variable-cost p))
+                                (attr/add-attr (::path/start p) (::path/end p)
+                                               :fixed-cost (::path/fixed-cost p))))
                           net-graph
                           paths)
 
@@ -77,11 +82,10 @@
                    (filter (fn [e] (= (second e) (first e)))
                            (graph/edges net-graph)))
         
-        collapse-junction ;; this is a function to take a graph and
-        ;; delete a node, preserving the identiy
-        ;; information on the edges. This will later
-        ;; let us emit the edges into the output
-        ;; usefully.
+        collapse-junction
+        ;; this is a function to take a graph and delete a node,
+        ;; preserving the identiy information on the edges. This will
+        ;; later let us emit the edges into the output usefully.
         (fn [graph node]
           (let [edges (graph/out-edges graph node)
                 all-ids (set (mapcat #(attr/attr graph % :ids) edges))
@@ -106,7 +110,16 @@
         (loop [net-graph net-graph]
           (let [collapsible (->> (graph/nodes net-graph)
                                  (filter #(not (attr/attr net-graph % :real-vertex)))
-                                 (filter #(= 2 (graph/out-degree net-graph %))))]
+                                 (filter #(= 2 (graph/out-degree net-graph %)))
+                                 (filter (fn [v]
+                                           (let [[e1 e2] (graph/out-edges net-graph v)
+                                                 variable-cost-1 (attr/attr net-graph e1 :variable-cost)
+                                                 variable-cost-2 (attr/attr net-graph e2 :variable-cost)
+                                                 fixed-cost-1 (attr/attr net-graph e1 :fixed-cost)
+                                                 fixed-cost-2 (attr/attr net-graph e2 :fixed-cost)
+                                                 ]
+                                             (and (= variable-cost-1 variable-cost-2)
+                                                  (= fixed-cost-1 fixed-cost-2))))))]
             (if (empty? collapsible)
               net-graph
               ;; this should be OK because we are working on nodes.
@@ -159,10 +172,9 @@
     (reduce (fn [g e]
               (let [path-ids (attr/attr g e :ids)]
                 (-> g
-                    (attr/add-attr e :fixed-cost (total-value path-ids path/cost))
                     (attr/add-attr e :length (total-value path-ids ::path/length))
-                    (attr/add-attr e :requirement (total-requirement path-ids))
-                    )))
+                    (attr/add-attr e :requirement (total-requirement path-ids)))))
+            
             net-graph (graph/edges net-graph))))
 
 (defn- instance->json [instance net-graph]
@@ -217,6 +229,7 @@
                                            :let [em (candidate/emissions candidate e instance)]
                                            :when (pos? em)]
                                        [e (float em)]))
+                 :connection-cost (float (::demand/connection-cost candidate 0))
                  :heat-price (float (::demand/price candidate default-price))})
 
          (candidate/has-supply? candidate)
@@ -237,10 +250,8 @@
        {:i (first edge) :j (second edge)
         ;; :components (vec (attr/attr net-graph edge :ids))
         :length (float (or (attr/attr net-graph edge :length) 0))
-        :cost (float (let [cost (attr/attr net-graph edge :fixed-cost)
-                           length (attr/attr net-graph edge :length)]
-                       (if (zero? cost) (float cost)
-                           (/ (float cost) (float length)))))
+        :fixed-cost (float (attr/attr net-graph edge :fixed-cost))
+        :variable-cost (float (attr/attr net-graph edge :variable-cost))
         :bounds (edge-bounds edge)
         ;; the above may seem odd (dividing the cost - didn't we multiply it?)
         ;; this is because we want a unit cost for the edge.
@@ -270,6 +281,7 @@
                             ;; demand facts
                             (:heat-revenue solution-vertex)
                             (assoc ::solution/heat-revenue   (:heat-revenue solution-vertex)
+                                   ::solution/connection-cost (:connection-cost solution-vertex)
                                    ::solution/avoided-emissions (:avoided-emissions solution-vertex))
 
                             ;; supply facts
