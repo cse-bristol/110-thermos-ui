@@ -238,3 +238,7 @@
             (clojure.core/update :state keyword)
             ;; update state to a keyword?
             (assoc :after rank))))))
+
+(comment
+  (restart 98))
+

@@ -41,56 +41,18 @@
   (and x (try (Double/parseDouble x)
               (catch NumberFormatException e))))
 
-(defn- handle-map-import [map-id request]
-  (let [params (:params request)
-        {:keys [building-source
-                building-gis-files
-                
-                road-source
-                road-gis-files
-
-                degree-days
-
-                osm-area
-                
-                use-lidar
-
-                use-benchmarks
-                benchmarks-file
-                
-                road-field-map
-                building-field-map]} params
-
-        ensure-vector #(if (vector? %) % [%])
-        
-        building-gis-files (ensure-vector building-gis-files)
-        road-gis-files (ensure-vector road-gis-files)
-        benchmarks-file (ensure-vector benchmarks-file)
-
-        degree-days (as-double degree-days)
-
-        use-lidar (boolean use-lidar)
-        use-benchmarks (boolean use-benchmarks)
-        
-        road-field-map (edn/read-string road-field-map)
-        building-field-map (edn/read-string building-field-map)]
-
-    (importer/queue-import
-     (cond-> {:osm-area osm-area
-              :degree-days degree-days
-              :map-id map-id}
-       use-benchmarks    (cond-> (seq benchmarks-file)
-                           (assoc :benchmarks-file benchmarks-file)
-                           :else (assoc :default-benchmarks true))
-       use-lidar         (assoc :use-lidar true)
-
-       (not= building-source "openstreetmap")
-       (assoc :buildings-file building-gis-files
-              :buildings-field-map building-field-map)
-       
-       (not= road-source "openstreetmap")
-       (assoc :roads-file road-gis-files
-              :roads-field-map road-field-map)))))
+(defn- handle-map-creation
+  [project-id
+   {map-name :name description :description
+    :as params}]
+  {:pre [(string? map-name)
+         (string? description)
+         (not (string/blank? map-name))]}
+  (let [map-id (maps/create-map!
+                ;; why not store the args within the map object
+                project-id map-name description
+                params)]
+    (importer/queue-import {:map-id map-id})))
 
 (defn- transit-json-response [data]
   (let [stream (java.io.ByteArrayOutputStream. 1024)
@@ -170,10 +132,10 @@
           (GET "/new" []
             (map-pages/create-map-form))
 
-          (POST "/new" [map-name map-description :as request]
-            (when-let [map-id (maps/create-map! project-id map-name map-description)]
-              (handle-map-import map-id request)
-              (response/redirect "../")))
+          (POST "/new" [& params]
+            ;; body params contains the form state.
+            (handle-map-creation project-id params)
+            (response/redirect "../"))
 
           (POST "/new/add-file" [file :as {s :session}]
             (let [files (if (vector? file) file [file])

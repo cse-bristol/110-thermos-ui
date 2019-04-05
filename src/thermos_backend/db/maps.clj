@@ -9,6 +9,7 @@
             [honeysql.types :as sql-types]
             [honeysql.format :as fmt]
             [clojure.string :as string]
+            [clojure.edn :as edn]
             [clojure.tools.logging :as log]
             [thermos-backend.maps.heat-density :as heat-density]))
 
@@ -19,14 +20,27 @@
 
 (defn create-map!
   "Create a new map within the project."
-  [project-id map-name description]
+  [project-id map-name description parameters]
   {:pre [(int? project-id)
          (string? map-name)
          (string? description)
          (not (string/blank? map-name))]}
 
   (db/insert-one!
-   :maps {:project-id project-id :name map-name}))
+   :maps {:project-id project-id :name map-name
+          :parameters (pr-str parameters)}))
+
+(defn get-map
+  "Get the detail of this map.
+  Returns at least keys :project-id :name :parameters."
+  [map-id]
+  {:pre [(int? map-id)]}
+  (-> (h/select :*)
+      (h/from :maps)
+      (h/where [:= :id map-id])
+      (db/fetch!)
+      (first)
+      (update :parameters edn/read-string)))
 
 (def ^:dynamic *insert-block-size* 1000)
 
@@ -44,7 +58,7 @@
   [:map-id :id :connection-id :demand-kwh-per-year :demand-kwp :connection-count])
 
 (def paths-keys
-  [:map-id :id :start-id :end-id :length :unit-cost])
+  [:map-id :id :start-id :end-id :length :fixed-cost :variable-cost])
 
 (defn insert-into-map!
   "Insert data into a map, possibly erasing what is already there.
@@ -142,7 +156,7 @@
   (let [query
         (-> (h/select :id :name :type :geometry :is_building
                       :demand_kwh_per_year :demand_kwp :connection_count :connection_ids
-                      :start_id :end_id :length :unit_cost)
+                      :start_id :end_id :length :fixed_cost :variable_cost)
             (h/from :joined_candidates) ;; this view is defined in the migration SQL
             (h/where [:and
                       [:= :map-id map-id]

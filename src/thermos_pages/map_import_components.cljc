@@ -7,6 +7,9 @@
    [rum.core :as rum]
    [clojure.pprint :refer [pprint]]
    [clojure.set :refer [map-invert]]
+
+   [com.rpl.specter :refer [setval MAP-VALS NONE]]
+   
    #?@(:cljs
        [[thermos-pages.dialog :refer [show-dialog! close-dialog!]]
         [cljsjs.leaflet]
@@ -14,8 +17,11 @@
 
 ;; TODO make x button work on files uploaded
 ;; TODO make delete button work in joins list
-;; TODO delete invalid joins
+;; TODO delete invalid joins when things removed
 ;; TODO tick-boxes for applying defaults in OSM?
+;; TODO lockout next/previous buttons and highlight things to click
+;; TODO wire up submission
+;; TODO patch up importer on serverside
 
 (rum/defc dump < rum/reactive [form-state]
   [:pre
@@ -38,15 +44,15 @@
      [:p
       "First you need to give your map a name, and you can give it a description. "
       "This information is just to help you and your colleagues know what the map is for."]
-     [:div
-      [:label "Map name: "]
-      [:input {:placeholder "Metropolis"
+     [:div.flex-cols
+      [:label [:b "Map name: "]]
+      [:input.flex-grow {:placeholder "Metropolis"
                :pattern ".+"
                :on-change #(reset! map-name (.. % -target -value))
                :value (or (rum/react map-name) "")}]]
-     [:div
-      [:label "Description: "]
-      [:input {:placeholder "A map for planning heat networks in metropolis"
+     [:div.flex-cols
+      [:label [:b "Description: "]]
+      [:input.flex-grow {:placeholder "A map for planning heat networks in metropolis"
                :on-change #(reset! description (.. % -target -value))
                :value (or (rum/react description) "")}]]]))
 
@@ -141,6 +147,12 @@
 
 (defn- file-non-extension [filename]
   (.substring filename 0 (.lastIndexOf filename \.)))
+
+(defn- as-int [value]
+  (cond
+    (number? value) (int value)
+    (string? value) #?(:cljs (js/parseInt value)
+                       :clj (Integer/parseInt value))))
 
 (rum/defcs nominatim-searchbox <
   rum/static
@@ -276,8 +288,7 @@
                                           (disj geom-types :polygon)))
                      (swap! status
                             merge
-                            (assoc x :state :uploaded)
-                            ))))
+                            (assoc x :state :uploaded)))))
                
                :error-handler
                (fn [x]
@@ -412,7 +423,10 @@
                           (when (#{"way" "relation"}
                                  (get place "osm_type"))
                             (reset! *osm-position
-                                    {:osm-id (get place "osm_id")
+                                    {:osm-id (str
+                                              (get place "osm_type")
+                                              ":"
+                                              (get place "osm_id"))
                                      :boundary  (get place "geojson")})))})
            (osm-map-box {:map-position (rum/react *map-position)
                          :boundary-geojson (:boundary (rum/react *osm-position))
@@ -603,14 +617,15 @@
               {:key field}
               [:td field]
               [:td
-               [:select {:value (name (get field-selection [file field] :none))
+               [:select {:value (name (get-in field-selection [file field] :none))
                          :on-change #(let [value (.. % -target -value)
                                            value (keyword value)]
                                        (if (= :none value)
                                          (swap! *field-selection
-                                                dissoc [file field])
+                                                update file
+                                                dissoc field)
                                          (swap! *field-selection
-                                                assoc [file field] value)))}
+                                                assoc-in [file field] value)))}
                 [:option {:value "none"} "None"]
                 (for [option options]
                   [:option {:key (:value option)
@@ -631,7 +646,7 @@
            (for [f gis-files key (:keys f)] [(:base-name f) key])
            (for [f joined-tables key (:keys f)] [(:base-name f) key])))))
 
-(defn- page-map [form-state]
+(defn- next-page-map [form-state]
   (let [using-building-files (-> form-state :buildings :source (= :files))
         has-extra-columns (-> form-state :buildings :files vals all-columns not-empty)
         has-joinable-files (and has-extra-columns
@@ -640,6 +655,15 @@
                                  vals
                                  (mapcat :extensions)
                                  (some #{".csv" ".tab" ".tsv"})))
+
+        using-road-files (-> form-state :roads :source (= :files))
+        has-extra-road-columns (-> form-state :roads :files vals all-columns not-empty)
+        has-joinable-road-files (and has-extra-road-columns
+                                     (->>
+                                      form-state :roads :files
+                                      vals
+                                      (mapcat :extensions)
+                                      (some #{".csv" ".tab" ".tsv"})))
         result
         (cond->
             {:name :building-data
@@ -648,53 +672,98 @@
                               has-joinable-files :building-join
                               has-extra-columns :building-cols
                               :else :road-data)
-             :road-data :other-parameters}
+
+             :road-data (cond
+                          (not using-road-files) :other-parameters
+                          has-joinable-files :road-join
+                          has-extra-columns :road-cols
+                          :else :other-parameters)}
           
           has-joinable-files (assoc :building-join :building-cols)
-          has-extra-columns (assoc :building-cols :road-data))
+          has-extra-columns  (assoc :building-cols :road-data)
+
+          has-joinable-road-files (assoc :road-join :road-cols)
+          has-extra-road-columns (assoc :road-cols :other-parameters)
+          )
         ]
     (println result)
     result))
 
-(rum/defc other-parameters-page < rum/reactive rum/static [*form-state]
-  ;; TODO make this work
+(rum/defc other-parameters-page < rum/reactive rum/static
+  [*form-state]
   [:div
-   [:h1 "Other parameters"]
+   [:h1 "Set other parameters"]
 
    [:div.flex-cols
     [:div.card.flex-grow
      [:h1 "Heating degree days"]
-     [:div.flex-cols [:input.flex-grow {:type :number}] " °C"]
+     [:div.flex-cols
+      [:input.flex-grow {:type :number
+                         :min 0 :max 10000
+                         :value (:degree-days (rum/react *form-state))
+                         :on-change #(swap! *form-state assoc :degree-days
+                                            (as-int (.. % -target -value)))}] " °C × days"]
      [:p "The number of heating degree days per year in this location, relative to a 17° base temperature."]]
     
-
     [:div.card.flex-grow
      [:h1 "Default connection cost"]
-     [:div.flex-cols [:input.flex-grow {:type :number}] " ¤"]
+     [:div.flex-cols [:input.flex-grow
+                      {:type :number
+                       :min 0 :max 10000
+                       :value (:default-connection-cost (rum/react *form-state))
+                       :on-change #(swap! *form-state
+                                          assoc :default-connection-cost
+                                          (as-int (.. % -target -value)))}] " ¤"]
      [:p "The default cost of connecting a building to the network. This is the cost of work within the building, separate from the cost of pipes."]]]
+   
 
    [:div.card
     [:h1 "Default pipe costs"]
-    [:table
-     [:thead
-      [:tr [:th "Cost"] [:th "Fixed"] [:th "Variable"]]]
-     [:tbody
-      [:tr
-       [:td "Mechanical"]
-       [:td [:input {:type :number}]]
-       [:td [:input {:type :number}]]
-       ]
-      [:tr [:td "Civil"]
-       [:td [:input {:type :number}]]
-       [:td [:input {:type :number}]]]]]]])
+    
+    [:div
+     "The default civil engineering cost for pipework will be "
+     [:input
+      {:type :number
+       :min 0 :max 10000
+       :value (:default-fixed-civil-cost (rum/react *form-state))
+       :on-change #(swap! *form-state
+                          assoc :default-fixed-civil-cost
+                          (as-int (.. % -target -value)))}] "¤/m + "
+     [:input
+      {:type :number
+       :min 0 :max 10000
+       :value (:default-variable-civil-cost (rum/react *form-state))
+       :on-change #(swap! *form-state
+                          assoc :default-variable-civil-cost
+                          (as-int (.. % -target -value)))}] "¤/(m × mm " [:sup "1.1"] "). "
+     "This is the value which will be used if your road data does not otherwise have a value."]
+    
+    [:p "The mechanical engineering cost is set in the network problem."]]])
 
 (def road-fields
   [{:value :fixed-cost
     :label "Fixed cost (¤/m)"
-    :doc [:span "The fixed civil engineering cost per metre of road - this is fixed in the sense that it is unrelated to diameter, but can vary by road"]}
-   {:value :mechanical-cost
-    :label "Variable cost (¤/m/mm ^ 1.3)"
-    :doc [:span "The variable civil engineering costs per metre of pipe."]}])
+    :doc [:span "Civil engineering costs for pipe are calculated as "
+          "length × (A + (b × ⌀)" [:sup "1.1"] ". This value is A."
+          ]}
+   
+   {:value :variable-cost
+    :label "Variable cost (¤/m/mm ^ 1.1)"
+    :doc [:span "The variable civil engineering costs per metre of pipe. "
+          "This value is b in the cost equation (see fixed cost)."]}
+
+   {:value :identity :label "Identity (text)"
+    :doc
+    [:span "An identifier - these are stored on the roads in the database and visible in downloaded GIS files."]}
+   
+   {:value :subtype :label "Classification (text)"
+    :doc
+    [:span "Text describing the type of road; this can be whatever you want, and is visible in the network editor."]}
+
+   {:value :name :label "Name / address (text)"
+    :doc
+    [:span "The name or address of the road."]}
+   ])
 
 (def building-fields
   [{:value :annual-demand
@@ -750,9 +819,13 @@
     :doc
     [:span "An identifier - these are stored on the buildings in the database and visible in downloaded GIS files."]}
    
-   {:value :classification :label "Classification (text)"
+   {:value :subtype :label "Classification (text)"
     :doc
     [:span "Text describing the type of building; this can be whatever you want, and is visible in the network editor."]}
+
+   {:value :name :label "Name / address (text)"
+    :doc
+    [:span "The name or address of the road."]}
    
    {:value :residential :label "Residential (logical)"
     :doc
@@ -773,7 +846,6 @@
                        (mappable-columns (:buildings @form-state))
                        building-fields
                        (rum/cursor-in form-state [:buildings :mapping]))
-
        
        :road-data (geometry-data-page :roads form-state)
        :road-join (join-page (rum/cursor-in form-state [:roads :files])
@@ -785,9 +857,6 @@
 
        :other-parameters (other-parameters-page form-state)
 
-       ;; next page needs to be about demand estimation
-       ;; then a final page about paths and connectors
-
        ;; then we press go and wait ages
 
        [:div "Not sure what has happened here. "
@@ -797,26 +866,40 @@
       (when-not (= :name current-page)
         [:button.button {:on-click
                          (fn [e]
-                           (swap! *current-page (map-invert (page-map @form-state))))
+                           (swap! *current-page (map-invert (next-page-map @form-state))))
                          } "Back"]
         )
 
-      [:button.button {:on-click
-                       (fn [e]
-                         (swap! *current-page (page-map @form-state)))
-                       } "Next"]
+      (if (= :other-parameters current-page)
+        [:button.button {:on-click
+                         (fn [e]
+                           (POST "../new" ;; urgh yuck
+                               {:params
+                                (->> @form-state
+                                     ;; :buildings :files and :roads :files
+                                     ;; values need their :files bit removing
+                                     ;; because :files are not encodable
+                                     (setval [:buildings :files MAP-VALS :files] NONE)
+                                     (setval [:roads :files MAP-VALS :files] NONE))
+                                
+                                :handler (fn-js [e]
+                                           (js/window.location.replace "../.."))}))
+                         } "Create map"]
+        [:button.button {:on-click
+                         (fn [e]
+                           (swap! *current-page (next-page-map @form-state)))
+                         } "Next"])
 
-      ]
-
-     
-     
-     (dump form-state)
-     
-     ]))
+      ]]))
 
 (def start-state
-  {:page :name
+  {:current-page :name
+   :name ""
+   :description ""
    :buildings {:source :osm :files {}}
    :roads {:source :osm :files {}}
    :degree-days 2000
-   })
+   :default-connection-cost 0
+   :default-fixed-civil-cost 0
+   :default-variable-civil-cost 0})
+

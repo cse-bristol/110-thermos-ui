@@ -1,7 +1,7 @@
 (ns thermos-backend.handler
   (:require [compojure.core :refer :all]
             [compojure.route :as route]
-            [compojure.middleware :refer [wrap-canonical-redirect]]
+            [compojure.middleware :refer [wrap-canonical-redirect remove-trailing-slash]]
             [muuntaja.middleware :as muuntaja]
             
             [ring.middleware.defaults :refer [wrap-defaults site-defaults api-defaults]]
@@ -35,32 +35,14 @@
 (defstate all
   :start
   (-> site-routes
-      ;;(wrap-canonical-redirect)
+      
       (wrap-stacktrace)
       (auth/wrap-auth)
       (current-uri/wrap-current-uri)
+      
       (muuntaja/wrap-params)
       (muuntaja/wrap-format)
       (wrap-defaults (-> site-defaults
                          (assoc-in [:security :anti-forgery] false)))
       (wrap-no-cache)))
 
-(comment
-  (let [h (fn [r]
-            (println r)
-            {:status 200 :body {:hello :world}})
-        h (-> h
-              (muuntaja/wrap-params)
-              (muuntaja/wrap-format)
-              (wrap-defaults
-               (-> site-defaults
-                   (assoc-in [:security :anti-forgery] false)))
-              
-              )
-        ]
-    
-    (h {:headers {"accept" "application/transit+json"}
-        :body "asdf"})
-    )
-  
-  )

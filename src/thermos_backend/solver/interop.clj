@@ -20,13 +20,11 @@
             [thermos-specs.supply :as supply]
             [thermos-specs.path :as path]
             [thermos-backend.solver.bounds :as bounds]
-            [thermos-backend.config :refer [config]])
+            [thermos-backend.config :refer [config]]
+            [thermos-util :refer [annual-kwh->kw]])
+  
   (:import [java.io StringWriter]))
-
 (def HOURS-PER-YEAR 8766)
-
-(defn- annual-kwh->kw [kwh-pa]
-  (/ kwh-pa HOURS-PER-YEAR))
 
 (defn- simplify-topology
   "For CANDIDATES, create a similar graph in which all vertices of degree two

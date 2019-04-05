@@ -10,6 +10,7 @@ CREATE TABLE maps (
       references projects(id)
       on delete cascade,
    name text not null,
+   parameters text not null, -- EDN
    import_completed boolean default false,
    job_id int references jobs(id) on delete set null
 )
@@ -50,6 +51,10 @@ CREATE TABLE networks (
    job_id integer references jobs(id) on delete set null
 );
 --;;
+ALTER TABLE paths ADD COLUMN fixed_cost real not null;
+--;;
+ALTER TABLE paths ADD COLUMN variable_cost real not null;
+--;;
 DROP VIEW joined_candidates;
 --;;
 CREATE VIEW joined_candidates AS
@@ -71,12 +76,15 @@ SELECT
         paths.start_id as start_id,
         paths.end_id as end_id,
         paths.length as length,
-        paths.unit_cost as unit_cost
+        paths.fixed_cost as fixed_cost,
+        paths.variable_cost as variable_cost
 FROM
         candidates
         LEFT JOIN buildings on candidates.id = buildings.id
         LEFT JOIN paths on candidates.id = paths.id
 ;
+--;;
+ALTER TABLE paths DROP COLUMN unit_cost;
 --;;
 ALTER TABLE tilecache
 ADD COLUMN map_id INTEGER
