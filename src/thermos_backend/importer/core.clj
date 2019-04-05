@@ -254,6 +254,7 @@
         :connection-id (str/join "," (::spatial/connects-to-node b))
         :demand-kwh-per-year (or (:annual-demand b) 0)
         :demand-kwp (or (:peak-demand b) 0)
+        :connection-cost (or (:connection-cost b) 0)
         :connection-count (or (:connection-count b) 1)})
      
      :paths
@@ -416,7 +417,7 @@
 
         ;; produce demand
         feature (cond
-                  given-demand
+                  (and given-demand (not (zero? given-demand))) ;; is this sensible? I have no idea
                   (assoc feature
                          :annual-demand given-demand
                          :demand-source :given)
@@ -448,7 +449,7 @@
                   (assoc feature
                          :peak-demand
                          (let [demand-kw (annual-kwh->kw (:annual-demand feature))]
-                           (* given-pbr demand-kw))
+                           (* (max given-pbr 1.0) demand-kw))
                          :peak-source :ratio)
                   :else
                   (assoc feature
@@ -533,9 +534,7 @@
                   (with-open [r (io/reader file)]
                     (first (csv/read-csv r))))}
           
-
-          (or (= "tsv" extension)
-              (= "tab" extension))
+          (#{"tsv" "tab"} extension)
           {:keys (set
                   (with-open [r (io/reader file)]
                     (first (csv/read-csv r :separator \tab))))})))))
