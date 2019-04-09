@@ -157,5 +157,5 @@
    (::mechanical-cost-per-m document)
    (::mechanical-cost-per-m2 document)
    (::mechanical-cost-exponent document)
-   50))
+   10))
 

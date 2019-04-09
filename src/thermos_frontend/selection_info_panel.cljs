@@ -95,6 +95,10 @@
                 nil
                 (num ::solution/capacity-kw rmax "W" 1000)
                 ]
+               ["Diameter"
+                nil
+                (num ::solution/diameter-mm rmax "m" 0.001)
+                ]
                ["Principal"
                 nil
                 (num ::solution/principal rsum "¤")

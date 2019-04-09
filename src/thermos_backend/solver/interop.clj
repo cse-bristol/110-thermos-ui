@@ -21,7 +21,9 @@
             [thermos-specs.path :as path]
             [thermos-backend.solver.bounds :as bounds]
             [thermos-backend.config :refer [config]]
-            [thermos-util :refer [annual-kwh->kw]])
+            [thermos-util :refer [annual-kwh->kw]]
+            [clojure.walk :refer [postwalk]]
+            )
   
   (:import [java.io StringWriter]))
 
@@ -66,9 +68,9 @@
                                 (attr/add-attr (::path/start p) (::path/end p)
                                                :ids #{(::candidate/id p)})
                                 (attr/add-attr (::path/start p) (::path/end p)
-                                               :variable-cost (::path/cost-per-m2 p))
+                                               :variable-cost (::path/cost-per-m2 p 0))
                                 (attr/add-attr (::path/start p) (::path/end p)
-                                               :fixed-cost (::path/cost-per-m p))))
+                                               :fixed-cost (::path/cost-per-m p 0))))
                           net-graph
                           paths)
 
@@ -190,6 +192,8 @@
                        :demand (comp annual-kwh->kw #(::demand/kwh % 0) candidates)
                        :peak-demand (comp #(::demand/kwp % 0) candidates)
                        :size (comp #(::connection-count % 1) candidates)))
+
+        _ (log/info "Computed flow bounds")
         
         global-factors (::demand/emissions instance)
         default-price  (float (::demand/price instance))]
@@ -258,8 +262,8 @@
        {:i (first edge) :j (second edge)
         ;; :components (vec (attr/attr net-graph edge :ids))
         :length (float (or (attr/attr net-graph edge :length) 0))
-        :fixed-cost (float (attr/attr net-graph edge :fixed-cost))
-        :variable-cost (float (attr/attr net-graph edge :variable-cost))
+        :fixed-cost (float (or (attr/attr net-graph edge :fixed-cost) 0))
+        :variable-cost (float (or (attr/attr net-graph edge :variable-cost) 0))
         :bounds (edge-bounds edge)
         ;; the above may seem odd (dividing the cost - didn't we multiply it?)
         ;; this is because we want a unit cost for the edge.
@@ -317,6 +321,7 @@
                           (assoc e
                                  ::solution/length-factor length-factor
                                  ::solution/included true
+                                 ::solution/diameter-mm (:diameter-mm solution-edge)
                                  ::solution/capacity-kw (:capacity-kw solution-edge)
                                  ::solution/diversity   (:diversity solution-edge)
                                  ::solution/principal   (* length-factor (:principal solution-edge))
@@ -397,12 +402,13 @@
         ;; Edges can have attributes :ids, which say the input paths,
         ;; and :cost which say the total pipe cost for the edge.
         
-        input-json (instance->json instance net-graph)
+        input-json (postwalk identity (instance->json instance net-graph))
         ]
     ;; write the scenario down
     (log/info "Output scenario to" input-file)
     (with-open [writer (io/writer input-file)]
       (json/write input-json writer :escape-unicode false))
+    
     (log/info "Starting solver")
     ;; invoke the solver
     (let [start-time (System/currentTimeMillis)

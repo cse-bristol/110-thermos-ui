@@ -44,8 +44,7 @@
                                   ::document/civil-cost-exponent
                                   ]))]
        (fn [path]
-         (let [params @params]
-           (document/path-cost path @params))))
+         (document/path-cost path @params)))
      ]
     
     (let [data-value (fn [arg] (o/get arg "cellData"))

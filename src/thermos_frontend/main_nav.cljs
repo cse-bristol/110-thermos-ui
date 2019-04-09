@@ -35,7 +35,8 @@
            :else :button.button--tab)
          
          (cond
-           (:href tab) {:href (:href tab) :target "_blank"
+           (:href tab) {:key (:key tab)
+                        :href (:href tab) :target "_blank"
                         :style {:display :flex}}
            :else {:key (:key tab) :on-click #(on-tab-switch (:key tab))})
 
