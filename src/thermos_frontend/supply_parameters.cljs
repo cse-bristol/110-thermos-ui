@@ -52,7 +52,7 @@
        ;; TODO check these thresholds are sane
        [:tr [:td "Maximum capacity"] [:td [inputs/number {:value-atom capacity-kwp  :min 1 :max 1000  :scale (/ 1.0 1000)  :step 0.1}]] [:td "MW"]]
        [:tr [:td "Fixed cost"]       [:td [inputs/number {:value-atom fixed-cost    :min 0 :max 10000 :scale (/ 1.0 1000)  :step 0.1}]] [:td "k¤"]]
-       [:tr [:td "Capacity cost"]    [:td [inputs/number {:value-atom capex-per-kwp :min 0 :max 10000 :scale (/ 1.0 1000)  :step 0.1}]] [:td "k¤/kW"]]
+       [:tr [:td "Capacity cost"]    [:td [inputs/number {:value-atom capex-per-kwp :min 0 :max 10000  :step 0.1}]] [:td "¤/kW"]]
        [:tr [:td "Annual cost"]      [:td [inputs/number {:value-atom opex-per-kwp  :min 0 :max 1000                       :step 0.1}]] [:td "¤/kW"]]
        [:tr [:td "Supply cost"]      [:td [inputs/number {:value-atom cost-per-kwh  :min 0 :max 500   :scale 100           :step 0.1}]] [:td "c/kWh"]]
        [:tr [:td {:colspan 3} [:b "Emissions factors"]] ]
