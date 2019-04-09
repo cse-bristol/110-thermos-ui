@@ -135,3 +135,8 @@
       (= "json" (.getType pgobj))
       (json/read-str :key-fn #(keyword (normalize-column-name %))))))
 
+(extend-protocol proto/ISQLResultSetReadColumn
+  org.postgresql.jdbc.PgArray
+  (from-sql-type [pgobj conn metadata index]
+    (into [] (.getArray pgobj))))
+

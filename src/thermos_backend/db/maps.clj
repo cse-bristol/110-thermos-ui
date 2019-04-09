@@ -277,3 +277,38 @@
   (-> (h/delete-from :maps)
       (h/where [:= :id map-id])
       (db/execute!)))
+
+(defn stream-features [map-id callback]
+  (db/with-connection [conn]
+    (jdbc/atomic conn
+      (with-open [cursor
+                  (-> (h/select :candidates.id :orig-id :name :type
+                                :connection-id
+                                :demand-kwh-per-year
+                                :demand-kwp
+                                :connection-count
+                                :connection-cost
+                                [(sql/call :ST_AsGeoJson
+                                           :geometry) :geometry])
+                      (h/from :candidates)
+                      (h/join :buildings [:= :candidates.id :buildings.id])
+                      (h/where [:= :map-id map-id])
+                      (sql/format)
+                      (->> (jdbc/fetch-lazy conn)))]
+        (doseq [row (jdbc/cursor->lazyseq cursor)]
+          (callback row)))
+      
+      (with-open [cursor
+                  (-> (h/select :candidates.id :orig-id :name :type
+                                :start-id :end-id :length :fixed-cost :variable-cost
+                                [(sql/call :ST_AsGeoJson
+                                           :geometry) :geometry])
+                      (h/from :candidates)
+                      (h/join :paths [:= :candidates.id :paths.id])
+                      (h/where [:= :map-id map-id])
+                      (sql/format)
+                      (->> (jdbc/fetch-lazy conn)))]
+        (doseq [row (jdbc/cursor->lazyseq cursor)]
+          (callback row)))
+      )))
+

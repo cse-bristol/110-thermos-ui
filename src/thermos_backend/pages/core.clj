@@ -10,6 +10,7 @@
             [thermos-backend.pages.help :refer [help-page]]
             [thermos-backend.pages.editor :refer [editor-page]]
             [ring.util.response :as response]
+            [ring.util.io :as ring-io]
 
             [thermos-backend.db.projects :as projects]
             [thermos-backend.db.maps :as maps]
@@ -20,7 +21,8 @@
             [thermos-backend.solver.core :as solver]
             [cognitect.transit :as transit]
             [thermos-backend.db.users :as users]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [clojure.data.json :as json])
   
   (:import [javax.mail.internet InternetAddress]
            [java.io ByteArrayInputStream]))
@@ -40,6 +42,32 @@
 (defn- as-double [x]
   (and x (try (Double/parseDouble x)
               (catch NumberFormatException e))))
+
+(defn- streaming-map [map-id]
+  (ring-io/piped-input-stream
+   (fn [o]
+     (with-open [w (io/writer o)]
+       (doto w
+         (.write "{ \"type\": \"FeatureCollection\", ")
+         (.write "  \"features\": ["))
+
+       (let [first (atom true)]
+         (maps/stream-features
+          map-id
+          (fn [feature]
+            (if @first (reset! first false) (.write w ","))
+
+            (json/write
+             {:type :Feature
+              :geometry (json/read-str (:geometry feature))
+              :properties (dissoc feature :geometry)}
+             w)
+            
+            (.write w "\n"))
+          ))
+
+       (.write w "]}"))
+     )))
 
 (defn- handle-map-creation
   [project-id
@@ -180,8 +208,11 @@
                   (response/content-type "image/png")))
 
             (GET "/data.json" []
-              "TODO not impl"
-              )
+              (-> (response/response (streaming-map map-id))
+                  (response/content-type "application/json")
+                  (response/header "Content-Disposition"
+                                   "attachment; filename=map-data.json")))
+            
             
             (context "/net/:net-id" [net-id]
               (GET "/" {{accept "accept"} :headers}
@@ -222,6 +253,7 @@
                       new-id (projects/save-network! project-id map-id name content)]
                   (when run (solver/queue-problem new-id))
                   (-> (response/created (str new-id))
-                      (response/header "X-ID" new-id)))))
-            )))
+                      (response/header "X-ID" new-id))))))
+          
+          ))
        ))))
