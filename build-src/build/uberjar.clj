@@ -17,6 +17,7 @@
 
 (defonce ^FileSystem FS (FileSystems/getDefault))
 
+
 (defn md5 [input]
   (with-open [input (io/input-stream input)]
     (let [md (java.security.MessageDigest/getInstance "MD5")
@@ -164,37 +165,41 @@
     (doseq [classpath-entry classpath]
       (if (skip-jars classpath-entry)
         (println "- skipped jar" classpath-entry)
-        (map-classpath
-         (fn [name is last-mod]
-           (if (skip-files name)
-             (println "-" "skipped file" classpath-entry name)
-             (let [target (.resolve tmp name)]
-               (if (Files/exists target (make-array LinkOption 0))
-                 ;; we must resolve a clash
-                 (let [merger (merge-strategy name)]
-                   (if merger
-                     (merger target is)
-                     (let [f1 classpath-entry
-                           f2 (get @owners name)
+        (do
+          (println "+ jar" classpath-entry)
+          (map-classpath
+          (fn [name is last-mod]
+            (if (skip-files name)
+              (println "-" "skipped file" classpath-entry name)
+              (let [target (.resolve tmp name)]
+                (if (Files/exists target (make-array LinkOption 0))
+                  ;; we must resolve a clash
+                  (let [merger (merge-strategy name)]
+                    (if merger
+                      (merger target is)
+                      (let [f1 classpath-entry
+                            f2 (get @owners name)
 
-                           m1 (md5 is)
-                           m2 (md5 (java.net.URL.
-                                    (str "jar:file:"
-                                         f2 "!/" name)))
-                           ]
-                       
-                       (when-not (= m1 m2)
-                         (println "! conflict:" name)
-                         (println "-" classpath-entry m1)
-                         (println "+" (get @owners name) m2)))))
-                 (do
-                   (swap! owners assoc name classpath-entry)
-                   (Files/createDirectories (.getParent target) (make-array FileAttribute 0))
-                   (Files/copy is target ^"[Ljava.nio.file.CopyOption;" (make-array CopyOption 0))
-                   (when last-mod
-                     (Files/setLastModifiedTime target last-mod)))))))
-         
-         classpath-entry)))
+                            m1 (md5 (java.net.URL.
+                                     (str "jar:file:"
+                                          f1 "!/" name)))
+                            m2 (md5 (java.net.URL.
+                                     (str "jar:file:"
+                                          f2 "!/" name)))
+                            ]
+                        
+                        (when-not (= m1 m2)
+                          (println "! conflict:" name)
+                          (println "-" classpath-entry m1)
+                          (println "+" (get @owners name) m2)))))
+                  (do
+                    (swap! owners assoc name classpath-entry)
+                    (Files/createDirectories (.getParent target) (make-array FileAttribute 0))
+                    (Files/copy is target ^"[Ljava.nio.file.CopyOption;" (make-array CopyOption 0))
+                    (when last-mod
+                      (Files/setLastModifiedTime target last-mod)))))))
+          
+          classpath-entry))))
 
     (when manifest
       (println "Creating manifest")
