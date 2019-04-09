@@ -5,7 +5,8 @@
             [muuntaja.middleware :as muuntaja]
             
             [ring.middleware.defaults :refer [wrap-defaults site-defaults api-defaults]]
-            [ring.middleware.stacktrace :refer [wrap-stacktrace]]
+            ;; [ring.middleware.stacktrace :refer [wrap-stacktrace]]
+
             
             [ring.logger :as logger]
             [clojure.tools.logging :as log]
@@ -36,7 +37,8 @@
   :start
   (-> site-routes
       
-      (wrap-stacktrace)
+      ;; (wrap-stacktrace)
+
       (auth/wrap-auth)
       (current-uri/wrap-current-uri)
       
