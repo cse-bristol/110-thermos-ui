@@ -232,3 +232,8 @@ AS $$
      DELETE FROM tilemaxima WHERE map_id = _map_id;
    END;
 $$ LANGUAGE plpgsql;
+--;;
+ALTER TABLE candidates DROP CONSTRAINT candidates_map_id_fkey,
+ADD CONSTRAINT candidates_map_id_fkey
+  FOREIGN KEY (map_id) REFERENCES maps(id) ON DELETE CASCADE;
+
