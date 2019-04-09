@@ -58,5 +58,12 @@
   (uberjar/create-uberjar
    "target/thermos.jar"
    :classpath (classpath/make-classpath {:aliases [:server :jar]})
-   :manifest {:Main-Class 'thermos-backend.core}
+   :manifest {:Main-Class 'thermos-backend.core
+              :Specification-Title "Java Advanced Imaging Image I/O Tools"
+              :Specification-Version "1.1"
+              :Specification-Vendor "Forward Dynamics"
+              :Implementation-Title "com.sun.media.imageio"
+              :Implementation-Version "1.1"
+              :Implementation-Vendor "Forward Dynamics"
+              }
    ))
