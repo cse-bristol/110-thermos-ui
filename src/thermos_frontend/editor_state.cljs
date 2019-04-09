@@ -122,7 +122,7 @@
       (assoc basics
              ::path/length        (o/get properties "length")
              ::path/cost-per-m    (o/get properties "fixed-cost")
-             ::path/cost-per-m-mm (o/get properties "variable-cost")
+             ::path/cost-per-m2   (o/get properties "variable-cost")
              ::path/start         (o/get properties "start-id")
              ::path/end           (o/get properties "end-id"))
       :building

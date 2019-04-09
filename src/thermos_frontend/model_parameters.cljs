@@ -34,6 +34,15 @@
      loan-rate (reagent/cursor document [::document/loan-rate])
 
      max-pipe-kwp (reagent/cursor document [::document/maximum-pipe-kwp])
+
+     civil-exponent (reagent/cursor document [::document/civil-cost-exponent])
+     mechanical-exponent (reagent/cursor document [::document/mechanical-cost-exponent])
+     mechanical-fixed (reagent/cursor document [::document/mechanical-cost-per-m])
+     mechanical-variable (reagent/cursor document [::document/mechanical-cost-per-m2])
+
+     flow-temperature (reagent/cursor document [::document/flow-temperature])
+     return-temperature (reagent/cursor document [::document/return-temperature])
+     ground-temperature (reagent/cursor document [::document/ground-temperature])
      ]
     
     [:div.parameters-component
@@ -79,6 +88,38 @@
       [:p "Limit pipe capacity to at most "
        [inputs/number {:value-atom max-pipe-kwp :min 0 :max 500 :step 1 :scale (/ 1 1000.0)}]
        " MWp"]
+      [:p "Calculate mechanical engineering costs as "
+       [inputs/number {:value-atom mechanical-fixed :min 0 :max 5000 :step 1}]
+       "¤/m + ("
+       [inputs/number {:value-atom mechanical-variable :min 0 :max 5000 :step 1}]
+       "× ⌀/m)"
+       [:sup [inputs/number {:value-atom mechanical-exponent :min 0 :max 3 :step 0.01}]]
+       "/m"
+       ]
+
+      [:p "Calculate civil engineering costs as "
+       [:em "A"]
+       "¤/m + ("
+       [:em "B"]
+       "× ⌀/m)"
+       [:sup [inputs/number {:value-atom civil-exponent :min 0 :max 3 :step 0.01}]]
+       "/m"]
+
+      [:h2 "Temperatures"]
+      [:p "Use a flow temperature of "
+       [inputs/number {:value-atom flow-temperature :min 0 :max 100 :step 1}]
+       "°C"
+       ]
+      
+      [:p "Use a return temperature of "
+       [inputs/number {:value-atom return-temperature :min 0 :max 100 :step 1}]
+       "°C"
+       ]
+
+      [:p "Use an average ground temperature of "
+       [inputs/number {:value-atom ground-temperature :min 0 :max 20 :step 1}]
+       "°C"
+       ]
       ]
     [:div
       [:h1 "Site defaults"]

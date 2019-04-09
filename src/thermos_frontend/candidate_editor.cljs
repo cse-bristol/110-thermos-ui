@@ -136,7 +136,8 @@
          [:tr
           [:th (group-by-options group-by-key)]
           [:th "Length (m)"]
-          [:th "Cost (¤/m)"]]]
+          [:th "Civil cost (¤/m)"]
+          [:th "Civil cost (¤/m x mm)"]]]
         
         [:tbody
          (doall
@@ -146,9 +147,16 @@
              [:td (format/si-number (apply + (map ::path/length cands)))]
              [:td [inputs/check-number
                    {:value-atom
-                    (reagent/cursor values [group-by-key k :cost :value])
+                    (reagent/cursor values [group-by-key k :cost-per-m :value])
                     :check-atom
-                    (reagent/cursor values [group-by-key k :cost :check])}
+                    (reagent/cursor values [group-by-key k :cost-per-m :check])}
+                   ]]
+
+             [:td [inputs/check-number
+                   {:value-atom
+                    (reagent/cursor values [group-by-key k :cost-per-m2 :value])
+                    :check-atom
+                    (reagent/cursor values [group-by-key k :cost-per-m2 :check])}
                    ]]
              ]))]
         ])]))
@@ -162,7 +170,9 @@
    (->> (for [k (keys group-by-options)]
           [k (->> paths (group-by k)
                   (map (fn [[k v]]
-                         [k {:cost {:value (mean (map ::path/cost-per-m v))}}]))
+                         [k {:cost-per-m {:value (mean (map ::path/cost-per-m v))}
+                             :cost-per-m2 {:value (mean (map ::path/cost-per-m2 v))}
+                             }]))
                   (into {}))])
         (into {}))})
 
@@ -201,9 +211,12 @@
      document
      (fn [path]
        (let [path-group (group path)
-             {cost :value set-cost :check} (get-in values [group path-group :cost])]
+             {f-cost :value f-set-cost :check} (get-in values [group path-group :cost-per-m])
+             {v-cost :value v-set-cost :check} (get-in values [group path-group :cost-per-m2])
+             ]
          (cond-> path
-           set-cost (assoc ::path/cost-per-m cost))))
+           f-set-cost (assoc ::path/cost-per-m f-cost)
+           v-set-cost (assoc ::path/cost-per-m2 v-cost))))
      path-ids)))
 
 
@@ -241,18 +254,15 @@
              (->> (for [[e {c :check v :value}] emissions-factors
                         :when c]
                     [e v])
-                  (into {}))
-             
-             ]
+                  (into {}))]
          
          (cond-> building
            set-demand              (assoc ::demand/kwh demand-value)
            set-peak                (assoc ::demand/kwp peak-value)
            set-heat-price          (assoc ::demand/price price-value)
-           (seq emissions-factors) (update ::demand/emissions merge emissions-factors)
-           )))
-     building-ids)))
+           (seq emissions-factors) (update ::demand/emissions merge emissions-factors))))
 
+     building-ids)))
 
 (defn- candidate-editor [document candidate-ids]
   (reagent/with-let [candidates (map (::document/candidates @document) candidate-ids)

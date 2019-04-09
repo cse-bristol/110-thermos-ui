@@ -2,6 +2,7 @@
   (:require [clojure.spec.alpha :as s]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.demand :as demand]
+            [thermos-specs.path :as path]
             [thermos-specs.solution :as solution]
             [thermos-specs.view :as view]
             [clojure.string :as str]
@@ -25,6 +26,16 @@
                 ::emissions-limit ;; {:enabled and :value}
                 
                 ::mip-gap
+
+                ::flow-temperature
+                ::return-temperature
+                ::ground-temperature
+
+                ::mechanical-cost-per-m
+                ::mechanical-cost-per-m2
+
+                ::mechanical-cost-exponent
+                ::civil-cost-exponent
                 ]
           :opt [ ::solution/summary ]))
 
@@ -137,3 +148,14 @@
 
 (defn has-solution? [document]
   (contains? document ::solution/state))
+
+
+(defn path-cost [path document]
+  (path/cost
+   path
+   (::civil-cost-exponent document)
+   (::mechanical-cost-per-m document)
+   (::mechanical-cost-per-m2 document)
+   (::mechanical-cost-exponent document)
+   50))
+

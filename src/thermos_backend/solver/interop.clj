@@ -24,6 +24,7 @@
             [thermos-util :refer [annual-kwh->kw]])
   
   (:import [java.io StringWriter]))
+
 (def HOURS-PER-YEAR 8766)
 
 (defn- simplify-topology
@@ -65,16 +66,11 @@
                                 (attr/add-attr (::path/start p) (::path/end p)
                                                :ids #{(::candidate/id p)})
                                 (attr/add-attr (::path/start p) (::path/end p)
-                                               :variable-cost (::path/variable-cost p))
+                                               :variable-cost (::path/cost-per-m2 p))
                                 (attr/add-attr (::path/start p) (::path/end p)
-                                               :fixed-cost (::path/fixed-cost p))))
+                                               :fixed-cost (::path/cost-per-m p))))
                           net-graph
                           paths)
-
-        cost-of-path
-        (into {} (for [path paths] [(::candidate/id path) (path/cost path)]))
-        
-        cost-of-paths (fn [ids] (reduce + 0 (map cost-of-path ids)))
 
         ;; delete all edges which do nothing
         net-graph (graph/remove-edges*
@@ -99,27 +95,29 @@
                           (graph/add-edges new-edge))
                 existing-ids (attr/attr graph new-edge :ids)
                 ]
-            (if (or (empty? existing-ids)
-                    (< (cost-of-paths all-ids)
-                       (cost-of-paths existing-ids)))
+            (if (empty? existing-ids)
               (attr/add-attr graph new-edge :ids all-ids)
               graph)))
 
+        equal-costs
+        ;; Test whether two edges have combinable cost terms.
+        ;; TODO There's a bit of room for improvement - if two edges have only fixed costs the fixed costs are combinable
+        (fn [net-graph v]
+          (let [[e1 e2] (graph/out-edges net-graph v)
+                variable-cost-1 (attr/attr net-graph e1 :variable-cost)
+                variable-cost-2 (attr/attr net-graph e2 :variable-cost)
+                fixed-cost-1 (attr/attr net-graph e1 :fixed-cost)
+                fixed-cost-2 (attr/attr net-graph e2 :fixed-cost)]
+            (and (= variable-cost-1 variable-cost-2)
+                 (= fixed-cost-1 fixed-cost-2))))
+        
         ;; collapse all collapsible edges until we have finished doing so.
         net-graph
         (loop [net-graph net-graph]
           (let [collapsible (->> (graph/nodes net-graph)
                                  (filter #(not (attr/attr net-graph % :real-vertex)))
                                  (filter #(= 2 (graph/out-degree net-graph %)))
-                                 (filter (fn [v]
-                                           (let [[e1 e2] (graph/out-edges net-graph v)
-                                                 variable-cost-1 (attr/attr net-graph e1 :variable-cost)
-                                                 variable-cost-2 (attr/attr net-graph e2 :variable-cost)
-                                                 fixed-cost-1 (attr/attr net-graph e1 :fixed-cost)
-                                                 fixed-cost-2 (attr/attr net-graph e2 :fixed-cost)
-                                                 ]
-                                             (and (= variable-cost-1 variable-cost-2)
-                                                  (= fixed-cost-1 fixed-cost-2))))))]
+                                 (filter #(equal-costs net-graph %)))]
             (if (empty? collapsible)
               net-graph
               ;; this should be OK because we are working on nodes.
@@ -144,8 +142,8 @@
 
 (defn- summarise-attributes
   "Take CANDIDATES and NET-GRAPH being a loom graph with :ids on some edges,
-  and add :cost, :length :requirement onto those edges being the total
-  cost, length and requirement of corresponding paths in CANDIDATES
+  and add :length :requirement onto those edges being the total length
+  and requirement of corresponding paths in CANDIDATES
 
   The total requirement is required if one part is required."
   [net-graph candidates]
@@ -198,6 +196,15 @@
     
     {:time-limit (float (::document/maximum-runtime instance 1.0))
      :mip-gap    (float (::document/mip-gap instance 0.05))
+
+     :flow-temperature   (float (::document/flow-temperature instance 90.0))
+     :return-temperature (float (::document/return-temperature instance 60.0))
+     :ground-temperature (float (::document/ground-temperature instance 8.0))
+
+     :mechanical-fixed-cost        (float (::document/mechanical-cost-per-m instance 50.0))
+     :mechanical-variable-cost     (float (::document/mechanical-cost-per-m2 instance 700.0))
+     :mechanical-variable-exponent (float (::document/mechanical-cost-exponent instance 1.3))
+     :civil-variable-exponent      (float (::document/civil-cost-exponent instance 1.1))
      
      :finance
      {:loan-term  (int (::document/loan-term instance))
@@ -222,14 +229,15 @@
          (candidate/has-demand? candidate)
          (assoc :demand
                 {:kw        (float   (annual-kwh->kw (::demand/kwh candidate 0)))
-                 :kwp       (float   (::demand/kwp candidate (::demand/kwh candidate 0)))
+                 :kwp       (float   (::demand/kwp candidate (annual-kwh->kw (::demand/kwh candidate 0))))
                  :required  (boolean (candidate/required? candidate))
                  :count     (int     (::demand/connection-count candidate 1))
                  :emissions (into {} (for [e candidate/emissions-types
                                            :let [em (candidate/emissions candidate e instance)]
                                            :when (pos? em)]
                                        [e (float em)]))
-                 :connection-cost (float (::demand/connection-cost candidate 0))
+                 :connection-cost (float (* (::demand/connection-cost candidate 0)
+                                            (::demand/kwp candidate (annual-kwh->kw (::demand/kwh candidate 0)))))
                  :heat-price (float (::demand/price candidate default-price))})
 
          (candidate/has-supply? candidate)

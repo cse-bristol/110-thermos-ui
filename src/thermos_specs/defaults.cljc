@@ -22,13 +22,16 @@
    ::document/npv-rate 0.03
 
    ::document/maximum-pipe-kwp 20000
-   ;; ::document/emissions-factor {:co2e {:gas 0.216 :electricity 0.5 :biomass 0.016
-   ;;                                     :heat 0.25
-   ;;                                     }
-   ;;                              :pm25 {:gas 0.1 :electricity 0 :biomass 0.3
-   ;;                                     :heat 0.02
-   ;;                                     }
-   ;;                              }
 
+   ::document/civil-cost-exponent 1.1
+   ::document/mechanical-cost-exponent 1.3
+
+   ::document/mechanical-cost-per-m  50.0
+   ::document/mechanical-cost-per-m2 700.0
+
+
+   ::document/flow-temperature 90.0
+   ::document/return-temperature 60.0
+   ::document/ground-temperature 8.0
    })
 

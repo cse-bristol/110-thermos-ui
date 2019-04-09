@@ -713,7 +713,7 @@
                        :value (:default-connection-cost (rum/react *form-state))
                        :on-change #(swap! *form-state
                                           assoc :default-connection-cost
-                                          (as-int (.. % -target -value)))}] " ¤"]
+                                          (as-int (.. % -target -value)))}] " ¤/kW"]
      [:p "The default cost of connecting a building to the network. This is the cost of work within the building, separate from the cost of pipes."]]]
    
 
@@ -748,7 +748,7 @@
           ]}
    
    {:value :variable-cost
-    :label "Variable cost (¤/m/mm ^ 1.1)"
+    :label "Variable cost (¤/m2 ^ 1.1)"
     :doc [:span "The variable civil engineering costs per metre of pipe. "
           "This value is b in the cost equation (see fixed cost)."]}
 
@@ -811,7 +811,7 @@
     :doc
     [:span "The number of end-user connections the building contains. This affects only the application of diversity curves within the model."]}
    
-   {:value :connection-cost :label "Connection cost (¤)"
+   {:value :connection-cost :label "Connection cost (¤/kW)"
     :doc
     [:span "A fixed cost for connecting this building - this is separate to the cost for the connecting pipe."]}
    
@@ -899,7 +899,7 @@
    :buildings {:source :osm :files {}}
    :roads {:source :osm :files {}}
    :degree-days 2000
-   :default-connection-cost 0
-   :default-fixed-civil-cost 0
-   :default-variable-civil-cost 0})
+   :default-connection-cost 50.0
+   :default-fixed-civil-cost 350.0
+   :default-variable-civil-cost 700.0})
 

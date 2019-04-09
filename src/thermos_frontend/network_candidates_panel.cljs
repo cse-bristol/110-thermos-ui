@@ -34,8 +34,19 @@
                                            ::view/open-filter])
      
      filtered-candidates (reagent/track #(operations/get-filtered-candidates @document))
-     ]
 
+     pipe-cost-function
+     (let [params (reagent/track
+                   #(select-keys @document
+                                 [::document/mechanical-cost-per-m
+                                  ::document/mechanical-cost-per-m2
+                                  ::document/mechanical-cost-exponent
+                                  ::document/civil-cost-exponent
+                                  ]))]
+       (fn [path]
+         (let [params @params]
+           (document/path-cost path @params))))
+     ]
     
     (let [data-value (fn [arg] (o/get arg "cellData"))
           data-name (fn [arg]
@@ -95,7 +106,7 @@
                     #(when-let [v (data-value %)]
                        (si-number v)))
                :cellDataGetter
-               #(path/cost (o/get % "rowData" nil))
+               #(pipe-cost-function (o/get % "rowData" nil))
                :width 80)
         
         (col "Type" ::candidate/type "checkbox" data-name)

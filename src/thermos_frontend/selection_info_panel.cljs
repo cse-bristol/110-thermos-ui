@@ -41,8 +41,9 @@
   (let [rsum (partial reduce +)
         rmax (partial reduce max)
         rmin (partial reduce min)
-        rmean #(/ (rsum %) (count %)) 
+        rmean #(/ (rsum %) (count %))
 
+        path-cost #(document/path-cost % @document)
         has-solution (document/has-solution? @document)
         selected-candidates (operations/selected-candidates @document)
         selected-technologies (mapcat (comp ::solution/technologies ::solution/candidate)
@@ -66,14 +67,13 @@
 
      [:div.selection-table
       (for [[row-name class contents]
-            [
-             ["Type" sc-class (cat ::candidate/type nil)]
+            [["Type" sc-class (cat ::candidate/type nil)]
              ["Classification" sc-class (cat ::candidate/subtype "Unclassified")]
              ["Constraint" sc-class (cat ::candidate/inclusion "Forbidden")]
              ["Name" sc-class (cat ::candidate/name "None")]
              
              ["Length" nil (num ::path/length  rsum "m")]
-             ["Base cost" nil (num path/cost   rsum "¤")]
+             ["Base cost" nil (num path-cost   rsum "¤")]
              ["Demand" nil (num ::demand/kwh  rsum "Wh/yr" 1000)]
              ["Peak" nil (num ::demand/kwp  rsum "Wp" 1000)]]]
 
