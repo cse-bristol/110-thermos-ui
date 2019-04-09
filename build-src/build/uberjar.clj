@@ -18,7 +18,7 @@
 (defonce ^FileSystem FS (FileSystems/getDefault))
 
 (defn md5 [input]
-  (with-open [input (io/input-stream inpute)]
+  (with-open [input (io/input-stream input)]
     (let [md (java.security.MessageDigest/getInstance "MD5")
           is (java.security.DigestInputStream. input md)]
 
