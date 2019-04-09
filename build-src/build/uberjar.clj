@@ -177,9 +177,7 @@
                            m1 (md5 is)
                            m2 (md5 (java.net.URL.
                                     (str "jar:file:"
-                                         f2
-                                         "!"
-                                         name)))
+                                         f2 "!/" name)))
                            ]
                        
                        (when-not (= m1 m2)
