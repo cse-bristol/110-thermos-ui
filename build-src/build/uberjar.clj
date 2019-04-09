@@ -162,11 +162,12 @@
         ]
 
     (doseq [classpath-entry classpath]
-      (when-not (skip-jars classpath-entry)
+      (if (skip-jars classpath-entry)
+        (println "- skipped jar" classpath-entry)
         (map-classpath
          (fn [name is last-mod]
            (if (skip-files name)
-             (println "die: skip" name)
+             (println "-" "skipped file" classpath-entry name)
              (let [target (.resolve tmp name)]
                (if (Files/exists target (make-array LinkOption 0))
                  ;; we must resolve a clash
@@ -183,9 +184,9 @@
                            ]
                        
                        (when-not (= m1 m2)
-                         (println "Conflict:" name)
-                         (println "die:" classpath-entry m1)
-                         (println "win:" (get @owners name) m2)))))
+                         (println "! conflict:" name)
+                         (println "-" classpath-entry m1)
+                         (println "+" (get @owners name) m2)))))
                  (do
                    (swap! owners assoc name classpath-entry)
                    (Files/createDirectories (.getParent target) (make-array FileAttribute 0))
