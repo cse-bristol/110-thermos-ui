@@ -1,12 +1,14 @@
 (ns build.uberjar
   (:require [clojure.edn :as edn]
-            [clojure.java.io :as jio])
+            [clojure.java.io :as jio]
+            [clojure.java.io :as io])
+  
   (:import [java.io InputStream OutputStream PushbackReader]
            [java.nio.file CopyOption LinkOption OpenOption
-                          StandardCopyOption StandardOpenOption
-                          FileSystem FileSystems Files
-                          FileVisitResult FileVisitor
-                          Path]
+            StandardCopyOption StandardOpenOption
+            FileSystem FileSystems Files
+            FileVisitResult FileVisitor
+            Path]
            [java.nio.file.attribute BasicFileAttributes FileAttribute]
            [java.util.jar JarInputStream JarOutputStream JarEntry Manifest Attributes]))
 
@@ -14,6 +16,14 @@
 ;; Amended to have some more useful features
 
 (defonce ^FileSystem FS (FileSystems/getDefault))
+
+(defn md5 [input]
+  (with-open [input (io/input-stream inpute)]
+    (let [md (java.security.MessageDigest/getInstance "MD5")
+          is (java.security.DigestInputStream. input md)]
+
+      (while (not= -1 (.read is)))
+      (javax.xml.bind.DatatypeConverter/printHexBinary (.digest md)))))
 
 (defn path
   ^Path [s]
@@ -162,9 +172,16 @@
                  (let [merger (merge-strategy name)]
                    (if merger
                      (merger target is)
-                     (do (println "Conflict:" name)
-                         (println "✗" classpath-entry)
-                         (println "✔" (get @owners name)))))
+                     (let [f1 classpath-entry
+                           f2 (get @owners name)
+
+                           m1 (md5 f1)
+                           m2 (md5 f2)]
+                       
+                       (when-not (= m1 m2)
+                         (println "Conflict:" name)
+                         (println "✗" classpath-entry m1)
+                         (println "✔" (get @owners name) m2)))))
                  (do
                    (swap! owners assoc name classpath-entry)
                    (Files/createDirectories (.getParent target) (make-array FileAttribute 0))
