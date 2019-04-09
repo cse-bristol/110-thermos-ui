@@ -37,8 +37,6 @@
 
 (in-ns 'thermos-backend.core)
 
-(javax.imageio.ImageIO/scanForPlugins)
-
 (defstate server
   :start
   (let [server-config

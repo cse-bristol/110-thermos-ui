@@ -128,6 +128,7 @@
     merge-edn
     
     (or (= "META-INF/registryFile.jaiext" name)
+        (= "META-INF/registryFile.jai" name) ;; maybe
         (re-find #"^META-INF/services/" name))
     concat-lines
     
