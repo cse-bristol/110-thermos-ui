@@ -21,7 +21,6 @@
   (with-open [input (io/input-stream input)]
     (let [md (java.security.MessageDigest/getInstance "MD5")
           is (java.security.DigestInputStream. input md)]
-
       (while (not= -1 (.read is)))
       (javax.xml.bind.DatatypeConverter/printHexBinary (.digest md)))))
 
@@ -175,8 +174,13 @@
                      (let [f1 classpath-entry
                            f2 (get @owners name)
 
-                           m1 (md5 f1)
-                           m2 (md5 f2)]
+                           m1 (md5 is)
+                           m2 (md5 (java.net.URL.
+                                    (str "jar:file:"
+                                         f2
+                                         "!"
+                                         name)))
+                           ]
                        
                        (when-not (= m1 m2)
                          (println "Conflict:" name)
