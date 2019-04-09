@@ -163,7 +163,7 @@
           (POST "/new" [& params]
             ;; body params contains the form state.
             (handle-map-creation project-id params)
-            (response/redirect "../"))
+            (response/created (str "/project/" project-id)))
 
           (POST "/new/add-file" [file :as {s :session}]
             (let [files (if (vector? file) file [file])
