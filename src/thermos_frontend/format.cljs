@@ -24,8 +24,9 @@
                  (metric-prefix value (/ 1000000000 scale) "G")
                  (metric-prefix value (/ 1000000 scale) "M")
                  (metric-prefix value (/ 1000 scale) "k")
-                 (metric-prefix value (/ 0.001 scale) "m")
+                 (metric-prefix value scale "")
                  (metric-prefix value (/ 0.01 scale) "c")
+                 (metric-prefix value (/ 0.001 scale) "m")
                  (local-format value))
              (.substring dimension 1)))
       (str sign
@@ -33,8 +34,9 @@
                (metric-prefix value 1000000000 "G")
                (metric-prefix value 1000000 "M")
                (metric-prefix value 1000 "k")
-               (metric-prefix value 0.001 "m")
+               (metric-prefix value 1 "")
                (metric-prefix value 0.01 "c")
+               (metric-prefix value 0.001 "m")
                (local-format value))))))
 
 (defn seconds [s]
