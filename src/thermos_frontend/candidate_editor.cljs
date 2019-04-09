@@ -50,6 +50,7 @@
           (when-not group-by-nothing
             [:th (group-by-options group-by-key)])
           [:th "Count"]
+          [:th "Connection cost"]
           [:th "Demand"]
           [:th "Peak"]
           [:th "Heat price"]
@@ -59,6 +60,7 @@
          [:tr {:style {:font-size :small}}
           (when-not group-by-nothing [:th])
           [:th]
+          [:th "¤/kWp"]
           [:th (if benchmarks "kWh/m2 yr" "MWh/yr")]
           [:th (if benchmarks "kW/m2" "kW")]
           [:th "c/kWh"]
@@ -74,6 +76,14 @@
              (when-not group-by-nothing
                [:td (or k (nil-value-label group-by-key))])
              [:td (count cands)]
+             [:td [inputs/check-number
+                   {:max 1000
+                    :min 0
+                    :step 1
+                    :value-atom
+                    (reagent/cursor values [group-by-key k :connection-cost :value])
+                    :check-atom
+                    (reagent/cursor values [group-by-key k :connection-cost :check])}]]
              [:td [inputs/check-number
                    {:max 1000
                     ;; benchmarks are in kWh but absolute in MWh
@@ -191,7 +201,7 @@
                             :demand-benchmark {:value 2}
                             :peak-benchmark {:value 3}
                             :price {:value (mean (map ::demand/price v))}
-                            }
+                            :connection-cost {:value (mean (map ::demand/connection-cost v))}}
                            (->> (for [e candidate/emissions-types]
                                   [e {:value
                                       (mean
@@ -236,6 +246,7 @@
 
              {set-peak :check peak-value :value} (:peak-demand values)
              {set-demand :check demand-value :value} (:demand values)
+             {set-conn-cost :check conn-cost-value :value} (:connection-cost values)
 
              peak-value   (if bench
                             (* (:peak-benchmark values) (::candidate/area building))
@@ -260,6 +271,7 @@
            set-demand              (assoc ::demand/kwh demand-value)
            set-peak                (assoc ::demand/kwp peak-value)
            set-heat-price          (assoc ::demand/price price-value)
+           set-conn-cost           (assoc ::demand/connection-cost conn-cost-value)
            (seq emissions-factors) (update ::demand/emissions merge emissions-factors))))
 
      building-ids)))

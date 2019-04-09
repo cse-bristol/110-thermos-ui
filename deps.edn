@@ -79,6 +79,7 @@
     ring/ring-core {:mvn/version "1.7.1"}
     ring/ring-defaults {:mvn/version "0.3.2"}
     ring/ring-json {:mvn/version "0.4.0"}
+    ring/ring-ssl {:mvn/version "0.3.0"}
     org.clojure/tools.logging {:mvn/version "0.4.1"}
     log4j/log4j {:mvn/version "1.2.17"
                  :exclusions [javax.mail/mail
