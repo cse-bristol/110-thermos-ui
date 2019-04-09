@@ -5,8 +5,7 @@
             [muuntaja.middleware :as muuntaja]
             
             [ring.middleware.defaults :refer [wrap-defaults site-defaults api-defaults]]
-            ;; [ring.middleware.stacktrace :refer [wrap-stacktrace]]
-
+            [ring.middleware.ssl :refer [wrap-forwarded-scheme wrap-hsts]]
             
             [ring.logger :as logger]
             [clojure.tools.logging :as log]
@@ -46,5 +45,9 @@
       (muuntaja/wrap-format)
       (wrap-defaults (-> site-defaults
                          (assoc-in [:security :anti-forgery] false)))
+
+      (wrap-forwarded-scheme)
+      (wrap-hsts)
+      
       (wrap-no-cache)))
 
