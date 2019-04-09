@@ -12,7 +12,8 @@
 ;; upsides - can append to files with migrations, does migrations entirely in an atomic block so doesn't break everything
 
 (defn migrate [conn & {:keys [migration-table migration-files]
-                       :or {migration-table "migrations"}}]
+                       :or {migration-table "migrations"
+                            migration-files (resauce/resource-dir "migrations")}}]
   
   (jdbc/atomic conn
     (jdbc/execute
@@ -22,12 +23,12 @@
     (let [migration-state (->> (jdbc/fetch conn (str "SELECT * FROM " migration-table))
                                (sort-by (juxt :file :row)))
 
-          migration-files (or (seq migration-files)
-                              (resauce/resource-dir "migrations"))
-
-          _ (println "Migration-files" (pr-str migration-files))
-          
           migration-contents (->> migration-files
+                                  (map (fn [s]
+                                         (if (string? s)
+                                           (java.net.URL. s)
+                                           s)))
+                                  
                                   (filter #(.endsWith (.getPath %) ".sql"))
                                   (mapcat (fn [u]
                                             (let [file (last (string/split (.getPath u) #"/"))]
