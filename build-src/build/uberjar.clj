@@ -165,7 +165,8 @@
       (when-not (skip-jars classpath-entry)
         (map-classpath
          (fn [name is last-mod]
-           (when-not (skip-files name)
+           (if (skip-files name)
+             (println "die: skip" name)
              (let [target (.resolve tmp name)]
                (if (Files/exists target (make-array LinkOption 0))
                  ;; we must resolve a clash

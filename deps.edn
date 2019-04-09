@@ -117,6 +117,9 @@
     com.cognitect/transit-clj {:mvn/version "0.8.313"}
 
     metosin/muuntaja {:mvn/version "0.6.3"}
+
+    ;; this should be transitively required, but we seem to miss bits of it
+    tec.uom/uom-se {:mvn/version "1.0.9"}
     }}}
  
  :deps
