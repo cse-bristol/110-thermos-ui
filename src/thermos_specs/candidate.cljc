@@ -45,6 +45,12 @@
 
 (defn in-solution? [candidate] (::solution/included candidate))
 
+(defn supply-in-solution? [candidate]
+  (and (is-building? candidate)
+       (has-supply? candidate)
+       (::solution/included candidate)
+       (::solution/capacity-kw candidate)))
+
 (def emissions-types #{:co2 :pm25 :nox})
 
 (defn unreachable? [candidate] (::solution/unreachable candidate))

@@ -79,6 +79,7 @@
         unreachable (candidate/unreachable? candidate)
 
         is-supply (candidate/has-supply? candidate)
+        supply-in-solution (candidate/supply-in-solution? candidate)
         
         included (candidate/is-included? candidate)
         forbidden (not included)
@@ -106,9 +107,11 @@
     (set! (.. ctx -fillStyle)
           (if is-supply
             (.createPattern ctx
-                            (if selected
-                              theme/dark-purple-stripes
-                              theme/light-purple-stripes)
+                            (cond
+                              (and selected in-solution) blue-dark-grey-stripes
+                              selected                   white-dark-grey-stripes
+                              in-solution                blue-light-grey-stripes
+                              :else                      white-light-grey-stripes)
                             "repeat")
             
             (if selected theme/dark-grey theme/light-grey)))

@@ -48,9 +48,14 @@
 (def cyan "#00ccaa")
 (def magenta "#ff00ff")
 
-(def light-purple-stripes
-  (create-stripes "#fff" light-grey 4 8)
-  )
-(def dark-purple-stripes
-  (create-stripes "#fff" dark-grey 4 8)
-  )
+(def white-light-grey-stripes
+  (create-stripes "#fff" light-grey 4 8))
+
+(def white-dark-grey-stripes
+  (create-stripes "#fff" dark-grey 4 8))
+
+(def blue-light-grey-stripes
+  (create-stripes blue light-grey 4 8))
+
+(def blue-dark-grey-stripes
+  (create-stripes blue dark-grey 4 8))
