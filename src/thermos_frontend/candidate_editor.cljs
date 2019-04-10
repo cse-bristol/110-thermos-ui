@@ -146,8 +146,14 @@
          [:tr
           [:th (group-by-options group-by-key)]
           [:th "Length (m)"]
-          [:th "Civil cost (¤/m)"]
-          [:th "Civil cost (¤/m x mm)"]]]
+          [:th
+           {:title "This is the fixed part of the civil engineering cost."}
+           "Civil cost (¤/m)"]
+          [:th
+           {:title (str "This is the variable part of the civil engineering cost. "
+                        "The actual cost will be length * (fixed cost + (variable cost * diameter)^1.1)")}
+           
+           "Civil cost (¤/~m2)"]]]
         
         [:tbody
          (doall
