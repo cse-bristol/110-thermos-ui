@@ -43,8 +43,11 @@
   [v]
   (cond
     (string? v)
-    (try (Double/parseDouble v)
-         (catch NumberFormatException e))
+    #?(:cljs (let [x (js/parseFloat v)]
+               (and x (js/isFinite x) x))
+       :clj (try (Double/parseDouble v)
+                 (catch NumberFormatException e)))
+    
     (number? v) (double v)))
 
 (def truth-values #{"true" "TRUE" "yes" "YES" "1" 1 1.0 true})
