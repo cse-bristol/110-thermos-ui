@@ -101,7 +101,7 @@
               [["In solution" sc-class (cat #(when (candidate/in-solution? %) "yes") "no")]
                ["Diversity"
                 nil
-                (num ::solution/diversity rmean "")
+                (num ::solution/diversity rmean "%" 0.01)
                 ]
                ["Capacity"
                 nil
