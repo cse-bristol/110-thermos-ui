@@ -12,6 +12,8 @@
             [ring.util.response :as response]
             [ring.util.io :as ring-io]
 
+            [thermos-util.converter :refer [network-problem->geojson]]
+
             [thermos-backend.db.projects :as projects]
             [thermos-backend.db.maps :as maps]
             [thermos-backend.importer.core :as importer]
@@ -88,6 +90,12 @@
     (transit/write w data)
     (-> (response/response (.toString stream))
         (response/content-type "application/transit+json; charset=utf-8"))))
+
+(defn- attachment-disposition [r filename]
+  (-> r (response/header "Content-Disposition"
+                         (str "attachment"
+                              (when filename
+                                (str "; filename=\"" filename "\""))))))
 
 (defn- get-project [id]
   (let [project (projects/get-project id)]
@@ -210,9 +218,8 @@
             (GET "/data.json" []
               (-> (response/response (streaming-map map-id))
                   (response/content-type "application/json")
-                  (response/header "Content-Disposition"
-                                   "attachment; filename=map-data.json")))
-            
+                  (attachment-disposition
+                   (str (:name (maps/get-map map-id)) ".json"))))
             
             (context "/net/:net-id" [net-id]
               (GET "/" {{accept "accept"} :headers}
@@ -238,6 +245,17 @@
                       (response/header "X-Queue-Position" (:queue-position info))
                       (response/header "X-Name" (:name info))
                       (response/header "X-Run-State" (:state info)))))
+
+              (GET "/data.json" []
+                ;; convert the problem into geojson for external save
+                (let [network  (projects/get-network (as-int net-id) :include-content true)]
+                  (-> (:content network)
+                      (edn/read-string)
+                      (network-problem->geojson)
+                      (json/write-str)
+                      (response/response)
+                      (response/content-type "application/json")
+                      (attachment-disposition (str (:name network) ".json")))))
 
               (HEAD "/" []
                 (let [info (projects/get-network net-id)]

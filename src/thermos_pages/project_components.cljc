@@ -152,7 +152,11 @@
                     [:div.card {:key name :style {:width :20em}}
                      [:div.flex-cols
                       [:b [:a {:href net-url} name]]
-                      (menu [:a {:style {:margin-left :auto} :href (str "map/" (:id m) "/net/delete/" name)} "DELETE"])
+                      (menu
+                       [:a {:style {:margin-left :auto}
+                            :href (str net-url "/data.json")} "DOWNLOAD"]
+                       [:a {:style {:margin-left :auto}
+                            :href (str "map/" (:id m) "/net/delete/" name)} "DELETE"])
                       ]
 
                      ;; button to get to solutions
