@@ -108,10 +108,10 @@
           (if is-supply
             (.createPattern ctx
                             (cond
-                              (and selected in-solution) blue-dark-grey-stripes
-                              selected                   white-dark-grey-stripes
-                              in-solution                blue-light-grey-stripes
-                              :else                      white-light-grey-stripes)
+                              (and selected in-solution) theme/blue-dark-grey-stripes
+                              selected                   theme/white-dark-grey-stripes
+                              in-solution                theme/blue-light-grey-stripes
+                              :else                      theme/white-light-grey-stripes)
                             "repeat")
             
             (if selected theme/dark-grey theme/light-grey)))
