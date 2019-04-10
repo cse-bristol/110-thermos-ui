@@ -11,6 +11,30 @@
 ;; downsides - stores more stuff in the DB, nonreversible
 ;; upsides - can append to files with migrations, does migrations entirely in an atomic block so doesn't break everything
 
+(defn- load-migration-files [migration-files]
+  (->> migration-files
+       (map (fn [s]
+              (if (string? s)
+                (java.net.URL. s)
+                s)))
+       
+       (filter #(.endsWith (.getPath %) ".sql"))
+       (mapcat (fn [u]
+                 (let [file (last (string/split (.getPath u) #"/"))]
+                   (for [[row sql] (map-indexed vector (string/split (slurp u) #"(?m)^--;;.*$"))]
+                     {:sql (string/trim sql) :row row :file file}))))
+       (sort-by (juxt :file :row))))
+
+(defn force [conn & {:keys [migration-table migration-files]
+                     :or {migration-table "migrations"
+                          migration-files (resauce/resource-dir "migrations")}}]
+  (jdbc/atomic conn
+    (jdbc/execute conn "DELETE FROM migrations")
+    (-> (h/insert-into (keyword migration-table))
+        (h/values (load-migration-files migration-files))
+        (sql/format)
+        (->> (jdbc/execute conn)))))
+
 (defn migrate [conn & {:keys [migration-table migration-files]
                        :or {migration-table "migrations"
                             migration-files (resauce/resource-dir "migrations")}}]
@@ -18,31 +42,23 @@
   (jdbc/atomic conn
     (jdbc/execute
      conn
-     "CREATE TABLE IF NOT EXISTS migrations (file text not null, row int not null, sql text not null);")
+     (format "CREATE TABLE IF NOT EXISTS %s (file text not null, row int not null, sql text not null);" migration-table))
 
+    (jdbc/execute
+     conn
+     (format "UPDATE %s SET sql = trim(both ' \n' from sql);" migration-table))
+    
     (let [migration-state (->> (jdbc/fetch conn (str "SELECT * FROM " migration-table))
                                (sort-by (juxt :file :row)))
 
-          migration-contents (->> migration-files
-                                  (map (fn [s]
-                                         (if (string? s)
-                                           (java.net.URL. s)
-                                           s)))
-                                  
-                                  (filter #(.endsWith (.getPath %) ".sql"))
-                                  (mapcat (fn [u]
-                                            (let [file (last (string/split (.getPath u) #"/"))]
-                                              (for [[row sql] (map-indexed vector (string/split (slurp u) #"(?m)^--;;.*$"))]
-                                                {:sql sql :row row :file file}))))
-                                  (sort-by (juxt :file :row)))]
-
+          migration-contents (load-migration-files migration-files)]
 
       (let [[historic remaining] (split-at (count migration-state) migration-contents)]
         (when-not (= historic migration-state)
           (throw
            (ex-info "The database has had migrations applied to it from an alternate history"
-                    {:unexpected-migrations (set/difference migration-state historic)
-                     :lost-migrations (set/difference historic migration-state)})))
+                    {:unexpected-migrations (set/difference (set migration-state) (set historic))
+                     :lost-migrations (set/difference (set historic) (set migration-state))})))
 
         ;; otherwise we are good
         (doseq [migration remaining]

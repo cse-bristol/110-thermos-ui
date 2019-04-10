@@ -10,7 +10,7 @@
             [honeysql-postgres.helpers :as p]
             [clojure.string :as string]
             [clojure.data.json :as json]
-            [thermos-backend.db.migration :refer [migrate]])
+            [thermos-backend.db.migration :as migration])
   
   (:import [org.postgresql.util PGobject]))
 
@@ -35,7 +35,7 @@
                      :port-number 5432})]
     
     (with-open [conn (jdbc/connection datasource)]
-      (migrate conn))
+      (migration/migrate conn))
     datasource)
   :stop
   (hikari/close-datasource conn))

@@ -5,6 +5,7 @@
             [net.cgrand.macrovich :as macro]
             [thermos-pages.common :refer [fn-js] :refer-macros [fn-js]]
             [ajax.core :refer [POST]]
+            [thermos-pages.symbols :as symbols]
             #?@(:cljs
                 [[thermos-pages.dialog :refer [show-dialog! close-dialog!]]])))
 
@@ -34,6 +35,26 @@
    [:div
     (when on-close [:button {:on-click on-close} "Cancel"])
     (when on-save [:button {:on-click on-save} "Save"])]])
+
+(rum/defc version-list-widget [map-id versions]
+  [:div {:on-click (fn-js [] (close-dialog!))}
+   [:table
+    [:thead
+     [:tr [:th "Date saved"] [:th "Author"] [:th "Optimisation"] [:th]]]
+    [:tbody
+     (for [v versions]
+       [:tr {:key (:id v)}
+        [:td (:created v)]
+        [:td (:user-name v)]
+        [:td (cond
+               (:has-run v) "Finished"
+               (:job-id v) "In queue")]
+        
+        [:td
+         [:a {:href (str "map/" map-id "/net/" (:id v))} "view"]
+         " "
+         [:a {:href (str "map/" map-id "/net/" (:id v) "/data.json") :title "Download"} "↓"]
+         ]])]]])
 
 (rum/defcs delete-project-widget < (rum/local nil ::wrong-name)
   [state {:keys [on-close on-delete]}
@@ -87,22 +108,25 @@
             [:em "This project has no description"]
             [:span d]))]
        [:div
-        "👤 "
-        [:a {:on-click (fn-js [e]
-                         (let [user-state (atom (:users project))]
-                           (show-dialog!
-                            (project-user-list
-                             {:on-save
-                              #(do (POST "users" {:params {:users@user-state}})
-                                   (close-dialog!))
-                              :on-close close-dialog!}
-                             user-state))
-                           (.preventDefault e)))
-             :href "users"}  (count (:users project)) " USERS"]
+        [:span {:style {:margin-right :1em}}
+         symbols/person
+         [:a {:on-click (fn-js [e]
+                          (let [user-state (atom (:users project))]
+                            (show-dialog!
+                             (project-user-list
+                              {:on-save
+                               #(do (POST "users" {:params {:users@user-state}})
+                                    (close-dialog!))
+                               :on-close close-dialog!}
+                              user-state))
+                            (.preventDefault e)))
+              :href "users"} (let [n (count (:users project))]
+                               (str n " USER" (when (> n 1) "S")))
+          ]]
         
         (when am-admin
-          [:span
-           "❌ "
+          [:span {:style {:margin-right :1em}}
+           symbols/dustbin
            [:a {:href "delete"
                 :on-click
                 (fn-js [e]
@@ -116,8 +140,9 @@
                   (.preventDefault e))}
             
             "DELETE PROJECT"]])
-        "➕ "
-        [:a {:href "map/new"} "IMPORT NEW MAP"]]]]
+        [:span {:style {:margin-right :1em}}
+         symbols/plus
+         [:a {:href "map/new"} "IMPORT NEW MAP"]]]]]
 
      
      (if-let [maps (seq (:maps project))]
@@ -127,12 +152,16 @@
            [:h1 {:style {:flex-grow 1}}
             (:name m)]
            [:div
-            [:a {:href (str "map/" (:id m) "/delete")} "DELETE MAP"]
-            " • "
-            [:a {:href (str "map/" (:id m) "/data.json")} "DOWNLOAD"]
+            [:span {:style {:margin-right :1em}}
+             symbols/dustbin
+             [:a {:href (str "map/" (:id m) "/delete")} "DELETE MAP"]]
+            
+            [:span {:style {:margin-right :1em}}
+             symbols/down-arrow
+             [:a {:href (str "map/" (:id m) "/data.json")} "DOWNLOAD"]]
             (if (:import-completed m)
-              [:span
-               " • "
+              [:span {:style {:margin-right :1em}}
+               symbols/plus
                [:a {:href (str "map/" (:id m) "/net/new")} "NEW NETWORK"]])
             ]]
           
@@ -152,18 +181,24 @@
                     [:div.card {:key name :style {:width :20em}}
                      [:div.flex-cols
                       [:b [:a {:href net-url} name]]
-                      (menu
-                       [:a {:style {:margin-left :auto}
-                            :href (str net-url "/data.json")} "DOWNLOAD"]
-                       [:a {:style {:margin-left :auto}
-                            :href (str "map/" (:id m) "/net/delete/" name)} "DELETE"])
-                      ]
-
-                     ;; button to get to solutions
-                     ;; button to show historic versions
-                     [:div
-                      (count versions) " version"
-                      (if (seq (rest versions)) "s" "")]
+                      [:div {:style {:margin-left :auto}}
+                       (when (seq (rest versions))
+                         [:a {:on-click
+                              (fn-js [e]
+                                (show-dialog! (version-list-widget (:id m) versions))
+                                (.preventDefault e))
+                              
+                              :href (str "map/" (:id m) "/net/history/" name)}
+                          (count versions) " versions"])
+                       [:a {:style {:margin-left :1em}
+                            :href (str net-url "/data.json")}
+                        symbols/down-arrow]
+                       
+                       [:a {:style {:margin-left :1em}
+                            :href (str "map/" (:id m) "/net/delete/" name)}
+                        symbols/dustbin]
+                       ]]
+                     
                      ]))]
 
                [:div

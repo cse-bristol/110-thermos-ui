@@ -268,7 +268,9 @@
                 (let [content (if (:tempfile content)
                                 (slurp (:tempfile content))
                                 (str content))
-                      new-id (projects/save-network! project-id map-id name content)]
+                      new-id (projects/save-network!
+                              (:id auth/*current-user*)
+                              project-id map-id name content)]
                   (when run (solver/queue-problem new-id))
                   (-> (response/created (str new-id))
                       (response/header "X-ID" new-id))))))

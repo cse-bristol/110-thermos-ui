@@ -7,7 +7,7 @@
    [rum.core :as rum]
    [clojure.pprint :refer [pprint]]
    [clojure.set :refer [map-invert]]
-
+   [thermos-pages.symbols :as symbols]
    [com.rpl.specter :refer [setval MAP-VALS NONE]]
    
    #?@(:cljs
@@ -528,7 +528,7 @@
             [:td (:table-file join)]
             [:td (:gis-column join)]
             [:td (:table-column join)]
-            [:td [:button "🗑"]]])
+            [:td [:button symbols/dustbin]]])
          
          [:tr
           [:td

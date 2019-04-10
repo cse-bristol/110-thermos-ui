@@ -22,12 +22,20 @@
    :else
    (sql/call
     :json_agg
-    (if (some #(.contains (name %) "*")
+    (if (some #(and (keyword? %)
+                    (.contains (name %) "*"))
              fields)
       (apply sql/call :to_json fields)
       (apply sql/call :json_build_object
              (flatten (for [f fields]
-                        [(last (.split (name f) "\\.")) f])))))))
+                        [(cond
+                           (keyword? f)
+                           [(last (.split (name f) "\\.")) f]
+                           
+                           (vector? f)
+                           [(name (second f)) (first f)])
+                         
+                         ])))))))
 
 (defn get-project
   "Select project details for `project-id`.
@@ -59,12 +67,20 @@
       (h/left-join
        [(-> (h/select :maps.*
                       :jobs.state
-                      [(join-json :networks.id :networks.name) :networks])
+                      [(join-json :networks.id
+                                  :networks.name
+                                  :networks.user-id
+                                  [:users.name :user-name]
+                                  :networks.created
+                                  :networks.has-run
+                                  :networks.job-id)
+                       :networks])
             (h/from :maps)
             (h/left-join :networks
                          [:= :maps.id :networks.map-id]
                          :jobs
                          [:= :maps.job-id :jobs.id])
+            (h/merge-left-join :users [:= :networks.user-id :users.id])
             
             (h/group :maps.id :jobs.state)) :maps]
        [:= :projects.id :maps.project-id])
@@ -161,7 +177,7 @@
       (db/fetch-one!)
       (update :state keyword)))
 
-(defn save-network! [project-id map-id name content]
+(defn save-network! [user-id project-id map-id name content]
   {:pre [(int? project-id)
          (int? map-id)
          (string? name)
@@ -170,6 +186,7 @@
    :networks
    {:map-id map-id
     :name name
+    :user-id user-id
     :content content}))
 
 (defn add-solution! [network-id content]

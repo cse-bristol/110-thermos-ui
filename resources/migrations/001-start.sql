@@ -236,4 +236,6 @@ $$ LANGUAGE plpgsql;
 ALTER TABLE candidates DROP CONSTRAINT candidates_map_id_fkey,
 ADD CONSTRAINT candidates_map_id_fkey
   FOREIGN KEY (map_id) REFERENCES maps(id) ON DELETE CASCADE;
-
+--;;
+ALTER TABLE networks
+ADD COLUMN user_id text REFERENCES users(id) ON DELETE SET NULL;
