@@ -136,7 +136,8 @@
                              (h/from :projects)
                              (h/where [:= :id project-id])
                              (db/fetch! conn)
-                             (first))]
+                             (first)
+                             (:name))]
         (doseq [u invitees]
           (email/send-invitation-message
            (:id u) (:name current-user)
