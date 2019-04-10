@@ -124,8 +124,8 @@
                 (let [annual (num ::solution/losses-kwh rsum "Wh/yr" 1000)]
                   (when (seq annual)
                     [:span annual ", " (num (fn [p]
-                                              (/ (annual-kwh->kw (::solution/losses-kwh %))
-                                                 (::path/length t)))
+                                              (/ (annual-kwh->kw (::solution/losses-kwh p))
+                                                 (::path/length p)))
                                             rsum "W" 1000)]))
                 ]
                
