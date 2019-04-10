@@ -126,7 +126,7 @@
                     [:span annual ", " (num (fn [p]
                                               (/ (annual-kwh->kw (::solution/losses-kwh p))
                                                  (::path/length p)))
-                                            rsum "W" 1000)]))
+                                            rsum "W/m" 1000)]))
                 ]
                
                
