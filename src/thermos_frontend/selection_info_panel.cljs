@@ -99,7 +99,7 @@
       (when has-solution
         (for [[row-name class contents]
               [["In solution" sc-class (cat #(when (candidate/in-solution? %) "yes") "no")]
-               ["Diversity"
+               ["Coincidence"
                 nil
                 (num ::solution/diversity rmean "%" 0.01)
                 ]
