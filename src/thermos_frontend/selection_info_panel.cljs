@@ -82,8 +82,8 @@
              ["Length" nil (num ::path/length  rsum "m")]
              [[:span
                {:title
-                "For buildings this is the connection cost. "
-                "For paths it is the cost of a 10mm pipe."}
+                (str "For buildings this is the connection cost. "
+                     "For paths it is the cost of a 10mm pipe.")}
                "Base cost"] nil (num base-cost   rsum "¤")]
              
              ["Demand" nil (num ::demand/kwh  rsum "Wh/yr" 1000)]
