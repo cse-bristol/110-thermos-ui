@@ -9,7 +9,7 @@
             [thermos-frontend.operations :as operations]
             [thermos-frontend.inclusion-selector :as inclusion-selector]
             [thermos-frontend.tag :as tag]
-            [thermos-frontend.format :refer [si-number]]
+            [thermos-frontend.format :refer [si-number local-format]]
             [thermos-util :refer [annual-kwh->kw]]
             ))
 
@@ -101,7 +101,7 @@
               [["In solution" sc-class (cat #(when (candidate/in-solution? %) "yes") "no")]
                ["Coincidence"
                 nil
-                (num ::solution/diversity rmean "%" 0.01)
+                (num ::solution/diversity rmean "%" 100)
                 ]
                ["Capacity"
                 nil
