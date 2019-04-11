@@ -156,7 +156,7 @@
 
      (context "/:project-id" [project-id :<< as-int]
        (auth/restricted
-        {:project-id project-id}
+        {:project project-id}
         (GET "/" []
           (project-page
            (get-project project-id)))

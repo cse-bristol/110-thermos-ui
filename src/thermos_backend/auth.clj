@@ -105,7 +105,9 @@
 
 (defroutes auth-routes
   (GET "/login" [target flash]
-    (login-form target flash))
+    (if *current-user*
+      (response/redirect target)
+      (login-form target flash)))
 
   (GET "/token/:token" [token]
     ;; since the token is sent by email, knowing it is as good as a password.
@@ -127,9 +129,7 @@
 
       forgot
       (do (db/emit-reset-token! username)
-          (response/redirect "/login?flash=check-mail")))
-    
-    )
+          (response/redirect "/login?flash=check-mail"))))
 
   (GET "/logout" []
     (handle-logout)))
