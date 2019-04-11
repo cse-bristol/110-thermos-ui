@@ -200,7 +200,9 @@
                        (when (some (fn [v]
                                      (and (:job-id v) (not (:has-run v))))
                                    versions)
-                         spinner)
+                         [:div
+                          {:style {:transform "scale(0.1)"}}
+                          spinner])
                        ]]
                      
                      ]))]
