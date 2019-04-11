@@ -4,6 +4,7 @@
             [rum.core :as rum]
             [net.cgrand.macrovich :as macro]
             [thermos-pages.common :refer [fn-js] :refer-macros [fn-js]]
+            [thermos-pages.spinner :refer [spinner]]
             [ajax.core :refer [POST]]
             [thermos-pages.symbols :as symbols]
             #?@(:cljs
@@ -203,9 +204,13 @@
                 "This map has no network designs associated with it yet."])
 
              [:br {:style {:clear :both}}]]
-            [:div "Map import in progress..."
-             (:status m)
-             ])])
+
+            [:div
+             spinner
+             "Map import in progress..."
+             (:status m)]
+            
+            )])
        [:div.card
         "This project has no maps in it yet. "
         "Get started by creating a new map above."])]))
