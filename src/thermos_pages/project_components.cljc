@@ -195,15 +195,16 @@
                        
                        [:a {:style {:margin-left :1em}
                             :href (str "map/" (:id m) "/net/delete/" name)}
-                        symbols/dustbin]
+                        symbols/dustbin]]
+                      
+                      (when true ;; (some (fn [v]
+                             ;;         (and (:job-id v) (not (:has-run v))))
+                             ;;       versions)
 
-                       (when (some (fn [v]
-                                     (and (:job-id v) (not (:has-run v))))
-                                   versions)
                          [:div
-                          {:style {:transform "scale(0.1)"}}
-                          spinner])
-                       ]]
+                          {:style {:height :16px :width :16px
+                                   :transform "scale(0.25)"}}
+                          spinner])]
                      
                      ]))]
 
