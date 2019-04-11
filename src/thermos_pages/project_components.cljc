@@ -197,9 +197,9 @@
                             :href (str "map/" (:id m) "/net/delete/" name)}
                         symbols/dustbin]]
                       
-                      (when true ;; (some (fn [v]
-                             ;;         (and (:job-id v) (not (:has-run v))))
-                             ;;       versions)
+                      (when (some (fn [v]
+                                    (and (:job-id v) (not (:has-run v))))
+                                  versions)
 
                          [:div
                           {:style {:height :16px :width :16px
