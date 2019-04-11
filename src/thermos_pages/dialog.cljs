@@ -9,9 +9,7 @@
   [:div {:style {:background "rgba(0.5,0.5,0.5,0.75)"
                  :position :fixed
                  :top 0 :left 0 :bottom 0 :right 0 :z-index 500
-                 :display :flex}
-;;         :on-click close-dialog!
-         }
+                 :display :flex}}
    [:div.card {:style {:max-width :80%
                        :margin-top :auto
                        :margin-right :auto

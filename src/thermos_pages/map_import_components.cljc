@@ -20,8 +20,6 @@
 ;; TODO delete invalid joins when things removed
 ;; TODO tick-boxes for applying defaults in OSM?
 ;; TODO lockout next/previous buttons and highlight things to click
-;; TODO wire up submission
-;; TODO patch up importer on serverside
 
 (rum/defc dump < rum/reactive [form-state]
   [:pre
@@ -689,6 +687,36 @@
     (println result)
     result))
 
+(defn- validate-osm-area [geo]
+  (when (and (= :osm (:source geo))
+             (not (or (:osm-id (:osm geo))
+                      (:boundary (:osm geo)))))
+    ["Select an area on the map to continue"]))
+
+(defn- validate-files [geo]
+  (when (= :files (:source geo))
+    (let [files (:files geo)]
+      (cond
+        (not (some (comp seq :geometry-types) (vals files)))
+        ["Upload some GIS files to continue"]
+
+        (some (comp #{:invalid :error} :state) (vals files))
+        ["Remove any invalid files or failed uploads to continue"]
+
+        (some (comp #{:uploading} :state) (vals files))
+        ["Waiting for files to upload..."]))))
+
+(defn- page-requirements [form-state]
+  (case (:current-page form-state)
+    :name (when (string/blank? (:name form-state))
+            ["Enter a name for your map"])
+    :building-data (concat (validate-files    (:buildings form-state))
+                           (validate-osm-area (:buildings form-state)))
+    :road-data     (validate-files    (:roads form-state))
+    
+    nil))
+
+
 (rum/defc other-parameters-page < rum/reactive rum/static
   [*form-state]
   [:div
@@ -832,6 +860,46 @@
     [:span "A logical value, represented either as a boolean column, or the text values yes, no, true, false, 1 or 0. "
      "If available, this will improve the quality of built-in regression model results. Otherwise, this is assumed to be true."]}])
 
+(rum/defc button-strip < rum/reactive rum/static [*form-state *current-page]
+  (let [state (rum/react *form-state)
+        current-page (rum/react *current-page)
+        messages (page-requirements state)]
+    [:div
+     (when (seq messages)
+       [:ul
+        (for [[i m] (map-indexed vector messages)]
+          [:li {:key i} m])])
+     
+     (when-not (= :name current-page)
+       [:button.button {:on-click
+                        (fn [e]
+                          (swap! *current-page (map-invert (next-page-map @*form-state))))
+                        } "Back"])
+
+     (if (= :other-parameters current-page)
+       [:button.button {:disabled (not-empty messages)
+                        :on-click
+                        (fn [e]
+                          (POST "../new" ;; urgh yuck
+                              {:params
+                               (->> @*form-state
+                                    ;; :buildings :files and :roads :files
+                                    ;; values need their :files bit removing
+                                    ;; because :files are not encodable
+                                    (setval [:buildings :files MAP-VALS :files] NONE)
+                                    (setval [:roads :files MAP-VALS :files] NONE))
+                               
+                               :handler (fn-js [e]
+                                          (js/window.location.replace "../.."))}))
+                        } "Create map"]
+       
+       [:button.button {:disabled (not-empty messages)
+                        :on-click
+                        (fn [e]
+                          (swap! *current-page (next-page-map @*form-state)))
+                        } "Next"])]))
+
+
 (rum/defc map-creation-form < rum/reactive rum/static [form-state]
   (let [*current-page (rum/cursor-in form-state [:current-page])
         current-page  (rum/react *current-page)]
@@ -861,36 +929,9 @@
 
        [:div "Not sure what has happened here. "
         "There is no page called " (str current-page)])
-     
-     [:div
-      (when-not (= :name current-page)
-        [:button.button {:on-click
-                         (fn [e]
-                           (swap! *current-page (map-invert (next-page-map @form-state))))
-                         } "Back"]
-        )
 
-      (if (= :other-parameters current-page)
-        [:button.button {:on-click
-                         (fn [e]
-                           (POST "../new" ;; urgh yuck
-                               {:params
-                                (->> @form-state
-                                     ;; :buildings :files and :roads :files
-                                     ;; values need their :files bit removing
-                                     ;; because :files are not encodable
-                                     (setval [:buildings :files MAP-VALS :files] NONE)
-                                     (setval [:roads :files MAP-VALS :files] NONE))
-                                
-                                :handler (fn-js [e]
-                                           (js/window.location.replace "../.."))}))
-                         } "Create map"]
-        [:button.button {:on-click
-                         (fn [e]
-                           (swap! *current-page (next-page-map @form-state)))
-                         } "Next"])
+     (button-strip form-state *current-page)]))
 
-      ]]))
 
 (def start-state
   {:current-page :name
