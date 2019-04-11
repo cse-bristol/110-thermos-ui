@@ -46,8 +46,8 @@
                      (or (not sysadmin)
                          (= :admin (:auth this-user))))]
      (when-not result
-       (log/warn "Authorization failure" this-user restrict)
-       )
+       (log/warn "Authorization failure" this-user (pr-str restrict)))
+     
      result)))
 
 

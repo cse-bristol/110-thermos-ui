@@ -201,6 +201,12 @@
        (db/fetch!))))
 
 (defn clean-up
+  ([queue-name]
+   (-> (delete-from :jobs)
+       (where [:and
+               [:in :state FINISHED_STATES]
+               [:= :queue-name (name queue-name)]])
+       (db/execute!)))
   ([]
    (-> (delete-from :jobs)
        (where [:in :state FINISHED_STATES])

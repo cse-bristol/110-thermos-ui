@@ -48,11 +48,17 @@
       [:header.flex-cols {:style (style :flex-shrink 0 :flex-grow 0)}
        [:h1  "THERMOS - " ~title]
        [:span {:style (style :margin-left :auto)}
-        (menu
-         [:a {:href "/"} "Home"]
-         [:a {:href "/settings"} "Settings"]
-         [:a {:href "/help"} "Help"]
-         [:a {:href "/logout"} "Logout"])]]
+        [:a {:style (style :margin-left :1em) :href "/"}
+         [:img {:style {:vertical-align :middle}
+                :src "/favicon.ico" :width "16"}]
+         "Home"]
+        [:a {:style (style :margin-left :1em)
+             :href "/settings"} "Settings"]
+        [:a {:style (style :margin-left :1em)
+             :href "/help"} "Help"]
+        [:a {:style (style :margin-left :1em)
+             :href "/logout"} "Logout"]
+        ]]
       
       [:div#page-body.flex-grow
        {:style ~body-style}

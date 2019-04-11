@@ -1,48 +1,50 @@
-* DONE [#A] Make a video about THERMOS editor
-* TODO Make resi field importable
-* TODO Make import wizard a bit more friendly
-- Validation
-- Multiple pages
+* TODO Make project description editable
+* TODO Form validation
 * TODO Make run state pass through to editor
 - [X] Client side timer to poll for status
 - [X] Server side HEAD request status
 - [X] Lock editor during run
 - [ ] Switch tab to solution when complete
 - [ ] Show running count only when enqueued
-* TODO Identify solutions & past versions in project page
-Perhaps a button in the widget that expands it to be bigger
-Or maybe put the history in the page?
-This is effectively name + map_id as key
-
+* DONE Identify solutions & past versions in project page
 * TODO Button to delete networks
 * TODO Show running jobs in project page
-* DONE Show import progress in project page
-* TODO Show/manage participants in project page
-What should this look like?
-* DONE Make email work
 * TODO Make solver cancellable (may already work)
 * TODO Security on IDs (currently 100% bogus)
+* DONE geojson download for network
+* DONE Sysadmin pages
+* TODO [#A] Contact SCIP
+* TODO Add diversity curve parameters to UI
+* TODO Use fallback linear model when at limits of SVM
+* TODO Highlight user-edited objects
+We've run out of colours which makes this a bit difficult
+Line style is not very visible - maybe only option is to show in table with a filter, or have some other mode or button (chip in the selection info box?)
+
+I could give them a slight highlight
+* TODO Show buildings' connection cost in the table viewer
+* TODO Show connection cost as principal in the info panel
+* TODO Make candidate editor look nicer
+* TODO Running time display for running scenarios
+* TODO Home button in editor?
+* DONE Show which supplies have been used as supplies
+* DONE Fix units display in candidate editor
+* DONE [#A] Make a video about THERMOS editor
+* DONE Make resi field importable
+* DONE Make import wizard a bit more friendly
+- Validation
+- Multiple pages
+* DONE Show import progress in project page
+* DONE Show/manage participants in project page
+What should this look like?
+* DONE Make email work
 * DONE Add delete button for map
 * DONE Auto-refresh bits of project page
 ** DONE Fix reagent first-render flicker in projects.clj
 This is simpler than I thought; can use ReactDOM/rehydrate and it mostly works.
 There is some stuff about exactly matching text nodes that needs thought
 * DONE Add delete button for project
-* TODO geojson download for map
-* TODO geojson download for network
-* TODO Remove unused code
-* TODO Sysadmin pages
-* TODO Pipe cost parameters in interface
-* TODO [#A] Put LIDAR info onto v4.1 server
-- Jelgava
-- Granollers
-- London tiles?
-- Warsaw
-- Berlin
-- Alba Iulia
-- Cascais
-* TODO [#A] Contact SCIP
-* TODO Look into better serverside rendering
+* DONE geojson download for map
+* DONE Look into better serverside rendering
 
 Is there some way I can make client-side event handlers not a source of trouble?
 At the moment, :on-click #(js/foo) will break on the server side.
@@ -52,4 +54,17 @@ Transforming the hiccup input server-side would work but any server-side compone
 This is probably roughly acceptable with a bit of work.
 
 Alternatively use someone else's thing (rum) which allegedly works already.
-* TODO Use better diversity curve shape
+* DONE Use better diversity curve shape
+* DONE Put connection cost in interface & model
+This should be cost/kWp in the importer, and in the editor
+* DONE Fix pipe costs
+- [X] In UI, variable and fixed parts
+  - [X] Amend specs.path/cost to take global parameters and indicative dimension
+  - [X] Pass these values down in editor bits that show cost
+- [X] Pass parameters from document
+* DONE Fix supply settings units in editor (£/W too big as it's about 1)
+* DONE Look at Josh's emails for the right cost terms & exponents
+* DONE Stop things getting converted to mm which shouldn't be
+* DONE Stop buildings having a base cost in the selecto
+* DONE Show heat losses
+* DONE Invitation email has {:name "Project name"} sent to it

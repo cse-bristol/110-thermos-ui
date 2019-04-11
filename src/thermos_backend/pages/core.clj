@@ -8,6 +8,7 @@
             [thermos-backend.pages.projects :refer [new-project-page project-page delete-project-page]]
             [thermos-backend.pages.maps :as map-pages]
             [thermos-backend.pages.help :refer [help-page]]
+            [thermos-backend.pages.admin :as admin]
             [thermos-backend.pages.editor :refer [editor-page]]
             [ring.util.response :as response]
             [ring.util.io :as ring-io]
@@ -24,7 +25,8 @@
             [cognitect.transit :as transit]
             [thermos-backend.db.users :as users]
             [clojure.java.io :as io]
-            [clojure.data.json :as json])
+            [clojure.data.json :as json]
+            [thermos-backend.queue :as queue])
   
   (:import [javax.mail.internet InternetAddress]
            [java.io ByteArrayInputStream]))
@@ -111,14 +113,27 @@
 
   (GET "/help" []
     (help-page))
-  
+
+  (context "/admin" []
+    (auth/restricted
+     {:sysadmin true}
+     
+     (GET "/" []
+       (admin/admin-page
+        (users/users)
+        (queue/list-tasks)))
+
+     (GET "/clean-queue/:queue-name" [queue-name]
+       (queue/clean-up (keyword queue-name))
+       (response/redirect "/admin"))))
+    
   (auth/restricted
    {:logged-in true}
    (GET "/" []
      (landing-page
       (:name auth/*current-user*)
       (projects/user-projects (:id auth/*current-user*))))
-
+   
    (GET "/settings" []
      (settings-page auth/*current-user*))
 

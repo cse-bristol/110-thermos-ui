@@ -52,11 +52,13 @@
                  (h/where [:= :user-id user-id])
                  (db/fetch! conn))
              ])]
-      (assoc user-details
+      (-> user-details
+          (update :auth keyword)
+          (assoc 
              :projects
              (reduce
               (fn [a m] (assoc a (:project-id m) (update m :auth keyword)))
-              {} project-details)))))
+              {} project-details))))))
 
 (defn delete-user! [user-id]
   (-> (h/delete-from :users)

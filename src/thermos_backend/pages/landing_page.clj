@@ -1,12 +1,12 @@
 (ns thermos-backend.pages.landing-page
-  (:require [thermos-backend.pages.common :refer [page]]))
+  (:require [thermos-backend.pages.common :refer [page]]
+            [clojure.string :as string]))
 
 (defn- project-card [project]
   [:div.card
    [:h1 [:a {:href (str "/project/" (:id project))} (:name project)]]
-   [:p (:description project)]
-   [:span "Project facts, project facts"]
-   ])
+   (when-not (string/blank? (:description project))
+     [:p (:description project)])])
 
 (defn landing-page [user projects]
   (page

@@ -108,41 +108,40 @@
             [:em "This project has no description"]
             [:span d]))]
        [:div
-        [:span {:style {:margin-right :1em}}
-         symbols/person
-         [:a {:on-click (fn-js [e]
-                          (let [user-state (atom (:users project))]
-                            (show-dialog!
-                             (project-user-list
-                              {:on-save
-                               #(do (POST "users" {:params {:users@user-state}})
-                                    (close-dialog!))
-                               :on-close close-dialog!}
-                              user-state))
-                            (.preventDefault e)))
-              :href "users"} (let [n (count (:users project))]
-                               (str n " USER" (when (> n 1) "S")))
-          ]]
+        [:a.button {:style {:margin-left :1em}
+                    :on-click (fn-js [e]
+                         (let [user-state (atom (:users project))]
+                           (show-dialog!
+                            (project-user-list
+                             {:on-save
+                              #(do (POST "users" {:params {:users@user-state}})
+                                   (close-dialog!))
+                              :on-close close-dialog!}
+                             user-state))
+                           (.preventDefault e)))
+                    :href "users"}
+         (let [n (count (:users project))]
+           (str n " USER" (when (> n 1) "S") " " symbols/person))
+         ]
         
         (when am-admin
-          [:span {:style {:margin-right :1em}}
-           symbols/dustbin
-           [:a {:href "delete"
-                :on-click
-                (fn-js [e]
-                  (show-dialog!
-                   (delete-project-widget
-                    {:on-delete
-                     #(do (POST "delete" {:params {:project-name (:name project)}})
-                          (js/window.location.replace "/"))
-                     :on-close #(close-dialog!)}
-                    project nil))
-                  (.preventDefault e))}
-            
-            "DELETE PROJECT"]])
-        [:span {:style {:margin-right :1em}}
-         symbols/plus
-         [:a {:href "map/new"} "IMPORT NEW MAP"]]]]]
+          [:a.button
+           {:style {:margin-left :1em}
+            :href "delete"
+            :on-click
+            (fn-js [e]
+              (show-dialog!
+               (delete-project-widget
+                {:on-delete
+                 #(do (POST "delete" {:params {:project-name (:name project)}})
+                      (js/window.location.replace "/"))
+                 :on-close #(close-dialog!)}
+                project nil))
+              (.preventDefault e))}
+           
+           "DELETE PROJECT " symbols/dustbin])
+        [:a.button {:style {:margin-left :1em}
+                    :href "map/new"} "NEW MAP " symbols/plus]]]]
 
      
      (if-let [maps (seq (:maps project))]
@@ -152,17 +151,15 @@
            [:h1 {:style {:flex-grow 1}}
             (:name m)]
            [:div
-            [:span {:style {:margin-right :1em}}
-             symbols/dustbin
-             [:a {:href (str "map/" (:id m) "/delete")} "DELETE MAP"]]
-            
-            [:span {:style {:margin-right :1em}}
-             symbols/down-arrow
-             [:a {:href (str "map/" (:id m) "/data.json")} "DOWNLOAD"]]
+            [:a.button
+             {:style {:margin-left :1em}
+              :href (str "map/" (:id m) "/data.json")} "DOWNLOAD " symbols/down-arrow]
+            [:a.button
+             {:style {:margin-left :1em}
+              :href (str "map/" (:id m) "/delete")} "DELETE MAP " symbols/dustbin]
             (if (:import-completed m)
-              [:span {:style {:margin-right :1em}}
-               symbols/plus
-               [:a {:href (str "map/" (:id m) "/net/new")} "NEW NETWORK"]])
+              [:a.button {:style {:margin-left :1em}
+                          :href (str "map/" (:id m) "/net/new")} "NEW NETWORK " symbols/plus])
             ]]
           
           [:span (:description m)]
