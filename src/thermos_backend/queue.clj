@@ -97,26 +97,31 @@
       (let [consumer (:consumer (consumers queue-name))
             ;; at this point we could check for too many jobs and return the job to queue
             ;; if we don't want it.
+            state-callback
+            (fn [& {:keys [message percent can-cancel]}]
+              ;; can-cancel is a convenience for when there have been
+              ;; no side-effects and it is safe to just die
+              
+              (when (and can-cancel (.isInterrupted (Thread/currentThread)))
+                (throw (ex-info "Cancelled" {:cancelled true}))))
+            
             run-thread
-            (Thread. #(try (let [new-state (try
-                                             (consumer job-args)
-                                             COMPLETE_STATE
-                                             (catch Exception e
-                                               (log/error e "Running" queue-name job-id job-args)
-                                               FAILED_STATE))]
-
-                             ;; TODO Solve the race condition between cancellation and completion
-                             ;; the race is something like this:
-                             ;; 1. Consumer starts running
-                             ;; 2. Consumer finishes and we get to the COMPLETE_STATE
-                             ;; 3. User presses cancel
-                             ;; 4. We run the below query and say it was cancelled, but it wasn't
-                             ;;    The side-effects of consumer will have occurred.
+            (Thread. #(try (let [new-state
+                                 (try
+                                   (let [result (consumer job-args state-callback)]
+                                     (cond
+                                       (= :cancelled result) CANCELLED_STATE
+                                       (= :error result) FAILED_STATE
+                                       :else COMPLETE_STATE))
+                                   
+                                   (catch Throwable e
+                                     (if (:cancelled (ex-data e))
+                                       CANCELLED_STATE
+                                       (do (log/error e "Running" queue-name job-id job-args)
+                                           FAILED_STATE))))]
 
                              (-> (update :jobs)
-                                 (sset {:state (sql/call :case
-                                                         [:= :state CANCELLING_STATE] CANCELLED_STATE
-                                                         :else new-state)})
+                                 (sset {:state new-state})
                                  (where [:= :id job-id])
                                  (db/execute!)))
                            (finally 
@@ -213,6 +218,8 @@
        (db/execute!))))
 
 (defn erase
+  ([queue-name]
+   (-> (delete-from :jobs) (where [:= :queue-name (name queue)]) (db/execute!)))
   ([]
    (-> (delete-from :jobs) (db/execute!))))
 

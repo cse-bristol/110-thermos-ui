@@ -123,8 +123,10 @@
         (users/users)
         (queue/list-tasks)))
 
-     (GET "/clean-queue/:queue-name" [queue-name]
-       (queue/clean-up (keyword queue-name))
+     (GET "/clean-queue/:queue-name" [queue-name purge]
+       (if purge
+         (queue/erase (keyword queue-name))
+         (queue/clean-up (keyword queue-name)))
        (response/redirect "/admin"))))
     
   (auth/restricted

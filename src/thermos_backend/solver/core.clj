@@ -19,7 +19,7 @@
   (let [job-id (queue/enqueue :problems network-id)]
     (projects/associate-job! network-id job-id)))
 
-(defn consume-problem [network-id]
+(defn consume-problem [network-id progress]
   (let [{problem-data :content}
         (projects/get-network network-id :include-content true)
         

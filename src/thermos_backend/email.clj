@@ -7,7 +7,7 @@
 
 ;; emails are processed on the queue - no idea if this is good
 
-(defn- send-message [message]
+(defn- send-message [message progress]
   (let [smtp-config
         (cond-> {}
           (:smtp-host config)

@@ -47,11 +47,6 @@
                   contents))))
       (.isFile file-or-directory) file-or-directory)))
 
-(defn- check-interrupt
-  ([x] (check-interrupt) x)
-  ([] (when (.isInterrupted (Thread/currentThread))
-        (throw (InterruptedException.)))))
-
 (defn- keyword-upcase-uscore [s]
   (keyword (str/replace s "_" "-")))
 
@@ -471,7 +466,7 @@
 
 (defn run-import
   "Run an import job enqueued by `queue-import`"
-  [{map-id :map-id}]
+  [{map-id :map-id} progress]
   (let [{map-name :name parameters :parameters} (db/get-map map-id)
         work-directory (util/create-temp-directory!
                         (config :import-directory)
@@ -479,7 +474,10 @@
                              "-"))
 
         osm-buildings (-> parameters :buildings :source (= :osm))
-        osm-roads     (-> parameters :roads :source (= :osm))]
+        osm-roads     (-> parameters :roads :source (= :osm))
+
+        progress* (fn [x p m] (progress :message m :percent p :can-cancel true) x)
+        ]
     
     (log/info "About to import" map-id map-name "in" (.getName work-directory))
     (with-open [log-writer (io/writer (io/file work-directory "log.txt"))]
@@ -488,27 +486,36 @@
         
         (try
           (-> (cond-> {}
-               ;; 1. Load any GIS files
-               (not osm-buildings)
-               (assoc :buildings (load-and-join (:buildings parameters)))
+                ;; 1. Load any GIS files
+                (not osm-buildings)
+                (assoc :buildings (load-and-join (:buildings parameters)))
 
-               (not osm-roads)
-               (assoc :roads (load-and-join (:roads parameters)))
-               
-               ;; 2. If we need some OSM stuff, load that
-               (or osm-buildings osm-roads)
-               (query-osm parameters))
-             
-             (update :buildings lidar/add-lidar-to-shapes (load-lidar-index))
-             (update :buildings geoio/update-features :produce-demands
-                     produce-demand (:degree-days parameters))
+                (not osm-roads)
+                (assoc :roads (load-and-join (:roads parameters)))
+                
+                ;; 2. If we need some OSM stuff, load that
+                (or osm-buildings osm-roads)
+                (-> (progress* 10 "Query OSM")
+                    (query-osm parameters)))
 
-             (add-defaults parameters)
-             (dedup)
-             (topo)
-             (add-to-database (assoc parameters
-                                     :work-directory work-directory
-                                     :map-id map-id)))
+              (progress* 20 "LIDAR")
+              (update :buildings lidar/add-lidar-to-shapes (load-lidar-index))
+              (progress* 30 "Run demand model")
+              (update :buildings geoio/update-features :produce-demands
+                      produce-demand (:degree-days parameters))
+
+              (progress* 40 "Add defaults")
+              (add-defaults parameters)
+              (progress* 45 "Deduplicate")
+              (dedup)
+              (progress* 50 "Node")
+              (topo)
+              (progress* 80 "Database insert") ;; this is the last
+                                               ;; place it's safe to
+                                               ;; cancel
+              (add-to-database (assoc parameters
+                                      :work-directory work-directory
+                                      :map-id map-id)))
           (catch Exception e
             (println "Error during import: " (.getMessage e))
             (.printStackTrace e)))))))
