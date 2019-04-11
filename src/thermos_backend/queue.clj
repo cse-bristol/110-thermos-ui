@@ -113,7 +113,10 @@
                                        (= :cancelled result) CANCELLED_STATE
                                        (= :error result) FAILED_STATE
                                        :else COMPLETE_STATE))
-                                   
+                                   ;; (catch InterruptedException e
+                                   ;;   ;; maybe cancelled state maybe not
+                                   ;;   ;; I guess to be safe FAILEd
+                                   ;;   )
                                    (catch Throwable e
                                      (if (:cancelled (ex-data e))
                                        CANCELLED_STATE
@@ -219,7 +222,7 @@
 
 (defn erase
   ([queue-name]
-   (-> (delete-from :jobs) (where [:= :queue-name (name queue)]) (db/execute!)))
+   (-> (delete-from :jobs) (where [:= :queue-name (name queue-name)]) (db/execute!)))
   ([]
    (-> (delete-from :jobs) (db/execute!))))
 
