@@ -133,8 +133,9 @@
               (show-dialog!
                (delete-project-widget
                 {:on-delete
-                 #(do (POST "delete" {:params {:project-name (:name project)}})
-                      (js/window.location.replace "/"))
+                 #(POST "delete" {:params {:project-name (:name project)}}
+                    :handler (fn [] (js/window.location.replace "/"))
+                    :error-handler (fn [] (close-dialog!)))
                  :on-close #(close-dialog!)}
                 project nil))
               (.preventDefault e))}
