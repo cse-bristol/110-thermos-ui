@@ -45,5 +45,7 @@
   (page {:title (str "Delete " (:name project) "?")}
         [:form {:method :POST}
          (raw-string
-          (rum/render-html (delete-project-widget project wrong-name)))
+          (rum/render-static-markup
+           (delete-project-widget {}  project wrong-name)))
          [:input.button.button--danger {:type :submit :value "DELETE"}]]))
+
