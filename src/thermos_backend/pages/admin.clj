@@ -28,9 +28,9 @@
       [:div.flex-cols
        [:h1.flex-grow q " tasks"]
        [:a {:href (str "clean-queue/" q)} "clean up"]
-       " "
-       [:a {:href (str "clean-queue/" q "?purge=1")} "purge"]
-       ]
+       " • "
+       [:a {:href (str "clean-queue/" q "?purge=1")} "purge"]]
+      
       [:table
        [:thead [:tr [:th "ID"] [:th "State"] [:th "Queued"] [:th "Updated"]]]
        
