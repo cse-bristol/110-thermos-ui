@@ -5,3 +5,6 @@
 (def person "👤")
 (def plus "➕")
 (def dustbin "🗑")
+
+(def delete cross)
+(def download down-arrow)

@@ -141,7 +141,7 @@
                 project nil))
               (.preventDefault e))}
            
-           "DELETE PROJECT " symbols/dustbin])
+           "DELETE PROJECT " symbols/delete])
         [:a.button {:style {:margin-left :1em}
                     :href "map/new"} "NEW MAP " symbols/plus]]]]
 
@@ -155,10 +155,10 @@
            [:div
             [:a.button
              {:style {:margin-left :1em}
-              :href (str "map/" (:id m) "/data.json")} "DOWNLOAD " symbols/down-arrow]
+              :href (str "map/" (:id m) "/data.json")} "DOWNLOAD " symbols/download]
             [:a.button
              {:style {:margin-left :1em}
-              :href (str "map/" (:id m) "/delete")} "DELETE MAP " symbols/dustbin]
+              :href (str "map/" (:id m) "/delete")} "DELETE MAP " symbols/delete]
             (if (:import-completed m)
               [:a.button {:style {:margin-left :1em}
                           :href (str "map/" (:id m) "/net/new")} "NEW NETWORK " symbols/plus])
@@ -191,11 +191,11 @@
                           (count versions) " versions"])
                        [:a {:style {:margin-left :1em}
                             :href (str net-url "/data.json")}
-                        symbols/down-arrow]
+                        symbols/download]
                        
                        [:a {:style {:margin-left :1em}
                             :href (str "map/" (:id m) "/net/delete/" name)}
-                        symbols/dustbin]]
+                        symbols/delete]]
                       
                       (when (some (fn [v]
                                     (and (:job-id v) (not (:has-run v))))

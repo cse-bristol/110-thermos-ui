@@ -15,12 +15,6 @@
         [cljsjs.leaflet]
         [cljsjs.leaflet-draw]])))
 
-;; TODO make x button work on files uploaded
-;; TODO make delete button work in joins list
-;; TODO delete invalid joins when things removed
-;; TODO tick-boxes for applying defaults in OSM?
-;; TODO lockout next/previous buttons and highlight things to click
-
 (rum/defc dump < rum/reactive [form-state]
   [:pre
    (with-out-str
@@ -365,7 +359,7 @@
                :padding :0.1em
                :margin :0.5em}}
         [:div.flex-cols base-name (interpose ", " extensions)
-         [:span {:style {:margin-left :auto}} " ✗"]]
+         [:span {:style {:margin-left :auto}} " " symbols/delete]]
         (when (or (= :error state)
                   (= :invalid state))
           [:div message])
@@ -526,7 +520,7 @@
             [:td (:table-file join)]
             [:td (:gis-column join)]
             [:td (:table-column join)]
-            [:td [:button symbols/dustbin]]])
+            [:td [:button symbols/delete]]])
          
          [:tr
           [:td
