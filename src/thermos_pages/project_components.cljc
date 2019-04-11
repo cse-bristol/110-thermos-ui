@@ -196,6 +196,11 @@
                        [:a {:style {:margin-left :1em}
                             :href (str "map/" (:id m) "/net/delete/" name)}
                         symbols/dustbin]
+
+                       (when (some (fn [v]
+                                     (and (:job-id v) (not (:has-run v))))
+                                   versions)
+                         spinner)
                        ]]
                      
                      ]))]
