@@ -248,3 +248,9 @@
        (users/authorize! project-id users conn)))))
 
 
+(defn delete-networks! [map-id network-name]
+  (-> (h/delete-from :networks)
+      (h/where [:and
+                [:= :map-id map-id]
+                [:= :name network-name]])
+      (db/execute!)))

@@ -9,6 +9,7 @@
    [clojure.set :refer [map-invert]]
    [thermos-pages.symbols :as symbols]
    [com.rpl.specter :refer [setval MAP-VALS NONE]]
+   [thermos-pages.spinner :refer [spinner]]
    
    #?@(:cljs
        [[thermos-pages.dialog :refer [show-dialog! close-dialog!]]
@@ -121,7 +122,7 @@
     on-draw-box :on-draw-box
     map-position :map-position}]
   
-  [:div {:style {:width :100% :height :50%}
+  [:div {:style {:width :100% :height :500px}
          :ref :container}])
 
 #?(:cljs
@@ -354,12 +355,20 @@
        [:div {:key i
               :style
               {:font-size :1.2em
+               :border-radius :8px
                :background
                (progress-bar-background state progress)
                :padding :0.1em
                :margin :0.5em}}
         [:div.flex-cols base-name (interpose ", " extensions)
-         [:span {:style {:margin-left :auto}} " " symbols/delete]]
+         [:span {:style {:margin-left :auto}} " "
+          (if (= :uploading state)
+            (spinner :size 16)
+            [:button
+             {:style {:border-radius :16px}
+              :on-click #(swap! files dissoc i)}
+             symbols/delete])
+          ]]
         (when (or (= :error state)
                   (= :invalid state))
           [:div message])
@@ -512,19 +521,22 @@
        
        [:table
         [:thead
-         [:tr [:th "GIS file"] [:th "Table"] [:th "GIS column"] [:th "Table column"] [:th]]]
+         [:tr [:th "GIS file"] [:th "GIS column"] [:th "Table"] [:th "Table column"] [:th]]]
         [:tbody
          (for [[i join] (map-indexed vector joins)]
            [:tr {:key i}
             [:td (:gis-file join)]
-            [:td (:table-file join)]
             [:td (:gis-column join)]
+            [:td (:table-file join)]
             [:td (:table-column join)]
-            [:td [:button symbols/delete]]])
+            [:td [:button
+                  {:on-click #(swap! *joins disj join)}
+                  symbols/delete]]])
          
          [:tr
           [:td
-           [:select {:value (:gis-file @*bottom-row)
+           [:select {:style {:max-width :12em}
+                     :value (:gis-file @*bottom-row)
                      :on-change (fn-js [e]
                                   (swap! *bottom-row assoc
                                          :gis-file (.. e -target -value)))}
@@ -534,7 +546,16 @@
                (:base-name file)])]]
 
           [:td
-           [:select {:value (:table-file @*bottom-row)
+           [:select {:style {:max-width :12em}
+                     :value (:gis-column @*bottom-row)
+                     :on-change #(swap! *bottom-row assoc
+                                        :gis-column (.. % -target -value))}
+            (for [col current-gis-cols]
+              [:option {:key col :value col} col])]]
+
+          [:td
+           [:select {:style {:max-width :12em}
+                     :value (:table-file @*bottom-row)
                      :on-change (fn-js [e]
                                   (swap! *bottom-row assoc
                                          :table-file (.. e -target -value)))}
@@ -542,17 +563,11 @@
               [:option {:key (:base-name file)
                         :value (:base-name file)}
                (:base-name file)])]]
-
-          [:td
-           [:select {:value (:gis-column @*bottom-row)
-                     :on-change #(swap! *bottom-row assoc
-                                        :gis-column (.. % -target -value))}
-            (for [col current-gis-cols]
-              [:option {:key col :value col} col])]]
           
 
           [:td
-           [:select {:value (:table-column @*bottom-row)
+           [:select {:style {:max-width :12em}
+                     :value (:table-column @*bottom-row)
                      :on-change #(swap! *bottom-row assoc
                                         :table-column (.. % -target -value))}
             (for [col current-table-cols]
@@ -563,7 +578,7 @@
                    (swap! *joins
                           #(into #{} (conj %1 %2))
                           @*bottom-row))}
-                "+"]]]]])]))
+                "Join"]]]]])]))
 
 (rum/defc field-help-page [fields]
   [:div {:on-click (fn-js [] (close-dialog!))}

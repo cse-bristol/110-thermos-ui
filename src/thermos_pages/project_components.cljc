@@ -5,10 +5,10 @@
             [net.cgrand.macrovich :as macro]
             [thermos-pages.common :refer [fn-js] :refer-macros [fn-js]]
             [thermos-pages.spinner :refer [spinner]]
-            [ajax.core :refer [POST]]
+            [ajax.core :refer [POST DELETE]]
             [thermos-pages.symbols :as symbols]
             #?@(:cljs
-                [[thermos-pages.dialog :refer [show-dialog! close-dialog!]]])))
+                [[thermos-pages.dialog :refer [show-delete-dialog! show-dialog! close-dialog!]]])))
 
 (rum/defcs project-user-list < rum/reactive
   [state
@@ -131,15 +131,23 @@
             :href "delete"
             :on-click
             (fn-js [e]
-              (show-dialog!
-               (delete-project-widget
-                {:on-delete
-                 #(POST "delete" {:params {:project-name (:name project)}
-                                  :handler (fn [b] (println "success in delete") (js/window.location.replace "/"))
-                                  :error-handler (fn [e] (println "error in delete")(close-dialog!))})
-                 :on-close #(close-dialog!)}
-                project nil))
-              (.preventDefault e))}
+              (show-delete-dialog!
+               {:name (:name project)
+                :message [:div
+                          [:div "Are you sure you want to delete this project? "]
+                          [:div "All these associated maps and networks will be deleted: "]
+                          [:ul
+                           (for [m (:maps project)]
+                             [:li (:name m)
+                              [:ul
+                               (for [n (:networks m)]
+                                 [:li (first n)])]])]]
+                :confirm-name true
+                :on-delete
+                #(DELETE "" {:handler (fn [b] (js/window.location.replace "/"))})})
+              
+              (.preventDefault e))
+            }
            
            "DELETE PROJECT " symbols/delete])
         [:a.button {:style {:margin-left :1em}
@@ -158,6 +166,17 @@
               :href (str "map/" (:id m) "/data.json")} "DOWNLOAD " symbols/download]
             [:a.button
              {:style {:margin-left :1em}
+              :on-click (fn-js [e]
+                          (show-delete-dialog!
+                           {:name (:name m)
+                            :message [:span "Are you sure you want to delete this map "
+                                      "and the " (count (:networks m))
+                                      " network problems associated with it?"]
+                            :on-delete
+                            ;; issue the relevant request - the map should disappear later.
+                            #(DELETE (str "map/" (:id m)))})
+                          (.preventDefault e))
+              
               :href (str "map/" (:id m) "/delete")} "DELETE MAP " symbols/delete]
             (if (:import-completed m)
               [:a.button {:style {:margin-left :1em}
@@ -194,18 +213,22 @@
                         symbols/download]
                        
                        [:a {:style {:margin-left :1em}
+                            :on-click
+                            (fn-js [e]
+                              (show-delete-dialog!
+                               {:name name
+                                :message "Are you sure you want to delete this network?"
+                                :on-delete #(DELETE (str "map/" (:id m) "/"
+                                                         "net/" name))})
+                              (.preventDefault e))
+                            
                             :href (str "map/" (:id m) "/net/delete/" name)}
                         symbols/delete]]
                       
                       (when (some (fn [v]
                                     (and (:job-id v) (not (:has-run v))))
                                   versions)
-
-                         [:div
-                          {:style {:height :16px :width :16px
-                                   :transform "scale(0.25)"}}
-                          spinner])]
-                     
+                        (spinner :size 16))]
                      ]))]
 
                [:div
@@ -214,7 +237,7 @@
              [:br {:style {:clear :both}}]]
 
             [:div
-             spinner
+             (spinner)
              "Map import in progress..."
              (:status m)]
             

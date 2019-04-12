@@ -167,6 +167,12 @@
 
         (auth/restricted
          {:project-admin project-id}
+
+         (DELETE "/" []
+           (projects/delete-project! project-id)
+           (-> (response/response "deleted")
+               (response/status 204)))
+
          (GET "/delete" [wrong-name]
            (delete-project-page (projects/get-project project-id) wrong-name))
          
@@ -212,6 +218,12 @@
             (auth/restricted
              {:project-admin project-id}
              (GET "/delete" [] (map-pages/delete-map-page))
+
+             (DELETE "/" []
+               (maps/delete-map! map-id)
+               (-> (response/response "deleted")
+                   (response/status 204)))
+             
              (POST "/delete" []
                (maps/delete-map! map-id)
                (response/redirect "../..")))
@@ -237,6 +249,11 @@
                   (response/content-type "application/json")
                   (attachment-disposition
                    (str (:name (maps/get-map map-id)) ".json"))))
+
+            (DELETE "/net/:network-name" [network-name]
+              ;; delete all networks in project with name
+              (projects/delete-networks! map-id network-name)
+              (response/status 204))
             
             (context "/net/:net-id" [net-id]
               (GET "/" {{accept "accept"} :headers}
