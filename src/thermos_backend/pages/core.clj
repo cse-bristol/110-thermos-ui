@@ -31,6 +31,9 @@
   (:import [javax.mail.internet InternetAddress]
            [java.io ByteArrayInputStream]))
 
+(defn- no-cache [response]
+  (response/header response "Cache-Control" "no-store"))
+
 (defn- parse-email [text]
   (try
     (let [address (InternetAddress. text)]
@@ -132,12 +135,18 @@
   (auth/restricted
    {:logged-in true}
    (GET "/" []
-     (landing-page
-      (:name auth/*current-user*)
-      (projects/user-projects (:id auth/*current-user*))))
+     (-> (landing-page
+          (:name auth/*current-user*)
+          (projects/user-projects (:id auth/*current-user*)))
+         (response/response)
+         (response/content-type "text/html")
+         (no-cache)))
    
    (GET "/settings" []
-     (settings-page auth/*current-user*))
+     (-> (settings-page auth/*current-user*)
+         (response/response)
+         (response/content-type "text/html")
+         (no-cache)))
 
    (POST "/settings" [new-name new-password-1 new-password-2]
      (users/update-user!
@@ -147,6 +156,7 @@
    
    (context "/project" []
      (GET "/new" [] (new-project-page))
+     
      (POST "/new" [name description members]
        (let [members (parse-emails members)
              new-project-id (projects/create-project!
@@ -158,12 +168,16 @@
        (auth/restricted
         {:project project-id}
         (GET "/" []
-          (project-page
-           (get-project project-id)))
+          (-> (project-page
+               (get-project project-id))
+              (response/response)
+              (response/content-type "text/html")
+              (no-cache)))
 
         (GET "/poll.t" []
-          (transit-json-response
-           (get-project project-id)))
+          (-> (transit-json-response
+               (get-project project-id))
+              (no-cache)))
 
         (auth/restricted
          {:project-admin project-id}
@@ -174,7 +188,10 @@
                (response/status 204)))
 
          (GET "/delete" [wrong-name]
-           (delete-project-page (projects/get-project project-id) wrong-name))
+           (-> (delete-project-page (projects/get-project project-id) wrong-name)
+               (response/response)
+               (response/content-type "text/html")
+               (no-cache)))
          
          (POST "/delete" [project-name]
            (if (= (string/lower-case project-name)
@@ -275,7 +292,8 @@
                             (response/response)
                             (response/status 200)
                             (response/content-type "text/html")))
-
+                      
+                      (no-cache)
                       (response/header "X-Queue-Position" (:queue-position info))
                       (response/header "X-Name" (:name info))
                       (response/header "X-Run-State" (:state info)))))
@@ -289,14 +307,16 @@
                       (json/write-str)
                       (response/response)
                       (response/content-type "application/json")
-                      (attachment-disposition (str (:name network) ".json")))))
+                      (attachment-disposition (str (:name network) ".json"))
+                      (no-cache))))
 
               (HEAD "/" []
                 (let [info (projects/get-network net-id)]
                   (-> (response/status 200)
                       (response/header "X-Name" (:name info))
                       (response/header "X-Queue-Position" (:queue-position info))
-                      (response/header "X-Run-State" (:state info)))))
+                      (response/header "X-Run-State" (:state info))
+                      (no-cache))))
               
               (POST "/" [name run content]
                 (let [content (if (:tempfile content)
