@@ -5,7 +5,7 @@
     [:div {:style {:width (str size "px")
                    :height (str size "px")
                    :transform (str "scale(" (/ size 64.0) ")")}}
-     (spinner {})]
+     (spinner)]
     [:div.spinner (repeat 12 [:div])]))
 
 

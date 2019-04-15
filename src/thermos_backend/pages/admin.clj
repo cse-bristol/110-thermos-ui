@@ -12,16 +12,14 @@
        [:th "ID"]
        [:th "Name"]
        [:th "Authority"]
-       [:th "Has logged in"]
-       ]
-      ]
+       [:th "Has logged in"]]]
      [:tbody
       (for [u users]
         [:tr
          [:td (:id u)]
          [:td (:name u)]
          [:td (:auth u)]
-         [:td (not (false? (:password u)))]])]]]
+         [:td (not (nil? (:password u)))]])]]]
 
    (for [[q tasks] (group-by :queue-name queues)]
      [:div.card
