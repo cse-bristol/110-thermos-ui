@@ -137,6 +137,7 @@
         buildings
         (->> query-results
              (filter :building)
+             (geoio/explode-multis)
              (filter (comp #{:polygon} ::geoio/type))
              (map set-building-type))
 
