@@ -6,7 +6,7 @@
    [ajax.core :refer [GET POST]]
    [rum.core :as rum]
    [clojure.pprint :refer [pprint]]
-   [clojure.set :refer [map-invert]]
+   [clojure.set :refer [map-invert] :as set]
    [thermos-pages.symbols :as symbols]
    [com.rpl.specter :refer [setval MAP-VALS NONE]]
    [thermos-pages.spinner :refer [spinner]]
@@ -14,7 +14,8 @@
    #?@(:cljs
        [[thermos-pages.dialog :refer [show-dialog! close-dialog!]]
         [cljsjs.leaflet]
-        [cljsjs.leaflet-draw]])))
+        [cljsjs.leaflet-draw]])
+   [clojure.set :as set]))
 
 (rum/defc dump < rum/reactive [form-state]
   [:pre
@@ -235,7 +236,7 @@
        "Choose files to upload"] ", or drag files here"]]))
 
 (def validate-and-upload
-  (fn-js [{files :files ext :extensions} status]
+  (fn-js [{files :files ext :extensions} status legal-geometries]
     (let [ext (set (map string/lower-case ext))]
       (cond
         (not (or (ext ".shp")
@@ -272,13 +273,13 @@
                :response-format :transit
                :handler
                (fn [x]
-                 (let [geom-types (:geometry-types x)]
+                 (let [geom-types (set (:geometry-types x))]
                    (if (and (not (nil? geom-types))
-                            (not= (set geom-types) #{:polygon}))
+                            (not= geom-types legal-geometries))
                      (swap! status assoc
                             :state :invalid
                             :message (str "File contains unsupported geometry types: "
-                                          (disj geom-types :polygon)))
+                                          (set/difference geom-types legal-geometries)))
                      (swap! status
                             merge
                             (assoc x :state :uploaded)))))
@@ -317,7 +318,7 @@
 (rum/defc file-uploader <
   rum/static
   rum/reactive
-  [files]
+  [{legal-geometries :legal-geometries} files]
   [:div
    (drag-drop-box
     {:on-files
@@ -342,7 +343,7 @@
          (doseq [[i f] @files]
            (when (= :ready (:state f))
                (let [status (rum/cursor-in files [i])]
-                 (validate-and-upload f status))))
+                 (validate-and-upload f status legal-geometries))))
          ))})
    
    (for [[i file] (rum/react files)]
@@ -460,7 +461,13 @@
           (when (= :buildings category) [:span"At the moment " [:b "MULTIPOLYGON"] " geometry is not supported."])]
          [:p "You can also upload " [:b "csv"] " and " [:b "tsv"] " files to relate to your GIS data."]
          
-         (file-uploader *data-files)
+         (file-uploader {:legal-geometries
+                         (case category
+                           :buildings #{:polygon}
+                           :roads #{:line-string}
+                           #{})}
+
+                        *data-files)
          ])]
      ]))
 
