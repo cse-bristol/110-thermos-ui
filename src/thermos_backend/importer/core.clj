@@ -157,9 +157,9 @@
              {::geoio/crs "EPSG:4326" ::geoio/features highways}))
     ))
 
-(defn- load-lidar-index []
+(defn load-lidar-index []
   (when-let [lidar-directory (config :lidar-directory)]
-    (->> (file-seq (io/file ))
+    (->> (file-seq (io/file lidar-directory))
          (filter #(and (.isFile %)
                        (let [name (.getName %)]
                          (or (.endsWith name ".tif")
@@ -188,10 +188,13 @@
                  [(keyword (name k))
                   (if (= :residential k) (boolean v) v)])
                (into {}))
-        space-prediction  (or (svm-space-3d x) (svm-space-2d x) 0)
-        water-prediction  (or (svm-water-3d x) (svm-water-2d x) 0)
+        space3 (svm-space-3d x)
+        water3 (svm-water-3d x)
+        space-prediction  (or space3 (svm-space-2d x) 0)
+        water-prediction  (or water3 (svm-water-2d x) 0)
         space-requirement (* space-prediction (Math/sqrt degree-days))]
-    (+ space-prediction water-prediction)))
+    {:annual-demand (+ space-prediction water-prediction)
+     :demand-source (if space3 :svm-3 :svm-2)}))
 
 (def peak-constant 21.84)
 (def peak-gradient 0.0004963)
@@ -217,6 +220,10 @@
    (:buildings state)
    (io/file (:work-directory job) "buildings-out.json"))
 
+  (println "Demand models used:"
+           (frequencies (map :demand-source
+                             (::geoio/features (:buildings state)))))
+  
   (geoio/write-to
    (:roads state)
    (io/file (:work-directory job) "roads-out.json"))
@@ -425,12 +432,11 @@
                          :demand-source :benchmark)
 
                   :else
-                  (assoc feature
-                         :annual-demand  (run-svm-models (assoc feature
-                                                                :residential residential
-                                                                ::lidar/height height)
-                                                         degree-days)
-                         :demand-source :regression))
+                  (merge feature
+                         (run-svm-models (assoc feature
+                                                :residential residential
+                                                ::lidar/height height)
+                                         degree-days)))
 
         ;; produce peak
         given-peak (as-double (:peak-demand feature))
