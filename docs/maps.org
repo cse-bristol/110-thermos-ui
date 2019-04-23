@@ -1,0 +1,31 @@
+#+TITLE: Creating maps in THERMOS
+#+AUTHOR: CSE
+
+A THERMOS map contains buildings and paths.
+Buildings are places where heat might be used or generated, and paths are places where heat distribution pipes might be placed.
+
+You need to create a map in order to design a heat network. 
+Each heat network design will use some of the buildings and paths from a map to assemble a network.
+The parameters the network model uses for each path or building will be taken from the map, although you can override the map values if you want.
+
+Before you can create a map you need to create a project:
+
+* Creating a project
+
+* Creating a map from openstreetmap
+
+The easiest way to make a map is by using OpenStreetMap data.
+
+* Creating a map from your own GIS files
+
+If OpenStreetMap does not contain the buildings or roads you want to model, and/or you have better data about the buildings you are interested in, you can produce a map from these files instead of OpenStreetMap.
+
+* How heat demand is estimated
+
+* How buildings are connected up
+
+* Supplying your own demand estimates
+
+* Using benchmark estimates for some buildings
+
+* Setting parameters for paths 

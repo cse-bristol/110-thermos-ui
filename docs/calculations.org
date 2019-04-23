@@ -1,0 +1,160 @@
+#+TITLE: THERMOS Network Model Calculations
+#+AUTHOR: CSE
+
+THERMOS optimises a model of a heat network. 
+The details of the optimisation are not important to understand, but it is useful to know what calculation is being optimised.
+
+The first parts of this document gives a description of the calculation method. 
+The last part describes each of the objective terms and how they are added up.
+
+* Decisions
+
+The optimiser makes decisions about how the network should be arranged, picking values for /decision variables/.
+
+The objective value for the network is determined by the values of the decision variables.
+
+The optimiser makes a decision about:
+
+- For each place where a pipe could go, whether a pipe should be there, and
+- For each place with demand, whether to meet the demand using the heat network
+- For each place where a supply could go, whether to put a supply there, and:
+
+Given these choices, the optimiser then decides:
+
+- For each pipe, how large the pipe has to be
+- For each supply, what the supply capacity has to be
+
+From this the costs and revenues are calculated.
+
+* Pipe and supply capacity
+
+Network capacity is determined by peak demands for connected buildings.
+
+Each bit of pipe has to be large enough to carry the /diversified/ sum of the peak demands of all the buildings which it services.
+
+** Diversity factor
+
+Demands are diversified using a /diversity factor/ from the rule:
+
+$$
+f = a + (1-a)/(k * n)
+$$
+
+with default values a = 0.62 and k = 1.
+
+For example, a pipe which supplies 1 building with a peak demand of 30kW will have a capacity of 30kW.
+
+A pipe which supplies two buildings each having a peak demand of 30kW will have a capacity of (0.62 + 0.38 / 2) * 60 = 48.6 kW.
+
+The form of the rule means that the diversity factor will tend to 0.62, for pipes that are serving a large number of supplies.
+
+** Supply capacity
+
+Supply locations must have capacity to meet the diversified sum of the peak demands they are serving.
+
+** Multiple routes and supplies
+
+In principle, if there are several supplies in the system, or several pipes connecting a building, the model can produce a solution in which the demand is split between supplies or between pipes. In this case the diversity factor works in the same way.
+
+** Pipe diameter
+
+Although the model works with pipe's capacity to deliver power, prices and heat losses are determined by the pipe diameter.
+
+The peak power requirement is converted into a diameter by using a standard velocity curve
+
+$$
+v = -0.4834 + 4.7617 * (\diameter ^ 0.3701)
+$$
+
+This velocity is combined with density, heat capacity and delta-t to produce a figure for power output - this relationship is solved numerically to produce a curve that relates power delivery to diameter.
+
+Because of this, the model can represent different flow/return temperature regimes, but cannot optimise the choice of flow/return temperature.
+
+At the moment the model does not choose from a list of pipe sizes, so will select sizes of pipe that are not practical to purchase. This is because constraining the model to select particular sizes substantially increases the time to solve problems.
+
+** Pipe cost
+
+Pipe cost is split into two parts, both functions of the pipe diameter.
+
+- Mechanical engineering costs
+
+  These represent the cost of buying the pipe, welding and so on.
+
+  Mechanical costs are assumed to take the form
+
+  $A+(\diameter * B)^1.3$
+
+  with $A$ and $B$ as parameters that vary between problems but not between roads.
+
+- Civil engineering costs
+
+  These represent the cost of digging and filling the hole, closing roads and so on.
+
+  Civil engineering costs are assumed to take the form
+
+  $A+(\diameter * B)^1.1$
+
+  with $A$ and $B$ as parameters that can vary between road segments (reflecting the different cost of digging things up).
+
+These functions are combined with the power / diameter relationship to produce a power / cost relationship for each road.
+
+Although the resulting shape will be non-linear, the model computes bounds on the power that a given pipe can deliver in any solution and then approximates the this non-linear function as a linear one. 
+
+This approximation reduces the fidelity of the cost calculation, but makes the problem tractable for the computer.
+
+** Pipe heat losses
+
+Heat losses are also determined by pipe diameter, along with the flow temperature in the pipe and the ground temperature.
+
+The losses associated with particular diameter are calculated using the empirical formula:
+
+$\delta_t * (0.16805 * \log(\diameter) + 0.85684$
+
+* Operating conditions
+
+The network size determines the capital cost for plant and pipework, and the heat losses for pipework.
+
+Operating costs & revenues are simpler: the plant must supply enough heat to meet all of the annual demands plus all the heat losses determined above.
+* Summary of objective
+
+- Financial cost terms
+  - Capital costs
+    - Pipe costs
+      - Mechanical cost/m, calculated as $A+(B*\diameter)^1.3$
+      - Civil cost/m, calculated as $A+(B*\diameter)^1.1$
+    - Supply costs
+      - Fixed cost, incurred if supply is used
+      - Capacity cost, incurred per unit capacity that is provisioned
+    - Connection costs, per unit capacity within the building connected (unrelated to pipes)
+  - Running costs
+    - Supply capacity, incurred every year per unit capacity that is provisioned
+    - Heat production, per unit of heat supplied to the network (so heat demands + losses)
+- Revenue terms
+  - Heat revenues, produced per unit of heat purchased by demands connected to the network.
+    Each demand has a unit price, so the annual revenue is just the annual demand * price.
+- Emissions terms
+  - Emissions costs
+    Supplies have associated emissions factors per unit of heat produced.
+    Emissions can have associated financial costs. 
+    Annual emissions costs are calculated as supply output * emissions factor * emissions cost
+  - Avoided emissions
+    Demands have associated emissions factors per unit of heat consumed /as a counterfactual/.
+    If a building is connected to the network, these emissions are considered /avoided/ and offset against supply emissions (and associated costs)
+
+** Loans
+
+Capital costs can be converted into annualized loans, given a loan interest rate and term.
+
+A cost of X is converted at a rate r and term t into t payments of 
+
+$$
+\frac{X*r}{1 - 1/(1+r, t)}
+$$
+
+** Net present value
+
+All the cost and revenue streams described above are converted into net present values, with the user's supplied time horizon and discount rate.
+
+This includes loan repayments, if you have set up a loan.
+
+If you wish to incur all capital costs at the start of the NPV period, set the loan rate and term to 0.
