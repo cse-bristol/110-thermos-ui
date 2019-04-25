@@ -111,7 +111,7 @@
   {:pre
    [(string? (:id creator))
     (string? (:name creator))
-    (string? project-name)
+    (not (string/blank? project-name))
     (string? description)
     (every? (fn [{e :id n :name a :auth}]
               (and (string? e)
