@@ -98,7 +98,7 @@
           (-> (response/redirect (or redirect-to "/"))
               (update :session assoc ::user-id email)))
       (do (log/info email "login failed!")
-          (response/redirect "?flash=failed")))))
+          (response/redirect "/login?flash=failed")))))
 
 (defn handle-logout []
   (-> (response/redirect "/")
