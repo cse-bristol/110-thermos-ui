@@ -150,7 +150,7 @@
           (h/values (for [u invitees]
                       {:user-id (:id u)
                        :project-id project-id
-                       :auth (as-project-auth (:auth u))}))
+                       :auth (as-project-auth (or (:auth u) :write))}))
           (db/execute! conn)))))
 
 (defn uninvite!

@@ -123,7 +123,10 @@
   ;; TODO do this all in a transaction? does it really matter?
   
   ;; 1. create the project
-  (let [project-name (string/trim project-name)
+  (let [users (for [u users]
+                (update u :auth #(or % :write)))
+        
+        project-name (string/trim project-name)
         description (string/trim description)
         
         project-id
