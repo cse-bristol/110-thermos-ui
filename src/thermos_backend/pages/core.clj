@@ -148,10 +148,10 @@
          (response/content-type "text/html")
          (no-cache)))
 
-   (POST "/settings" [new-name new-password-1 new-password-2]
+   (POST "/settings" [new-name password-1 password-2]
      (users/update-user!
       (:id auth/*current-user*)
-      new-name new-password-1)
+      new-name (and (= password-1 password-2) password-1))
      (response/redirect "."))
    
    (context "/project" []
