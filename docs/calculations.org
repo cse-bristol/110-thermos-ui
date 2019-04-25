@@ -1,11 +1,17 @@
 #+TITLE: THERMOS Network Model Calculations
 #+AUTHOR: CSE
+#+LATEX_HEADER: \usepackage{fullpage,parskip,fontspec}
+
+#+LATEX: \setmainfont[Ligatures=TeX, Numbers=OldStyle, SmallCapsFeatures={LetterSpace=10, WordSpace={1.5}}]{TeX Gyre Pagella}
 
 THERMOS optimises a model of a heat network. 
 The details of the optimisation are not important to understand, but it is useful to know what calculation is being optimised.
 
-The first parts of this document gives a description of the calculation method. 
-The last part describes each of the objective terms and how they are added up.
+The this document contains:
+
+- a description of the calculation method
+- a list of the objective terms
+- a worked example
 
 * Decisions
 
@@ -37,16 +43,16 @@ Each bit of pipe has to be large enough to carry the /diversified/ sum of the pe
 Demands are diversified using a /diversity factor/ from the rule:
 
 $$
-f = a + (1-a)/(k * n)
+f = a + (1-a)/(k × n)
 $$
 
-with default values a = 0.62 and k = 1.
+with default values $a = 0.62$ and $k = 1$. $n$ is the number of demands being added together.
 
 For example, a pipe which supplies 1 building with a peak demand of 30kW will have a capacity of 30kW.
 
-A pipe which supplies two buildings each having a peak demand of 30kW will have a capacity of (0.62 + 0.38 / 2) * 60 = 48.6 kW.
+A pipe which supplies two buildings each having a peak demand of 30kW will have a capacity of (0.62 + 0.38 / 2) × 60 = 48.6 kW.
 
-The form of the rule means that the diversity factor will tend to 0.62, for pipes that are serving a large number of supplies.
+The form of the rule means that the diversity factor will tend to 0.62, for pipes that are serving a large number of supplies. This reflects the fact that the peak demands for any two buildings are unlikely to occur at exactly the same time, so their peaks should not be exactly added. However, as a pipe serves more and more buildings the coincidence of the peaks does not keep falling indefinitely.
 
 ** Supply capacity
 
@@ -63,7 +69,7 @@ Although the model works with pipe's capacity to deliver power, prices and heat 
 The peak power requirement is converted into a diameter by using a standard velocity curve
 
 $$
-v = -0.4834 + 4.7617 * (\diameter ^ 0.3701)
+v = -0.4834 + 4.7617 × (⌀ ^ {0.3701})
 $$
 
 This velocity is combined with density, heat capacity and delta-t to produce a figure for power output - this relationship is solved numerically to produce a curve that relates power delivery to diameter.
@@ -82,7 +88,7 @@ Pipe cost is split into two parts, both functions of the pipe diameter.
 
   Mechanical costs are assumed to take the form
 
-  $A+(\diameter * B)^1.3$
+  $A+(⌀ × B)^{1.3}$
 
   with $A$ and $B$ as parameters that vary between problems but not between roads.
 
@@ -92,7 +98,7 @@ Pipe cost is split into two parts, both functions of the pipe diameter.
 
   Civil engineering costs are assumed to take the form
 
-  $A+(\diameter * B)^1.1$
+  $A+(⌀ × B)^{1.1}$
 
   with $A$ and $B$ as parameters that can vary between road segments (reflecting the different cost of digging things up).
 
@@ -108,20 +114,25 @@ Heat losses are also determined by pipe diameter, along with the flow temperatur
 
 The losses associated with particular diameter are calculated using the empirical formula:
 
-$\delta_t * (0.16805 * \log(\diameter) + 0.85684$
+$$
+\delta_t × (0.16805 × \ln(⌀) + 0.85684)
+$$
 
 * Operating conditions
 
 The network size determines the capital cost for plant and pipework, and the heat losses for pipework.
 
-Operating costs & revenues are simpler: the plant must supply enough heat to meet all of the annual demands plus all the heat losses determined above.
+Operating costs & revenues are simpler: the plant must supply enough heat to meet all of the annual demands plus all the heat losses for the pipes.
+
+Heat production incurs a cost per unit, and heat delivered creates revenue per unit sold.
+
 * Summary of objective
 
 - Financial cost terms
   - Capital costs
     - Pipe costs
-      - Mechanical cost/m, calculated as $A+(B*\diameter)^1.3$
-      - Civil cost/m, calculated as $A+(B*\diameter)^1.1$
+      - Mechanical cost/m, calculated as $A+(B×⌀)^1.3$
+      - Civil cost/m, calculated as $A+(B×⌀)^1.1$
     - Supply costs
       - Fixed cost, incurred if supply is used
       - Capacity cost, incurred per unit capacity that is provisioned
@@ -131,12 +142,12 @@ Operating costs & revenues are simpler: the plant must supply enough heat to mee
     - Heat production, per unit of heat supplied to the network (so heat demands + losses)
 - Revenue terms
   - Heat revenues, produced per unit of heat purchased by demands connected to the network.
-    Each demand has a unit price, so the annual revenue is just the annual demand * price.
+    Each demand has a unit price, so the annual revenue is just the annual demand × price.
 - Emissions terms
   - Emissions costs
     Supplies have associated emissions factors per unit of heat produced.
     Emissions can have associated financial costs. 
-    Annual emissions costs are calculated as supply output * emissions factor * emissions cost
+    Annual emissions costs are calculated as supply output × emissions factor × emissions cost
   - Avoided emissions
     Demands have associated emissions factors per unit of heat consumed /as a counterfactual/.
     If a building is connected to the network, these emissions are considered /avoided/ and offset against supply emissions (and associated costs)
@@ -148,13 +159,245 @@ Capital costs can be converted into annualized loans, given a loan interest rate
 A cost of X is converted at a rate r and term t into t payments of 
 
 $$
-\frac{X*r}{1 - 1/(1+r, t)}
+\frac{X×r}{1 - 1/((1+r)^t)}
 $$
 
 ** Net present value
 
 All the cost and revenue streams described above are converted into net present values, with the user's supplied time horizon and discount rate.
 
-This includes loan repayments, if you have set up a loan.
+This includes loan repayments, if you have set up a loan, so a cost or revenue of $x$ in year $n$ counts for $x/(1+r)ⁿ$, given a discount rate of $r$.
 
 If you wish to incur all capital costs at the start of the NPV period, set the loan rate and term to 0.
+
+* Worked example
+
+Imagine a network that looks like this:
+
+#+ATTR_HTML: :style max-width:600px;
+[[./img/net-example.pdf]]
+#+CAPTION: A small network with four buildings (capital letters) and eight pipe segments (small letters).
+
+Say that the demands are as follows:
+
+| Building | Annual (kWh) | Peak (kW) |
+|----------+--------------+-----------|
+| P        | 30,000       |        30 |
+| Q        | 40,000       |        35 |
+| R        | 20,000       |        28 |
+| S        | 10,000       |        90 |
+
+Let's say that the supply is located at building R.
+
+** Find pipe diversity
+
+First we want to work out the pipe diversity for each pipe.
+
+Counting up from each building until we get to R we can work out how many buildings each pipe is connected to:
+
+| Pipe | Count       |
+|------+-------------|
+| a    | 1 (P)       |
+| b    | 1 (P)       |
+| c    | 1 (Q)       |
+| d    | 2 (P, Q)    |
+| e    | 2 (P, Q)    |
+| f    | 3 (P, Q, S) |
+| g    | 1 (S)       |
+| h    | 1 (S)       |
+
+We can plug these counts into the diversity equation to get a coincidence factor for each pipe:
+
+| Pipe | Count       | Coincidence |
+|------+-------------+-------------|
+| a    | 1 (P)       |           1 |
+| b    | 1 (P)       |           1 |
+| c    | 1 (Q)       |           1 |
+| d    | 2 (P, Q)    |        0.81 |
+| e    | 2 (P, Q)    |        0.81 |
+| f    | 3 (P, Q, S) |        0.74 |
+| g    | 1 (S)       |           1 |
+| h    | 1 (S)       |           1 |
+
+** Find pipe size
+
+Now we can add up the peak load for each pipe as the peak of the buildings it is serving, and multiply out the coincidence factor:
+
+| Pipe | Count       | Coincidence | Peak | Capacity (kW) |
+|------+-------------+-------------+------+---------------|
+| a    | 1 (P)       |           1 |   30 |            30 |
+| b    | 1 (P)       |           1 |   30 |            30 |
+| c    | 1 (Q)       |           1 |   35 |            35 |
+| d    | 2 (P, Q)    |        0.81 |   65 |         52.65 |
+| e    | 2 (P, Q)    |        0.81 |   65 |         52.65 |
+| f    | 3 (P, Q, S) |        0.74 |  155 |         114.7 |
+| g    | 1 (S)       |           1 |   90 |            90 |
+| h    | 1 (S)       |           1 |   90 |            90 |
+
+Now we have a required capacity in kW we can work out a pipe diameter using the other parameters.
+
+Diameter and power are related by the function given above, producing a graph like this:
+
+#+BEGIN_SRC gnuplot :exports results :file img/diameter-to-power.png
+reset
+set title "Diameter vs delivered power"
+
+set xlabel "Diameter (m)"
+set ylabel "Power (W)"
+set xrange [0:0.8]
+
+area(d) = pi * (d/2)**2
+velocity(d) = -0.4834 + 4.7617 * (d ** 0.3701)
+flow(d) = area(d) * velocity(d)
+power(d) = flow(d) * 4.2 * 975 * 30
+
+plot power(x)
+#+END_SRC
+
+#+RESULTS:
+[[file:img/diameter-to-power.png]]
+
+Using this graph we can read off the required diameter for each pipe segment based on its capacity - I've done this approximately by eye for this example:
+
+| Pipe | Capacity (kW) | Diameter (m) |
+|------+---------------+--------------|
+| a,b  |            30 |          0.2 |
+| c    |            35 |         0.25 |
+| d,e  |         52.65 |          0.4 |
+| f    |         114.7 |         0.55 |
+| g,h  |            90 |          0.5 |
+
+** Find pipe costs
+
+Now we have diameters for the pipes we can work out their heat losses and costs.
+
+Let's say that we have the following cost parameters:
+
+- Mechanical costs of 50 + (700 × ⌀)^{1.3} per metre
+- Civil costs of 350 + (700  × ⌀)^{1.1} per metre for paths a-e
+- Civil costs of 500 + (800  × ⌀)^{1.1} per metre for paths f,g,h
+
+| Pipe | Diameter (m) | Mechanical/m       | Civil/m             | Length (m) | Total    |
+|------+--------------+--------------------+---------------------+------------+----------|
+|      |              | 50 + (700×⌀)^{1.3} | 350 + (700×⌀)^{1.1} |            |          |
+| a,b  |          0.2 | ¤666               | ¤579                |        100 | ¤124,603 |
+| c    |         0.25 | ¤874               | ¤643                |         10 | ¤15,174  |
+| d,e  |          0.4 | ¤1,568             | ¤841                |         60 | ¤138,467 |
+|------+--------------+--------------------+---------------------+------------+----------|
+|      |              |                    | 500 + (800×⌀)^{1.1} |            |          |
+| f    |         0.55 | ¤2,347             | ¤1,308              |         30 | ¤109,662 |
+| g,h  |          0.5 | ¤2,079             | ¤1,308              |         60 | ¤198,435 |
+
+** Find heat losses
+
+The diameters also determine the heat losses: using the heat loss equation above and a temperature difference between pipes and ground of 50°C, we get a heat loss / diameter relationship like this:
+
+#+BEGIN_SRC gnuplot :exports results :file img/heat-losses.png
+reset
+set title "Heat loss vs diameter"
+set xlabel "Diameter (m)"
+set ylabel "Heat loss (W/m)"
+
+set xrange [0:0.8]
+
+heatloss(d) = 50*(0.16805*log(d) + 0.85684)
+
+plot heatloss(x)
+#+END_SRC
+
+#+RESULTS:
+[[file:img/heat-losses.png]]
+
+Again, we can read off for each pipe and work out the heat loss rates:
+
+| Pipe | Diameter (m) | Heat loss (W/m) | Length (m) | Heat loss (W) |
+|------+--------------+-----------------+------------+---------------|
+| a,b  |          0.2 |              28 |        100 | 2,800         |
+| c    |         0.25 |              30 |         10 | 300           |
+| d,e  |          0.4 |              35 |         60 | 2,100         |
+| f    |         0.55 |              38 |         30 | 1,140         |
+| g,h  |          0.5 |              37 |         60 | 2220          |
+
+
+** Find supply parmeters
+
+The supply capacity calculation is very similar to the capacity of the output pipe.
+However, since a supply may include an on-site demand, it can have a slightly lower diversity factor.
+
+In our example, the supply is meeting four demands, so the diversity factor should be 0.715, giving a required supply capacity of 0.715 × 183 ≈ 130 kW.
+
+** Summarise costs and revenues
+
+Now we have all the information we need to work out the costs and revenues:
+
+*** Capital costs
+
+- *Pipes*: worked out above. Summing up we get ¤586,341.
+- *Supply*: supply capital cost is broken down into a fixed cost and a unit cost.
+
+  Let's say we have a fixed cost of ¤1,000 and a unit cost of ¤50/kW we have a total cost of 1,000 + 130*50 = ¤7,500.
+- *Connection costs*: each building can have a connection cost.
+
+  Let's say we are using ¤50/kW capacity, we have a total connection cost of 183×50 = ¤9,150
+
+*** Operating costs and revenue
+
+- *Heat*: we need to supply 100 MWh of productive demand for heat, and 8560W of heat losses.
+  
+  This gives us 175,036 kWh/yr of heat output (we have a lot of losses because the figures I have chosen are not that sensible, I think).
+
+  Assuming a sales price of 8c/kWh and a net heat production cost of 4c/kWh, this gives us
+
+  - ¤8,000/yr in revenues
+  - ¤3,000/yr in costs
+
+- *Capacity*: the supply parameters include an operating cost per unit capacity, reflecting any costs that are associated with maintaining the plant rather than producing heat.
+  
+  Our supply capacity is 130kW; let's say the annual operating cost is ¤30/kW, which comes out to ¤3,900.
+
+*** Emissions
+
+- *Supply emissions*: these are worked out per unit of heat produced (losses + demand).
+
+  For simplicity let's just think about CO_{2}^{e} here - other emissions work the same way.
+
+  Let's assume an emissions factor of 0.25 kg/kWh, giving us 175,036 × 0.25 = 43,759 kg
+
+- *Avoided emissions*: these are worked out per unit of heat delivered (just demands).
+
+  Let's assume the buildings were electrically heated with an emissions factor of 0.5, giving us 50,000 kg of avoided emissions
+
+- *Emissions costs*: using an emissions price of ¤0.5/kg, our net emissions of -6,241 kg produce an effective revenue of about ¤9,360.
+
+*** Loans and NPV
+
+If requested, capital costs will be amortised using a loan. 
+All costs and revenues are then converted to present values and summed, so.
+
+In our example, we have capital costs of
+
+| Pipes       | 586,341 |
+| Supply      | 7,500   |
+| Connections | 9,150   |
+|-------------+---------|
+| Total       | 602,891 |
+
+and annual costs/revenues of
+
+| Heat production | -3,000  |
+| Heat sales      | 8,000   |
+| Supply capacity | -3,900  |
+| Net emissions   | 9,360   |
+|-----------------+---------|
+| Total (per yr)  | 10,460  |
+
+If we convert the capital costs into loan repayments at 5% over 10 years, the annualized cost is ¤78,077/yr.
+
+Calculating an NPV over 15 years we then have
+
+|  Year | Loan    | Operations |
+|-------+---------+------------|
+|   0-9 | -78,077 | 10,460     |
+| 10-14 | 0       | 10,460     |
+
+Using a discount rate of 4% we have (10,460-78,077) + (10,460-78,077)/1.04 + (10,460-78,077)/1.04² ... + (10,460/1.04^{10} + ...) = -516,976, so this network is a loss using this accounting.
