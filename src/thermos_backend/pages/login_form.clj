@@ -8,6 +8,16 @@
    [:form {:method "POST"
            :style (style :display :flex)}
     [:div {:style (style :margin :auto)}
+     (case (keyword flash)
+       :check-mail
+       [:div "A password recovery email has been sent. Check your email."]
+       :exists
+       [:div "That user already exists. If it is your email address, and you have forgotten your password, click recover."]
+       :failed
+       [:div "Login failed"]
+       nil)
+     
+     
      [:div {:style (style :padding :0.5em)}
       [:label "Username: "
        [:input.text-input
