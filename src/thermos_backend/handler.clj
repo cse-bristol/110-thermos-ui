@@ -13,8 +13,10 @@
             [mount.core :refer [defstate]]
 
             [ring.util.response :as response]
+            [ring.util.time]
+            
             [clojure.edn :as edn]
-
+            
             [thermos-backend.pages.core :as pages]
             [thermos-backend.auth :as auth]
             [thermos-backend.current-uri :as current-uri]))
@@ -26,6 +28,22 @@
           (when-let [response (handler request)]
             (assoc-in response [:headers "Cache-Control"] "no-store"))))
     handler))
+
+(defn wrap-no-70s
+  "When deploying with nix, the jar goes into the nix store.
+  This resets its mod date to the epoch, which is bad.
+  We fix that here."
+  [handler]
+  (let [date (ring.util.time/format-date (java.util.Date.))]
+    (fn [request]
+      (-> request
+          (handler)
+          (update-in [:headers "Last-Modified"]
+                     (fn [lm]
+                       (if (and (string? lm)
+                                (.startsWith lm "Thu, 01 Jan 1970"))
+                         date
+                         lm)))))))
 
 (defroutes site-routes
   auth/auth-routes
@@ -49,5 +67,6 @@
       (wrap-forwarded-scheme)
       (wrap-hsts)
       
-      (wrap-no-cache)))
+      (wrap-no-cache)
+      (wrap-no-70s)))
 
