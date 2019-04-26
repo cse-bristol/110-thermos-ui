@@ -126,6 +126,13 @@
         (users/users)
         (queue/list-tasks)))
 
+     (GET "/send-email" []
+       (admin/send-email-page))
+
+     (POST "/send-email" [subject message]
+       (users/send-system-message! subject message)
+       (response/redirect "/admin"))
+     
      (GET "/clean-queue/:queue-name" [queue-name purge]
        (if purge
          (queue/erase (keyword queue-name))
@@ -148,10 +155,14 @@
          (response/content-type "text/html")
          (no-cache)))
 
-   (POST "/settings" [new-name password-1 password-2]
+   (POST "/settings" [new-name password-1 password-2
+                      system-messages]
      (users/update-user!
       (:id auth/*current-user*)
-      new-name (and (= password-1 password-2) password-1))
+      new-name
+      (and (= password-1 password-2) password-1)
+      (boolean system-messages))
+     
      (response/redirect "."))
    
    (context "/project" []

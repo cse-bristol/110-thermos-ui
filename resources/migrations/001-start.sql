@@ -239,3 +239,10 @@ ADD CONSTRAINT candidates_map_id_fkey
 --;;
 ALTER TABLE networks
 ADD COLUMN user_id text REFERENCES users(id) ON DELETE SET NULL;
+--;;
+ALTER TABLE users
+ADD COLUMN system_messages boolean;
+--;;
+UPDATE users SET system_messages = TRUE;
+--;;
+ALTER TABLE users ALTER COLUMN system_messages SET DEFAULT TRUE;

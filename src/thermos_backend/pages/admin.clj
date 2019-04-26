@@ -40,3 +40,14 @@
            [:td (:queued t)]
            [:td (:updated t)]])]]])))
 
+(defn send-email-page []
+  (page
+   {:title "Send email"
+    :body-style { :margin "1em" :display "flex" :flex-direction "column"}}
+
+   [:form.flex-rows.flex-grow {:method :POST}
+    [:div.flex-rows.flex-grow
+     [:input {:style "width:100%" :type :text :placeholder "Subject" :name "subject"}]
+     [:textarea.flex-grow {:name "message"}]
+     [:input.button {:type :submit}]]]))
+

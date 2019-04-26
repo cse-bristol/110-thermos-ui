@@ -201,7 +201,7 @@
 
 (defn update-user!
   "Set a user's name and password. If name or password are nil or blank, they are unchanged."
-  [user-id new-name new-password]
+  [user-id new-name new-password system-messages]
   (-> (h/update :users)
       (h/sset (cond-> {}
                 (not (string/blank? new-name))
@@ -209,6 +209,25 @@
                 (not (string/blank? new-password))
                 (assoc :password
                        (hash/derive new-password)
-                       :reset-token nil)))
+                       :reset-token nil)
+                (not (nil? system-messages))
+                (assoc :system-messages system-messages)))
+      
       (h/where [:= :id user-id])
       (db/execute!)))
+
+(defn send-system-message! [subject message]
+  {:pre [(string? subject)
+         (string? message)
+         (not (string/blank? subject))
+         (not (string/blank? message))]}
+  
+  (let [users (-> (h/select :id :name)
+                  (h/from :users)
+                  (h/where [:and
+                            [:= :TRUE :system-messages]
+                            [:like :id "%@%"]
+                            ])
+                  (db/fetch!))]
+    (email/send-system-message users subject message)))
+

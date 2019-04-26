@@ -3,7 +3,8 @@
   (:require [postal.core :as postal]
             [thermos-backend.config :refer [config]]
             [clojure.tools.logging :as log]
-            [thermos-backend.queue :as queue]))
+            [thermos-backend.queue :as queue]
+            [clojure.string :as string]))
 
 ;; emails are processed on the queue - no idea if this is good
 
@@ -70,3 +71,23 @@
       (str
        invited-by " has invited you to a THERMOS project called " project-name "."
        ))}))
+
+(defn send-system-message
+  "Send a message to all system users except those who aren't interested"
+  [users subject message]
+  {:pre [(not (empty? users))
+         (string? subject)
+         (string? message)
+         (not (string/blank? subject))
+         (not (string/blank? message))
+         (every? (comp string? :id) users)]}
+  (queue-message
+   {:bcc (map :id users)
+    :subject (str "THERMOS: " subject)
+    :body (format "%s
+----
+You are receiving this message because you have an account on THERMOS.
+You change your settings at %s/settings to unsubscribe from any message like this."
+                  message
+                  (:base-url config))}))
+
