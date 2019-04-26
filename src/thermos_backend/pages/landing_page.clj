@@ -4,7 +4,11 @@
 
 (defn- project-card [project]
   [:div.card
-   [:h1 [:a {:href (str "/project/" (:id project))} (:name project)]]
+   [:h1 [:a {:href (str "/project/" (:id project))}
+         (if (string/blank? (:name project))
+           "The project with no name"
+           (:name project)
+           )]]
    (when-not (string/blank? (:description project))
      [:p (:description project)])])
 
