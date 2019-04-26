@@ -274,7 +274,7 @@
                :handler
                (fn [x]
                  (let [geom-types (set (:geometry-types x))]
-                   (if (and (not (nil? geom-types))
+                   (if (and (not (empty? geom-types))
                             (not= geom-types legal-geometries))
                      (swap! status assoc
                             :state :invalid
