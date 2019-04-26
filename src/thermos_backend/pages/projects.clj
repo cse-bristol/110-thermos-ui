@@ -15,9 +15,10 @@
                     :font-size :2em
                     :border-radius :5px
                     :padding :5px
-                    :margin-bottom :0.5em
-                    )
-
+                    :margin-bottom :0.5em)
+      :required "required"
+      :minlength 1
+      :pattern ".*[^ ].*"
       :name "name" :type "text" :placeholder "Project name"}]
     [:div
      [:textarea {:style (style :width :100%
