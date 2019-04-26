@@ -22,7 +22,7 @@
       [:label "Username: "
        [:input.text-input
         {:name :username
-         :type :text
+         :type :email
          :id :username
          :placeholder "your@email.com"}]]]
      [:div {:style (style :padding :0.5em)}
