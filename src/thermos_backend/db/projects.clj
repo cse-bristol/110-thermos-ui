@@ -79,8 +79,9 @@
             (h/left-join :networks
                          [:= :maps.id :networks.map-id]
                          :jobs
-                         [:= :maps.job-id :jobs.id])
-            (h/merge-left-join :users [:= :networks.user-id :users.id])
+                         [:= :maps.job-id :jobs.id]
+                         :users
+                         [:= :networks.user-id :users.id])
             
             (h/group :maps.id :jobs.state)) :maps]
        [:= :projects.id :maps.project-id])
