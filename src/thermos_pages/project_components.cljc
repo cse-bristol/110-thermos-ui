@@ -237,9 +237,7 @@
              [:br {:style {:clear :both}}]]
 
             [:div
-             (spinner)
-             "Map import in progress..."
-             (:status m)]
+             (spinner) "Map import " (:state m) "..."]
             
             )])
        [:div.card
