@@ -26,13 +26,11 @@
             [thermos-backend.db.users :as users]
             [clojure.java.io :as io]
             [clojure.data.json :as json]
-            [thermos-backend.queue :as queue])
-  
+            [thermos-backend.queue :as queue]
+            [thermos-backend.pages.cache-control :as cache-control])
+    
   (:import [javax.mail.internet InternetAddress]
            [java.io ByteArrayInputStream]))
-
-(defn- no-cache [response]
-  (response/header response "Cache-Control" "no-store"))
 
 (defn- parse-email [text]
   (try
@@ -149,13 +147,13 @@
           (projects/user-projects (:id auth/*current-user*)))
          (response/response)
          (response/content-type "text/html")
-         (no-cache)))
+         (cache-control/no-store)))
    
    (GET "/settings" []
      (-> (settings-page auth/*current-user*)
          (response/response)
          (response/content-type "text/html")
-         (no-cache)))
+         (cache-control/no-store)))
 
    (POST "/settings" [new-name password-1 password-2
                       system-messages]
@@ -185,12 +183,12 @@
                (get-project project-id))
               (response/response)
               (response/content-type "text/html")
-              (no-cache)))
+              (cache-control/no-store)))
 
         (GET "/poll.t" []
           (-> (transit-json-response
                (get-project project-id))
-              (no-cache)))
+              (cache-control/no-store)))
 
         (auth/restricted
          {:project-admin project-id}
@@ -203,7 +201,7 @@
            (-> (delete-project-page (projects/get-project project-id) wrong-name)
                (response/response)
                (response/content-type "text/html")
-               (no-cache)))
+               (cache-control/no-store)))
          
          (POST "/delete" [project-name]
            (if (= (string/lower-case project-name)
@@ -304,7 +302,7 @@
                             (response/status 200)
                             (response/content-type "text/html")))
                       
-                      (no-cache)
+                      (cache-control/no-store)
                       (response/header "X-Queue-Position" (:queue-position info))
                       (response/header "X-Name" (:name info))
                       (response/header "X-Run-State" (:state info)))))
@@ -319,7 +317,7 @@
                       (response/response)
                       (response/content-type "application/json")
                       (attachment-disposition (str (:name network) ".json"))
-                      (no-cache))))
+                      (cache-control/no-store))))
 
               (HEAD "/" []
                 (let [info (projects/get-network net-id)]
@@ -327,7 +325,7 @@
                       (response/header "X-Name" (:name info))
                       (response/header "X-Queue-Position" (:queue-position info))
                       (response/header "X-Run-State" (:state info))
-                      (no-cache))))
+                      (cache-control/no-store))))
               
               (POST "/" [name run content]
                 (let [content (if (:tempfile content)

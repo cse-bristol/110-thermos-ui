@@ -18,16 +18,19 @@
             [clojure.edn :as edn]
             
             [thermos-backend.pages.core :as pages]
+            [thermos-backend.pages.cache-control :as cache-control]
             [thermos-backend.auth :as auth]
             [thermos-backend.current-uri :as current-uri]))
 
-(defn wrap-no-cache [handler]
+(defn wrap-cache-control [handler]
   (if (= "true" (config :web-server-disable-cache))
     (do (log/info "Disabling caching")
         (fn [request]
           (when-let [response (handler request)]
-            (assoc-in response [:headers "Cache-Control"] "no-store"))))
-    handler))
+            (cache-control/no-store response))))
+    (fn [request]
+      (when-let [response (handler request)]
+        (cache-control/public response)))))
 
 (defn wrap-no-70s
   "When deploying with nix, the jar goes into the nix store.
@@ -67,6 +70,6 @@
       (wrap-forwarded-scheme)
       (wrap-hsts)
       
-      (wrap-no-cache)
+      (wrap-cache-control)
       (wrap-no-70s)))
 
