@@ -111,6 +111,8 @@
                       (map :auth))
                  ))))
 
+(def deleted {:status 204})
+
 (defroutes page-routes
   (GET "/favicon.ico" [] (response/resource-response "/public/favicon.ico"))
 
@@ -195,8 +197,7 @@
 
          (DELETE "/" []
            (projects/delete-project! project-id)
-           (-> (response/response "deleted")
-               (response/status 204)))
+           deleted)
 
          (GET "/delete" [wrong-name]
            (-> (delete-project-page (projects/get-project project-id) wrong-name)
@@ -249,8 +250,7 @@
 
              (DELETE "/" []
                (maps/delete-map! map-id)
-               (-> (response/response "deleted")
-                   (response/status 204)))
+               deleted)
              
              (POST "/delete" []
                (maps/delete-map! map-id)
@@ -281,7 +281,7 @@
             (DELETE "/net/:network-name" [network-name]
               ;; delete all networks in project with name
               (projects/delete-networks! map-id network-name)
-              (response/status 204))
+              deleted)
             
             (context "/net/:net-id" [net-id]
               (GET "/" {{accept "accept"} :headers}
