@@ -66,7 +66,8 @@
   "Put an import job into the queue - at the moment :map-id is the only
   argument, as the map itself contains the import details."
   [{map-id :map-id}]
-  (queue/enqueue :imports {:map-id map-id}))
+  (let [job-id (queue/enqueue :imports {:map-id map-id})]
+    (db/set-job-id! map-id job-id)))
 
 (defn- clean-tag [t]
   (and t (str/capitalize (str/replace t #"[_-]+" " "))))

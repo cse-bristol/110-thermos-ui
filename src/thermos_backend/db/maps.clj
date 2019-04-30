@@ -30,6 +30,14 @@
    :maps {:project-id project-id :name map-name
           :parameters (pr-str parameters)}))
 
+(defn set-job-id! [map-id job-id]
+  {:pre [(int? map-id)
+         (int? job-id)]}
+  (-> (h/update :maps)
+      (h/sset {:job-id job-id})
+      (h/where [:= :id map-id])
+      (db/execute!)))
+
 (defn get-map
   "Get the detail of this map.
   Returns at least keys :project-id :name :parameters."
