@@ -1,0 +1,28 @@
+#+TITLE: Introduction
+#+AUTHOR: CSE
+
+Welcome to THERMOS!
+
+THERMOS is a computer program for investigating the potential for district heating and cooling systems, or /heat networks/.
+
+A heat network is one way to provide heat for space heating, water heating, and in some cases industrial processes.
+In a heat network, heat is produced centrally and distributed to the places where it is needed using a network of insulated pipes, which usually use water as the medium for heat transmission. Centralising heat production can be more efficient, by using larger plant or by capturing heat that would otherwise be wasted.
+
+THERMOS is intended to support people who already have a moderate to sophisticated understanding of heat networks, and who are assessing the feasibility or in the early stages of planning a heat network.
+
+If you are interested but this doesn't sound like you (yet), the [[https://en.wikipedia.org/wiki/District_heating][Wikipedia article]] on district heating provides a good introduction.
+
+THERMOS helps with three connected jobs in planning heat networks:
+
+1. Mapping heat demand
+   
+   To plan a heat network, you need to know where the heat will be consumed.
+   Sometimes this information is available (in Denmark, for example), but not always.
+   THERMOS includes an innovative bottom-up method for estimating buildings' heat demands, with a simple interface that makes creating a heat map for a location very straightforward.
+
+   THERMOS can also help you build a map of the places where the heat distribution pipes could be laid.
+   
+2. Deciding on a cost-effective network layout
+3. Deciding how best to supply heat
+
+
