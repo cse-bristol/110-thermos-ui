@@ -421,7 +421,7 @@
 
         ;; produce demand
         feature (cond
-                  (and given-demand (not (zero? given-demand))) ;; is this sensible? I have no idea
+                  given-demand ;; is this sensible? I have no idea
                   (assoc feature
                          :annual-demand given-demand
                          :demand-source :given)
