@@ -428,8 +428,8 @@
 
                   benchmark-c
                   (assoc feature
-                         :annual-demand (+ benchmark-c (if (not (zero? (or benchmark-m 0)))
-                                                         (* benchmark-m floor-area)))
+                         :annual-demand (+ benchmark-c
+                                           (* (or benchmark-m 0) floor-area))
                          :demand-source :benchmark)
 
                   :else
