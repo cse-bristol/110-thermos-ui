@@ -1,0 +1,80 @@
+#+TITLE: THERMOS parameter index
+#+AUTHOR: CSE
+
+This document contains a list of the important you can tell THERMOS, what they mean, and where you might get them. 
+
+* Facts about buildings
+
+These parameters are mostly used when creating a map (see [[file:maps.org][here]] for more).
+
+** Annual demand
+
+The annual demand for heat in a building, in kWh.
+
+Every building in a map has a value associated with it for annual demand
+The value is placed on the building when the map is created, either using a known user input, a benchmark estimate, or the THERMOS heat demand model.
+
+You can edit this demand directly in a network problem by right clicking on a building and selecting ~Edit buildings~. The edit will not change the map, only that problem.
+
+This value affects:
+
+- the revenue for providing heat to the building
+- the avoided emissions by providing heat to the building
+- the cost of supplying heat into the network
+
+** Peak demand
+
+The peak demand for heat in a building, in kW.
+
+Every building in a map has a value associated with it for peak demand.
+The value is placed on the building when the map is created, either using a known user input, a user input peak-to-base ratio, or the THERMOS heat demand model.
+
+You can edit the peak directly in a network problem by right clicking on a building and selecting ~Edit buildings~. The edit will not change the map, only that problem.
+
+This value affects:
+
+- the size (and hence cost) of pipes needed to supply the building
+- the size (and hence cost) of the plant needed to supply the network
+- the connection costs for the building
+
+** TODO Building height
+
+** TODO Floor area
+
+** TODO Benchmark terms
+
+** TODO Peak to base ratio
+
+** TODO Heat price
+
+** TODO Connection cost
+
+** TODO Emissions factors
+
+* Facts about pipes
+
+** TODO Mechanical engineering costs
+
+** TODO Civil engineering costs
+
+** TODO Flow, return, and ground temperatures
+
+* Heat supply
+
+** TODO Fixed capital cost
+
+** TODO Capital cost for capacity
+
+** TODO Operating cost for capacity
+
+** TODO Cost of producing heat
+
+** TODO Maximum capacity
+
+** TODO Emissions factors
+
+* Categorical information
+
+** TODO Name / address
+
+** TODO Classification

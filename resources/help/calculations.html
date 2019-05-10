@@ -1,0 +1,1181 @@
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#org9a156e3">1. Decisions</a></li>
+<li><a href="#orgde1230c">2. Pipe and supply capacity</a>
+<ul>
+<li><a href="#orgecb3c11">2.1. Diversity factor</a></li>
+<li><a href="#org8fb088e">2.2. Supply capacity</a></li>
+<li><a href="#org09f2e66">2.3. Multiple routes and supplies</a></li>
+<li><a href="#org1703144">2.4. Pipe diameter</a></li>
+<li><a href="#org77d8940">2.5. Pipe cost</a></li>
+<li><a href="#orgd86b30f">2.6. Pipe heat losses</a></li>
+</ul>
+</li>
+<li><a href="#org45cf5d1">3. Operating conditions</a></li>
+<li><a href="#org91597c5">4. Summary of objective</a>
+<ul>
+<li><a href="#org399c057">4.1. Loans</a></li>
+<li><a href="#orgc8144c2">4.2. Net present value</a></li>
+</ul>
+</li>
+<li><a href="#org2ef4b11">5. Worked example</a>
+<ul>
+<li><a href="#orga1cfdb1">5.1. Find pipe diversity</a></li>
+<li><a href="#orgc534087">5.2. Find pipe size</a></li>
+<li><a href="#orgbbc48f3">5.3. Find pipe costs</a></li>
+<li><a href="#orgfdaedf8">5.4. Find heat losses</a></li>
+<li><a href="#org2965b35">5.5. Find supply parmeters</a></li>
+<li><a href="#orge24bdb6">5.6. Summarise costs and revenues</a>
+<ul>
+<li><a href="#org4d4fc2b">5.6.1. Capital costs</a></li>
+<li><a href="#org34099f5">5.6.2. Operating costs and revenue</a></li>
+<li><a href="#orgfdb1064">5.6.3. Emissions</a></li>
+<li><a href="#orgf41e54c">5.6.4. Loans and NPV</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<p>
+THERMOS optimises a model of a heat network. 
+The details of the optimisation are not important to understand, but it is useful to know what calculation is being optimised.
+</p>
+
+<p>
+This document contains:
+</p>
+
+<ul class="org-ul">
+<li>a description of the calculation method</li>
+<li>a list of the objective terms</li>
+<li>a worked example</li>
+</ul>
+
+<div id="outline-container-org9a156e3" class="outline-2">
+<h2 id="org9a156e3"><span class="section-number-2">1</span> Decisions</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+The optimiser makes decisions about how the network should be arranged, picking values for <i>decision variables</i>.
+</p>
+
+<p>
+The objective value for the network is determined by the values of the decision variables.
+</p>
+
+<p>
+The optimiser makes a decision about:
+</p>
+
+<ul class="org-ul">
+<li>For each place where a pipe could go, whether a pipe should be there, and</li>
+<li>For each place with demand, whether to meet the demand using the heat network</li>
+<li>For each place where a supply could go, whether to put a supply there, and:</li>
+</ul>
+
+<p>
+Given these choices, the optimiser then decides:
+</p>
+
+<ul class="org-ul">
+<li>For each pipe, how large the pipe has to be</li>
+<li>For each supply, what the supply capacity has to be</li>
+</ul>
+
+<p>
+From this the costs and revenues are calculated.
+</p>
+</div>
+</div>
+
+<div id="outline-container-orgde1230c" class="outline-2">
+<h2 id="orgde1230c"><span class="section-number-2">2</span> Pipe and supply capacity</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+Network capacity is determined by peak demands for connected buildings.
+</p>
+
+<p>
+Each bit of pipe has to be large enough to carry the <i>diversified</i> sum of the peak demands of all the buildings which it services.
+</p>
+</div>
+
+<div id="outline-container-orgecb3c11" class="outline-3">
+<h3 id="orgecb3c11"><span class="section-number-3">2.1</span> Diversity factor</h3>
+<div class="outline-text-3" id="text-2-1">
+<p>
+Demands are diversified using a <i>diversity factor</i> from the rule:
+</p>
+
+<p>
+\[
+f = a + (1-a)/(k × n)
+\]
+</p>
+
+<p>
+with default values \(a = 0.62\) and \(k = 1\). \(n\) is the number of demands being added together.
+</p>
+
+<p>
+For example, a pipe which supplies 1 building with a peak demand of 30kW will have a capacity of 30kW.
+</p>
+
+<p>
+A pipe which supplies two buildings each having a peak demand of 30kW will have a capacity of (0.62 + 0.38 / 2) × 60 = 48.6 kW.
+</p>
+
+<p>
+The form of the rule means that the diversity factor will tend to 0.62, for pipes that are serving a large number of supplies. This reflects the fact that the peak demands for any two buildings are unlikely to occur at exactly the same time, so their peaks should not be exactly added. However, as a pipe serves more and more buildings the coincidence of the peaks does not keep falling indefinitely.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org8fb088e" class="outline-3">
+<h3 id="org8fb088e"><span class="section-number-3">2.2</span> Supply capacity</h3>
+<div class="outline-text-3" id="text-2-2">
+<p>
+Supply locations must have capacity to meet the diversified sum of the peak demands they are serving.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org09f2e66" class="outline-3">
+<h3 id="org09f2e66"><span class="section-number-3">2.3</span> Multiple routes and supplies</h3>
+<div class="outline-text-3" id="text-2-3">
+<p>
+In principle, if there are several supplies in the system, or several pipes connecting a building, the model can produce a solution in which the demand is split between supplies or between pipes. In this case the diversity factor works in the same way.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org1703144" class="outline-3">
+<h3 id="org1703144"><span class="section-number-3">2.4</span> Pipe diameter</h3>
+<div class="outline-text-3" id="text-2-4">
+<p>
+Although the model works with pipes' capacity to deliver power, prices and heat losses are determined by the pipe diameter.
+</p>
+
+<p>
+The peak power requirement is converted into a diameter by using a standard velocity curve
+</p>
+
+<p>
+\[
+v = -0.4834 + 4.7617 × (⌀ ^ {0.3701})
+\]
+</p>
+
+<p>
+This velocity is combined with density, heat capacity and delta-t to produce a figure for power output - this relationship is solved numerically to produce a curve that relates power delivery to diameter.
+</p>
+
+<p>
+Because of this, the model can represent different flow/return temperature regimes, but cannot optimise the choice of flow/return temperature.
+</p>
+
+<p>
+At the moment the model does not choose from a list of pipe sizes, so will select sizes of pipe that are not practical to purchase. This is because constraining the model to select particular sizes substantially increases the time to solve problems.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org77d8940" class="outline-3">
+<h3 id="org77d8940"><span class="section-number-3">2.5</span> Pipe cost</h3>
+<div class="outline-text-3" id="text-2-5">
+<p>
+Pipe cost is split into two parts, both functions of the pipe diameter.
+</p>
+
+<ul class="org-ul">
+<li><p>
+Mechanical engineering costs
+</p>
+
+<p>
+These represent the cost of buying the pipe, welding and so on.
+</p>
+
+<p>
+Mechanical costs are assumed to take the form
+</p>
+
+<p>
+\(A+(⌀ × B)^{1.3}\)
+</p>
+
+<p>
+with \(A\) and \(B\) as parameters that vary between cities or scenarios, but not between roads.
+</p></li>
+
+<li><p>
+Civil engineering costs
+</p>
+
+<p>
+These represent the cost of digging and filling the hole, closing roads and so on.
+</p>
+
+<p>
+Civil engineering costs are assumed to take the form
+</p>
+
+<p>
+\(A+(⌀ × B)^{1.1}\)
+</p>
+
+<p>
+with \(A\) and \(B\) as parameters that can vary between road segments (reflecting the different cost of digging things up). 
+</p>
+
+<p>
+For example, a road with a hard surface will cost more to dig up, and so will have greater \(A\) and \(B\) values than one with a soft surface.
+</p></li>
+</ul>
+
+<p>
+These functions are combined with the power / diameter relationship to produce a power / cost relationship for each road.
+</p>
+
+<p>
+Although the resulting shape will be non-linear, the model computes bounds on the power that a given pipe can deliver in any solution and then approximates the this non-linear function as a linear one. 
+</p>
+
+<p>
+This approximation reduces the fidelity of the cost calculation, but makes the problem tractable for the computer.
+</p>
+</div>
+</div>
+
+<div id="outline-container-orgd86b30f" class="outline-3">
+<h3 id="orgd86b30f"><span class="section-number-3">2.6</span> Pipe heat losses</h3>
+<div class="outline-text-3" id="text-2-6">
+<p>
+Heat losses are also determined by pipe diameter, along with the flow temperature in the pipe and the ground temperature.
+</p>
+
+<p>
+The losses associated with particular diameter are calculated using the empirical formula:
+</p>
+
+<p>
+\[
+\delta_t × (0.16805 × \ln(⌀) + 0.85684)
+\]
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org45cf5d1" class="outline-2">
+<h2 id="org45cf5d1"><span class="section-number-2">3</span> Operating conditions</h2>
+<div class="outline-text-2" id="text-3">
+<p>
+The network size determines the capital cost for plant and pipework, and the heat losses for pipework.
+</p>
+
+<p>
+Operating costs &amp; revenues are simpler: the plant must supply enough heat to meet all of the annual demands plus all the heat losses for the pipes.
+</p>
+
+<p>
+Heat production incurs a cost per unit, and heat delivered creates revenue per unit sold.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org91597c5" class="outline-2">
+<h2 id="org91597c5"><span class="section-number-2">4</span> Summary of objective</h2>
+<div class="outline-text-2" id="text-4">
+<ul class="org-ul">
+<li>Financial cost terms
+<ul class="org-ul">
+<li>Capital costs
+<ul class="org-ul">
+<li>Pipe costs
+<ul class="org-ul">
+<li>Mechanical cost/m, calculated as \(A+(B×⌀)^1.3\)</li>
+<li>Civil cost/m, calculated as \(A+(B×⌀)^1.1\)</li>
+</ul></li>
+<li>Supply costs
+<ul class="org-ul">
+<li>Fixed cost, incurred if supply is used</li>
+<li>Capacity cost, incurred per unit capacity that is provisioned</li>
+</ul></li>
+<li>Connection costs, per unit capacity within the building connected (unrelated to pipes)</li>
+</ul></li>
+<li>Running costs
+<ul class="org-ul">
+<li>Supply capacity, incurred every year per unit capacity that is provisioned</li>
+<li>Heat production, per unit of heat supplied to the network (so heat demands + losses)</li>
+</ul></li>
+</ul></li>
+<li>Revenue terms
+<ul class="org-ul">
+<li>Heat revenues, produced per unit of heat purchased by demands connected to the network.
+Each demand has a unit price, so the annual revenue is just the annual demand × price.</li>
+</ul></li>
+<li>Emissions terms
+<ul class="org-ul">
+<li>Emissions costs
+Supplies have associated emissions factors per unit of heat produced.
+Emissions can have associated financial costs. 
+Annual emissions costs are calculated as supply output × emissions factor × emissions cost</li>
+<li>Avoided emissions
+Demands have associated emissions factors per unit of heat consumed <i>as a counterfactual</i>.
+If a building is connected to the network, these emissions are considered <i>avoided</i> and offset against supply emissions (and associated costs)</li>
+</ul></li>
+</ul>
+</div>
+
+<div id="outline-container-org399c057" class="outline-3">
+<h3 id="org399c057"><span class="section-number-3">4.1</span> Loans</h3>
+<div class="outline-text-3" id="text-4-1">
+<p>
+Capital costs can be converted into annualized loans, given a loan interest rate and term.
+</p>
+
+<p>
+A cost of X is converted at a rate r and term t into t payments of 
+</p>
+
+<p>
+\[
+\frac{X×r}{1 - 1/((1+r)^t)}
+\]
+</p>
+</div>
+</div>
+
+<div id="outline-container-orgc8144c2" class="outline-3">
+<h3 id="orgc8144c2"><span class="section-number-3">4.2</span> Net present value</h3>
+<div class="outline-text-3" id="text-4-2">
+<p>
+All the cost and revenue streams described above are converted into net present values, with the user's supplied time horizon and discount rate.
+</p>
+
+<p>
+This includes loan repayments, if you have set up a loan, so a cost or revenue of \(x\) in year \(n\) counts for \(x/(1+r)ⁿ\), given a discount rate of \(r\).
+</p>
+
+<p>
+If you wish to incur all capital costs at the start of the NPV period, set the loan rate and term to 0.
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org2ef4b11" class="outline-2">
+<h2 id="org2ef4b11"><span class="section-number-2">5</span> Worked example</h2>
+<div class="outline-text-2" id="text-5">
+<p>
+Imagine a network that looks like this:
+</p>
+
+
+<div class="figure">
+<p><object type="image/svg+xml" data="./img/net-example.svg" class="org-svg" style="max-width:600px;">
+Sorry, your browser does not support SVG.</object>
+</p>
+</div>
+<p>
+Say that the demands are as follows:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Building</th>
+<th scope="col" class="org-left">Annual (kWh)</th>
+<th scope="col" class="org-right">Peak (kW)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">P</td>
+<td class="org-left">30,000</td>
+<td class="org-right">30</td>
+</tr>
+
+<tr>
+<td class="org-left">Q</td>
+<td class="org-left">40,000</td>
+<td class="org-right">35</td>
+</tr>
+
+<tr>
+<td class="org-left">R</td>
+<td class="org-left">20,000</td>
+<td class="org-right">28</td>
+</tr>
+
+<tr>
+<td class="org-left">S</td>
+<td class="org-left">10,000</td>
+<td class="org-right">90</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Let's say that the supply is located at building R.
+</p>
+</div>
+
+<div id="outline-container-orga1cfdb1" class="outline-3">
+<h3 id="orga1cfdb1"><span class="section-number-3">5.1</span> Find pipe diversity</h3>
+<div class="outline-text-3" id="text-5-1">
+<p>
+First we want to work out the pipe diversity for each pipe.
+</p>
+
+<p>
+Counting up from each building until we get to R we can work out how many buildings each pipe is connected to:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Pipe</th>
+<th scope="col" class="org-left">Count</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">a</td>
+<td class="org-left">1 (P)</td>
+</tr>
+
+<tr>
+<td class="org-left">b</td>
+<td class="org-left">1 (P)</td>
+</tr>
+
+<tr>
+<td class="org-left">c</td>
+<td class="org-left">1 (Q)</td>
+</tr>
+
+<tr>
+<td class="org-left">d</td>
+<td class="org-left">2 (P, Q)</td>
+</tr>
+
+<tr>
+<td class="org-left">e</td>
+<td class="org-left">2 (P, Q)</td>
+</tr>
+
+<tr>
+<td class="org-left">f</td>
+<td class="org-left">3 (P, Q, S)</td>
+</tr>
+
+<tr>
+<td class="org-left">g</td>
+<td class="org-left">1 (S)</td>
+</tr>
+
+<tr>
+<td class="org-left">h</td>
+<td class="org-left">1 (S)</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+We can plug these counts into the diversity equation to get a coincidence factor for each pipe:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Pipe</th>
+<th scope="col" class="org-left">Count</th>
+<th scope="col" class="org-right">Coincidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">a</td>
+<td class="org-left">1 (P)</td>
+<td class="org-right">1</td>
+</tr>
+
+<tr>
+<td class="org-left">b</td>
+<td class="org-left">1 (P)</td>
+<td class="org-right">1</td>
+</tr>
+
+<tr>
+<td class="org-left">c</td>
+<td class="org-left">1 (Q)</td>
+<td class="org-right">1</td>
+</tr>
+
+<tr>
+<td class="org-left">d</td>
+<td class="org-left">2 (P, Q)</td>
+<td class="org-right">0.81</td>
+</tr>
+
+<tr>
+<td class="org-left">e</td>
+<td class="org-left">2 (P, Q)</td>
+<td class="org-right">0.81</td>
+</tr>
+
+<tr>
+<td class="org-left">f</td>
+<td class="org-left">3 (P, Q, S)</td>
+<td class="org-right">0.74</td>
+</tr>
+
+<tr>
+<td class="org-left">g</td>
+<td class="org-left">1 (S)</td>
+<td class="org-right">1</td>
+</tr>
+
+<tr>
+<td class="org-left">h</td>
+<td class="org-left">1 (S)</td>
+<td class="org-right">1</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div id="outline-container-orgc534087" class="outline-3">
+<h3 id="orgc534087"><span class="section-number-3">5.2</span> Find pipe size</h3>
+<div class="outline-text-3" id="text-5-2">
+<p>
+Now we can add up the peak load for each pipe as the peak of the buildings it is serving, and multiply out the coincidence factor:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Pipe</th>
+<th scope="col" class="org-left">Count</th>
+<th scope="col" class="org-right">Coincidence</th>
+<th scope="col" class="org-right">Peak</th>
+<th scope="col" class="org-right">Capacity (kW)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">a</td>
+<td class="org-left">1 (P)</td>
+<td class="org-right">1</td>
+<td class="org-right">30</td>
+<td class="org-right">30</td>
+</tr>
+
+<tr>
+<td class="org-left">b</td>
+<td class="org-left">1 (P)</td>
+<td class="org-right">1</td>
+<td class="org-right">30</td>
+<td class="org-right">30</td>
+</tr>
+
+<tr>
+<td class="org-left">c</td>
+<td class="org-left">1 (Q)</td>
+<td class="org-right">1</td>
+<td class="org-right">35</td>
+<td class="org-right">35</td>
+</tr>
+
+<tr>
+<td class="org-left">d</td>
+<td class="org-left">2 (P, Q)</td>
+<td class="org-right">0.81</td>
+<td class="org-right">65</td>
+<td class="org-right">52.65</td>
+</tr>
+
+<tr>
+<td class="org-left">e</td>
+<td class="org-left">2 (P, Q)</td>
+<td class="org-right">0.81</td>
+<td class="org-right">65</td>
+<td class="org-right">52.65</td>
+</tr>
+
+<tr>
+<td class="org-left">f</td>
+<td class="org-left">3 (P, Q, S)</td>
+<td class="org-right">0.74</td>
+<td class="org-right">155</td>
+<td class="org-right">114.7</td>
+</tr>
+
+<tr>
+<td class="org-left">g</td>
+<td class="org-left">1 (S)</td>
+<td class="org-right">1</td>
+<td class="org-right">90</td>
+<td class="org-right">90</td>
+</tr>
+
+<tr>
+<td class="org-left">h</td>
+<td class="org-left">1 (S)</td>
+<td class="org-right">1</td>
+<td class="org-right">90</td>
+<td class="org-right">90</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Now we have a required capacity in kW we can work out a pipe diameter using the other parameters.
+</p>
+
+<p>
+Diameter and power are related by the function given above, producing a graph like this:
+</p>
+
+
+<div class="figure">
+<p><img src="img/diameter-to-power.png" alt="diameter-to-power.png" />
+</p>
+</div>
+
+<p>
+Using this graph we can read off the required diameter for each pipe segment based on its capacity - I've done this approximately by eye for this example:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Pipe</th>
+<th scope="col" class="org-right">Capacity (kW)</th>
+<th scope="col" class="org-right">Diameter (m)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">a,b</td>
+<td class="org-right">30</td>
+<td class="org-right">0.2</td>
+</tr>
+
+<tr>
+<td class="org-left">c</td>
+<td class="org-right">35</td>
+<td class="org-right">0.25</td>
+</tr>
+
+<tr>
+<td class="org-left">d,e</td>
+<td class="org-right">52.65</td>
+<td class="org-right">0.4</td>
+</tr>
+
+<tr>
+<td class="org-left">f</td>
+<td class="org-right">114.7</td>
+<td class="org-right">0.55</td>
+</tr>
+
+<tr>
+<td class="org-left">g,h</td>
+<td class="org-right">90</td>
+<td class="org-right">0.5</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div id="outline-container-orgbbc48f3" class="outline-3">
+<h3 id="orgbbc48f3"><span class="section-number-3">5.3</span> Find pipe costs</h3>
+<div class="outline-text-3" id="text-5-3">
+<p>
+Now we have diameters for the pipes we can work out their heat losses and costs.
+</p>
+
+<p>
+Let's say that we have the following cost parameters:
+</p>
+
+<ul class="org-ul">
+<li>Mechanical costs of 50 + (700 × ⌀)<sup>1.3</sup> per metre</li>
+<li>Civil costs of 350 + (700  × ⌀)<sup>1.1</sup> per metre for paths a-e</li>
+<li>Civil costs of 500 + (800  × ⌀)<sup>1.1</sup> per metre for paths f,g,h</li>
+</ul>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Pipe</th>
+<th scope="col" class="org-right">Diameter (m)</th>
+<th scope="col" class="org-left">Mechanical/m</th>
+<th scope="col" class="org-left">Civil/m</th>
+<th scope="col" class="org-right">Length (m)</th>
+<th scope="col" class="org-left">Total</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">&#xa0;</td>
+<td class="org-right">&#xa0;</td>
+<td class="org-left">50 + (700×⌀)<sup>1.3</sup></td>
+<td class="org-left">350 + (700×⌀)<sup>1.1</sup></td>
+<td class="org-right">&#xa0;</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="org-left">a,b</td>
+<td class="org-right">0.2</td>
+<td class="org-left">¤666</td>
+<td class="org-left">¤579</td>
+<td class="org-right">100</td>
+<td class="org-left">¤124,603</td>
+</tr>
+
+<tr>
+<td class="org-left">c</td>
+<td class="org-right">0.25</td>
+<td class="org-left">¤874</td>
+<td class="org-left">¤643</td>
+<td class="org-right">10</td>
+<td class="org-left">¤15,174</td>
+</tr>
+
+<tr>
+<td class="org-left">d,e</td>
+<td class="org-right">0.4</td>
+<td class="org-left">¤1,568</td>
+<td class="org-left">¤841</td>
+<td class="org-right">60</td>
+<td class="org-left">¤138,467</td>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td class="org-left">&#xa0;</td>
+<td class="org-right">&#xa0;</td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">500 + (800×⌀)<sup>1.1</sup></td>
+<td class="org-right">&#xa0;</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="org-left">f</td>
+<td class="org-right">0.55</td>
+<td class="org-left">¤2,347</td>
+<td class="org-left">¤1,308</td>
+<td class="org-right">30</td>
+<td class="org-left">¤109,662</td>
+</tr>
+
+<tr>
+<td class="org-left">g,h</td>
+<td class="org-right">0.5</td>
+<td class="org-left">¤2,079</td>
+<td class="org-left">¤1,308</td>
+<td class="org-right">60</td>
+<td class="org-left">¤198,435</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div id="outline-container-orgfdaedf8" class="outline-3">
+<h3 id="orgfdaedf8"><span class="section-number-3">5.4</span> Find heat losses</h3>
+<div class="outline-text-3" id="text-5-4">
+<p>
+The diameters also determine the heat losses: using the heat loss equation above and a temperature difference between pipes and ground of 50°C, we get a heat loss / diameter relationship like this:
+</p>
+
+
+<div class="figure">
+<p><img src="img/heat-losses.png" alt="heat-losses.png" />
+</p>
+</div>
+
+<p>
+Again, we can read off for each pipe and work out the heat loss rates:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Pipe</th>
+<th scope="col" class="org-right">Diameter (m)</th>
+<th scope="col" class="org-right">Heat loss (W/m)</th>
+<th scope="col" class="org-right">Length (m)</th>
+<th scope="col" class="org-left">Heat loss (W)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">a,b</td>
+<td class="org-right">0.2</td>
+<td class="org-right">28</td>
+<td class="org-right">100</td>
+<td class="org-left">2,800</td>
+</tr>
+
+<tr>
+<td class="org-left">c</td>
+<td class="org-right">0.25</td>
+<td class="org-right">30</td>
+<td class="org-right">10</td>
+<td class="org-left">300</td>
+</tr>
+
+<tr>
+<td class="org-left">d,e</td>
+<td class="org-right">0.4</td>
+<td class="org-right">35</td>
+<td class="org-right">60</td>
+<td class="org-left">2,100</td>
+</tr>
+
+<tr>
+<td class="org-left">f</td>
+<td class="org-right">0.55</td>
+<td class="org-right">38</td>
+<td class="org-right">30</td>
+<td class="org-left">1,140</td>
+</tr>
+
+<tr>
+<td class="org-left">g,h</td>
+<td class="org-right">0.5</td>
+<td class="org-right">37</td>
+<td class="org-right">60</td>
+<td class="org-left">2220</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+<div id="outline-container-org2965b35" class="outline-3">
+<h3 id="org2965b35"><span class="section-number-3">5.5</span> Find supply parmeters</h3>
+<div class="outline-text-3" id="text-5-5">
+<p>
+The supply capacity calculation is very similar to the capacity of the output pipe.
+However, since a supply may include an on-site demand, it can have a slightly lower diversity factor.
+</p>
+
+<p>
+In our example, the supply is meeting four demands, so the diversity factor should be 0.715, giving a required supply capacity of 0.715 × 183 ≈ 130 kW.
+</p>
+</div>
+</div>
+
+<div id="outline-container-orge24bdb6" class="outline-3">
+<h3 id="orge24bdb6"><span class="section-number-3">5.6</span> Summarise costs and revenues</h3>
+<div class="outline-text-3" id="text-5-6">
+<p>
+Now we have all the information we need to work out the costs and revenues:
+</p>
+</div>
+
+<div id="outline-container-org4d4fc2b" class="outline-4">
+<h4 id="org4d4fc2b"><span class="section-number-4">5.6.1</span> Capital costs</h4>
+<div class="outline-text-4" id="text-5-6-1">
+<ul class="org-ul">
+<li><b>Pipes</b>: worked out above. Summing up we get ¤586,341.</li>
+<li><p>
+<b>Supply</b>: supply capital cost is broken down into a fixed cost and a unit cost.
+</p>
+
+<p>
+Let's say we have a fixed cost of ¤1,000 and a unit cost of ¤50/kW we have a total cost of 1,000 + 130*50 = ¤7,500.
+</p></li>
+<li><p>
+<b>Connection costs</b>: each building can have a connection cost.
+</p>
+
+<p>
+Let's say we are using ¤50/kW capacity, we have a total connection cost of 183×50 = ¤9,150
+</p></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-org34099f5" class="outline-4">
+<h4 id="org34099f5"><span class="section-number-4">5.6.2</span> Operating costs and revenue</h4>
+<div class="outline-text-4" id="text-5-6-2">
+<ul class="org-ul">
+<li><p>
+<b>Heat</b>: we need to supply 100 MWh of productive demand for heat, and 8560W of heat losses.
+</p>
+
+<p>
+This gives us 175,036 kWh/yr of heat output (we have a lot of losses because the figures I have chosen are not that sensible, I think).
+</p>
+
+<p>
+Assuming a sales price of 8c/kWh and a net heat production cost of 4c/kWh, this gives us
+</p>
+
+<ul class="org-ul">
+<li>¤8,000/yr in revenues</li>
+<li>¤3,000/yr in costs</li>
+</ul></li>
+
+<li><p>
+<b>Capacity</b>: the supply parameters include an operating cost per unit capacity, reflecting any costs that are associated with maintaining the plant rather than producing heat.
+</p>
+
+<p>
+Our supply capacity is 130kW; let's say the annual operating cost is ¤30/kW, which comes out to ¤3,900.
+</p></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-orgfdb1064" class="outline-4">
+<h4 id="orgfdb1064"><span class="section-number-4">5.6.3</span> Emissions</h4>
+<div class="outline-text-4" id="text-5-6-3">
+<ul class="org-ul">
+<li><p>
+<b>Supply emissions</b>: these are worked out per unit of heat produced (losses + demand).
+</p>
+
+<p>
+For simplicity let's just think about CO<sub>2</sub><sup>e</sup> here - other emissions work the same way.
+</p>
+
+<p>
+Let's assume an emissions factor of 0.25 kg/kWh, giving us 175,036 × 0.25 = 43,759 kg
+</p></li>
+
+<li><p>
+<b>Avoided emissions</b>: these are worked out per unit of heat delivered (just demands).
+</p>
+
+<p>
+Let's assume the buildings were electrically heated with an emissions factor of 0.5, giving us 50,000 kg of avoided emissions
+</p></li>
+
+<li><b>Emissions costs</b>: using an emissions price of ¤0.5/kg, our net emissions of -6,241 kg produce an effective revenue of about ¤9,360.</li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-orgf41e54c" class="outline-4">
+<h4 id="orgf41e54c"><span class="section-number-4">5.6.4</span> Loans and NPV</h4>
+<div class="outline-text-4" id="text-5-6-4">
+<p>
+If requested, capital costs will be amortised using a loan. 
+All costs and revenues are then converted to present values and summed, so.
+</p>
+
+<p>
+In our example, we have capital costs of
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Pipes</th>
+<th scope="col" class="org-left">586,341</th>
+</tr>
+
+<tr>
+<th scope="col" class="org-left">Supply</th>
+<th scope="col" class="org-left">7,500</th>
+</tr>
+
+<tr>
+<th scope="col" class="org-left">Connections</th>
+<th scope="col" class="org-left">9,150</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Total</td>
+<td class="org-left">602,891</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+and annual costs/revenues of
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Heat production</th>
+<th scope="col" class="org-left">-3,000</th>
+</tr>
+
+<tr>
+<th scope="col" class="org-left">Heat sales</th>
+<th scope="col" class="org-left">8,000</th>
+</tr>
+
+<tr>
+<th scope="col" class="org-left">Supply capacity</th>
+<th scope="col" class="org-left">-3,900</th>
+</tr>
+
+<tr>
+<th scope="col" class="org-left">Net emissions</th>
+<th scope="col" class="org-left">9,360</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Total (per yr)</td>
+<td class="org-left">10,460</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+If we convert the capital costs into loan repayments at 5% over 10 years, the annualized cost is ¤78,077/yr.
+</p>
+
+<p>
+Calculating an NPV over 15 years we then have
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-right" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-right">Year</th>
+<th scope="col" class="org-left">Loan</th>
+<th scope="col" class="org-left">Operations</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-right">0-9</td>
+<td class="org-left">-78,077</td>
+<td class="org-left">10,460</td>
+</tr>
+
+<tr>
+<td class="org-right">10-14</td>
+<td class="org-left">0</td>
+<td class="org-left">10,460</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Using a discount rate of 4% we have (10,460-78,077) + (10,460-78,077)/1.04 + (10,460-78,077)/1.04² &#x2026; + (10,460/1.04<sup>10</sup> + &#x2026;) = -516,976, so this network is a loss using this accounting.
+</p>
+</div>
+</div>
+</div>
+</div>

@@ -779,7 +779,7 @@
        :value (:default-variable-civil-cost (rum/react *form-state))
        :on-change #(swap! *form-state
                           assoc :default-variable-civil-cost
-                          (as-int (.. % -target -value)))}] "¤/(m × mm " [:sup "1.1"] "). "
+                          (as-int (.. % -target -value)))}] "¤/(m × m " [:sup "1.1"] "). "
      "This is the value which will be used if your road data does not otherwise have a value."]
     
     [:p "The mechanical engineering cost is set in the network problem."]]])

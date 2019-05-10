@@ -1,0 +1,331 @@
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#org110bd4d">1. Parts of the interface</a>
+<ul>
+<li><a href="#org7d1b616">1.1. Map page</a>
+<ul>
+<li><a href="#orge2bb96b">1.1.1. Candidates layer</a></li>
+<li><a href="#org4a3e41d">1.1.2. Density layer</a></li>
+<li><a href="#orgab6ad89">1.1.3. Candidates list</a></li>
+<li><a href="#org430d11a">1.1.4. Selection panel</a></li>
+<li><a href="#org5993757">1.1.5. Editing candidates</a></li>
+<li><a href="#org18a04cf">1.1.6. Editing supply parameters</a></li>
+</ul>
+</li>
+<li><a href="#org0c5f112">1.2. Options page</a></li>
+<li><a href="#orgdc9f9d5">1.3. Results page</a>
+<ul>
+<li><a href="#org7fe6f7f">1.3.1. Result summary</a></li>
+<li><a href="#orga814309">1.3.2. Demand information</a></li>
+<li><a href="#orgfa52e0e">1.3.3. Supply information</a></li>
+<li><a href="#org1509fe4">1.3.4. Network information</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#org67af78b">2. How to&#x2026;</a>
+<ul>
+<li><a href="#orga64c9ca">2.1. Add a supply location</a></li>
+<li><a href="#org1d2bb73">2.2. Draw an existing network</a></li>
+<li><a href="#org075bba0">2.3. Expand an existing network</a></li>
+<li><a href="#org414914e">2.4. Select roads or buildings by category</a></li>
+<li><a href="#org48e025c">2.5. Find large or small demands</a></li>
+<li><a href="#orgdd5baa7">2.6. Export a network as a GIS file</a></li>
+<li><a href="#orga281459">2.7. Set emissions limits</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<p>
+The heat network editor is the part of THERMOS which lets you design and optimise heat networks. To get into the heat network editor, you need to have created an account, a project, and a map - if these are new ideas to you, have a look at <a href="quick-start.html">the quick start guide</a> first.
+</p>
+
+<p>
+This document walks through the different bits of the interface, and then describes how to do some common tasks.
+</p>
+
+<div id="outline-container-org110bd4d" class="outline-2">
+<h2 id="org110bd4d"><span class="section-number-2">1</span> Parts of the interface</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+The editor is divided into several pages which you can switch between using the buttons at the top of the window.
+</p>
+</div>
+
+<div id="outline-container-org7d1b616" class="outline-3">
+<h3 id="org7d1b616"><span class="section-number-3">1.1</span> Map page</h3>
+<div class="outline-text-3" id="text-1-1">
+<p>
+The map page shows the <i>candidates</i> (bits of roads and buildings) which are available to put into a network. It looks like this - you can point at things in the picture to show quick descriptions.
+</p>
+
+<div class="ttmap">
+<img src="img/network/main.png">
+<div class="t" style="top:4px;left:8px;">
+<div class="b" style="width:263px;height:40px">
+</div>
+<div>
+Page selection buttons
+</div>
+</div>
+
+<div class="t" style="top:58px;left:10px;">
+<div class="b" style="width:32px;height:64px">
+</div>
+<div>
+Zoom in and out. You can also zoom with the scroll wheel, or by shift-clicking and dragging a rectangle.
+</div>
+</div>
+
+<div class="t" style="top:135px;left:10px;">
+<div class="b" style="width:32px;height:64px">
+</div>
+<div>
+Area selection tools - you can draw a polygon or a rectangle and all the buildings and roads in it will be selected.
+</div>
+</div>
+
+<div class="t" style="top:210px;left:10px;">
+<div class="b" style="width:32px;height:32px">
+</div>
+<div>
+Toggles the visibility of buildings and roads which are excluded from the network.
+</div>
+</div>
+
+<div class="t" style="top:240px;left:10px;">
+<div class="b" style="width:32px;height:32px">
+</div>
+<div>
+Moves the map to show the selection, or the whole network if there is no selection
+</div>
+</div>
+
+<div class="t" style="top:108px;left:391px;">
+<div class="b" style="width:93;height:66px">
+</div>
+<div>
+Selects the base map, which is displayed underneath anything else on the map.
+</div>
+</div>
+
+<div class="t" style="top:182px;left:393px;">
+<div class="b" style="width:90px;height:22px">
+</div>
+<div>
+Turns the display of network candidates on and off. When candidates are on you can see, select and edit the individual buildings and roads that the model can use for a network.
+</div>
+</div>
+
+<div class="t" style="top:202px;left:393px;">
+<div class="b" style="width:90px;height:22px">
+</div>
+<div>
+Turns the display of a heat density layer on and off.
+The heat density is dimensionless, but set so that red areas contain a lot of heat demand and blue areas little heat demand.
+</div>
+</div>
+
+<div class="t" style="top:222px;left:393px;">
+<div class="b" style="width:90px;height:22px">
+</div>
+<div>
+Turns the display of road labels on and off.
+</div>
+</div>
+
+<div class="t" style="top:54px;left:512px;">
+<div class="b" style="width:323px;height:310px">
+</div>
+<div style="left:-100px">
+Shows information about the selected candidates.
+These candidates are highlighted with a thicker border on the map, and have a check mark next to them in the candidate list at the bottom.
+</div>
+</div>
+
+<div class="t" style="top:152px;left:620px;">
+<div class="b" style="width:118px;height:36px">
+</div>
+<div>
+A <em>category chip</em> - clicking on the label will shrink the selection to this category. Clicking on the cross will shrink the selection by removing everything in the category.
+<br>
+The number on the left says how many selected candidates are in this category.
+</div>
+</div>
+
+<div class="t" style="top:380px;left:2px;">
+<div class="b" style="width:838px;height:234px">
+</div>
+<div>
+A list of all of the candidates being considered for a heat network. This shows anything which is coloured in on the map.
+</div>
+</div>
+
+<div class="t" style="top:390px;left:2px;">
+<div class="b" style="width:40px;height:220px">
+</div>
+<div>
+This column follows the selection on the map. 
+You can use the checkboxes to change the map selection.
+</div>
+</div>
+
+<div class="t" style="top:380px;left:2px;">
+<div class="b" style="width:838px;height:32px">
+</div>
+<div>
+Column headers let you filter and sort the candidate list.
+</div>
+</div>
+
+</div>
+</div>
+
+<div id="outline-container-orge2bb96b" class="outline-4">
+<h4 id="orge2bb96b"><span class="section-number-4">1.1.1</span> Candidates layer</h4>
+<div class="outline-text-4" id="text-1-1-1">
+<p>
+The candidates layer of the map shows all of the buildings and roads that are available to put into a heat network.
+</p>
+
+<p>
+Several different drawing styles are used to show different kinds of information visually on the candidates layer
+</p>
+
+
+<dl class="org-dl">
+<dt>Colour</dt><dd><p>
+the colour of each candidate is used to show information about whether the candidate will be used in a network.
+</p>
+
+<div class="figure">
+<p><img src="./img/network/map-colours.png" alt="map-colours.png" style="float:right;" />
+</p>
+</div>
+
+<ul class="org-ul">
+<li><b>Grey</b> candidates are <i>forbidden</i>, which means they can't be included in a network</li>
+<li><p>
+<b>Blue</b> candidates are <i>optional</i>, which means they can be included in a network, but the optimiser can leave them out if they make things worse.
+</p>
+
+<p>
+If the optimiser has been run and there is a solution then blue candidates are those which <i>were included</i> in the network.
+</p></li>
+<li><b>Green</b> candidates are optional candidates which were <i>not</i> included in the network, if there is a solution</li>
+<li><b>Red</b> candidates are <i>required</i>, which means that the optimiser <i>has</i> to put them in the network.</li>
+<li><b>Magenta</b> candidates are <i>infeasible</i>, which means that they cannot be used in a solution, for example because
+<ul class="org-ul">
+<li>They are buildings or roads that cannot be reached from any supply point</li>
+<li>They are roads that do not join any pairs of buildings so would not be worth using</li>
+</ul></li>
+</ul></dd>
+<dt>Fill</dt><dd>buildings which are supply locations are filled in with a striped pattern.
+If the optimiser has been run, and the supply is used, the stripes will be coloured in blue.</dd>
+<dt>Line thickness</dt><dd><p>
+The line thickness is used to show whether a candidate is <i>selected</i>. 
+Selected candidates are drawn with a thicker line.
+They are also shown with a tick mark in the candidate list, and summarised in the selection info box.
+</p>
+
+<div class="figure">
+<p><img src="./img/network/map-selection.png" alt="map-selection.png" />
+</p>
+<p><span class="figure-number">Figure 2: </span>A required and forbidden building and some forbidden roads are all selected</p>
+</div></dd>
+
+<dt>Transparency</dt><dd>If the candidate list at the bottom has been <i>filtered</i>, the candidates which do not pass the filter will be made mostly transparent, to emphasise the things shown in the candidate list.</dd>
+</dl>
+</div>
+</div>
+
+<div id="outline-container-org4a3e41d" class="outline-4">
+<h4 id="org4a3e41d"><span class="section-number-4">1.1.2</span> Density layer</h4>
+<div class="outline-text-4" id="text-1-1-2">
+<p>
+The heat density layer shows a smoothed version of where there is heat demand in a map.
+It may be a useful way to get an overview of the distribution of demand when you are zoomed out too far to see the individual buildings and roads
+</p>
+</div>
+</div>
+
+<div id="outline-container-orgab6ad89" class="outline-4">
+<h4 id="orgab6ad89"><span class="section-number-4">1.1.3</span> Candidates list</h4>
+</div>
+
+
+
+<div id="outline-container-org430d11a" class="outline-4">
+<h4 id="org430d11a"><span class="section-number-4">1.1.4</span> Selection panel</h4>
+</div>
+
+<div id="outline-container-org5993757" class="outline-4">
+<h4 id="org5993757"><span class="section-number-4">1.1.5</span> Editing candidates</h4>
+</div>
+
+<div id="outline-container-org18a04cf" class="outline-4">
+<h4 id="org18a04cf"><span class="section-number-4">1.1.6</span> Editing supply parameters</h4>
+</div>
+</div>
+
+<div id="outline-container-org0c5f112" class="outline-3">
+<h3 id="org0c5f112"><span class="section-number-3">1.2</span> Options page</h3>
+</div>
+
+<div id="outline-container-orgdc9f9d5" class="outline-3">
+<h3 id="orgdc9f9d5"><span class="section-number-3">1.3</span> Results page</h3>
+<div class="outline-text-3" id="text-1-3">
+</div>
+<div id="outline-container-org7fe6f7f" class="outline-4">
+<h4 id="org7fe6f7f"><span class="section-number-4">1.3.1</span> Result summary</h4>
+</div>
+
+<div id="outline-container-orga814309" class="outline-4">
+<h4 id="orga814309"><span class="section-number-4">1.3.2</span> Demand information</h4>
+</div>
+
+<div id="outline-container-orgfa52e0e" class="outline-4">
+<h4 id="orgfa52e0e"><span class="section-number-4">1.3.3</span> Supply information</h4>
+</div>
+
+<div id="outline-container-org1509fe4" class="outline-4">
+<h4 id="org1509fe4"><span class="section-number-4">1.3.4</span> Network information</h4>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org67af78b" class="outline-2">
+<h2 id="org67af78b"><span class="section-number-2">2</span> How to&#x2026;</h2>
+<div class="outline-text-2" id="text-2">
+</div>
+<div id="outline-container-orga64c9ca" class="outline-3">
+<h3 id="orga64c9ca"><span class="section-number-3">2.1</span> Add a supply location</h3>
+</div>
+
+<div id="outline-container-org1d2bb73" class="outline-3">
+<h3 id="org1d2bb73"><span class="section-number-3">2.2</span> Draw an existing network</h3>
+</div>
+
+<div id="outline-container-org075bba0" class="outline-3">
+<h3 id="org075bba0"><span class="section-number-3">2.3</span> Expand an existing network</h3>
+</div>
+
+<div id="outline-container-org414914e" class="outline-3">
+<h3 id="org414914e"><span class="section-number-3">2.4</span> Select roads or buildings by category</h3>
+</div>
+
+<div id="outline-container-org48e025c" class="outline-3">
+<h3 id="org48e025c"><span class="section-number-3">2.5</span> Find large or small demands</h3>
+</div>
+
+<div id="outline-container-orgdd5baa7" class="outline-3">
+<h3 id="orgdd5baa7"><span class="section-number-3">2.6</span> Export a network as a GIS file</h3>
+</div>
+
+<div id="outline-container-orga281459" class="outline-3">
+<h3 id="orga281459"><span class="section-number-3">2.7</span> Set emissions limits</h3>
+</div>
+</div>

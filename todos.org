@@ -1,3 +1,6 @@
+* TODO Constraints / objectives
+* DONE Read Marco's documents
+* TODO Fix units on pipe cost in map form
 * DONE map-form make x button work on files
 * DONE map-form make delete button work in joins list
 * TODO map-form delete invalid joins when things removed

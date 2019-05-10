@@ -1,0 +1,210 @@
+#+TITLE: Using the heat network editor
+#+AUTHOR: CSE
+
+The heat network editor is the part of THERMOS which lets you design and optimise heat networks. To get into the heat network editor, you need to have created an account, a project, and a map - if these are new ideas to you, have a look at [[file:quick-start.org][the quick start guide]] first.
+
+This document walks through the different bits of the interface, and then describes how to do some common tasks.
+
+* Parts of the interface
+
+The editor is divided into several pages which you can switch between using the buttons at the top of the window.
+
+** Map page
+
+The map page shows the /candidates/ (bits of roads and buildings) which are available to put into a network. It looks like this - you can point at things in the picture to show quick descriptions.
+
+#+BEGIN_EXPORT html
+<div class="ttmap">
+<img src="img/network/main.png">
+<div class="t" style="top:4px;left:8px;">
+<div class="b" style="width:263px;height:40px">
+</div>
+<div>
+Page selection buttons
+</div>
+</div>
+
+<div class="t" style="top:58px;left:10px;">
+<div class="b" style="width:32px;height:64px">
+</div>
+<div>
+Zoom in and out. You can also zoom with the scroll wheel, or by shift-clicking and dragging a rectangle.
+</div>
+</div>
+
+<div class="t" style="top:135px;left:10px;">
+<div class="b" style="width:32px;height:64px">
+</div>
+<div>
+Area selection tools - you can draw a polygon or a rectangle and all the buildings and roads in it will be selected.
+</div>
+</div>
+
+<div class="t" style="top:210px;left:10px;">
+<div class="b" style="width:32px;height:32px">
+</div>
+<div>
+Toggles the visibility of buildings and roads which are excluded from the network.
+</div>
+</div>
+
+<div class="t" style="top:240px;left:10px;">
+<div class="b" style="width:32px;height:32px">
+</div>
+<div>
+Moves the map to show the selection, or the whole network if there is no selection
+</div>
+</div>
+
+<div class="t" style="top:108px;left:391px;">
+<div class="b" style="width:93;height:66px">
+</div>
+<div>
+Selects the base map, which is displayed underneath anything else on the map.
+</div>
+</div>
+
+<div class="t" style="top:182px;left:393px;">
+<div class="b" style="width:90px;height:22px">
+</div>
+<div>
+Turns the display of network candidates on and off. When candidates are on you can see, select and edit the individual buildings and roads that the model can use for a network.
+</div>
+</div>
+
+<div class="t" style="top:202px;left:393px;">
+<div class="b" style="width:90px;height:22px">
+</div>
+<div>
+Turns the display of a heat density layer on and off.
+The heat density is dimensionless, but set so that red areas contain a lot of heat demand and blue areas little heat demand.
+</div>
+</div>
+
+<div class="t" style="top:222px;left:393px;">
+<div class="b" style="width:90px;height:22px">
+</div>
+<div>
+Turns the display of road labels on and off.
+</div>
+</div>
+
+<div class="t" style="top:54px;left:512px;">
+<div class="b" style="width:323px;height:310px">
+</div>
+<div style="left:-100px">
+Shows information about the selected candidates.
+These candidates are highlighted with a thicker border on the map, and have a check mark next to them in the candidate list at the bottom.
+</div>
+</div>
+
+<div class="t" style="top:152px;left:620px;">
+<div class="b" style="width:118px;height:36px">
+</div>
+<div>
+A <em>category chip</em> - clicking on the label will shrink the selection to this category. Clicking on the cross will shrink the selection by removing everything in the category.
+<br>
+The number on the left says how many selected candidates are in this category.
+</div>
+</div>
+
+<div class="t" style="top:380px;left:2px;">
+<div class="b" style="width:838px;height:234px">
+</div>
+<div>
+A list of all of the candidates being considered for a heat network. This shows anything which is coloured in on the map.
+</div>
+</div>
+
+<div class="t" style="top:390px;left:2px;">
+<div class="b" style="width:40px;height:220px">
+</div>
+<div>
+This column follows the selection on the map. 
+You can use the checkboxes to change the map selection.
+</div>
+</div>
+
+<div class="t" style="top:380px;left:2px;">
+<div class="b" style="width:838px;height:32px">
+</div>
+<div>
+Column headers let you filter and sort the candidate list.
+</div>
+</div>
+
+</div>
+#+END_EXPORT
+
+*** Candidates layer
+
+The candidates layer of the map shows all of the buildings and roads that are available to put into a heat network.
+
+Several different drawing styles are used to show different kinds of information visually on the candidates layer
+
+
+- Colour :: the colour of each candidate is used to show information about whether the candidate will be used in a network.
+            #+ATTR_HTML: :style float:right;
+            [[./img/network/map-colours.png]]
+
+  - *Grey* candidates are /forbidden/, which means they can't be included in a network
+  - *Blue* candidates are /optional/, which means they can be included in a network, but the optimiser can leave them out if they make things worse.
+
+    If the optimiser has been run and there is a solution then blue candidates are those which /were included/ in the network.
+  - *Green* candidates are optional candidates which were /not/ included in the network, if there is a solution
+  - *Red* candidates are /required/, which means that the optimiser /has/ to put them in the network.
+  - *Magenta* candidates are /infeasible/, which means that they cannot be used in a solution, for example because
+    - They are buildings or roads that cannot be reached from any supply point
+    - They are roads that do not join any pairs of buildings so would not be worth using
+- Fill :: buildings which are supply locations are filled in with a striped pattern.
+          If the optimiser has been run, and the supply is used, the stripes will be coloured in blue.
+- Line thickness :: The line thickness is used to show whether a candidate is /selected/. 
+                    Selected candidates are drawn with a thicker line.
+                    They are also shown with a tick mark in the candidate list, and summarised in the selection info box.
+                    #+CAPTION: A required and forbidden building and some forbidden roads are all selected
+                    [[./img/network/map-selection.png]]
+
+- Transparency :: If the candidate list at the bottom has been /filtered/, the candidates which do not pass the filter will be made mostly transparent, to emphasise the things shown in the candidate list.
+
+*** Density layer
+
+The heat density layer shows a smoothed version of where there is heat demand in a map.
+It may be a useful way to get an overview of the distribution of demand when you are zoomed out too far to see the individual buildings and roads
+
+*** Candidates list
+
+
+
+*** Selection panel
+
+*** Editing candidates
+
+*** Editing supply parameters
+
+** Options page
+
+** Results page
+
+*** Result summary
+
+*** Demand information
+
+*** Supply information
+
+*** Network information
+
+* How to...
+
+** Add a supply location
+
+** Draw an existing network
+
+** Expand an existing network
+
+** Select roads or buildings by category
+
+** Find large or small demands
+
+** Export a network as a GIS file
+
+** Set emissions limits

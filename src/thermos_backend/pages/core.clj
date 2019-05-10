@@ -115,7 +115,10 @@
   (GET "/favicon.ico" [] (response/resource-response "/public/favicon.ico"))
 
   (GET "/help" []
-    (help-page))
+    (response/redirect "/help/index.html"))
+
+  (GET "/help/:section" [section]
+    (help-page section))
 
   (context "/admin" []
     (auth/restricted

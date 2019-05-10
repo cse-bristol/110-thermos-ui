@@ -1,0 +1,137 @@
+#+TITLE: Quick start overview
+#+AUTHOR: CSE
+
+This is a quick tour of how to use THERMOS which shows some of what it can do.
+
+Each part of the program may have more comprehensive help in another part of the manual.
+
+* Make an account
+
+To use THERMOS at all, you need to create an account. 
+Your account serves to let THERMOS remember the work you have done, and to let you collaborate with other people using THERMOS.
+
+Going to the [[/][THERMOS front page]] should show you the account creation & login form:
+
+[[./img/quick-start/login.png]]
+
+Creating an account is a simple matter of putting an email address[fn:1] into the username box, and a password you want to use into the password box. 
+
+Click ~Create~ to make your new account and log in!
+
+* Make a project
+
+All work on THERMOS belongs to a /project/. 
+A project can contain maps of different locations, and network designs within those maps.
+
+Projects are private to the people participating in them, so you can use information that you don't want to make public within a project.
+
+Let's start a new project, by clicking on the ~New Project~ button at the bottom of the landing page. That will show the new project screen:
+
+[[./img/quick-start/new-project.png]]
+
+You must enter a name in the ~Project name~ field, and you can enter a description and a list of people to invite as participants.
+
+Once you've typed in your project name, click ~Create Project~ to continue.
+
+* Create a map
+
+Creating a project sends you to the the project page for your new project.
+
+This page lists the maps and networks that are within that project; for your new project there won't be any, so the next thing to do is to create a map by clicking the ~New Map~ button:
+
+[[./img/quick-start/new-map-button.png]]
+
+This will take you to the new map wizard, which walks you through adding a map to THERMOS.
+
+First you have to give your map a name:
+
+[[./img/quick-start/new-map-name.png]]
+
+Each THERMOS map contains buildings with demand estimates and a noded network of roads in a part of the world. You can create a map from your own data, but for this quick-start we will use [[https://www.openstreetmap.org/][OpenStreetMap]].
+
+You can search for a place by name in OpenStreetMap, or use the rectangle select to draw an area. Here we've searched for ~York~, and OpenStreetMap has offered several places in different parts of the world. You can use the mouse to select a result if it seems like what you want.
+
+[[./img/quick-start/map-search-list.png]]
+
+Search results which say ~node~ in the description line are for single points, so if you are looking to select an area results which say ~relation~ will be better. Selecting the second result above, because it is a relation, gives the boundary of York:
+
+[[./img/quick-start/map-selected-boundary.png]]
+
+However, this is a very large area to work with, so let's select a smaller area instead; first zoom the map in to find a smaller region. Then you can select a rectangle by clicking on the rectangle select tool:
+
+[[./img/quick-start/map-select-rectangle.png]]
+
+You can then click and drag the mouse to draw a rectangle on the map:
+
+[[./img/quick-start/map-selected-rectangle.png]]
+
+Anyway, whether you choose a boundary from OpenStreetMap or draw a rectangle by hand, the /blue area/ shown is what will be imported into THERMOS. Alternatively at this point you could instead choose to upload your own GIS files - this is described in more detail [[file:maps.org][in the section on maps]].
+
+Clicking ~Next~ to proceed shows a page about choosing road data:
+
+[[./img/quick-start/map-road-data.png]]
+
+Again, we can just say that we want to use OpenStreetMap roads, so clicking ~Next~ will show the final page:
+
+[[./img/quick-start/map-parameters.png]]
+
+On this page you can enter some parameters which control the demand and cost estimates associated with data in the map; the meaning of these parameters is explained in other parts of the manual. Clicking ~Create map~ should take you back to the project page, where a box will appear for your new map:
+
+[[./img/quick-start/map-importing.png]]
+
+After a time, the map will finish importing and the spinny thing will disappear:
+
+[[./img/quick-start/map-imported.png]]
+
+Your heat map is ready to use! At this point you can download the map data, or use THERMOS to design a heat network within the map.
+
+* Design a network
+
+Now we've got a map, we can make a network - click ~New Network~ to load the network editor. This will show a map centred on what you have just imported.
+
+To see where most of the heat demand is, let's turn on the Heatmap layer, and zoom in (shift - click and drag to zoom to a rectangle) so we can see individual buildings. Once you have zoomed in far enough to see buildings, you can click on them to select them:
+
+#+ATTR_HTML: :autoplay true :loop true
+[[./img/quick-start/net-show-heat-map.webm]]
+
+A heat network will typically be made of many buildings, so we might select an area using the rectangle selection tool:
+
+#+ATTR_HTML: :autoplay true :loop true
+[[./img/quick-start/net-select-rect.webm]]
+
+Once you've selected some buildings and roads you can tell THERMOS that you want to consider them as potential parts of a heat network by changing their /inclusion/ via a right-click menu:
+
+#+ATTR_HTML: :autoplay true :loop true
+[[./img/quick-start/net-constraint.webm]]
+
+Things that have turned blue are /optional/, which means that the model will consider whether they should go into the solution or not. Things which remain white outlined will not be considered for connection.
+
+This is nearly enough to make a heat network, but we need to add a supply location, by right clicking on a single building:
+
+#+ATTR_HTML: :autoplay true :loop true
+[[./img/quick-start/net-supply.webm]]
+
+Supply locations are drawn with a stripey pattern to distinguish them from normal buildings.
+This is enough to get a solution for:
+
+#+ATTR_HTML: :autoplay true :loop true
+[[./img/quick-start/net-run-model.webm]]
+
+Once the model has run, elements that were not included turn green, and a results page appears where the model outputs are shown.
+
+The rest of the manual gives more information about what these values mean, and how to control other details of the optimisation.
+
+* Invite a colleague
+
+If you want, you can show other people your work in THERMOS.
+This is managed from the project page. Near the top is a button that will say ~1 User~. Clicking on this will show a list of users:
+
+[[./img/quick-start/project-users.png]]
+
+You can add people using their email addresses and press ~Save~ to invite them to participate in your project.
+
+Then the project will appear on their THERMOS home page as well, and they will be able to see and modify your maps and networks.
+
+* Footnotes
+
+[fn:1] You do not have to use an email address, if you would rather not. You can instead use any username you like, but if you do this you will not be able to recover your password if you forget it.

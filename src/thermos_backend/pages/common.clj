@@ -5,7 +5,7 @@
             [ring.util.anti-forgery :as anti-forgery]
             [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
             [thermos-backend.current-uri :refer [*current-uri*]]
-            [thermos-pages.common :refer [style]]
+            [thermos-pages.common :refer [style style*]]
             [thermos-pages.menu :refer [menu]]
             [clojure.data.json :as json]
             [clojure.string :as string]
@@ -21,14 +21,16 @@
          (json/write-str (pr-str values))
          ";\n"))])
 
-(defmacro page [{:keys [title body-style css js preload]
-                 :or {body-style {:margin "1em"}}}
+(defmacro page [{:keys [title body-style css js preload set-base]
+                 :or {set-base true
+                      body-style {:margin "1em"}}}
                 & body]
   `(str
     (html
      [:head
       [:title (str "THERMOS: " ~title)]
-      (when (and *current-uri*
+      (when (and ~set-base
+                 *current-uri*
                  (not (.endsWith *current-uri* "/")))
         [:base {:href (str *current-uri* "/")}])
       [:meta {:charset "UTF-8"}]
@@ -61,7 +63,7 @@
         ]]
       
       [:div#page-body.flex-grow
-       {:style ~body-style}
+       {:style ~(style* body-style)}
        ~@body]
       ;; [:footer
       ;;  "Some footer stuff"]
