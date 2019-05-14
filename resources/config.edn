@@ -4,7 +4,7 @@
  :pg-db "thermos"
  
  :web-server-port "8080"
- :web-server-disable-cache "true"
+ :web-server-disable-cache "false"
  :web-server-max-body 800
 
  :solver-directory "solver-work"
@@ -12,6 +12,7 @@
  :solver-count 4
 
  :import-directory "import-work"
+ :lidar-directory "lidar"
 
  :smtp-host ""
  :smtp-port 25

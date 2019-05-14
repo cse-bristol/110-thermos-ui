@@ -26,7 +26,9 @@ The easiest way to make a map is by using OpenStreetMap data.
 If OpenStreetMap does not contain the buildings or roads you want to model, and/or you have better data about the buildings you are interested in, you can produce a map from these files instead of OpenStreetMap.
 
 * How heat demand is estimated
-
+:PROPERTIES:
+:CUSTOM_ID: demand-estimation
+:END:
 * How buildings are connected up
 
 * Supplying your own demand estimates

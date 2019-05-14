@@ -3,21 +3,20 @@
 //  */
 
 
-div#table-of-contents {
-    position:fixed;
-    width: 25vw;
-}
-
-div#table-of-contents ~ * {
-    margin-left: 26vw;
-    max-width: 900px;
-}
-
 body {
     background:white;
+    overflow:hidden;
+}
+
+html{ overflow: hidden; }
+
+div#table-of-contents {
+    padding:1em;
 }
 
 #page-body {
+    flex: 1 1 auto;
+    height: 10px;
     padding-top:1em;
     padding-left:1em;
     padding-right:1em;

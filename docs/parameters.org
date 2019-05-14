@@ -1,11 +1,12 @@
 #+TITLE: THERMOS parameter index
 #+AUTHOR: CSE
 
-This document contains a list of the important you can tell THERMOS, what they mean, and where you might get them. 
+This document contains a list of the important parameters you can tell THERMOS, what they mean, and where you might get them. 
 
 * Facts about buildings
 
-These parameters are mostly used when creating a map (see [[file:maps.org][here]] for more).
+These parameters are mostly used when creating a map (see [[file:maps.org][here]] for more about creating maps).
+Some of them can be edited directly in the [[file:networks.org][network editor]] as well.
 
 ** Annual demand
 
@@ -37,41 +38,199 @@ This value affects:
 - the size (and hence cost) of the plant needed to supply the network
 - the connection costs for the building
 
-** TODO Building height
+** Building height
 
-** TODO Floor area
+The average height of a building, in m.
 
-** TODO Benchmark terms
+This value is only used during [[file:maps.org::#demand-estimation][heat demand estimation]] with the THERMOS heat demand model. If it is given, it will allow a better regression model to be selected. If building height is not supplied, it may still be extracted from LIDAR data on the server.
 
-** TODO Peak to base ratio
+** Floor area
 
-** TODO Heat price
+The internal floor area of a building, in m^2.
 
-** TODO Connection cost
+This value is only used during [[file:maps.org::#demand-estimation][heat demand estimation]] with a benchmark. If a value is not given, it is estimated using the building height and a standard storey height. If the building height is not given, a single storey is assumed.
+
+** Benchmark terms
+
+There are two benchmark terms used during [[file:maps.org::#demand-estimation][heat demand estimation]], a constant value and a per m^2 value.
+
+If either value is given, the heat demand is calculated as a linear function of floor area:
+
+$$
+\text{constant} + \text{floor area} \times \text{variable}
+$$
+
+** Peak to base ratio
+
+A dimensionless value used during [[file:maps.org::#demand-estimation][heat demand estimation]], which relates the annual power consumption to the peak. If this value is supplied, the peak demand is set using the annual demand multiplied by this factor.
+
+For example, if the annual demand were 30 MWh / yr, with a peak to base ratio of 10 the peak demand would be about 34 kW.
+
+** Heat price
+
+The price at which heat is sold to buildings, which determines the revenue from including a building in a network by multiplication with the [[Annual demand][annual demand]].
+
+This is set in the [[file:networks.org][network editor]] in two places: there is a value on each building, which can be edited by right clicking the building, and a default value in the options page which is used for any building that hasn't been so edited.
+
+** Connection cost
+
+The capital cost of work within a building required to connect it to the network. This is separate from the costs of pipework.
+
+The value is denominated in currency / kWp, so if you increase the [[Peak demand][peak demand]] for a building the connection cost will also increase. 
+
+This value is stored on each building, with an initial value provided in the map import page.
+It can also be edited for each building in the [[file:networks.org][network editor]], by right clicking on the building.
 
 ** TODO Emissions factors
 
 * Facts about pipes
 
-** TODO Mechanical engineering costs
+These parameters are used to determine the cost and heat losses for pipes, using [[file:calculations.org][the heat network calculation method]].
 
-** TODO Civil engineering costs
+** Mechanical engineering costs
 
-** TODO Flow, return, and ground temperatures
+The mechanical engineering costs are a simplification reflecting the costs for pipework that are independent of the place where the pipe is being installed, including:
+
+- The cost of buying the pipe from a manufacturer
+- The cost of welding the pipe together on site
+
+Mechanical costs for a flor and return pipe in a hole of length $l$ metres and diameter $d$ are computed using the equation:
+
+$$
+c_m = l * (A + (B \times d)^{1.3})
+$$
+
+$l$ here is the length of the trench dug on the road, so $2l$ metres of pipe will be installed for flow and return.
+
+This equation is based on an empirical relationship in observed data. These values are set in the network editor in the options page, and apply to all the pipes in a particular network design.
+
+#+CAPTION: Where to edit the mechanical cost parameters in the network editor.
+[[./img/parameters/edit-mech-cost.png]]
+
+Reasonable values are $A = 50$ and $B = 700$, but you may wish to produce your own figures for this. If this model is too complicated for the evidence you have available, you can set $A$ and $B$ to zero, and use just the civil costs.
+
+
+#+BEGIN_SRC gnuplot :exports results :file img/parameters/mechanical-cost.png
+reset
+set title "Diameter vs mechanicals cost with default parameters"
+
+set xlabel "Diameter (m)"
+set ylabel "Mechanicals (¤/m)"
+set xrange [0:0.8]
+
+mechanicals(d) = 50 + (700*d)**1.3
+
+plot mechanicals(x)
+#+END_SRC
+
+#+RESULTS:
+[[file:img/parameters/mechanical-cost.png]]
+
+** Civil engineering costs
+
+The civil engineering costs are a simplification reflecting the costs for pipework that depend on the place where the pipe is being installed, including:
+
+- The cost of digging up the road surface
+- The cost of suspending traffic
+- The cost of suspending parking
+
+Like the mechanical engineering costs, the civil costs are calculated using an equation
+
+$$
+c_c = l \times (A + (B \times d)^{1.1})
+$$
+
+Again, $l$ here is the length of the trench dug on the road, so $2l$ metres of pipe will be installed for flow and return.
+
+The difference is that the $A$ and $B$ values can vary for each individual bit of road in the network, and the exponent is smaller. This reflects the empirical observation that civil engineering costs do not grow as rapidly with the diameter of pipe that has to be installed.
+
+The $A$ and $B$ values can be set for all the roads in a map in the map creation wizard:
+
+#+CAPTION: Where to set default civil cost parameters
+[[./img/parameters/edit-civ-cost-map.png]]
+
+If you are preparing your own GIS data, they can be set on the individual roads in a map using the field settings the map creation wizard.
+In the network editor, you can change the value on any individual road through the right click menu.
+
+#+ATTR_HTML: :autoplay true :loop true :controls :true
+#+CAPTION: Editing civil costs on paths in a network problem
+[[./img/parameters/edit-path-costs.webm]]
+
+Sensible values for the civils parameters in the UK are
+
+| Location | Surface |  $A$ | $B$ |
+|----------+---------+------+-----|
+| Urban    | Hard    | 1200 | 500 |
+| Urban    | Soft    |  450 |   0 |
+| Suburban | Hard    |  850 | 200 |
+| Suburban | Soft    |  100 |   0 |
+
+#+BEGIN_SRC gnuplot :exports results :file img/parameters/civil-cost.png
+reset
+set title "Diameter vs civils and mechanicals costs"
+
+set xlabel "Diameter (m)"
+set ylabel "Cost (¤/m)"
+set xrange [0:0.8]
+
+hard_urban(d)    = 1200 + (500 * d)**1.1
+soft_urban(d)    = 450  + (0 * d)**1.1
+hard_suburban(d) = 850 + (500 * d)**1.1
+soft_suburban(d) = 100 + (0 * d)**1.1
+
+plot mechanicals(x), hard_urban(x), soft_urban(x), hard_suburban(x), soft_suburban(x)
+#+END_SRC
+
+#+RESULTS:
+[[file:img/parameters/mechanical-cost.png]]
+
+** Flow, return, and ground temperatures
+
+These parameters are all controllable in the options page of the network editor.
+
+The flow and return temperature determine the amount of heat that can be transmitted by a pipe of a given diameter, using the equations described [[file:calculations.org][here]]. 
+The ground temperature together with the average of the flow and return temperatures determines the heat losses associated with a pipe.
 
 * Heat supply
 
-** TODO Fixed capital cost
+Heat supply parameters are all controlled by right clicking on a building:
 
-** TODO Capital cost for capacity
+#+ATTR_HTML: :autoplay true :loop true :controls :true
+#+CAPTION: Editing heat supply parameters
+[[./img/parameters/edit-supply-params.webm]]
 
-** TODO Operating cost for capacity
+** Maximum capacity
 
-** TODO Cost of producing heat
+Supply maximum capacity limits the size of supply the model will ever construct in a location. Any network connected to this supply cannot require more than this power output at peak time.
 
-** TODO Maximum capacity
+** Fixed cost
 
-** TODO Emissions factors
+Supply fixed cost sets the capital cost that will be incurred if /any/ supply is used from a location, no matter the amount.
+
+This could reflect things like:
+
+- The cost of purchasing land
+- The administrative and engineering cost of setting up the plant
+
+** Capacity cost
+
+The supply capacity cost sets the capital cost that will be incurred /per unit capacity/ in a location. If the peak demand the supply has to meet is $X$ kW, it costs $X \times \text{capacity cost}$.
+
+This reflects any capital cost that grows as the plant gets bigger.
+
+** Annual cost
+
+The annual cost of a supply is a variable cost incurred each year , /per unit capacity/. 
+
+This reflects costs that come from maintaining the plant which grow as as the plant gets bigger. The annual cost is not tied to the amount of heat sold, just to the size of the peak demand.
+
+** Supply cost
+
+The supply cost is the net cost of producing heat to put into the network. If the network were buying heat from a third party, this is the price they would pay for it. This should include the cost of primary fuel, pumping costs, any administrative costs that grow with the amount of heat sold and so on.
+
+** Emissions factors
+
+Supply emissions factors are the emissions factors associated with producing a unit of heat to put into the network.
 
 * Categorical information
 

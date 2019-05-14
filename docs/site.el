@@ -9,21 +9,17 @@
           :base-directory ,default-directory
           :publishing-directory ,(concat default-directory "../resources/help/")
           :recursive t
-          :publishing-function org-html-publish-to-html
-          :body-only t
-          )
+          :publishing-function org-html-publish-to-html)
          ("docs-img"
           :base-directory ,default-directory
           :publishing-directory ,(concat default-directory "../resources/public/help/")
           :publishing-function org-publish-attachment
           :base-extension "png\\|webm\\|svg"
-          :recursive t
-          )
+          :recursive t)
          ("docs" :components ("docs-org" "docs-img"))
-         )
-       )
-      )
+         )))
   (org-publish-project "docs" t))
+
 
 
 (defun org-html--format-video (orig source attributes info)

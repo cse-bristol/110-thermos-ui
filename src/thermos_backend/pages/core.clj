@@ -7,7 +7,7 @@
             [thermos-backend.pages.user-settings :refer [settings-page]]
             [thermos-backend.pages.projects :refer [new-project-page project-page delete-project-page]]
             [thermos-backend.pages.maps :as map-pages]
-            [thermos-backend.pages.help :refer [help-page]]
+            [thermos-backend.pages.help :refer [help-page help-search]]
             [thermos-backend.pages.admin :as admin]
             [thermos-backend.pages.editor :refer [editor-page]]
             [ring.util.response :as response]
@@ -117,6 +117,9 @@
   (GET "/help" []
     (response/redirect "/help/index.html"))
 
+  (GET "/help/search" [q]
+    (help-search q))
+  
   (GET "/help/:section" [section]
     (help-page section))
 
