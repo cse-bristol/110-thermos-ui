@@ -120,7 +120,7 @@
 (def analyzer (analysis/standard-analyzer))
 (def index (let [index (store/memory-store)
                  headings (->> (resauce/resource-dir "help")
-                               (remove #(.endsWith (.getFile (java.net.URL. (str %))) "index.html"))
+                               (remove #(.endsWith (str %) "index.html"))
                                (mapcat extract-headings))
                  ]
              (def the-headings headings)
