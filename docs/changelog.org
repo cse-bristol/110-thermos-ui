@@ -1,0 +1,9 @@
+#+TITLE: THERMOS Changelog
+
+* Version 5
+
+** 15 May 2019
+
+- Improved the documentation system
+- Modified map creation wizard so that an input heat demand of zero is respected
+- Started the changelog
