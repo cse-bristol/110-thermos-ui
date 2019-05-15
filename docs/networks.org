@@ -11,130 +11,9 @@ The editor is divided into several pages which you can switch between using the 
 
 ** Map page
 
-The map page shows the /candidates/ (bits of roads and buildings) which are available to put into a network. It looks like this - you can point at things in the picture to show quick descriptions.
+The map page shows the /candidates/ (bits of roads and buildings) which are available to put into a network. It looks like this - you can point at some of the main things in the picture to show quick descriptions.
 
-#+BEGIN_EXPORT html
-<div class="ttmap">
-<img src="img/network/main.png">
-<div class="t" style="top:4px;left:8px;">
-<div class="b" style="width:263px;height:40px">
-</div>
-<div>
-Page selection buttons
-</div>
-</div>
-
-<div class="t" style="top:58px;left:10px;">
-<div class="b" style="width:32px;height:64px">
-</div>
-<div>
-Zoom in and out. You can also zoom with the scroll wheel, or by shift-clicking and dragging a rectangle.
-</div>
-</div>
-
-<div class="t" style="top:135px;left:10px;">
-<div class="b" style="width:32px;height:64px">
-</div>
-<div>
-Area selection tools - you can draw a polygon or a rectangle and all the buildings and roads in it will be selected.
-</div>
-</div>
-
-<div class="t" style="top:210px;left:10px;">
-<div class="b" style="width:32px;height:32px">
-</div>
-<div>
-Toggles the visibility of buildings and roads which are excluded from the network.
-</div>
-</div>
-
-<div class="t" style="top:240px;left:10px;">
-<div class="b" style="width:32px;height:32px">
-</div>
-<div>
-Moves the map to show the selection, or the whole network if there is no selection
-</div>
-</div>
-
-<div class="t" style="top:108px;left:391px;">
-<div class="b" style="width:93;height:66px">
-</div>
-<div>
-Selects the base map, which is displayed underneath anything else on the map.
-</div>
-</div>
-
-<div class="t" style="top:182px;left:393px;">
-<div class="b" style="width:90px;height:22px">
-</div>
-<div>
-Turns the display of network candidates on and off. When candidates are on you can see, select and edit the individual buildings and roads that the model can use for a network.
-</div>
-</div>
-
-<div class="t" style="top:202px;left:393px;">
-<div class="b" style="width:90px;height:22px">
-</div>
-<div>
-Turns the display of a heat density layer on and off.
-The heat density is dimensionless, but set so that red areas contain a lot of heat demand and blue areas little heat demand.
-</div>
-</div>
-
-<div class="t" style="top:222px;left:393px;">
-<div class="b" style="width:90px;height:22px">
-</div>
-<div>
-Turns the display of road labels on and off.
-</div>
-</div>
-
-<div class="t" style="top:54px;left:512px;">
-<div class="b" style="width:323px;height:310px">
-</div>
-<div style="left:-100px">
-Shows information about the selected candidates.
-These candidates are highlighted with a thicker border on the map, and have a check mark next to them in the candidate list at the bottom.
-</div>
-</div>
-
-<div class="t" style="top:152px;left:620px;">
-<div class="b" style="width:118px;height:36px">
-</div>
-<div>
-A <em>category chip</em> - clicking on the label will shrink the selection to this category. Clicking on the cross will shrink the selection by removing everything in the category.
-<br>
-The number on the left says how many selected candidates are in this category.
-</div>
-</div>
-
-<div class="t" style="top:380px;left:2px;">
-<div class="b" style="width:838px;height:234px">
-</div>
-<div>
-A list of all of the candidates being considered for a heat network. This shows anything which is coloured in on the map.
-</div>
-</div>
-
-<div class="t" style="top:390px;left:2px;">
-<div class="b" style="width:40px;height:220px">
-</div>
-<div>
-This column follows the selection on the map. 
-You can use the checkboxes to change the map selection.
-</div>
-</div>
-
-<div class="t" style="top:380px;left:2px;">
-<div class="b" style="width:838px;height:32px">
-</div>
-<div>
-Column headers let you filter and sort the candidate list.
-</div>
-</div>
-
-</div>
-#+END_EXPORT
+[[./img/network/tooltips.svg]]
 
 *** Candidates layer
 
@@ -173,13 +52,80 @@ It may be a useful way to get an overview of the distribution of demand when you
 
 *** Candidates list
 
+The candidates list is at the bottom of the window.
 
+Each candidate building or road that is not /forbidden/ (so is coloured in) is shown as a row in the candidates list.
+
+You can sort the candidates list by any of the columns by clicking on the column header. Each column header also has a filter button - this is the grey icon on the right which looks a bit like a funnel 
+
+In the leftmost column there is a checkbox for each row, and a checkbox in the column header. These checkboxes control whether candidates are selected. 
+
+If you tick the checkbox in the header, all the candidates /in the table/ will be selected. 
+
+Together with the filtering controls you can use this to focus on particular candidates
+
+#+ATTR_HTML: :autoplay true :loop true :controls true
+#+CAPTION: Filtering and selecting from the candidates list. When a column has been filtered, its filter button turns blue. Filtered candidates become transparent on the map. Checking the selection box selects the filtered candidates only.
+[[./img/network/filter-table.webm]]
 
 *** Selection panel
 
-*** Editing candidates
+On the right hand side of the map page is the /selection info panel/.
+This shows summary information about whatever candidates are selected on the map.
 
+Here is a picture illustrating most of what you might see in the selection info panel:
+
+#+ATTR_HTML: :style float:right;padding-left:1em;
+[[./img/network/selection-info-panel.png]]
+
+From the top:
+
+- The white area at the top says how many candidates are selected in total, in this case 5.
+- The /Type/ row shows the breakdown of the selected candidates by their type. In this case, there are 4 selected buildings and 1 selected path (giving the total of 5).
+
+  Each of the grey boxes (/chips/) will let you modify the selection.
+  If you click on the word in the chip (e.g. On /building/ or /path/), anything which is /not/ of that type will be /deselected/.
+
+  If you click on the the cross at the end of the chip, everything which /is/ of that type will be /deselected/.
+- The /Classification/ row gives a breakdown by the candidates' classification. In this example there are four different classifications selected: ~Service~, ~Connector~, ~Residential~, and ~Industrial~. Note that this breakdown is not related to the /Type/ breakdown.
+- The /Constraint/ row gives a breakdown by the constraint status (colour) of the candidates. Here all 5 candidates are ~Optional~
+- The /Length/ row gives the total length of all selected /paths/
+- The /Base cost/ row gives a lower bound on the total cost of including all the selected candidates.
+  For paths, this is the cost of installing a 10mm diameter pipe.
+  For buildings it is the building connection cost.
+- The /Demand/ is the summed demand for all the selected buildings
+- The /Peak/ is the summed peak for all the selected buildings
+- /In solution/ is a breakdown of which candidates the optimiser chose to include in the solution
+- /Coincidence/ is the /mean/ coincidence (aka diversity) factor applied to all the selected paths and supply points. This is probably most useful when selecting a single path or supply.
+- /Capacity/ is the /maximum/ capacity required for all the selected paths and supply points which are in the solution.
+- /Diameter/ is the /maximum/ diameter selected for all the selected paths which are in the solution.
+- /Principal/ is the total capital cost the optimiser has associated with all selected candidates, including the cost of pipes, the capital cost of supply, and the connection cost for buildings.
+- /Losses/ gives the summed heat losses associated with all selected paths that were used in the solution.
+
+*** Selecting things
+*** Editing buildings
+
+You can change most of the information the model uses about buildings within a network problem. 
+
+When you change a building in this way, the change only applies to the network you are designing - changes like this are not applied to the underlying map. If you start a new network in the same map it will not contain the changes.
+
+To edit some buildings (or a single building), first you need to [[Selecting things][select them]]. Once you have them selected, you can right click on them on the map and choose ~Edit buildings~.
+
+*** Editing paths
 *** Editing supply parameters
+*** Keyboard shortcuts
+
+You can do some common operations with the keyboard using these shortcuts:
+
+| Key | Effect                                               |
+|-----+------------------------------------------------------|
+| *c* | Change the constraint for the selection              |
+| *s* | Change the supply parameters for the selection       |
+| *z* | Move the map to show the selection or the network    |
+| *a* | Select everything in the candidate list              |
+| *A* | Invert the selection (so *a A* clears the selection) |
+| *e* | Edit the parameters for the selection                |
+| *i* | Show some debugging information                      |
 
 ** Options page
 
@@ -203,7 +149,7 @@ It may be a useful way to get an overview of the distribution of demand when you
 
 ** Select roads or buildings by category
 
-** Find large or small demands
+** Select large or small demands
 
 ** Export a network as a GIS file
 

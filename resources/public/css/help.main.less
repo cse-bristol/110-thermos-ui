@@ -2,6 +2,7 @@
 //  * This is the CSS for the help page
 //  */
 
+@blue: #006f94;
 
 body {
     background:white;
@@ -12,6 +13,19 @@ html{ overflow: hidden; }
 
 div#table-of-contents {
     padding:1em;
+    background: @blue;
+    color: #fff;
+    height:100%;
+    a {
+        color: #fff;
+        text-decoration:none;
+    }
+    a:hover {
+        text-decoration:underline;
+    }
+    ul {
+        padding-left: 1em;
+    }
 }
 
 #page-body {
@@ -20,47 +34,57 @@ div#table-of-contents {
     padding-top:1em;
     padding-left:1em;
     padding-right:1em;
-    font-size: 18px;
+}
+
+div#content {
+    font-family: 'Source Sans Pro', Helvetica, Arial, sans-serif;
+    padding-left: 16px;
+    padding-right: 16px;
+    color: #333;
+    max-width: 900px;
+    font-size: 16px;
+
     
-    h1,h2,h3,h4,h5,h6,legend{
-        font-family:"Roboto Slab","ff-tisa-web-pro","Georgia",Arial,sans-serif;
-        font-weight:700;
-        margin-top:0;
+    h2 {
+        color: @blue;
+        margin-top: 0;
+        margin-bottom: 30px;
+        font-size: 36px;
+        font-weight: normal;
+    }
+    h3 {
+        margin-top: 40px;
+        margin-bottom: 40px;
+        color: lighten(desaturate(@blue, 10%), 2%);
+        font-size: 22px;
+        font-weight: 600;
+    }
+    h4 {
+        font-size: 20px;
+        color: #666;
+        margin-top: 40px;
+        font-weight: normal;
+    }
+    p {
+        text-align: justify;
+    }
+    ol li {
+        margin-bottom: 10px;
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+    ul li {
+        margin-bottom: 7px;
+        &:last-child {
+            margin-bottom: 0;
+        }
     }
 
-    h1{
-        font-size:175%;
+    svg, img, video, object[type="image/svg+xml"] {
+        max-width: 95%;
     }
-
-    .subtitle{
-        font-size:95%; /* of h1 */
-    }
-
-    h2{
-        font-size:150%;
-    }
-
-    h3{
-        font-size:125%;
-    }
-
-    h4{
-        font-size:115%;
-    }
-
-    h5{
-        font-size:110%;
-    }
-
-    h6{
-        font-size:100%;
-    }
-
-    h4,h5,h6{
-        color:#2980B9;
-        font-weight:300;
-    }
-
+    
     .ttmap {
         position:relative;
         div.t {
@@ -91,9 +115,10 @@ div#table-of-contents {
             }
         }
     }
+
 }
 
-// @blue: #006f94;
+// 
 
 // body {
 //   margin: 0;
@@ -126,58 +151,7 @@ div#table-of-contents {
 
 // .help__content-panel {
 //   padding: 30px 60px;
-//   color: #333;
-//   max-width: 900px;
-//   font-size: 16px;
-//   h2 {
-//     color: @blue;
-//     margin-top: 0;
-//     margin-bottom: 30px;
-//     font-size: 36px;
-//     font-weight: normal;
-//   }
-//   h3 {
-//     margin-top: 40px;
-//     margin-bottom: 40px;
-//     color: lighten(desaturate(@blue, 10%), 2%);
-//     font-size: 22px;
-//     font-weight: 600;
-//   }
-//   h4 {
-//     font-size: 20px;
-//     color: #666;
-//     margin-top: 40px;
-//     font-weight: normal;
-//   }
-//   p {
-//     text-align: justify;
-//   }
-//   ol li {
-//     margin-bottom: 10px;
-//     &:last-child {
-//       margin-bottom: 0;
-//     }
-//   }
-//   ul li {
-//     margin-bottom: 7px;
-//     &:last-child {
-//       margin-bottom: 0;
-//     }
-//   }
-//   figure {
-//     margin: 40px 0;
-//     padding: 15px;
-//     background: #ccc;
-//     text-align: center;
-//     img {
-//       width: 100%;
-//     }
-//     figcaption {
-//       margin-top: 15px;
-//       text-align: center;
-//       font-style: italic;
-//     }
-//   }
+
 // }
 
 // .help__search-input {

@@ -52,13 +52,14 @@
                       :overflow :hidden
                       :max-height :100%
                       )}
-        [:div {:style (style
-                       :flex "0 0 300px"
-                       )}
-         (raw-string (apply str (en/emit* toc)))]
+        (when (seq toc)
+          [:div {:style (style
+                         :flex "0 0 300px"
+                         )}
+           (raw-string (apply str (en/emit* toc)))])
         [:div {:style (style
                        :flex "1 1 auto"
-                       :overflow :scroll
+                       :overflow :auto
                        )}
          (raw-string (apply str (en/emit* body)))]]))))
 

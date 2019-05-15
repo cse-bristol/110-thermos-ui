@@ -34,9 +34,11 @@ From this the costs and revenues are calculated.
 
 * Pipe and supply capacity
 
-Network capacity is determined by peak demands for connected buildings.
+Network capacity is determined by peak demands for connected buildings. However, if we simply add together the peaks of all the buildings, the total will be too large. 
 
-Each bit of pipe has to be large enough to carry the /diversified/ sum of the peak demands of all the buildings which it services.
+This is because the buildings' peaks might not /coincide/ - for example, domestic buildings' peaks are often to do with hot water, but although everyone may use their shower in a day, they do not all shower at exactly the same time.
+
+To account for this an approximation is used, where the sum of the peak loads is reduced using a /diversity factor/. Each bit of pipe has to be large enough to carry this /diversified/ sum of the peak demands of all the buildings which it services.
 
 ** Diversity factor
 
