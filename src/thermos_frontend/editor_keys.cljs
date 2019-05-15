@@ -44,6 +44,12 @@
                     (operations/get-filtered-candidates @state/state))
                :replace))
 
+(defn- select-inverse! []
+  (state/edit! state/state operations/select-candidates
+               (map ::candidate/id
+                    (operations/get-filtered-candidates @state/state))
+               :xor))
+
 (defn- show-pprint-thing []
   (popover/open! [:div.popover-dialog
                   {:style {:max-width :80vw}}
@@ -58,12 +64,15 @@
                  :middle))
 
 (defn handle-keypress [e]
-  (case (.-key e)
-    "c" (rotate-inclusion!)
-    "s" (edit-supply!)
-    "z" (zoom-to-fit!)
-    "a" (select-all!)
-    "e" (edit-demand-or-path!)
-    "i" (show-pprint-thing)
-    
-    :default))
+  (let [active js/document.activeElement]
+    (when-not (= "INPUT" (.-nodeName active))
+      (case (.-key e)
+        "c" (rotate-inclusion!)
+        "s" (edit-supply!)
+        "z" (zoom-to-fit!)
+        "a" (select-all!)
+        "A" (select-inverse!)
+        "e" (edit-demand-or-path!)
+        "i" (show-pprint-thing)
+        
+        :default))))
