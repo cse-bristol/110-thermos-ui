@@ -13,7 +13,8 @@
             [clucie.analysis :as analysis]
             [clucie.store :as store]
 
-            [net.cgrand.enlive-html :as en])
+            [net.cgrand.enlive-html :as en]
+            [clojure.tools.logging :as log])
   (:import [org.apache.lucene.search.highlight
             Formatter
             Fragmenter
@@ -68,54 +69,58 @@
   "Given a url or resource which has some html in it, split that resource up into bits.
   Each bit is a map which contains :content, :path, :title, and :id"
   [url]
-  (let [x (-> (en/html-resource url)
-              (en/transform [:div#table-of-contents] nil)
-              (en/transform [:table] nil))
 
-        doc-title (-> x
-                      (en/select [:h1.title])
-                      (en/texts)
-                      (->> (apply str)))
-        
-        x (en/select x [[:div#content]])
-        
-        path (.replaceAll (str url) "^.+/resources/help/" "")
-        z (zip/xml-zip (first x))
-        heading #{:h1 :h2 :h3 :h4}
-        flat
-        (loop [z z
-               e []]
-          (cond
-            (zip/end? z)
-            e
+  (log/info "Extracting headings from" url "for help index")
+  (try (let [x (-> (en/html-resource url)
+               (en/transform [:div#table-of-contents] nil)
+               (en/transform [:table] nil))
 
-            (and (zip/branch? z)
-                 (heading (:tag (zip/node z)))
-                 (:id (:attrs (zip/node z))))
-            (recur (zip/right z)
-                   (conj e (zip/node z)))
+         doc-title (-> x
+                       (en/select [:h1.title])
+                       (en/texts)
+                       (->> (apply str)))
+         
+         x (en/select x [[:div#content]])
+         
+         path (.replaceAll (str url) "^.+/resources/help/" "")
+         z (zip/xml-zip (first x))
+         heading #{:h1 :h2 :h3 :h4}
+         flat
+         (loop [z z
+                e []]
+           (cond
+             (zip/end? z)
+             e
 
-            (zip/branch? z)
-            (recur (zip/next z) e)
+             (and (zip/branch? z)
+                  (heading (:tag (zip/node z)))
+                  (:id (:attrs (zip/node z))))
+             (recur (zip/right z)
+                    (conj e (zip/node z)))
 
-            :else
-            (recur (zip/next z) (conj e (zip/node z)))))
-        flat (if (:tag (first flat)) flat (cons {:tag :h1} flat))
-        flat (partition-by string? flat)
-        flat (partition 2 flat) 
-        ]
-    (for [[heading content] flat]
-      (let [best-heading (last (filter (comp :id :attrs) heading))
-            id (:id (:attrs best-heading))
-            title (apply str  (en/texts [best-heading]))
-            content (.replaceAll (apply str content) "\\s+" " ")
-            ]
-        {:path path
-         :id     id
-         :doc-title doc-title
-         :title   title
-         :content content
-         }))))
+             (zip/branch? z)
+             (recur (zip/next z) e)
+
+             :else
+             (recur (zip/next z) (conj e (zip/node z)))))
+         flat (if (:tag (first flat)) flat (cons {:tag :h1} flat))
+         flat (partition-by string? flat)
+         flat (partition 2 flat) 
+         ]
+     (for [[heading content] flat]
+       (let [best-heading (last (filter (comp :id :attrs) heading))
+             id (:id (:attrs best-heading))
+             title (apply str  (en/texts [best-heading]))
+             content (.replaceAll (apply str content) "\\s+" " ")
+             ]
+         {:path path
+          :id     id
+          :doc-title doc-title
+          :title   title
+          :content content
+          })))
+       (catch Exception e
+         (log/error e "Error loading" url "for help index"))))
 
 (def analyzer (analysis/standard-analyzer))
 (def index (let [index (store/memory-store)
@@ -123,7 +128,6 @@
                                (remove #(.endsWith (str %) "index.html"))
                                (mapcat extract-headings))
                  ]
-             (def the-headings headings)
              
              (clucie/add!
               index
