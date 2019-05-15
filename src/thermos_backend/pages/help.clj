@@ -119,9 +119,10 @@
 
 (def analyzer (analysis/standard-analyzer))
 (def index (let [index (store/memory-store)
-                 documents (resauce/resource-dir "help")
-                 documents (remove #(.endsWith (.getFile %) "index.html") documents)
-                 headings (mapcat extract-headings documents)]
+                 headings (->> (resauce/resource-dir "help")
+                               (remove #(.endsWith (.getFile (java.net.URL. (str %))) "index.html"))
+                               (mapcat extract-headings))
+                 ]
              (def the-headings headings)
              
              (clucie/add!
