@@ -85,7 +85,7 @@
                
                x (en/select x [[:div#content]])
                
-               path (.replaceAll (str url) "^.+/resources/help/" "")
+               path (.replaceAll (str url) "^.+/help/" "")
                z (zip/xml-zip (first x))
                heading #{:h1 :h2 :h3 :h4}
                flat
