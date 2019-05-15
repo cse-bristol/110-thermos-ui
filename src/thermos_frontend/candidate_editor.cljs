@@ -31,7 +31,7 @@
     [:div
      (when (seq (rest buildings))
        [:div
-        [:h2 "Group by "
+        [:h2 [:b "Edit buildings by "]
          [inputs/select 
           {:value-atom group-by-key
            :values group-by-options}]]])
@@ -77,7 +77,8 @@
                [:td (or k (nil-value-label group-by-key))])
              [:td (count cands)]
              [:td [inputs/check-number
-                   {:max 1000
+                   {:style {:max-width :5em}
+                    :max 1000
                     :min 0
                     :step 1
                     :value-atom
@@ -86,6 +87,7 @@
                     (reagent/cursor values [group-by-key k :connection-cost :check])}]]
              [:td [inputs/check-number
                    {:max 1000
+                    :style {:max-width :5em}
                     ;; benchmarks are in kWh but absolute in MWh
                     :scale (if benchmarks 1 (/ 1 1000.0))
                     :min 0
@@ -96,6 +98,7 @@
                     (reagent/cursor values [group-by-key k :demand :check])}]]
              [:td [inputs/check-number
                    {:max 1000
+                    :style {:max-width :5em}
                     :min 0
                     :step 1
                     :value-atom
@@ -104,6 +107,7 @@
                     (reagent/cursor values [group-by-key k :peak-demand :check])}]]
              [:td [inputs/check-number
                    {:scale 100 ;; store in £ not p
+                    :style {:max-width :5em}
                     :step 0.1
                     :max 100
                     :min 0
@@ -116,6 +120,7 @@
                 [:th {:key e}
                  [inputs/check-number
                   {:step 0.1
+                   :style {:max-width :5em}
                    :max 1000
                    :min 0
                    :value-atom
@@ -134,7 +139,7 @@
     [:div 
      (when (seq (rest paths))
        [:div
-        [:h2 "Group by "
+        [:h2 [:b "Edit paths by "]
          [inputs/select
           {:value-atom group-by-key
            :values group-by-options}]]])
@@ -294,11 +299,15 @@
      (when (seq buildings)
        [demand-editor demand-state buildings])
      (when (seq paths)
-       [path-editor path-state paths])
+       [:div
+        (when (seq buildings) [:hr])
+        [path-editor path-state paths]])
      [:div
-      [:button {:on-click popover/close!}
+      [:button.button.button--danger
+       {:on-click popover/close!
+        :style {:margin-left :auto}}
        "Cancel"]
-      [:button {:on-click (fn []
+      [:button.button {:on-click (fn []
                             (state/edit! document
                                          #(-> %
                                               (apply-path-state @path-state

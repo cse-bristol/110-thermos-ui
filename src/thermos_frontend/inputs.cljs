@@ -26,7 +26,7 @@
                   js/parseFloat)
           ]
       
-      [:input.input
+      [:input.input.number-input
        (merge {:type :number
                :placeholder "0"
                :default-value s-value}
@@ -55,7 +55,7 @@
        [:option {:value (str k) :key k} v]))])
 
 (defn check-number [{check-atom :check-atom :as ks}]
-  [:div
+  [:div {:style {:display :flex}}
    [:input.input
     {:type :checkbox
      :checked (boolean (and check-atom @check-atom))
