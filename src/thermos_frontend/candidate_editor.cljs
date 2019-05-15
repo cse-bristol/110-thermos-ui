@@ -50,20 +50,20 @@
           (when-not group-by-nothing
             [:th (group-by-options group-by-key)])
           [:th "Count"]
-          [:th "Connection cost"]
           [:th "Demand"]
           [:th "Peak"]
           [:th "Heat price"]
+          [:th "Conn. cost"]
           (for [e candidate/emissions-types]
             [:th {:key e} (name e)])
           ]
          [:tr {:style {:font-size :small}}
           (when-not group-by-nothing [:th])
           [:th]
-          [:th "¤/kWp"]
           [:th (if benchmarks "kWh/m2 yr" "MWh/yr")]
           [:th (if benchmarks "kW/m2" "kW")]
           [:th "c/kWh"]
+          [:th "¤/kWp"]
           (for [e candidate/emissions-types]
             [:th {:key e} "kg/kWh"])
           ]
@@ -76,15 +76,7 @@
              (when-not group-by-nothing
                [:td (or k (nil-value-label group-by-key))])
              [:td (count cands)]
-             [:td [inputs/check-number
-                   {:style {:max-width :5em}
-                    :max 1000
-                    :min 0
-                    :step 1
-                    :value-atom
-                    (reagent/cursor values [group-by-key k :connection-cost :value])
-                    :check-atom
-                    (reagent/cursor values [group-by-key k :connection-cost :check])}]]
+             
              [:td [inputs/check-number
                    {:max 1000
                     :style {:max-width :5em}
@@ -115,6 +107,15 @@
                     (reagent/cursor values [group-by-key k :price :value])
                     :check-atom
                     (reagent/cursor values [group-by-key k :price :check])}]]
+             [:td [inputs/check-number
+                   {:style {:max-width :5em}
+                    :max 1000
+                    :min 0
+                    :step 1
+                    :value-atom
+                    (reagent/cursor values [group-by-key k :connection-cost :value])
+                    :check-atom
+                    (reagent/cursor values [group-by-key k :connection-cost :check])}]]
              (doall
               (for [e candidate/emissions-types]
                 [:th {:key e}

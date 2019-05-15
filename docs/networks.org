@@ -102,14 +102,43 @@ From the top:
 - /Principal/ is the total capital cost the optimiser has associated with all selected candidates, including the cost of pipes, the capital cost of supply, and the connection cost for buildings.
 - /Losses/ gives the summed heat losses associated with all selected paths that were used in the solution.
 
-*** Selecting things
 *** Editing buildings
 
 You can change most of the information the model uses about buildings within a network problem. 
 
 When you change a building in this way, the change only applies to the network you are designing - changes like this are not applied to the underlying map. If you start a new network in the same map it will not contain the changes.
 
-To edit some buildings (or a single building), first you need to [[Selecting things][select them]]. Once you have them selected, you can right click on them on the map and choose ~Edit buildings~.
+To edit some buildings (or a single building), first you need to [[#selecting][select them]]. Once you have them selected, you can right click on them on the map and choose ~Edit buildings~ or press *e* on your keyboard. 
+
+This will show the editor window:
+
+[[./img/network/edit-buildings.png]]
+
+This window lets you simultaneously edit the properties of all the selected buildings. 
+To make editing a bit easier, the buildings are divided into groups according to the menu at the top. In the picture above, the buildings are grouped according to their ~Classification~. 
+
+Each different classification in the selection is shown as a row underneath, so in the example there are three classifications, ~Unclassified~, ~Residential~ and ~Place of worship~. The count column shows how many buildings belong to each class.
+
+The rest of the window allows you to change the important parameters for each row.
+To say you want to change a parameter, you must tick the checkbox next to it. 
+Then you can type a value in the corresponding box. This value will be applied to every building in that row.
+
+If we made the following changes in the example and pressed OK, the effect would be:
+
+- To set the connection cost for 41 unclassified buildings to 8 currency / kWp
+- To set the demand for the 41 unclassified buildings to 20 MWh/yr
+- To set the CO2 factor for these buildings to 0.6 kg/kWh
+- To set the peak demand for 1 place of worship to 100 kW
+- To set the heat price there to 1 cent per kWh
+
+[[./img/network/edit-buildings-edited.png]]
+
+At the moment, there is a bit of subtlety to do with heat price, nox, pm25 and co2. 
+These values are not set by default for any building, but instead are configured in the ~Options~ page for the whole network.
+If you change a building's heat price or emissions factors, then the defaults in the ~Options~ page will no longer apply /to that building/.
+
+There is currently not an easy way to tell whether a building is using the default values or has special values of its own.
+You can remove any changes made to these parameters, clearing them so that the defaults are used, by right-clicking and choosing ~Set defaults~.
 
 *** Editing paths
 *** Editing supply parameters
@@ -140,16 +169,19 @@ You can do some common operations with the keyboard using these shortcuts:
 *** Network information
 
 * How to...
+** Select things
+:PROPERTIES:
+:CUSTOM_ID: selecting
+:END:
+
+A lot of the work in using the network editor is about selecting the right things so that you can edit them or change their constraint status. 
+There are many ways to select things by putting together the basic tools the program gives you; here are some examples.
 
 ** Add a supply location
 
 ** Draw an existing network
 
 ** Expand an existing network
-
-** Select roads or buildings by category
-
-** Select large or small demands
 
 ** Export a network as a GIS file
 

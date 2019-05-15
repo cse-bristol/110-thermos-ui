@@ -3,7 +3,7 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2019-05-15 Wed 10:57 -->
+<!-- 2019-05-15 Wed 14:17 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>THERMOS Network Model Calculations</title>
@@ -132,11 +132,15 @@ From this the costs and revenues are calculated.
 <h2 id="orgde1230c"><span class="section-number-2">2</span> Pipe and supply capacity</h2>
 <div class="outline-text-2" id="text-2">
 <p>
-Network capacity is determined by peak demands for connected buildings.
+Network capacity is determined by peak demands for connected buildings. However, if we simply add together the peaks of all the buildings, the total will be too large. 
 </p>
 
 <p>
-Each bit of pipe has to be large enough to carry the <i>diversified</i> sum of the peak demands of all the buildings which it services.
+This is because the buildings' peaks might not <i>coincide</i> - for example, domestic buildings' peaks are often to do with hot water, but although everyone may use their shower in a day, they do not all shower at exactly the same time.
+</p>
+
+<p>
+To account for this an approximation is used, where the sum of the peak loads is reduced using a <i>diversity factor</i>. Each bit of pipe has to be large enough to carry this <i>diversified</i> sum of the peak demands of all the buildings which it services.
 </p>
 </div>
 
