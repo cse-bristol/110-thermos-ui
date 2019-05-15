@@ -64,12 +64,12 @@
        ]
       ]
      [:div
-      [:button {:on-click #(popover/close!)}
+      [:button.button.button--danger {:on-click #(popover/close!)}
        "Cancel"]
-      [:button {:on-click (fn []
-                            (state/edit! document merge-supply-parameters candidate-ids @local-state)
-                            (popover/close!)
-                            )}
+      [:button.button {:on-click (fn []
+                                   (state/edit! document merge-supply-parameters candidate-ids @local-state)
+                                   (popover/close!)
+                                   )}
        "OK"]]
     ])
   )
