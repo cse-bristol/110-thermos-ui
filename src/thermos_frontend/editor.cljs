@@ -92,11 +92,9 @@
               (state/edit! state/state operations/close-table-filter)))
           ]
       [:div.editor__container
-       {:on-key-press keys/handle-keypress
-        :on-click (fn [e] (close-popover e) (close-table-filter e))
+       {:on-click (fn [e] (close-popover e) (close-table-filter e))
         :on-context-menu close-popover
-        :ref popover/set-focus-element!
-        }
+        :ref popover/set-focus-element!}
 
        [main-nav/component
         {:on-save (partial do-save false)
@@ -156,8 +154,12 @@
                        (when (state/needs-save?)
                          (let [msg "You have unsaved changes. Are you sure you want to leave the page?"]
                            (set! e.returnValue msg)
-                           msg)))))
+                           msg))))
+  ;; unfortunately react event propagation seems to be weird
+  ;; if we put the listener on the editor container, it doesn't
+  ;; get the key events it should.
+  (js/document.addEventListener "keypress" keys/handle-keypress))
+
 
 ;; (state/load-document! @document-identity mount-root)
 (mount-root)
-

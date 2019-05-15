@@ -59,10 +59,13 @@
         :on-change #(swap! state assoc :name (.. % -target -value))
         :style {:flex 1}
         :value (:name @state)
-        :on-key-press #(.stopPropagation %)
         :ref (fn [e]
                (reset! element e)
                (when e
+                 (.addEventListener
+                  e "keypress"
+                  (fn [e] (.stopPropagation e))
+                  false)
                  (when-not (:name @state) (.focus e))))
         }]
       ]
