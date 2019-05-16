@@ -122,8 +122,8 @@
        ]
       ]
     [:div
-      [:h1 "Site defaults"]
-      [:p "These values will be used for sites where you have not input values"]
+      [:h1 "Building defaults"]
+      [:p "These values will only be used for buildings where you have not set per-building values"]
       [:h2 "Heat sale price"]
       [inputs/number
        {:value-atom heat-price
@@ -131,7 +131,8 @@
         :max 100
         :scale 100
         :step 0.1}] "c/kWh"
-      [:h2 "Emissions factors"]
+     [:h2 "Avoided emissions factors"]
+     [:p "If a building is connected to the network, these factors will be used with its annual demand to quantify the emissions avoided by replacing its existing heating system."]
       [:table
        [:tbody
         (for [e candidate/emissions-types]
