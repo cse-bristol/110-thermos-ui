@@ -3,7 +3,7 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2019-05-15 Wed 17:16 -->
+<!-- 2019-05-17 Fri 14:08 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>THERMOS parameter index</title>
@@ -49,13 +49,13 @@
 <li><a href="#org3a7baa3">1.6. Peak to base ratio</a></li>
 <li><a href="#org173db61">1.7. Heat price</a></li>
 <li><a href="#org36f1d7e">1.8. Connection cost</a></li>
-<li><a href="#org46f1f3b">1.9. <span class="todo TODO">TODO</span> Emissions factors</a></li>
+<li><a href="#orgf914ea4">1.9. <span class="todo TODO">TODO</span> Emissions factors</a></li>
 </ul>
 </li>
 <li><a href="#org6dabf1f">2. Facts about pipes</a>
 <ul>
 <li><a href="#orgc4976bf">2.1. Mechanical engineering costs</a></li>
-<li><a href="#orgc3d81e4">2.2. Civil engineering costs</a></li>
+<li><a href="#civil-costs">2.2. Civil engineering costs</a></li>
 <li><a href="#orgd2d926d">2.3. Flow, return, and ground temperatures</a></li>
 </ul>
 </li>
@@ -66,13 +66,21 @@
 <li><a href="#orgba18e61">3.3. Capacity cost</a></li>
 <li><a href="#orgca52ad3">3.4. Annual cost</a></li>
 <li><a href="#org54ee262">3.5. Supply cost</a></li>
-<li><a href="#org0719622">3.6. Emissions factors</a></li>
+<li><a href="#orga82466f">3.6. Emissions factors</a></li>
 </ul>
 </li>
-<li><a href="#org0f9db7e">4. Categorical information</a>
+<li><a href="#orgcf22e13">4. Financial parameters</a>
 <ul>
-<li><a href="#orge8d7571">4.1. <span class="todo TODO">TODO</span> Name / address</a></li>
-<li><a href="#orgfa338f1">4.2. <span class="todo TODO">TODO</span> Classification</a></li>
+<li><a href="#orge26b099">4.1. Loan term</a></li>
+<li><a href="#orgfc13627">4.2. Loan interest rate</a></li>
+<li><a href="#orga006ab7">4.3. NPV term</a></li>
+<li><a href="#org1ff2504">4.4. NPV discount rate</a></li>
+</ul>
+</li>
+<li><a href="#org4e68bf0">5. Optimisation parameters</a>
+<ul>
+<li><a href="#org8687840">5.1. MIP gap</a></li>
+<li><a href="#orgfbec0ff">5.2. Time limit</a></li>
 </ul>
 </li>
 </ul>
@@ -236,8 +244,8 @@ It can also be edited for each building in the <a href="networks.html">network e
 </div>
 </div>
 
-<div id="outline-container-org46f1f3b" class="outline-3">
-<h3 id="org46f1f3b"><span class="section-number-3">1.9</span> <span class="todo TODO">TODO</span> Emissions factors</h3>
+<div id="outline-container-orgf914ea4" class="outline-3">
+<h3 id="orgf914ea4"><span class="section-number-3">1.9</span> <span class="todo TODO">TODO</span> Emissions factors</h3>
 </div>
 </div>
 
@@ -300,8 +308,8 @@ Reasonable values are \(A = 50\) and \(B = 700\), but you may wish to produce yo
 </div>
 
 <div id="outline-container-orgc3d81e4" class="outline-3">
-<h3 id="orgc3d81e4"><span class="section-number-3">2.2</span> Civil engineering costs</h3>
-<div class="outline-text-3" id="text-2-2">
+<h3 id="civil-costs"><a id="orgc3d81e4"></a><span class="section-number-3">2.2</span> Civil engineering costs</h3>
+<div class="outline-text-3" id="text-civil-costs">
 <p>
 The civil engineering costs are a simplification reflecting the costs for pipework that depend on the place where the pipe is being installed, including:
 </p>
@@ -508,8 +516,8 @@ The supply cost is the net cost of producing heat to put into the network. If th
 </div>
 </div>
 
-<div id="outline-container-org0719622" class="outline-3">
-<h3 id="org0719622"><span class="section-number-3">3.6</span> Emissions factors</h3>
+<div id="outline-container-orga82466f" class="outline-3">
+<h3 id="orga82466f"><span class="section-number-3">3.6</span> Emissions factors</h3>
 <div class="outline-text-3" id="text-3-6">
 <p>
 Supply emissions factors are the emissions factors associated with producing a unit of heat to put into the network.
@@ -518,16 +526,37 @@ Supply emissions factors are the emissions factors associated with producing a u
 </div>
 </div>
 
-<div id="outline-container-org0f9db7e" class="outline-2">
-<h2 id="org0f9db7e"><span class="section-number-2">4</span> Categorical information</h2>
+<div id="outline-container-orgcf22e13" class="outline-2">
+<h2 id="orgcf22e13"><span class="section-number-2">4</span> Financial parameters</h2>
 <div class="outline-text-2" id="text-4">
 </div>
-<div id="outline-container-orge8d7571" class="outline-3">
-<h3 id="orge8d7571"><span class="section-number-3">4.1</span> <span class="todo TODO">TODO</span> Name / address</h3>
+<div id="outline-container-orge26b099" class="outline-3">
+<h3 id="orge26b099"><span class="section-number-3">4.1</span> Loan term</h3>
 </div>
 
-<div id="outline-container-orgfa338f1" class="outline-3">
-<h3 id="orgfa338f1"><span class="section-number-3">4.2</span> <span class="todo TODO">TODO</span> Classification</h3>
+<div id="outline-container-orgfc13627" class="outline-3">
+<h3 id="orgfc13627"><span class="section-number-3">4.2</span> Loan interest rate</h3>
+</div>
+
+<div id="outline-container-orga006ab7" class="outline-3">
+<h3 id="orga006ab7"><span class="section-number-3">4.3</span> NPV term</h3>
+</div>
+
+<div id="outline-container-org1ff2504" class="outline-3">
+<h3 id="org1ff2504"><span class="section-number-3">4.4</span> NPV discount rate</h3>
+</div>
+</div>
+
+<div id="outline-container-org4e68bf0" class="outline-2">
+<h2 id="org4e68bf0"><span class="section-number-2">5</span> Optimisation parameters</h2>
+<div class="outline-text-2" id="text-5">
+</div>
+<div id="outline-container-org8687840" class="outline-3">
+<h3 id="org8687840"><span class="section-number-3">5.1</span> MIP gap</h3>
+</div>
+
+<div id="outline-container-orgfbec0ff" class="outline-3">
+<h3 id="orgfbec0ff"><span class="section-number-3">5.2</span> Time limit</h3>
 </div>
 </div>
 </div>

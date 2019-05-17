@@ -3,12 +3,34 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2019-05-15 Wed 17:16 -->
+<!-- 2019-05-17 Fri 14:08 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Using the heat network editor</title>
 <meta name="generator" content="Org mode" />
 <meta name="author" content="CSE" />
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        displayAlign: "center",
+        displayIndent: "0em",
+
+        "HTML-CSS": { scale: 100,
+                        linebreaks: { automatic: "false" },
+                        webFont: "TeX"
+                       },
+        SVG: {scale: 100,
+              linebreaks: { automatic: "false" },
+              font: "TeX"},
+        NativeMML: {scale: 100},
+        TeX: { equationNumbers: {autoNumber: "AMS"},
+               MultLineWidth: "85%",
+               TagSide: "right",
+               TagIndent: ".8em"
+             }
+});
+</script>
+<script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML"></script>
 </head>
 <body>
 <div id="content">
@@ -32,24 +54,18 @@
 </ul>
 </li>
 <li><a href="#org0c5f112">1.2. Options page</a></li>
-<li><a href="#orgdc9f9d5">1.3. Results page</a>
+<li><a href="#orgd69d2f9">1.3. Result page</a>
 <ul>
 <li><a href="#org7fe6f7f">1.3.1. Result summary</a></li>
-<li><a href="#orga814309">1.3.2. Demand information</a></li>
-<li><a href="#orgfa52e0e">1.3.3. Supply information</a></li>
-<li><a href="#org1509fe4">1.3.4. Network information</a></li>
+<li><a href="#org5448763">1.3.2. Demand, supply and network information</a></li>
 </ul>
 </li>
 </ul>
 </li>
 <li><a href="#org67af78b">2. How to&#x2026;</a>
 <ul>
-<li><a href="#selecting">2.1. Select things</a></li>
-<li><a href="#orga64c9ca">2.2. Add a supply location</a></li>
-<li><a href="#org1d2bb73">2.3. Draw an existing network</a></li>
-<li><a href="#org075bba0">2.4. Expand an existing network</a></li>
-<li><a href="#orgdd5baa7">2.5. Export a network as a GIS file</a></li>
-<li><a href="#orga281459">2.6. Set emissions limits</a></li>
+<li><a href="#selecting">2.1. Select things efficiently</a></li>
+<li><a href="#orgdd5baa7">2.2. Export a network as a GIS file</a></li>
 </ul>
 </li>
 </ul>
@@ -303,8 +319,8 @@ If we made the following changes in the example and pressed OK, the effect would
 </div>
 
 <p>
-At the moment, there is a bit of subtlety to do with heat price, nox, pm25 and co2. 
-These values are not set by default for any building, but instead are configured in the <code>Options</code> page for the whole network.
+At the moment, there is a bit of subtlety around heat price, nox, pm25 and co2.
+The starting values are not stored in the map, but instead are configured in the <code>Options</code> page for the whole network.
 If you change a building's heat price or emissions factors, then the defaults in the <code>Options</code> page will no longer apply <i>to that building</i>.
 </p>
 
@@ -317,10 +333,46 @@ You can remove any changes made to these parameters, clearing them so that the d
 
 <div id="outline-container-org3c70492" class="outline-4">
 <h4 id="org3c70492"><span class="section-number-4">1.1.6</span> Editing paths</h4>
+<div class="outline-text-4" id="text-1-1-6">
+<p>
+You can edit the cost parameters for paths in a similar way: select some paths, and right click on them or press <b>e</b> to open the editor window:
+</p>
+
+
+<div class="figure">
+<p><img src="./img/network/edit-roads.png" alt="edit-roads.png" />
+</p>
 </div>
+
+<p>
+Changes to these parameters belong to the network problem and do not affect the underlying map, so if you create a new problem in the same map it will not contain changes made in this way.
+</p>
+
+<p>
+The meaning of these parameters is described <a href="parameters.html#org6dabf1f">here</a>.
+</p>
+</div>
+</div>
+
 <div id="outline-container-org18a04cf" class="outline-4">
 <h4 id="org18a04cf"><span class="section-number-4">1.1.7</span> Editing supply parameters</h4>
+<div class="outline-text-4" id="text-1-1-7">
+<p>
+You can convert a building into a supply location, or edit an existing supply location, by right clicking on it and choosing <code>Make supply point</code> or pressing the <b>s</b> key:
+</p>
+
+
+<div class="figure">
+<p><img src="./img/network/edit-supply.png" alt="edit-supply.png" />
+</p>
 </div>
+
+<p>
+These parameters are described <a href="parameters.html#org89c3138">here</a>.
+</p>
+</div>
+</div>
+
 <div id="outline-container-org3909586" class="outline-4">
 <h4 id="org3909586"><span class="section-number-4">1.1.8</span> Keyboard shortcuts</h4>
 <div class="outline-text-4" id="text-1-1-8">
@@ -385,26 +437,110 @@ You can do some common operations with the keyboard using these shortcuts:
 
 <div id="outline-container-org0c5f112" class="outline-3">
 <h3 id="org0c5f112"><span class="section-number-3">1.2</span> Options page</h3>
+<div class="outline-text-3" id="text-1-2">
+<p>
+This page contains settings that apply to the whole network problem; their meanings are described in more detail <a href="parameters.html">in the parameters section</a>.
+</p>
+
+<dl class="org-dl">
+<dt>Finance and NPV</dt><dd><p>
+Costs and revenues are combined to give an NPV, which is what the optimiser tries to maximise. Capital expenditure can also be annutized using a constant-repayment fixed-term loan. The loan repayments are then subject to NPV like other costs. 
+</p>
+
+<p>
+If you do not want to include a loan for your capital costs, enter <code>1</code> for the financing period at <code>0%</code> interest.
+</p></dd>
+
+<dt>Emissions</dt><dd>These parameters set the cost and optionally a limit for total <i>net</i> emissions due to the network. The network's net emissions are the emissions due to the supply <i>minus</i> the avoided emissions from connecting demands.
+Supply emissions factors are set as part of the <a href="#org18a04cf">supply parameters</a>, and avoided emissions using either the default factors on the options page, or any <a href="#org75e68f5">building-specific factors</a> you have set.</dd>
+
+<dt>Pipes</dt><dd>These parameters affect the cost of pipes. 
+You can set limit for pipe capacity; the model will never try and install a pipe that can carry more than this amount of heat.
+The mechanical cost parameters are set here, because they are the same for every pipe.
+For the civil cost parameters, you can change the exponent here, but not \(A\) and \(B\); these values are <a href="#org3c70492">set for each path</a>.</dd>
+
+<dt>Temperatures</dt><dd>These parameters control the <a href="calculations.html#pipe-diameter-calc">pipe cost</a> and <a href="calculations.html#pipe-heat-losses">heat loss</a> models.</dd>
+
+<dt>Optimisation parameters</dt><dd>These parameters limit the behaviour of the optimiser; increasing the <i>allowable distance from best possible answer</i> will make the model run faster, but decreasing it may give a better solution. The <i>maximum runtime</i> determines how long the model will spend trying to find a solution before it gives up.</dd>
+
+<dt>Building defaults</dt><dd>These parameters are applied to any buildings which you have not <a href="#org75e68f5">edited</a>, and control the revenue from connecting the building (via the price) and the effect on emissions (via the avoided emissions factors).</dd>
+</dl>
+</div>
 </div>
 
-<div id="outline-container-orgdc9f9d5" class="outline-3">
-<h3 id="orgdc9f9d5"><span class="section-number-3">1.3</span> Results page</h3>
+<div id="outline-container-orgd69d2f9" class="outline-3">
+<h3 id="orgd69d2f9"><span class="section-number-3">1.3</span> Result page</h3>
 <div class="outline-text-3" id="text-1-3">
+<p>
+This page only appears after the model has been run, and contains information about the solution that was found (if any). The information is split into four subsections, which you can switch between using the buttons below the page header.
+</p>
 </div>
+
 <div id="outline-container-org7fe6f7f" class="outline-4">
 <h4 id="org7fe6f7f"><span class="section-number-4">1.3.1</span> Result summary</h4>
+<div class="outline-text-4" id="text-1-3-1">
+<p>
+The result summary shows a high level breakdown of the network. On the left is a table explaining the financial model, and on the right some summary figures about the solution and its net emissions.
+</p>
+
+<p>
+<b>Financial model:</b>
+</p>
+
+<dl class="org-dl">
+<dt>Capital costs</dt><dd>This subsection shows the cost terms associated with all the capital costs
+<dl class="org-dl">
+<dt>Principal</dt><dd>This column gives the up-front capital cost associated with its row.</dd>
+<dt>Finance</dt><dd>This column gives the total cost of finance, in addition to the capital cost. 
+The total cost (without NPV) of the row is the principal plus the finance.</dd>
+<dt>NPV</dt><dd>This is the NPV of the row's capital cost and its financing.</dd>
+</dl></dd>
+<dt>Operating costs</dt><dd>This subsection shows the cost terms associated with the functioning of the network
+<dl class="org-dl">
+<dt>Annual</dt><dd>This is the annual real figure for the row</dd>
+<dt>Total</dt><dd>This is the annual figure summed over the accounting period</dd>
+<dt>NPV</dt><dd>This is the NPV of the annual figure for the accounting period</dd>
+<dt>Capacity</dt><dd>This is the yearly cost associated with supply <i>capacity</i>.
+This value is controlled by annual cost in the <a href="#org18a04cf">supply parameters</a>.</dd>
+<dt>Heat</dt><dd>This is the yearly cost associated with <i>heat production</i>.
+This value is controlled by the supply cost in the <a href="#org18a04cf">supply parameters</a>.</dd>
+</dl></dd>
+<dt>Emissions</dt><dd>This subsection shows the monetised costs (or benefits) of the system's net emissions.
+These values are controlled by emissions factors in the <a href="#org18a04cf">supply parameters</a>, <a href="#org75e68f5">building parameters</a>, and <a href="#org0c5f112">network options</a>.</dd>
+<dt>Revenue</dt><dd>This subsection shows the revenues from selling heat and the final net revenue for the system.
+Heat sales prices and quantities are governed by <a href="#org75e68f5">building parameters</a> and <a href="#org0c5f112">network options</a>.</dd>
+</dl>
+
+<p>
+<b>Key quantities:</b>
+</p>
+
+<dl class="org-dl">
+<dt>Model runtime</dt><dd>The time taken by the optimiser to find this solution</dd>
+<dt>Objective value</dt><dd>The numerical value of the optimum; this should be similar to the net cost in the financial model</dd>
+<dt>Number of supplies</dt><dd>The number of supply points that were used in the network</dd>
+<dt>Supply capacity</dt><dd>The total capacity of all the supply points used in the network</dd>
+<dt>Supply output</dt><dd>The total annual heat put into the network by all supply points</dd>
+<dt>Number of demands</dt><dd>The number of demands connected to the network</dd>
+<dt>Total demand</dt><dd>The total annual heat delivered to demands by the network</dd>
+<dt>Total peak</dt><dd>The combined peak of all the demands met by the network, <i>without diversity</i></dd>
+<dt>Length of network</dt><dd>The total length of all paths selected for heat pipes</dd>
+<dt>Heat losses</dt><dd>The total heat loss from pipes per year</dd>
+<dt>Capacity of network</dt><dd>The sum-product of pipe peak capacity with pipe length over all the pipes. 
+This might not be a useful number to know&#x2026;</dd>
+</dl>
+</div>
 </div>
 
-<div id="outline-container-orga814309" class="outline-4">
-<h4 id="orga814309"><span class="section-number-4">1.3.2</span> Demand information</h4>
+<div id="outline-container-org5448763" class="outline-4">
+<h4 id="org5448763"><span class="section-number-4">1.3.2</span> Demand, supply and network information</h4>
+<div class="outline-text-4" id="text-1-3-2">
+<p>
+The demand information page lists all of the demands that were included in the network.
+The supply information page lists all of the supply locations that are supplying the network, and gives their size and cost.
+The network information page gives information about each segment of pipe that is included in the network.
+</p>
 </div>
-
-<div id="outline-container-orgfa52e0e" class="outline-4">
-<h4 id="orgfa52e0e"><span class="section-number-4">1.3.3</span> Supply information</h4>
-</div>
-
-<div id="outline-container-org1509fe4" class="outline-4">
-<h4 id="org1509fe4"><span class="section-number-4">1.3.4</span> Network information</h4>
 </div>
 </div>
 </div>
@@ -413,34 +549,58 @@ You can do some common operations with the keyboard using these shortcuts:
 <h2 id="org67af78b"><span class="section-number-2">2</span> How to&#x2026;</h2>
 <div class="outline-text-2" id="text-2">
 </div>
-<div id="outline-container-org9b9c6f6" class="outline-3">
-<h3 id="selecting"><a id="org9b9c6f6"></a><span class="section-number-3">2.1</span> Select things</h3>
+<div id="outline-container-org9bba993" class="outline-3">
+<h3 id="selecting"><a id="org9bba993"></a><span class="section-number-3">2.1</span> Select things efficiently</h3>
 <div class="outline-text-3" id="text-selecting">
 <p>
 A lot of the work in using the network editor is about selecting the right things so that you can edit them or change their constraint status. 
 There are many ways to select things by putting together the basic tools the program gives you; here are some examples.
 </p>
-</div>
+
+
+<div class="figure">
+<p><video src="./img/network/selecting-1.webm" autoplay="true" loop="true" controls="true"><source /></video>
+</p>
+<p><span class="figure-number">Figure 10: </span>Selecting large demands in an area: (1) select everything in the area (2) change the constraint to optional, so they appear in the table (3) filter the table and (4) use the table selection checkbox to select what is in the table.</p>
 </div>
 
-<div id="outline-container-orga64c9ca" class="outline-3">
-<h3 id="orga64c9ca"><span class="section-number-3">2.2</span> Add a supply location</h3>
+
+<div class="figure">
+<p><video src="./img/network/selecting-2.webm" autoplay="true" loop="true" controls="true"><source /></video>
+</p>
+<p><span class="figure-number">Figure 11: </span>Selecting all the connectors in an area (paths added by THERMOS to join up buildings): (1) select everything in the area (2) click the <i>path</i> type to select only paths (3) click the <i>Connector</i> classification to select only connectors.</p>
 </div>
 
-<div id="outline-container-org1d2bb73" class="outline-3">
-<h3 id="org1d2bb73"><span class="section-number-3">2.3</span> Draw an existing network</h3>
+
+<div class="figure">
+<p><video src="./img/network/selecting-3.webm" autoplay="true" loop="true" controls="true"><source /></video>
+</p>
+<p><span class="figure-number">Figure 12: </span>Select a whole street: (1) select everything (2) click the <i>path</i> type to narrow down the names list (3) click the street's name to select only paths with that name. Zoom button to zoom in to it.</p>
 </div>
 
-<div id="outline-container-org075bba0" class="outline-3">
-<h3 id="org075bba0"><span class="section-number-3">2.4</span> Expand an existing network</h3>
+
+<div class="figure">
+<p><video src="./img/network/selecting-4.webm" autoplay="true" loop="true" controls="true"><source /></video>
+</p>
+<p><span class="figure-number">Figure 13: </span>Select everything which the optimizer chose to use and make it required: (1) select everything in the table (2) click <i>yes</i> for in solution (3) change constraint status for these items</p>
+</div>
+</div>
 </div>
 
 <div id="outline-container-orgdd5baa7" class="outline-3">
-<h3 id="orgdd5baa7"><span class="section-number-3">2.5</span> Export a network as a GIS file</h3>
-</div>
+<h3 id="orgdd5baa7"><span class="section-number-3">2.2</span> Export a network as a GIS file</h3>
+<div class="outline-text-3" id="text-2-2">
+<p>
+You can save a network as a GIS file - this feature is currently only visible from the project page for the project containing the network. Each network will have a little downward-pointing arrow next to its name - click this to download the network as a geojson file.
+</p>
 
-<div id="outline-container-orga281459" class="outline-3">
-<h3 id="orga281459"><span class="section-number-3">2.6</span> Set emissions limits</h3>
+
+<div class="figure">
+<p><video src="./img/network/gis-export-network.webm" autoplay="true" loop="true" controls="true"><source /></video>
+</p>
+<p><span class="figure-number">Figure 14: </span>Saving a network as a GIS file and opening it in <a href="https://www.qgis.org/">qgis</a>.</p>
+</div>
+</div>
 </div>
 </div>
 </div>

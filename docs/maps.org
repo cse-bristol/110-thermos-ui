@@ -17,22 +17,224 @@ There are two ways to get involved in a project:
 1. Start a new project yourself
 2. Ask someone who has an existing project to invite you to participate on it
 
-* Creating a map from openstreetmap
+To start a project, go to the [[bare:/][THERMOS front page]], and click ~New project~.
+This will show a page like this:
 
-The easiest way to make a map is by using OpenStreetMap data.
+[[./img/quick-start/new-project.png]]
+
+You have to type in a name for the project, and you can give it a description.
+If you know some people you want to collaborate with on the project, you can enter their email addresses into the box at the bottom, one address per line.
+
+Once you've done this you will be taken to the page for this project, which will start off like this:
+
+[[./img/maps/empty-project.png]]
+
+The project name is displayed in the bar at the top of the screen, and the description in the first box on the page.
+
+This box also contains some buttons which let you do things with the project:
+
+- The users button, which lets you manage who is participating in the project
+- The delete button, which lets you delete the entire project
+- The new map button, which walks you through creating a map.
+
+  You will need to click this to do anything with the project, as projects serve only to contain maps.
+
+* Creating a map from OpenStreetMap
+
+The easiest way to make a map is by using OpenStreetMap data. THERMOS will find all the buildings and roads that OpenStreetMap knows about in a region you select, and will make a map from them with estimated demands.
+
+To make a map with OpenStreetMap data, follow these steps:
+
+1. Click the ~New map~ button on the project page
+2. Type in a name, optionally a description for your map
+3. Search for a location in OpenStreetMap.
+   Results that say /relation/ at the bottom will have a boundary.
+   Click on the result you want, and the map will show the boundary.
+
+   Alternatively you can find a place and draw a rectangle with the rectangle tool on the left of the map.
+4. Click ~Next~ and use roads from OpenStreetMap as well
+5. Review the other parameters that will be set in your map
+6. Click ~Create map~
+7. Wait a bit for the map to be completed
+   
+Here is a short video of this process:
+
+#+ATTR_HTML: :autoplay true :loop true :controls true
+#+CAPTION: Creating an OSM map of a location.
+[[./img/maps/create-osm-map.webm]]
+
+** Contributing to OpenStreetMap
+
+If the data in OpenStreetMap for the area you are interested in is not very good, please consider mapping the area you are interested in. Doing this will be of wider benefit, as the map data will be usable for all sorts of other purposes. The OpenStreetMap website has a good [[https://wiki.openstreetmap.org/wiki/Contribute_map_data][introduction]] about ways to put data into the map.
 
 * Creating a map from your own GIS files
 
-If OpenStreetMap does not contain the buildings or roads you want to model, and/or you have better data about the buildings you are interested in, you can produce a map from these files instead of OpenStreetMap.
+If OpenStreetMap does not contain the buildings or roads you want to model, and/or you have better data about the buildings you are interested in, you can produce a map from these files instead of OpenStreetMap. 
+
+This requires more work than taking data from OpenStreetMap, but will give you more control over what is produced.
+
+** Prepare your GIS files
+
+The first step here is to create GIS files which contain the data you want in a suitable form. This means:
+
+1. The data must either be in geojson files, ESRI shapefiles, or tab- or comma- separated text files
+2. You can upload your own GIS data for buildings and for roads; these each have their own constraints:
+
+   For buildings:
+
+   - Each row in the input GIS file must represent a single building, which will have a single heat demand assigned to it
+   - The GIS geometry column *must* contain only *simple polygons*. At the moment, THERMOS does not understand point geometry or multipolygon geometry for demand locations.
+
+   For roads:
+   
+   - Each row in the input GIS file must represent a single road segment.
+     However, these segments do not need to be /noded/ - this will happen as part of map creation.
+   - The GIS geometry column must contain only *linestring* geometry.
+3. You can tell THERMOS any of the following things about the buildings or roads.
+   - A known annual demand in kWh/yr
+   - A known peak demand in kW
+   - A building height in metres
+   - A building internal floor area in m^2
+   - A demand benchmark, expressed as a constant term in kWh/yr, and a variable term in kWh/(yr × m^2)
+   - A peak-to-base ratio, as a dimensionless factor
+   - For roads, the [[file:parameters.org::#civil-costs][civil engineering cost terms]]
+   - A category (as text)
+   - A name/address (as text)
+   - An identifier (as text)
+   Each of these values need to be either:
+   - In a column (or /field/) in your GIS file
+   - In a column in a tabular file which can be joined to your GIS file by a common column.
+     However, the join must be 1:1 or 1:0 between the GIS rows and the table rows - therefore, any tables you upload must have only one entry for each distinct value you are going to join them on.
+
+     For example, a table like this:
+
+     | ~building_type~ | benchmark |
+     |-----------------+-----------|
+     | Office          |      1000 |
+     | Cinema          |      1000 |
+     | Steel mill      |      3000 |
+
+     would be fine to relate to a GIS file by ~building_type~, but 
+
+     | ~building_type~ | benchmark |
+     |-----------------+-----------|
+     | Office          |      1000 |
+     | Office          |      1000 |
+     | Office          |      3000 |
+
+     would not work, because each ~Office~ type building would have three matching rows.
+
+So, for example, to import your GIS data you might want to:
+
+- Find a GIS file of building outline polygons for the buildings in the area
+- Create a building classification column in that file, so that each building has a descriptive classification that you are happy with
+- Create a known demand column in that file, if you know the demand for some buildings, and enter the known demands in kWh/yr
+- Create a height column in that file, if you know building heights, entering them in metres
+- Create a separate benchmarks file in your spreadsheet program, giving benchmark terms for each classification that you want to apply a benchmark for. Save this out as a comma- or tab- separated file.
+
+Preparing data like this can be quite time consuming - good GIS tools are very helpful for this kind of work. We recommend [[https://www.qgis.org/][qgis]] as a free GIS that is reasonably easy to use, and [[https://spatialite.org/][Spatialite]] as a slightly more complicated tool which is useful for automating the curation of data if you know a bit of SQL.
+
+** Creating a GIS map
+
+To make a map from your prepared GIS files is not too difficult, once they are in the right form.
+This video shows the process graphically for uploading buildings:
+
+#+ATTR_HTML: :autoplay true :loop true :controls true
+#+CAPTION: Creating a map from GIS files. Note that all the parts of the shapefile need to be selected at once. We've chosen to use OSM roads here, but you can also upload roads. If your buildings are in several shapefiles you can upload more than one shapefile, so you don't have to combine them yourself.
+[[./img/maps/create-gis-map.webm]]
+
+** Upload GIS files and tables
+
+In the video above you can see the first step is to upload the GIS and table data. 
+An important thing to note is that ESRI shapefiles have several parts as well as the main ~.shp~ file, which you have to upload *at the same time*.
+In the file selection dialog box dislayed when you click to upload the data, you can select several files at once by clicking on each of them with the ~Control~ key held down on your keyboard. You can also select a range of files by clicking on the first one and then ~Shift~-clicking on the last one.
+
+Similarly, if you drag-and-drop files into the file upload box, you have to drag all parts of any shapefiles in *at the same time*.
+
+It may take a little while for the application to process your files, and you will have to wait for each one's progress bar to turn green before you can continue.  
+
+** Join tables to GIS files
+
+If you have uploaded any tables the page for joining tables will appear:
+
+[[./img/maps/join-page.png]]
+
+To join a GIS file to a table you need to select the GIS file, the table file, and a column in the GIS file and in the table file, and press ~Join~.
+
+In the picture above, every row in the GIS file ~edificios~ for which there is a row in ~benchmarks~ where the ~FORMA~ column matches exactly will have the values from ~benchmarks~ added to it. The columns from ~benchmarks~ can then be assigned a meaning on the next page.
+
+The intention in the picture is to assign a set of benchmarks to some buildings based on the ~FORMA~ column.
+
+** Assign meaning to columns
+
+Apart from the geometry column, THERMOS does not know what the columns in your data represent. You have to assign a meaning to any of the columns you want to use, by the field assignment page:
+
+[[./img/maps/fields-page.png]]
+
+Each box in the field assignment represents one of the files you have uploaded, and lists all of the columns (or /fields/) in the file. For each field you can choose from the meanings that THERMOS understands (although you do not have to choose a meaning for any field).
+
+You can click on the the question mark at the top of the screen to see a more complete description of each possible meaning.
 
 * How heat demand is estimated
 :PROPERTIES:
 :CUSTOM_ID: demand-estimation
 :END:
+
+Whether you are taking data from OpenStreetMap or from your own GIS files, THERMOS needs to know an annual and peak heat demand for every building in the map. These values are decided using a hierarchy of methods depending on what other data THERMOS knows about the building:
+
+** How annual demand is estimated
+  1. If you have uploaded your own data and assigned an annual demand field which contains a number, that number is used
+  2. If you have uploaded your own data and assigned either or both of a constant and variable benchmark, those numbers are used in the rule:
+     $\text{demand} = \text{constant benchmark} + \text{floor area} × \text{variable benchmark}$
+
+     To find the floor area for this rule:
+     1. If you have uploaded your own data and assigned a floor area field which contains a number, that number is used
+     2. The floor area is estimated as the building's footprint area multiplied by the number of storeys.
+        The number of storeys is estimated by:
+        1. If you have uploaded your own data and assigned a height field which contains a number, the number of storeys is this height divided by four rounded up
+        2. If there is no height field, but the height is known from LIDAR data, the number of storeys is the LIDAR height divided by four rounded up
+        3. If no height data is available at all, the building is assumed to have a single storey
+  3. If there is no given demand and no benchmark, the demand is estimated using the [[file:demand-models.org::#annual-demand-model][THERMOS annual demand model]].
+     This demand model works better if height information is known; height is taken from:
+     1. If you have uploaded your own data and assigned a height field which contains a number, this number
+     2. If there is no height field but the building is covered by LIDAR data, the height is estimated from the LIDAR
+** How peak demand is estimated
+  1. If you have uploaded your own data and assigned a peak demand field which contains a number, that number is used
+  2. If you have uploaded your own data and assigned a peak-to-base ratio field which contains a number, the peak is calculated as the annual demand (from above) converted into kW and multiplied by this peak-to-base ratio.
+  3. If neither of these are given, the [[file:demand-models.org::#peak-demand-model][THERMOS peak demand model]] is used.
+
 * How buildings are connected up
 
-* Supplying your own demand estimates
+As well as producing demand estimates, THERMOS tries to connect every building up with the paths. This is because a building which isn't connected to paths in the map cannot be supplied with heat. During the map creation process, the initial set of paths (from OpenStreetMap or from GIS files) is first /noded/, and then a set of connectors are introduced to make sure every building is joined to the path network.
 
-* Using benchmark estimates for some buildings
+** Noding paths
 
-* Setting parameters for paths 
+The noding process cuts up all the input lines so that there are no intersecting lines; any line which intersects another in the input will be split into two at the intersection. In addition, a /topology/ is created for the paths which records which bits are connected to each other.
+
+** Adding connections
+
+The network model needs to know the topological relationship between each demand and all the paths, so the information about the position of a building has to be converted into information about which paths the building is /connected/ to.
+
+There are three conditions a building can be in with respect to the paths:
+
+1. The building covers the end of a path in the input (the path finishes within it)
+
+   In this case the building is considered to be connected to that end of that path.
+2. The building intersects a path in the input (the path goes through it)
+
+   In this case, the path is split into two where it enters and exits the building, and each of those ends is considered to be connected to the building.
+3. The building doesn't touch any paths in the input.
+
+   In this case, the application will introduce a new path to try and connect the building to an existing path. These extra paths are the ones given the classification /Connector/ in the map.
+
+   At the moment this is done by finding the closest existing path to the building, and then drawing the shortest straight line between the two. This will sometimes split the existing path, introducing a new junction.
+
+   Because introducing connectors adds new paths, another building's connector may end up being the closest path to an as-yet unconnected building. In this case, the second building's connector will be connected to the first building's connector.
+
+   This method has some limitations, which we hope to improve on:
+
+   1. Each building only gets one connector. 
+
+      For a building which has more than one path passing close to it, it might make sense to introduce several connectors, so that the optimiser can come at it from more than one direction.
+   2. There is some order-dependent arbitrary behaviour caused by which buildings get connected first.
+   3. The index used to make the closest-path query efficient has a bounded extent, which means that sometimes the application fails to find a path for connecting a building.

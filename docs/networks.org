@@ -133,15 +133,31 @@ If we made the following changes in the example and pressed OK, the effect would
 
 [[./img/network/edit-buildings-edited.png]]
 
-At the moment, there is a bit of subtlety to do with heat price, nox, pm25 and co2. 
-These values are not set by default for any building, but instead are configured in the ~Options~ page for the whole network.
+At the moment, there is a bit of subtlety around heat price, nox, pm25 and co2.
+The starting values are not stored in the map, but instead are configured in the ~Options~ page for the whole network.
 If you change a building's heat price or emissions factors, then the defaults in the ~Options~ page will no longer apply /to that building/.
 
 There is currently not an easy way to tell whether a building is using the default values or has special values of its own.
 You can remove any changes made to these parameters, clearing them so that the defaults are used, by right-clicking and choosing ~Set defaults~.
 
 *** Editing paths
+
+You can edit the cost parameters for paths in a similar way: select some paths, and right click on them or press *e* to open the editor window:
+
+[[./img/network/edit-roads.png]]
+
+Changes to these parameters belong to the network problem and do not affect the underlying map, so if you create a new problem in the same map it will not contain changes made in this way.
+
+The meaning of these parameters is described [[file:parameters.org::*Facts%20about%20pipes][here]].
+
 *** Editing supply parameters
+
+You can convert a building into a supply location, or edit an existing supply location, by right clicking on it and choosing ~Make supply point~ or pressing the *s* key:
+
+[[./img/network/edit-supply.png]]
+
+These parameters are described [[file:parameters.org::*Heat%20supply][here]].
+
 *** Keyboard shortcuts
 
 You can do some common operations with the keyboard using these shortcuts:
@@ -158,18 +174,77 @@ You can do some common operations with the keyboard using these shortcuts:
 
 ** Options page
 
-** Results page
+This page contains settings that apply to the whole network problem; their meanings are described in more detail [[file:parameters.org][in the parameters section]].
+
+- Finance and NPV :: Costs and revenues are combined to give an NPV, which is what the optimiser tries to maximise. Capital expenditure can also be annutized using a constant-repayment fixed-term loan. The loan repayments are then subject to NPV like other costs. 
+
+     If you do not want to include a loan for your capital costs, enter ~1~ for the financing period at ~0%~ interest.
+
+- Emissions :: These parameters set the cost and optionally a limit for total /net/ emissions due to the network. The network's net emissions are the emissions due to the supply /minus/ the avoided emissions from connecting demands.
+               Supply emissions factors are set as part of the [[*Editing supply parameters][supply parameters]], and avoided emissions using either the default factors on the options page, or any [[*Editing buildings][building-specific factors]] you have set.
+
+- Pipes :: These parameters affect the cost of pipes. 
+           You can set limit for pipe capacity; the model will never try and install a pipe that can carry more than this amount of heat.
+           The mechanical cost parameters are set here, because they are the same for every pipe.
+           For the civil cost parameters, you can change the exponent here, but not $A$ and $B$; these values are [[*Editing paths][set for each path]].
+
+- Temperatures :: These parameters control the [[file:calculations.org::#pipe-diameter-calc][pipe cost]] and [[file:calculations.org::#pipe-heat-losses][heat loss]] models.
+
+- Optimisation parameters :: These parameters limit the behaviour of the optimiser; increasing the /allowable distance from best possible answer/ will make the model run faster, but decreasing it may give a better solution. The /maximum runtime/ determines how long the model will spend trying to find a solution before it gives up. 
+
+- Building defaults :: These parameters are applied to any buildings which you have not [[*Editing buildings][edited]], and control the revenue from connecting the building (via the price) and the effect on emissions (via the avoided emissions factors).
+
+** Result page
+
+This page only appears after the model has been run, and contains information about the solution that was found (if any). The information is split into four subsections, which you can switch between using the buttons below the page header.
 
 *** Result summary
 
-*** Demand information
+The result summary shows a high level breakdown of the network. On the left is a table explaining the financial model, and on the right some summary figures about the solution and its net emissions.
 
-*** Supply information
+*Financial model:*
 
-*** Network information
+- Capital costs :: This subsection shows the cost terms associated with all the capital costs
+  - Principal :: This column gives the up-front capital cost associated with its row. 
+  - Finance :: This column gives the total cost of finance, in addition to the capital cost. 
+               The total cost (without NPV) of the row is the principal plus the finance.
+  - NPV :: This is the NPV of the row's capital cost and its financing.
+- Operating costs :: This subsection shows the cost terms associated with the functioning of the network
+  - Annual :: This is the annual real figure for the row
+  - Total :: This is the annual figure summed over the accounting period
+  - NPV :: This is the NPV of the annual figure for the accounting period
+  - Capacity :: This is the yearly cost associated with supply /capacity/.
+                This value is controlled by annual cost in the [[*Editing supply parameters][supply parameters]].
+  - Heat :: This is the yearly cost associated with /heat production/.
+            This value is controlled by the supply cost in the [[*Editing supply parameters][supply parameters]].
+- Emissions :: This subsection shows the monetised costs (or benefits) of the system's net emissions.
+               These values are controlled by emissions factors in the [[*Editing supply parameters][supply parameters]], [[*Editing buildings][building parameters]], and [[*Options page][network options]].
+- Revenue :: This subsection shows the revenues from selling heat and the final net revenue for the system.
+             Heat sales prices and quantities are governed by [[*Editing buildings][building parameters]] and [[*Options page][network options]].
+
+*Key quantities:*
+
+- Model runtime :: The time taken by the optimiser to find this solution
+- Objective value :: The numerical value of the optimum; this should be similar to the net cost in the financial model
+- Number of supplies :: The number of supply points that were used in the network
+- Supply capacity :: The total capacity of all the supply points used in the network
+- Supply output :: The total annual heat put into the network by all supply points
+- Number of demands :: The number of demands connected to the network
+- Total demand :: The total annual heat delivered to demands by the network
+- Total peak :: The combined peak of all the demands met by the network, /without diversity/
+- Length of network :: The total length of all paths selected for heat pipes
+- Heat losses :: The total heat loss from pipes per year
+- Capacity of network :: The sum-product of pipe peak capacity with pipe length over all the pipes. 
+     This might not be a useful number to know...
+
+*** Demand, supply and network information
+
+The demand information page lists all of the demands that were included in the network.
+The supply information page lists all of the supply locations that are supplying the network, and gives their size and cost.
+The network information page gives information about each segment of pipe that is included in the network.
 
 * How to...
-** Select things
+** Select things efficiently
 :PROPERTIES:
 :CUSTOM_ID: selecting
 :END:
@@ -177,12 +252,26 @@ You can do some common operations with the keyboard using these shortcuts:
 A lot of the work in using the network editor is about selecting the right things so that you can edit them or change their constraint status. 
 There are many ways to select things by putting together the basic tools the program gives you; here are some examples.
 
-** Add a supply location
+#+ATTR_HTML: :autoplay true :loop true :controls true
+#+CAPTION: Selecting large demands in an area: (1) select everything in the area (2) change the constraint to optional, so they appear in the table (3) filter the table and (4) use the table selection checkbox to select what is in the table.
+[[./img/network/selecting-1.webm]]
 
-** Draw an existing network
+#+ATTR_HTML: :autoplay true :loop true :controls true
+#+CAPTION: Selecting all the connectors in an area (paths added by THERMOS to join up buildings): (1) select everything in the area (2) click the /path/ type to select only paths (3) click the /Connector/ classification to select only connectors.
+[[./img/network/selecting-2.webm]]
 
-** Expand an existing network
+#+ATTR_HTML: :autoplay true :loop true :controls true
+#+CAPTION: Select a whole street: (1) select everything (2) click the /path/ type to narrow down the names list (3) click the street's name to select only paths with that name. Zoom button to zoom in to it.
+[[./img/network/selecting-3.webm]]
+
+#+ATTR_HTML: :autoplay true :loop true :controls true
+#+CAPTION: Select everything which the optimizer chose to use and make it required: (1) select everything in the table (2) click /yes/ for in solution (3) change constraint status for these items
+[[./img/network/selecting-4.webm]]
 
 ** Export a network as a GIS file
 
-** Set emissions limits
+You can save a network as a GIS file - this feature is currently only visible from the project page for the project containing the network. Each network will have a little downward-pointing arrow next to its name - click this to download the network as a geojson file.
+
+#+ATTR_HTML: :autoplay true :loop true :controls true
+#+CAPTION: Saving a network as a GIS file and opening it in [[https://www.qgis.org/][qgis]].
+[[./img/network/gis-export-network.webm]]

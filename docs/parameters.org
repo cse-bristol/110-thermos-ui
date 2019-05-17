@@ -127,6 +127,9 @@ plot mechanicals(x)
 [[file:img/parameters/mechanical-cost.png]]
 
 ** Civil engineering costs
+:PROPERTIES:
+:CUSTOM_ID: civil-costs
+:END:
 
 The civil engineering costs are a simplification reflecting the costs for pipework that depend on the place where the pipe is being installed, including:
 
@@ -232,8 +235,18 @@ The supply cost is the net cost of producing heat to put into the network. If th
 
 Supply emissions factors are the emissions factors associated with producing a unit of heat to put into the network.
 
-* Categorical information
+* Financial parameters
 
-** TODO Name / address
+** Loan term
 
-** TODO Classification
+** Loan interest rate
+
+** NPV term
+
+** NPV discount rate
+
+* Optimisation parameters
+
+** MIP gap
+
+** Time limit

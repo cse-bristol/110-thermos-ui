@@ -65,6 +65,9 @@ Supply locations must have capacity to meet the diversified sum of the peak dema
 In principle, if there are several supplies in the system, or several pipes connecting a building, the model can produce a solution in which the demand is split between supplies or between pipes. In this case the diversity factor works in the same way.
 
 ** Pipe diameter
+:PROPERTIES:
+:CUSTOM_ID: pipe-diameter-calc
+:END:
 
 Although the model works with pipes' capacity to deliver power, prices and heat losses are determined by the pipe diameter.
 
@@ -113,6 +116,9 @@ Although the resulting shape will be non-linear, the model computes bounds on th
 This approximation reduces the fidelity of the cost calculation, but makes the problem tractable for the computer.
 
 ** Pipe heat losses
+:PROPERTIES:
+:CUSTOM_ID: pipe-heat-losses
+:END:
 
 Heat losses are also determined by pipe diameter, along with the flow temperature in the pipe and the ground temperature.
 

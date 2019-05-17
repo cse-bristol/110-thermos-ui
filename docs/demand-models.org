@@ -1,0 +1,11 @@
+#+TITLE: Demand modelling method
+
+* Annual demand model
+:PROPERTIES:
+:CUSTOM_ID: annual-demand-model
+:END:
+
+* Peak demand model
+:PROPERTIES:
+:CUSTOM_ID: peak-demand-model
+:END:
