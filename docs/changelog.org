@@ -1,6 +1,11 @@
 #+TITLE: THERMOS Changelog
 
 * Version 5
+** 17 May 2019
+
+- Wrote some more documentation
+- Improved the display of solution finances to include connection costs
+- Added a faint dotted underline to UI elements that have a help tooltip
 
 ** 15 May 2019
 

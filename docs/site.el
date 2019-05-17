@@ -1,25 +1,3 @@
-(setq org-confirm-babel-evaluate nil)
-(let ((org-html-preamble nil)
-      (org-html-postamble nil)
-      (org-html-head-include-default-style nil)
-      (org-html-head-include-scripts nil)
-      
-      (org-publish-project-alist
-       `(("docs-org"
-          :base-directory ,default-directory
-          :publishing-directory ,(concat default-directory "../resources/help/")
-          :recursive t
-          :publishing-function org-html-publish-to-html)
-         ("docs-img"
-          :base-directory ,default-directory
-          :publishing-directory ,(concat default-directory "../resources/public/help/")
-          :publishing-function org-publish-attachment
-          :base-extension "png\\|webm\\|svg"
-          :recursive t)
-         ("docs" :components ("docs-org" "docs-img"))
-         )))
-  (org-publish-project "docs" t))
-
 (defun org-html--format-video (orig source attributes info)
   (message (file-name-extension source))
   (if (string= "webm" (file-name-extension source))
@@ -73,3 +51,25 @@ attributes are not supported \(see `org-export-read-attribute')."
               (org-html-encode-plain-text
                (or description path)))))))
 
+(setq org-confirm-babel-evaluate nil)
+
+(let ((org-html-preamble nil)
+      (org-html-postamble nil)
+      (org-html-head-include-default-style nil)
+      (org-html-head-include-scripts nil)
+      
+      (org-publish-project-alist
+       `(("docs-org"
+          :base-directory ,default-directory
+          :publishing-directory ,(concat default-directory "../resources/help/")
+          :recursive t
+          :publishing-function org-html-publish-to-html)
+         ("docs-img"
+          :base-directory ,default-directory
+          :publishing-directory ,(concat default-directory "../resources/public/help/")
+          :publishing-function org-publish-attachment
+          :base-extension "png\\|webm\\|svg"
+          :recursive t)
+         ("docs" :components ("docs-org" "docs-img"))
+         )))
+  (org-publish-project "docs" t))
