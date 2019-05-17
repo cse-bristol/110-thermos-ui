@@ -92,6 +92,10 @@
          supply-finance   (- (reduce + (annualize supply-principal)) supply-principal)
          supply-npv       (capex-pv supply-principal)
 
+         connection-cost-principal (reduce + (map #(::solution/connection-cost % 0) buildings))
+         connection-cost-finance   (- (reduce + (annualize connection-cost-principal)) supply-principal)
+         connection-cost-npv       (capex-pv connection-cost-principal)
+
          capacity-cost-annual (reduce + (map #(::solution/opex % 0) buildings))
          capacity-cost-total  (* npv-term capacity-cost-annual)
          capacity-cost-npv    (opex-pv capacity-cost-annual)
@@ -129,12 +133,15 @@
                         network-finance
                         supply-principal
                         supply-finance
+                        connection-cost-principal
+                        connection-cost-finance
                         (reduce + (map second emissions-total-cost)))
          
 
          costs-npv-total (+ supply-npv network-npv
                             heat-cost-npv
                             capacity-cost-npv
+                            connection-cost-npv
                             (reduce + (map second emissions-npv)))
          
          rev  (fn [a]
@@ -148,34 +155,45 @@
        [:h1 "Financial model"]
        [:table
         [:thead
-         [:tr [:th "Capital costs"] [:th "Principal"] [:th "Finance"] [:th "NPV"]]
+         [:tr
+          [:th "Capital costs"]
+          [:th {:title "The capital cost without any financing"} "Principal"]
+          [:th {:title "The additional cost (without any discounting) of financing a loan for the capital"} "Finance"]
+          [:th {:title "The NPV of the loan repayments for the capital cost"} "NPV"]]
          ]
         [:tbody
-         [:tr [:th "Network"]
+         [:tr [:th {:title "Costs incurred for buying pipework."}
+               "Network"]
           (cost network-principal)
           (cost network-finance)
           (cost network-npv)]
          
-         [:tr [:th "Supply"]
+         [:tr [:th {:title "Capital costs incurred for connecting to supply locations."} "Supply"]
           (cost supply-principal)
           (cost supply-finance)
           (cost supply-npv)]
+
+         [:tr [:th {:title "Capital costs incurred by connecting demands to the network."} "Connection"]
+          (cost connection-cost-principal)
+          (cost connection-cost-finance)
+          (cost connection-cost-npv)]
+         
          [:tr [:th "Total"]
-          (cost (+ network-principal supply-principal))
-          (cost (+ network-finance supply-finance))
-          (cost (+ network-npv supply-npv))
+          (cost (+ network-principal supply-principal connection-cost-principal))
+          (cost (+ network-finance supply-finance connection-cost-finance))
+          (cost (+ network-npv supply-npv connection-cost-npv))
           ]]
         
         [:thead
          [:tr [:th "Operating costs"] [:th "Annual"] [:th "Total"] [:th "NPV"] ]]
 
         [:tbody
-         [:tr [:th "Capacity"]
+         [:tr [:th {:title "Annual costs related to supply capacity (plant size)."} "Capacity"]
           (cost capacity-cost-annual)
           (cost capacity-cost-total)
           (cost capacity-cost-npv)
           ]
-         [:tr [:th "Heat"]
+         [:tr [:th {:title "Annual cost related to the production of heat (inc. losses)."} "Heat"]
           (cost heat-cost-annual)
           (cost heat-cost-total)
           (cost heat-cost-npv)
