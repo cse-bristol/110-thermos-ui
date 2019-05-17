@@ -84,7 +84,10 @@
           )]
        ]
 
-      [:h2 "Pipes"]
+      ]
+     [:div
+      [:h1 "Pipe parameters"]
+      [:p "These parameters control costs and heat losses for pipes."]
       [:p "Limit pipe capacity to at most "
        [inputs/number {:value-atom max-pipe-kwp :min 0 :max 500 :step 1 :scale (/ 1 1000.0)}]
        " MWp"]
