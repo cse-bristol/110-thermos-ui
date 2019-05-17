@@ -80,7 +80,7 @@
              ["Name" sc-class (cat ::candidate/name "None")]
              
              ["Length" nil (num ::path/length  rsum "m")]
-             [[:span
+             [[:span.has-tt
                {:title
                 (str "For buildings this is the connection cost. "
                      "For paths it is the cost of a 10mm pipe.")}
@@ -111,9 +111,14 @@
                 nil
                 (num ::solution/diameter-mm rmax "m" 0.001)
                 ]
-               ["Principal"
+               [[:span.has-tt
+                 {:title "For buildings with both supply and demand this can include both connection cost and supply cost."}
+                 "Principal"]
                 nil
-                (num ::solution/principal rsum "¤")
+                (num #(let [p (::solution/principal %)
+                            cc (::solution/connection-cost %)]
+                        (when (or p cc)
+                          (+ (or p 0) (or cc) 0))) rsum "¤")
                 ]
                ["Revenue"
                 nil

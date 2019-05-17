@@ -152,10 +152,10 @@
          [:tr
           [:th (group-by-options group-by-key)]
           [:th "Length (m)"]
-          [:th
+          [:th.has-tt
            {:title "This is the fixed part of the civil engineering cost."}
            "Civil cost (¤/m)"]
-          [:th
+          [:th.has-tt
            {:title (str "This is the variable part of the civil engineering cost. "
                         "The actual cost will be length * (fixed cost + (variable cost * diameter)^1.1)")}
            

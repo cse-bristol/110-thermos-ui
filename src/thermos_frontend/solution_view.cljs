@@ -157,23 +157,23 @@
         [:thead
          [:tr
           [:th "Capital costs"]
-          [:th {:title "The capital cost without any financing"} "Principal"]
-          [:th {:title "The additional cost (without any discounting) of financing a loan for the capital"} "Finance"]
-          [:th {:title "The NPV of the loan repayments for the capital cost"} "NPV"]]
+          [:th.has-tt {:title "The capital cost without any financing"} "Principal"]
+          [:th.has-tt {:title "The additional cost (without any discounting) of financing a loan for the capital"} "Finance"]
+          [:th.has-tt {:title "The NPV of the loan repayments for the capital cost"} "NPV"]]
          ]
         [:tbody
-         [:tr [:th {:title "Costs incurred for buying pipework."}
+         [:tr [:th.has-tt {:title "Costs incurred for buying pipework."}
                "Network"]
           (cost network-principal)
           (cost network-finance)
           (cost network-npv)]
          
-         [:tr [:th {:title "Capital costs incurred for connecting to supply locations."} "Supply"]
+         [:tr [:th.has-tt {:title "Capital costs incurred for connecting to supply locations."} "Supply"]
           (cost supply-principal)
           (cost supply-finance)
           (cost supply-npv)]
 
-         [:tr [:th {:title "Capital costs incurred by connecting demands to the network."} "Connection"]
+         [:tr [:th.has-tt {:title "Capital costs incurred by connecting demands to the network."} "Connection"]
           (cost connection-cost-principal)
           (cost connection-cost-finance)
           (cost connection-cost-npv)]
@@ -188,12 +188,12 @@
          [:tr [:th "Operating costs"] [:th "Annual"] [:th "Total"] [:th "NPV"] ]]
 
         [:tbody
-         [:tr [:th {:title "Annual costs related to supply capacity (plant size)."} "Capacity"]
+         [:tr [:th.has-tt {:title "Annual costs related to supply capacity (plant size)."} "Capacity"]
           (cost capacity-cost-annual)
           (cost capacity-cost-total)
           (cost capacity-cost-npv)
           ]
-         [:tr [:th {:title "Annual cost related to the production of heat (inc. losses)."} "Heat"]
+         [:tr [:th.has-tt {:title "Annual cost related to the production of heat (inc. losses)."} "Heat"]
           (cost heat-cost-annual)
           (cost heat-cost-total)
           (cost heat-cost-npv)
@@ -246,9 +246,10 @@
          [:tr [:th "Number of demands"] [:td number-of-demands]]
          [:tr [:th "Total demand"] [:td (format/si-number (* 1000 total-demand)) "Wh/yr"]]
          [:tr
-          {:title (str "This is the total un-diversified demand. "
-                       "Accounting for diversity gives the difference bewteen this and the supply capacity.")}
-          [:th "Total peak"] [:td (format/si-number (* 1000 total-peak)) "Wp"]]
+          [:th.has-tt
+           {:title (str "This is the total un-diversified demand. "
+                        "Accounting for diversity gives the difference bewteen this and the supply capacity.")}
+           "Total peak"] [:td (format/si-number (* 1000 total-peak)) "Wp"]]
          [:tr [:th "Length of network"] [:td (format/si-number total-length) "m"]]
          [:tr [:th "Heat losses"] [:td (format/si-number (* 1000 total-losses)) "Wh/yr ("(format/si-number (/ (* 100 total-losses) total-supply-output)) "%)"]]
          [:tr [:th "Capacity of network"] [:td (format/si-number (* 1000 total-path-capacity)) "Wm"]]]]
