@@ -118,28 +118,29 @@
     (set! (.. ctx -globalAlpha)
           (if filtered 0.25 1)))
 
-  (comment
-    (when (candidate/is-path? candidate)
-      (let [coords (.getCoordinates (candidate geometry-key))
-            start (first coords)
-            end (last coords)
-            start (project (.-y start) (.-x start))
-            end (project (.-y end) (.-x end))
-            ]
-        (set! (.. ctx -font) "10px Sans")
-        (set! (.. ctx -fillStyle) "#000000")
-        (.fillText ctx
-                   (::path/start candidate)
-                   (.-x start) (.-y start))
-        (.fillText ctx
-                   (::path/end candidate)
-                   (.-x end) (.-y end))
-        )))
+  ;; (comment
+  ;;   (when (candidate/is-path? candidate)
+  ;;     (let [coords (.getCoordinates (candidate geometry-key))
+  ;;           start (first coords)
+  ;;           end (last coords)
+  ;;           start (project (.-y start) (.-x start))
+  ;;           end (project (.-y end) (.-x end))
+  ;;           ]
+  ;;       (set! (.. ctx -font) "10px Sans")
+  ;;       (set! (.. ctx -fillStyle) "#000000")
+  ;;       (.fillText ctx
+  ;;                  (::path/start candidate)
+  ;;                  (.-x start) (.-y start))
+  ;;       (.fillText ctx
+  ;;                  (::path/end candidate)
+  ;;                  (.-x end) (.-y end))
+  ;;       )))
   
   (render-geometry (candidate geometry-key) ctx project
                    true false))
 
-(def point-radius 50)
+(def point-radius
+  "The screen-units radius for a Point geometry." 50.0)
 
 (defn render-geometry
   [geom ctx project fill? close?]
