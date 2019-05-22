@@ -421,7 +421,7 @@
 
         ;; produce demand
         feature (cond
-                  given-demand ;; is this sensible? I have no idea
+                  given-demand
                   (assoc feature
                          :annual-demand given-demand
                          :demand-source :given)
@@ -526,7 +526,9 @@
                                       :map-id map-id)))
           (catch Exception e
             (println "Error during import: " (.getMessage e))
-            (.printStackTrace e)))))))
+            (.printStackTrace e)
+            (throw e) ;; so the job gets marked failed
+            ))))))
 
 (queue/consume :imports 1 run-import)
 
