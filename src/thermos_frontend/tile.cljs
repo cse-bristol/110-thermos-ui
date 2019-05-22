@@ -13,8 +13,7 @@
 
             [thermos-frontend.theme :as theme]
 
-            [goog.object :as o]
-            ))
+            [goog.object :as o]))
 
 (declare render-candidate render-geometry render-linestring)
 
@@ -117,10 +116,7 @@
             (if selected theme/dark-grey theme/light-grey)))
 
     (set! (.. ctx -globalAlpha)
-          (if filtered 0.25 1))
-
-    
-    )
+          (if filtered 0.25 1)))
 
   (comment
     (when (candidate/is-path? candidate)
@@ -138,12 +134,12 @@
         (.fillText ctx
                    (::path/end candidate)
                    (.-x end) (.-y end))
-        )
-      ))
+        )))
   
   (render-geometry (candidate geometry-key) ctx project
-     true false)
-  )
+                   true false))
+
+(def point-radius 50)
 
 (defn render-geometry
   [geom ctx project fill? close?]
@@ -158,12 +154,25 @@
       ;; draw the outline
       (when fill? (.fill ctx))
       (.stroke ctx))
+
+    "Point"
+    (do (.beginPath ctx)
+        (let [pt (project (.getY geom) (.getX geom))]
+          (.arc ctx
+                (.-x pt) (.-y pt)
+                point-radius 0 (* 2 Math/PI)))
+        (when fill? (.fill ctx))
+        (.stroke ctx))
+    
     "LineString"
     (do (.beginPath ctx)
       (render-linestring geom ctx project false)
       (.stroke ctx))
-    )
-  )
+
+    ("MultiLinestring" "MultiPolygon" "MultiPoint")
+    (dotimes [n (.getNumGeometries geom)]
+      (render-geometry (.getGeometryN geom n)
+                       ctx project fill? close?))))
 
 (defn render-linestring [line-string ctx project close?]
   (-> line-string
