@@ -36,9 +36,9 @@
   (reagent/atom start-state))
 
 (defn create-control [leaflet-map]
-  [:div
-   [:button.leaflet-control-button
-    {:title "Draw a new connector (c)"
+  [:div.leaflet-control-group.leaflet-bar
+   [:a.leaflet-control-button
+    {:title "Draw a new connector (j)"
      :style {:font-size "28px"
              :color
              (if (:drawing @state) "#00bfff")
@@ -48,7 +48,7 @@
                               (if (:drawing s)
                                 start-state
                                 (assoc start-state :drawing true))))}
-    "⍿"]])
+    "⟜"]])
 
 (defn is-drawing? []
   (:drawing @state))
