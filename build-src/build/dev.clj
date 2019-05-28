@@ -42,6 +42,7 @@
   (let [cljs-builds (edn/read-string (slurp "cljs-builds.edn"))]
     (repl-api/start-figwheel!
      {
+      :figwheel-options {:server-logfile false}
       :build-ids (for [b cljs-builds] (str (:main b)))
       :all-builds
       (for [b cljs-builds]
