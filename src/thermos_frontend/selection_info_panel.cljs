@@ -98,7 +98,12 @@
         )
       (when has-solution
         (for [[row-name class contents]
-              [["In solution" sc-class (cat #(when (candidate/in-solution? %) "yes") "no")]
+              [["In solution" sc-class
+                (cat #(cond
+                        (candidate/in-solution? %) "yes"
+                        (candidate/unreachable? %) "impossible")
+                     "no")
+                ]
                ["Coincidence"
                 nil
                 (num ::solution/diversity rmean "%" 100)
