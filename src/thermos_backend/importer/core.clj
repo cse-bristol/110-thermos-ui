@@ -126,6 +126,9 @@
         
         set-building-type  #(assoc % :subtype (remap-building-type %))
         set-road-type      #(assoc % :subtype (clean-tag (:highway %)))
+        set-specials       #(cond-> %
+                              (= (:osm-id %) "289662492")
+                              (assoc :name "Rothballer Towers"))
         
         query-results (overpass/get-geometry query-area
                                              :include-buildings get-buildings
@@ -140,7 +143,8 @@
              (filter :building)
              (geoio/explode-multis)
              (filter (comp #{:polygon} ::geoio/type))
-             (map set-building-type))
+             (map set-building-type)
+             (map set-specials))
 
         highways
         (->> query-results
