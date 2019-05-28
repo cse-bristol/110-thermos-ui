@@ -6,14 +6,12 @@
             [thermos-frontend.operations :as operations]
             [cljsjs.rbush :as rbush]
             [cljsjs.jsts :as jsts]
+            [cljts.core :as jts]
             [reagent.core :as reagent]
             [goog.object :as o]
             ))
 
-(let [geometry-factory (jsts/geom.GeometryFactory.)
-      geometry-reader (jsts/io.GeoJSONReader. geometry-factory)
-
-      zoom-table
+(let [zoom-table
       (map-indexed vector
                    (into []
                          (map #(/ % 256)
@@ -30,10 +28,8 @@
   TODO we could convert the geojson to jsts in-place and then convert it back?
   "
     [candidate]
-    (let [json-geom (::candidate/geometry candidate)
-          jsts-geom (.read geometry-reader json-geom)
-          ;; jsts-simple-geom (.read geometry-reader
-          ;;                         (::candidate/simple-geometry candidate))
+    (let [jsts-geom (jts/json->geom (::candidate/geometry candidate))
+          
           envelope (.getEnvelopeInternal jsts-geom)
 
           min-x (.getMinX envelope)
@@ -134,8 +130,7 @@
         (js->clj
          (.map (.search spatial-index (clj->js bbox)) #(o/get % "id" nil))))))
 
-
-(defn find-intersecting-candidates-ids
+(defn find-intersecting-candidates
   "Given `doc`, a document, and `shape`, a shape, and possibly having
 a spatial index `index` (recommended), find the candidate IDs of candidates
 that intersect the shape"
@@ -143,7 +138,15 @@ that intersect the shape"
 
   (->> (::document/candidates doc)
        (vals)
-       (filter #(.intersects shape (::jsts-geometry %)))
+       (filter #(.intersects shape (::jsts-geometry %)))))
+
+(defn find-intersecting-candidates-ids
+  "Given `doc`, a document, and `shape`, a shape, and possibly having
+a spatial index `index` (recommended), find the candidate IDs of candidates
+that intersect the shape"
+  [doc shape]
+
+  (->> (find-intersecting-candidates doc shape)
        (map ::candidate/id)))
 
 (defn select-intersecting-candidates
