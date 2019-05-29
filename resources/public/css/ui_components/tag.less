@@ -15,7 +15,25 @@
   margin: 4px;
   position: relative;
   max-width: 100%;
+
+  
 }
+
+.tag.constraint.optional {
+    background: #00ACE6;
+    .tag__body { color: white; }
+}
+
+.tag.constraint.required {
+    background: #ED3027;
+    .tag__body { color: white; }
+}
+
+.tag.solution.impossible {
+    background: #ff00ff;
+    .tag__body { color: white; }
+}
+
 .tag__body {
   padding: 0.2em 0.2em;
   display: inline-block;

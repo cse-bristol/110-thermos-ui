@@ -15,13 +15,16 @@
 
 (declare component)
 
-(defn- category-row [document valuefn candidates]
+(defn- category-row [document valuefn candidates & {:keys [add-classes]}]
   (let [by-value (group-by valuefn candidates)
         chips (remove nil?
                       (for [[value candidates] by-value]
                         (when (and value (not-empty candidates))
                           [tag/component
                            {:key value
+                            :class (when add-classes
+                                     [add-classes (name value)])
+                            
                             :count (count candidates)
                             :body value
                             :close true
@@ -56,8 +59,10 @@
         selected-technologies (mapcat (comp ::solution/technologies ::solution/candidate)
                                       selected-candidates)
         sc-class "selection-table-cell--tag-container"
-        cat (fn [k u]
-              (category-row document #(or (k %) u) selected-candidates))
+        cat (fn [k u & {:keys [add-classes]}]
+              (category-row document #(or (k %) u) selected-candidates
+                            :add-classes add-classes
+                            ))
 
         num (fn [k agg unit & [scale]]
               (let [scale (or scale 1)
@@ -76,7 +81,9 @@
       (for [[row-name class contents]
             [["Type" sc-class (cat ::candidate/type nil)]
              ["Classification" sc-class (cat ::candidate/subtype "Unclassified")]
-             ["Constraint" sc-class (cat ::candidate/inclusion "Forbidden")]
+             ["Constraint" sc-class (cat ::candidate/inclusion "Forbidden"
+                                         :add-classes "constraint")]
+             
              ["Name" sc-class (cat ::candidate/name "None")]
              
              ["Length" nil (num ::path/length  rsum "m")]
@@ -102,7 +109,8 @@
                 (cat #(cond
                         (candidate/in-solution? %) "yes"
                         (candidate/unreachable? %) "impossible")
-                     "no")
+                     "no"
+                     :add-classes "solution")
                 ]
                ["Coincidence"
                 nil

@@ -13,8 +13,9 @@
     count :count
     close :close
     on-select :on-select
-    on-close :on-close}]
-  [:span.tag {:key key}
+    on-close :on-close
+    class :class}]
+  [:span {:key key :class (concat ["tag"] class)}
    (if count
      [:span.tag__counter count])
    [:span.tag__body {:on-click on-select} body]
