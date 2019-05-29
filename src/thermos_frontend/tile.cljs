@@ -13,48 +13,52 @@
 
             [thermos-frontend.theme :as theme]
 
-            [goog.object :as o]
-            ))
+            [goog.object :as o]))
 
 (declare render-candidate render-geometry render-linestring)
 
+(defn projection
+  "Create a projection function"
+  [tile layer]
+
+  (let [coords      (.-coords tile)
+        size        (.getTileSize layer)
+        zoom        (.-z coords)
+        map-control (o/get layer "_map")]
+    (fn [x y]
+      (let [pt (.project map-control
+                         (js/L.latLng x y)
+                         zoom)
+            pt (.unscaleBy pt size)
+            pt (.subtract pt coords)
+            pt (.scaleBy pt size)]
+        pt))))
+
+(defn fix-size [tile layer]
+  (let [size (.getTileSize layer)
+        width (.-x size)
+        height (.-y size)]
+    (.setAttribute tile "width" width)
+    (.setAttribute tile "height" height)))
+
 ;; most of the work is in here - how to paint an individual tile onto the map
 ;; if there is a solution we probably want to show the solution cleanly
-(defn render-tile [has-solution? contents tile map]
+(defn render-tile [has-solution? contents tile layer]
   "Draw a tile.
-  `document` should be a document map (not an atom containing a document map),
+  `document` should be a document layer (not an atom containing a document layer),
   `tile` a canvas element,
-  `map` an instance of our map component's layer class."
+  `layer` an instance of our layer component's layer class."
   (let [coords (.-coords tile)
-        size (.getTileSize map)
+        size (.getTileSize layer)
         ctx (.getContext tile "2d")
         width (.-x size)
         height (.-y size)
         zoom (.-z coords)
-        map-control (o/get map "_map")
-        project (fn [x y]
-                  (let [pt (.project map-control
-                                     (js/L.latLng x y)
-                                     zoom)
-                        pt (.unscaleBy pt size)
-                        pt (.subtract pt coords)
-                        pt (.scaleBy pt size)
-                        ]
-                    pt
-                    ;; [(.-x pt) (.-y pt)]
-                    ))
+        project (projection tile layer)
+        geometry-key ::spatial/jsts-geometry]
 
-        geometry-key
-;        (if (> zoom 15)
-        ::spatial/jsts-geometry
-;          ::spatial/jsts-simple-geometry)
-        ]
-
-    (.setAttribute tile "width" width)
-    (.setAttribute tile "height" height)
-
+    (fix-size tile layer)
     (.clearRect ctx 0 0 width height)
-
     
     (let [paths (atom nil)]
       (doseq [candidate contents]
@@ -62,7 +66,8 @@
           (swap! paths conj candidate)
           (render-candidate zoom has-solution? candidate ctx project geometry-key)))
       (doseq [path @paths]
-        (render-candidate zoom has-solution? path ctx project geometry-key)))))
+        (render-candidate zoom has-solution? path ctx project geometry-key)))
+    ))
 
 (defn render-candidate
   "Draw a shape for the candidate on a map.
@@ -117,33 +122,13 @@
             (if selected theme/dark-grey theme/light-grey)))
 
     (set! (.. ctx -globalAlpha)
-          (if filtered 0.25 1))
-
-    
-    )
-
-  (comment
-    (when (candidate/is-path? candidate)
-      (let [coords (.getCoordinates (candidate geometry-key))
-            start (first coords)
-            end (last coords)
-            start (project (.-y start) (.-x start))
-            end (project (.-y end) (.-x end))
-            ]
-        (set! (.. ctx -font) "10px Sans")
-        (set! (.. ctx -fillStyle) "#000000")
-        (.fillText ctx
-                   (::path/start candidate)
-                   (.-x start) (.-y start))
-        (.fillText ctx
-                   (::path/end candidate)
-                   (.-x end) (.-y end))
-        )
-      ))
+          (if filtered 0.25 1)))
   
   (render-geometry (candidate geometry-key) ctx project
-     true false)
-  )
+                   true false))
+
+(def point-radius
+  "The screen-units radius for a Point geometry." 4.0)
 
 (defn render-geometry
   [geom ctx project fill? close?]
@@ -158,12 +143,25 @@
       ;; draw the outline
       (when fill? (.fill ctx))
       (.stroke ctx))
+
+    "Point"
+    (do (.beginPath ctx)
+        (let [pt (project (.getY geom) (.getX geom))]
+          (.arc ctx
+                (.-x pt) (.-y pt)
+                point-radius 0 (* 2 Math/PI)))
+        (when fill? (.fill ctx))
+        (.stroke ctx))
+    
     "LineString"
     (do (.beginPath ctx)
       (render-linestring geom ctx project false)
       (.stroke ctx))
-    )
-  )
+
+    ("MultiLinestring" "MultiPolygon" "MultiPoint")
+    (dotimes [n (.getNumGeometries geom)]
+      (render-geometry (.getGeometryN geom n)
+                       ctx project fill? close?))))
 
 (defn render-linestring [line-string ctx project close?]
   (-> line-string
@@ -177,3 +175,15 @@
              (.lineTo ctx (.-x pt) (.-y pt)))))))
 
   (when close? (.closePath ctx)))
+
+(defn render-coordinate-seq [point-seq ctx project]
+  (when (> (count point-seq) 1)
+    (let [[coord & t] point-seq]
+      (let [pt;; [x y]
+            (project (.-y coord) (.-x coord))]
+        (.moveTo ctx (.-x pt) (.-y pt)))
+      (doseq [coord t]
+        (let [pt;; [x y]
+              (project (.-y coord) (.-x coord))]
+          (.lineTo ctx (.-x pt) (.-y pt)))))))
+

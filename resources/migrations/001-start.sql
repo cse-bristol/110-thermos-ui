@@ -246,3 +246,14 @@ ADD COLUMN system_messages boolean;
 UPDATE users SET system_messages = TRUE;
 --;;
 ALTER TABLE users ALTER COLUMN system_messages SET DEFAULT TRUE;
+--;;
+DROP TABLE tilecache;
+--;;
+CREATE TABLE tilecache (
+       x int not null,
+       y int not null,
+       z int not null,
+       map_id integer not null references maps(id) on delete cascade,
+       bytes bytea not null,
+       primary key (x, y, z, map_id)
+)

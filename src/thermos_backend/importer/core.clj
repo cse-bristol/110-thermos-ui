@@ -126,6 +126,9 @@
         
         set-building-type  #(assoc % :subtype (remap-building-type %))
         set-road-type      #(assoc % :subtype (clean-tag (:highway %)))
+        set-specials       #(cond-> %
+                              (= (:osm-id %) "289662492")
+                              (assoc :name "Rothballer Towers"))
         
         query-results (overpass/get-geometry query-area
                                              :include-buildings get-buildings
@@ -140,7 +143,8 @@
              (filter :building)
              (geoio/explode-multis)
              (filter (comp #{:polygon} ::geoio/type))
-             (map set-building-type))
+             (map set-building-type)
+             (map set-specials))
 
         highways
         (->> query-results
@@ -421,7 +425,7 @@
 
         ;; produce demand
         feature (cond
-                  given-demand ;; is this sensible? I have no idea
+                  given-demand
                   (assoc feature
                          :annual-demand given-demand
                          :demand-source :given)
@@ -526,7 +530,9 @@
                                       :map-id map-id)))
           (catch Exception e
             (println "Error during import: " (.getMessage e))
-            (.printStackTrace e)))))))
+            (.printStackTrace e)
+            (throw e) ;; so the job gets marked failed
+            ))))))
 
 (queue/consume :imports 1 run-import)
 

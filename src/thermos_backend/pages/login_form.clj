@@ -36,7 +36,19 @@
       [:input.button
        {:style (style :margin :0.1em)
         :type :submit :value "Recover" :name :forgot}]
+      ]
+     [:div
+      [:p "If you do not have an account, you can sign up."]
+      [:p "You can give your email address as your username - if you do, we may use it for:"]
+      [:ol
+        [:li "Telling you about changes or maintenance to THERMOS"]
+        [:li "Asking you about how you are using the application or why you are interested in it"]]
+      [:p "If you do not use your email address, that's fine, but you won't be able to recover your password."]
+      [:p "You can read more about " [:a {:href "/help/data-protection.html"} "how THERMOS uses your data"]]
+      
       [:input.button
        {:style (style :margin :0.1em)
-        :type :submit :value "Create" :name :create}]]]]))
+        :type :submit :value "Create" :name :create}]
+      ]
+     ]]))
 

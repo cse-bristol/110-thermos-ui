@@ -116,7 +116,7 @@
           {:label "In?" :key ::solution/included
            :cellRenderer #(if (data-value %)
                             "✓" "❌")
-           :style #js {"text-align" "right"}
+           :style #js {"textAlign" "right"}
            :width 70
            :flexShrink 0
            :flexGrow 0
