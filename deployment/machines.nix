@@ -75,6 +75,8 @@
       initialScript = create-database;
     };
 
+    systemd.services.postgresql.environment.POSTGIS_GDAL_ENABLED_DRIVERS="ENABLE_ALL";
+
     systemd.services.enable-postgis = {
       path = [pg];
       wantedBy = ["multi-user.target"];
@@ -90,8 +92,8 @@
     systemd.services.thermos =
     {
       wantedBy = ["multi-user.target"];
-      after = ["enable-postgis.service"];
-      requires = ["enable-postgis.service"];
+      after = ["enable-postgis.service" "smtp-key.service"];
+      requires = ["enable-postgis.service"  "smtp-key.service"];
       path = (pkgs.callPackage ./model/path.nix {});
       script =
       let
@@ -100,7 +102,7 @@
           ''
           #! ${pkgs.bash}/bin/bash
           exec 1> >(${pkgs.utillinux}/bin/logger -s -t solver) 2>&1
-          python ${model-path}/main.py "$1" "${model-path}/instances/assumptions.json" "$2"
+          python ${model-path}/main.py "$1" "$2"
           '';
       in
       ''
@@ -108,6 +110,15 @@
         export DISABLE_CACHE=false
         export PG_HOST=127.0.0.1
         export SOLVER_COMMAND=${run-solver}
+        export SMTP_HOST=smtp.hosts.co.uk
+        export SMTP_PORT=25
+        export SMTP_TLS=true
+        export SMTP_USER=thermos-project.eu
+        export SMTP_PASSWORD=$(cat /run/keys/smtp)
+        export SMTP_FROM_ADDRESS="THERMOS <system@thermos-project.eu>"
+        export BASE_URL="https://v5.thermos-project.eu"
+        export WEB_SERVER_DISABLE_CACHE=false
+        export LIDAR_DIRECTORY=${../../lidar}
         ${pkgs.jre}/bin/java -jar ${../target/thermos.jar}
       '';
     };
