@@ -7,7 +7,6 @@
             [thermos-specs.solution :as solution]
             [thermos-frontend.editor-state :as state]
             [thermos-frontend.operations :as operations]
-            [thermos-frontend.inclusion-selector :as inclusion-selector]
             [thermos-frontend.tag :as tag]
             [thermos-frontend.format :refer [si-number local-format]]
             [thermos-util :refer [annual-kwh->kw]]
