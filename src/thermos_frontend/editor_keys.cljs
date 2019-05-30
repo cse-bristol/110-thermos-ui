@@ -11,6 +11,7 @@
             
             [thermos-frontend.supply-parameters :as supply-parameters]
             [thermos-frontend.candidate-editor :as candidate-editor]
+            [thermos-frontend.connector-tool :as connector-tool]
             
             [goog.object :as o]))
 
@@ -74,5 +75,6 @@
         "A" (select-inverse!)
         "e" (edit-demand-or-path!)
         "i" (show-pprint-thing)
+        "j" connector-tool/toggle!
         
         :default))))

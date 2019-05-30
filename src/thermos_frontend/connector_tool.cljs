@@ -35,20 +35,27 @@
 (defonce state
   (reagent/atom start-state))
 
+(defn toggle!
+  "Start drawing if not drawing. Stop drawing if drawing."
+  []
+  (swap! state
+         (fn [s]
+           (if (:drawing s)
+             start-state
+             (assoc start-state :drawing true)))))
+
 (defn create-control [leaflet-map]
   [:div.leaflet-control-group.leaflet-bar
-   [:a.leaflet-control-button
-    {:title "Draw a new connector (j)"
-     :style {:font-size "28px"
-             :color
-             (if (:drawing @state) "#00bfff")
-             :border
-             (if (:drawing @state) "#00bfff")}
-     :on-click #(swap! state (fn [s]
-                              (if (:drawing s)
-                                start-state
-                                (assoc start-state :drawing true))))}
-    "⟜"]])
+   [:div
+    [:button.leaflet-control-button
+     {:title "Draw a new connector (j)"
+      :style {:font-size "28px"
+              :color
+              (if (:drawing @state) "#00bfff")
+              :border
+              (if (:drawing @state) "#00bfff")}
+      :on-click toggle!}
+     "⍿"]]])
 
 (defn is-drawing? []
   (:drawing @state))
@@ -121,8 +128,8 @@
                    (::spatial/jsts-geometry next-candidate))]
            (seq (.nearestPoints op))))))))
 
-(defn- connect-path [candidates path-id vertex-coord vertex-id]
-  (let [path       (get candidates path-id)
+(defn- connect-path [document path-id vertex-coord vertex-id]
+  (let [path       (get (::document/candidates document) path-id)
         path-geom  (::spatial/jsts-geometry path)
         path-start (first (jts/coordinates path-geom))
         path-end   (last (jts/coordinates path-geom))
@@ -133,7 +140,7 @@
       ;; if we're connect to the start or end of an existing line
       ;; all we need to do is insert the geometry we have created
       ;; and all will be well
-      candidates
+      document
 
       ;; in this case we are cutting the line, which means making two
       ;; new lines and deleting the one we're cutting.
@@ -148,21 +155,26 @@
                          ::spatial/jsts-geometry h
                          ::candidate/id (jts/ghash h)
                          ::candidate/geometry (jts/geom->json h)
+                         ::candidate/modified true
                          ::path/end vtx-id)
                 
                 t (assoc path
                          ::spatial/jsts-geometry t
                          ::candidate/id (jts/ghash t)
                          ::candidate/geometry (jts/geom->json t)
+                         ::candidate/modified true
                          ::path/start vtx-id)
                 ]
-            (-> candidates
-                (dissoc path-id)
-                (assoc (::candidate/id h) h
-                       (::candidate/id t) t)))
+            (-> document
+                (update ::document/candidates
+                        #(-> %
+                             (dissoc path-id)
+                             (assoc (::candidate/id h) h
+                                    (::candidate/id t) t)))
+                (update ::document/deletions conj path-id)))
           
           ;; if t is nil then the cut only made one piece for some reason
-          candidates)
+          document)
         
         ))))
 
@@ -203,7 +215,6 @@
             end-id           (jts/ghash
                               (jts/create-point (last spline)))
             
-            
             length           (jts/geodesic-length spline-geometry)
             
             spline-candidate
@@ -211,7 +222,8 @@
              ::candidate/subtype "Connector"
              ::candidate/id       spline-id
              ::candidate/geometry spline-geojson
-
+             ::candidate/modified true
+             
              ::spatial/jsts-geometry spline-geometry
              
              ::path/start  start-id
@@ -221,7 +233,6 @@
             
             ]
 
-        (println "new line length" length)
         ;; if our start-candidate and end-candidate are paths we may
         ;; also need to split those
 
@@ -247,19 +258,18 @@
 
                  ;; split path
                  (= :path (::candidate/type start-candidate))
-                 (update ::document/candidates
-                         connect-path
-                         (::candidate/id start-candidate)
-                         (first spline)
-                         start-id)
+                 (connect-path
+                  (::candidate/id start-candidate)
+                  (first spline)
+                  start-id)
                  
                  (= :path (::candidate/type end-candidate))
-                 (update ::document/candidates
-                         connect-path
-                         (::candidate/id end-candidate)
-                         (last spline)
-                         end-id)
+                 (connect-path
+                  (::candidate/id end-candidate)
+                  (last spline)
+                  end-id)
                  ))))
+        
         (reset! state start-state))
       )))
 

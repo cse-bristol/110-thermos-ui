@@ -6,7 +6,8 @@
             [thermos-specs.solution :as solution]
             [thermos-specs.view :as view]
             [clojure.string :as str]
-            [clojure.walk :refer [prewalk]]))
+            [clojure.walk :refer [prewalk]]
+            [com.rpl.specter :as sr :refer-macros [setval]]))
 
 (s/def ::document
   (s/keys :req [::candidates
@@ -36,8 +37,10 @@
 
                 ::mechanical-cost-exponent
                 ::civil-cost-exponent
+
                 ]
-          :opt [ ::solution/summary ]))
+          :opt [::solution/summary
+                ::deletions]))
 
 (defn redundant-key
   "Make a spec which checks a map, so that for every map entry, the
@@ -51,73 +54,101 @@
   (s/every (fn [[id val]] (and (map? val)
                                (= id (key val)))) :kind map? :into {}))
 
-;; (defn is-topologically-valid
-;;   "A candidate set is topologically valid when every path connects only to junctions or buildings.
-;; This means that anything with type :path has suitable path-start and path-end"
-;;   [candidates]
-
-;;   (let [paths
-;;         (filter
-;;          #(= (::candidate/type %) :path)
-;;          (vals candidates))
-
-;;         path-ids
-;;         (into #{} (mapcat ::candidate/connections paths))
-
-;;         endpoints
-;;         (->> paths
-;;              (mapcat #(vector (::candidate/path-start %)
-;;                               (::candidate/path-end %)))
-;;              (into #{}))
-;;         ]
-
-;;     ;; every endpoint must be a building ID or a junction ID
-;;     ;; but this is always true because junction IDs may be anything
-
-;;     ;; so the only real rule is that no endpoint may be a path ID:
-;;     (and (every? (comp not path-ids) endpoints)
-;;          ;; and also that no path may be a loop, as that would be silly
-;;          (every? #(not= (::candidate/path-start %)
-;;                         (::candidate/path-end %))
-;;                  paths))
-;;     ))
-
+(s/def ::deletions (s/* ::candidate/id))
 
 (s/def ::candidates
   (s/and
    (redundant-key ::candidate/id)
-   ;;   is-topologically-valid
    (s/map-of ::candidate/id ::candidate/candidate)))
+
+(defn- is-interesting? [candidate]
+  (or (::candidate/modified candidate)
+      (#{:optional :required} (::candidate/inclusion candidate))))
+
+(defn- keep-interesting-candidates
+  "Given a document, remove any candidates which are not either ::candidate/modified,
+  or having ::candidate/inclusion :optional or :required"
+  [doc]
+  {:test #(assert
+           (= (set (keys (::candidates
+                          (keep-interesting-candidates
+                           {::candidates {"one" {::candidate/inclusion :optional}
+                                          "two" {::candidate/inclusion :forbidden
+                                                 ::candidate/modified true}
+                                          "three" {}
+                                          "four" {::candidate/inclusion :forbidden}}}
+                           ))))
+              #{"one" "two"}))}
+  (->> doc
+       (sr/setval
+        [::candidates sr/MAP-VALS
+         (sr/not-selected?
+          (some-fn
+           ::candidate/modified
+           (comp #{:optional :required} ::candidate/inclusion)))]
+        sr/NONE)))
+
+(defn- is-transient-key?
+  "A key is transient if it's namespaced and not within thermos-specs."
+  [x]
+  {:test #(assert (and (is-transient-key? :some.ns/kw)
+                       (not (is-transient-key? :some-kw))
+                       (not (is-transient-key? ::some-kw))
+                       (not (is-transient-key? 1))
+                       (not (is-transient-key? "str"))))}
+  (and (keyword? x)
+       (namespace x)
+       (not (str/starts-with? (namespace x) "thermos-specs"))))
+
+(def ALL-MAPS
+  "A specter navigator that navigates to all the maps in a structure."
+  (sr/recursive-path
+   [] p
+   (sr/cond-path
+    map?
+    (sr/continue-then-stay sr/MAP-VALS p)
+
+    coll?
+    [sr/ALL p]
+    )))
+
+(defn- remove-transient-keys
+  "Some values are stored in the document which we don't want to persist.
+  They are all stored in maps under namespaced keywors which are not
+  the thermos-specs namespace or below.
+
+  This function removes all these keys"
+  [doc]
+  {:test #(assert
+           (and
+            (= (remove-transient-keys {}) {})
+            (= (remove-transient-keys {::keep-this 1}) {::keep-this 1})
+            (= (remove-transient-keys {::keep-this 1
+                                       :keep-this-also 2
+                                       :but-remove/this 3})
+               {::keep-this 1 :keep-this-also 2})
+            (= (remove-transient-keys
+                {::recursively {::keep-this 1
+                                :keep-this-also 2
+                                :but-remove/this 3}})
+               {::recursively {::keep-this 1 :keep-this-also 2}})
+            (= (remove-transient-keys
+                {::in-collections [{:remove/this 1} {:remove/that 2}]})
+               {::in-collections [{} {}]})))}
+  
+  (->> doc
+       (sr/setval
+        [ALL-MAPS sr/MAP-KEYS is-transient-key?]
+        sr/NONE)))
 
 (defn keep-interesting
   "Return a version of document in which only the interesting bits are retained.
   This strips off anything which is not part of one of the specs."
   [document]
 
-  (let [filter-forbidden
-        (fn [candidates]
-          (into {}
-                (filter (fn [[_ cand]]
-                          (#{:optional :required} (::candidate/inclusion cand)))
-                        candidates)))
-
-        document
-        (update-in document [::candidates] filter-forbidden)
-
-        spec-key?
-        (fn [x]
-          (or (not (keyword? x))
-              (not (namespace x))
-              (str/starts-with? (namespace x) "thermos-specs")))
-
-        remove-nonspec-keys
-        (fn [x]
-          (if (map? x)
-            (select-keys x (filter spec-key? (keys x)))
-            x))
-        ]
-
-    (prewalk remove-nonspec-keys document)))
+  (->> document
+       (keep-interesting-candidates)
+       (remove-transient-keys)))
 
 (defn map-candidates
   "Go through a document and apply f to all the indicated candidates."
@@ -148,7 +179,6 @@
 
 (defn has-solution? [document]
   (contains? document ::solution/state))
-
 
 (defn path-cost [path document]
   (path/cost
