@@ -143,22 +143,22 @@
   "Insert some candidates into a document map, but preserve
   candidates which have user changes on them"
   [document new-candidates]
-
-  (update
-   document
-   ::document/candidates
-   (fn [current-candidates]
-     (persistent!
-      (reduce
-       (fn [candidates new-candidate]
-         (let [candidate-id (::candidate/id new-candidate)]
-           (if (get candidates candidate-id) ;; look up new candidate's ID
-             ;; in the existing candidates.
-             candidates ;; If it already exists, don't change anything
-             (assoc! candidates candidate-id new-candidate))))
-       (transient (or current-candidates {}))
-       new-candidates)
-      ))))
+  
+  (let [deletions (::document/deletions document)]
+    (update
+     document
+     ::document/candidates
+     (fn [current-candidates]
+       (persistent!
+        (reduce
+         (fn [candidates new-candidate]
+           (let [candidate-id (::candidate/id new-candidate)]
+             (if (get candidates candidate-id) ;; look up new candidate's ID
+               ;; in the existing candidates.
+               candidates ;; If it already exists, don't change anything
+               (assoc! candidates candidate-id new-candidate))))
+         (transient (or current-candidates {}))
+         (remove (comp deletions ::candidate/id) new-candidates)))))))
 
 (defn deselect-candidates
   "Removes the given candidates from the current selection."
