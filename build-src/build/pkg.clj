@@ -6,15 +6,11 @@
             [badigeon.clean :as clean]
             [badigeon.compile :as compile]
             [badigeon.classpath :as classpath]
-            [build.uberjar :as uberjar]))
-
-(defmacro red [& body]
-  `(println "\u001B[31m"
-            ~@body
-            "\u001B[0m"))
+            [build.uberjar :as uberjar]
+            [clojure.term.colors :refer :all]))
 
 (defn build-jar [{debug-optimizations :debug-optimizations}]
-  (red "clean")
+  (println (on-cyan (white "clean")))
 
   (clean/clean "target")
 
@@ -22,7 +18,8 @@
     (edn/read-string (slurp "cljs-builds.edn")))
 
   (doseq [build cljs-builds]
-    (red "compile clojurescript for" (:main build))
+    (println (on-cyan (white "compile clojurescript for" (bold (:main build)))))
+    
     (cljs/build
      "src"
      (if debug-optimizations
@@ -38,13 +35,13 @@
               :infer-externs true
               :optimizations :advanced))))
 
-  (red "compile less to css")
+  (println (on-cyan (white "compile less to css")))
   (less/build
    {:source-paths ["resources"]
     :target-path "target/resources/"
     :compression true})
 
-  (red "compile clojure")
+  (println (on-cyan (white "compile clojure")))
   (compile/compile
    '[thermos-backend.core]
    {:compile-path "target/classes"
@@ -57,7 +54,7 @@
   ;; library for doing this at the moment. Lots of people seem to have
   ;; made 95% of one, including depstar, and I am hacking the final 5%
   ;; here:
-  (red "create jar")
+  (println (on-cyan (white "create jar")))
   (uberjar/create-uberjar
    "target/thermos.jar"
    :classpath (classpath/make-classpath {:aliases [:server :jar]})
@@ -67,6 +64,4 @@
               :Specification-Vendor "Forward Dynamics"
               :Implementation-Title "com.sun.media.imageio"
               :Implementation-Version "1.1"
-              :Implementation-Vendor "Forward Dynamics"
-              }
-   ))
+              :Implementation-Vendor "Forward Dynamics"}))

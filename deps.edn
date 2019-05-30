@@ -16,7 +16,9 @@
    :main-opts ["-m" "build.core"]
 
    :extra-deps
-   {badigeon/badigeon
+   {clojure-term-colors {:mvn/version "0.1.0"}
+
+    badigeon/badigeon
     {:git/url "https://github.com/EwenG/badigeon.git"
      :sha "dca97f9680a6ea204a2504c4414cafc4ba182a83"
      :tag "0.0.6"}
