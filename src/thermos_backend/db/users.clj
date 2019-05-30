@@ -29,6 +29,7 @@
 (defn users []
   (-> (h/select :*)
       (h/from :users)
+      (h/order-by :auth :id)
       (db/fetch!)))
 
 (defn user-rights
