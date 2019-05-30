@@ -19,7 +19,9 @@
   (require (symbol (namespace sym)))
   (resolve sym))
 
-(defn start-dev [{nrepl-handler :nrepl-handler}]
+(defn start-dev [{nrepl-handler :nrepl-handler
+                  debug-optimizations :debug-optimizations}]
+  
   (reset! repl-server
           (nrepl/start-server :handler (require-and-resolve nrepl-handler)))
   
@@ -49,7 +51,11 @@
         {:id (str (:main b))
          :figwheel true
          :source-paths ["src"]
-         :compiler b})
+         :compiler (cond-> b
+                     debug-optimizations
+                     (assoc :pretty-print true
+                            :pseudo-names true)
+                     )})
       }))
 
   ;; start less autobuilder

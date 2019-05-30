@@ -13,8 +13,8 @@
             ~@body
             "\u001B[0m"))
 
-(defn build-jar []
-  (red "CLEAN TARGET")
+(defn build-jar [{debug-optimizations :debug-optimizations}]
+  (red "clean")
 
   (clean/clean "target")
 
@@ -22,26 +22,29 @@
     (edn/read-string (slurp "cljs-builds.edn")))
 
   (doseq [build cljs-builds]
-    (red "cljs compile" (:main build))
+    (red "compile clojurescript for" (:main build))
     (cljs/build
      "src"
-     (assoc build
-            :preloads nil
-            :infer-externs true
-            ;; for help with symbol mangling, swap
-            ;; optimizations advanced for the lower 2.
-            :optimizations :advanced
-            ;; :pretty-print true 
-            ;; :pseudo-names true
-            )))
+     (if debug-optimizations
+       (assoc build
+              :preloads nil
+              :infer-externs true
+              ;:optimizations :advanced
+              :pretty-print true 
+              :pseudo-names true)
+       
+       (assoc build
+              :preloads nil
+              :infer-externs true
+              :optimizations :advanced))))
 
-  (red "less -> css")
+  (red "compile less to css")
   (less/build
    {:source-paths ["resources"]
     :target-path "target/resources/"
     :compression true})
 
-  (red "clj backend compile")
+  (red "compile clojure")
   (compile/compile
    '[thermos-backend.core]
    {:compile-path "target/classes"
@@ -54,7 +57,7 @@
   ;; library for doing this at the moment. Lots of people seem to have
   ;; made 95% of one, including depstar, and I am hacking the final 5%
   ;; here:
-  (red "assemble uberjar")
+  (red "create jar")
   (uberjar/create-uberjar
    "target/thermos.jar"
    :classpath (classpath/make-classpath {:aliases [:server :jar]})
