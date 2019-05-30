@@ -3,7 +3,7 @@
             [clojure.string :as string]))
 
 (defn- project-card [project]
-  [:div.card
+  [:div.card {:style {:flex 1}}
    [:h1 [:a {:href (str "/project/" (:id project))}
          (if (string/blank? (:name project))
            "The project with no name"
@@ -15,19 +15,22 @@
 (defn landing-page [user projects]
   (page
    {:title (str "Welcome " user)}
-   [:div.container
-    [:div.left-area
+   [:div
+    [:div.flex-cols.card
      (if (seq projects)
-       (for [project projects]
-         (project-card project)
-         )
-       [:div
-        [:h1 "You have no projects"]
-        [:div "Click " [:em "New Project"] " to begin"]
-        ]
+       [:h1 "You are participating in " (count projects) " projects"]
+       [:h1 "You have no projects"])
+     [:a.button {:style {:margin-left "auto"}
+                 :href "/project/new"} "New Project"]]
+    
+    [:div {:style {:margin-top "1em"
+                   :display "flex"
+                   :flex-direction "row"
+                   :flex-wrap "wrap"
+                   }}
+     (for [project projects]
+       (project-card project)
        )
      ]
-    [:div.right-area
-     [:a.button {:href "/project/new"} "New Project"]
-     ]]
+    ]
    ))

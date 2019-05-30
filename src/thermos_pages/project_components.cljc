@@ -101,7 +101,7 @@
 (rum/defc project-page-body [project]
   (let [am-admin (:user-is-admin project)]
     [:div
-     [:div.card
+     [:div.card {:style {:margin-bottom "2em"}}
       [:div.flex-cols
        [:div {:style {:flex-grow 1}}
         (let [d (:description project)]
