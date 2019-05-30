@@ -303,7 +303,8 @@
                         (-> (editor-page (:name info)
                                          (:content info)
                                          (when-not info
-                                           (maps/get-map-centre map-id)))
+                                           (maps/get-map-bounds map-id)))
+                            
                             (response/response)
                             (response/status 200)
                             (response/content-type "text/html")))

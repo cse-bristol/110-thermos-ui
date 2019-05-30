@@ -57,14 +57,11 @@
        ;; default-document
        (operations/move-map
         default-document
-        (let [{x :x y :y} (preload/get-value :map-centre)]
-          {:north (+ y 0.05)
-           :south (- y 0.05)
-           :east  (+ x 0.05)
-           :west  (- x 0.05)}
-          )
-        )
-       ))))
+        (let [bounds (preload/get-value :map-bounds)]
+          {:north (:y-max bounds)
+           :south (:y-min bounds)
+           :east  (:x-max bounds)
+           :west  (:x-min bounds)}))))))
 
 (set! js/thermos_initial_state nil)
 

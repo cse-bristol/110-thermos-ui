@@ -264,10 +264,27 @@
 
           (heat-density/colour-float-matrix new-tile new-maximum))))))
 
+
 (defn get-map-centre
   "Get the lat/lon coordinates for the centre of the map"
   [map-id]
-  (-> (h/select :*)
+  (-> (h/select
+       :map-id
+       [(st/x :envelope) :x]
+       [(st/y :envelope) :y])
+      (h/from :map-centres)
+      (h/where [:= :map-id map-id])
+      (db/fetch-one!)))
+
+(defn get-map-bounds
+  "Get the map boundingbox"
+  [map-id]
+  (-> (h/select
+       :map-id
+       [(st/xmin :envelope) :x-min]
+       [(st/xmax :envelope) :x-max]
+       [(st/ymin :envelope) :y-min]
+       [(st/ymax :envelope) :y-max])
       (h/from :map-centres)
       (h/where [:= :map-id map-id])
       (db/fetch-one!)))

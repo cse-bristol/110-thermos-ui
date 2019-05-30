@@ -257,3 +257,34 @@ CREATE TABLE tilecache (
        bytes bytea not null,
        primary key (x, y, z, map_id)
 )
+--;;
+DROP TABLE map_centres;
+--;;
+CREATE TABLE map_centres AS
+SELECT map_id, envelope FROM
+( SELECT map_id, ST_Envelope(ST_Collect(geometry)) envelope
+  FROM candidates INNER JOIN buildings on candidates.id = buildings.id
+  GROUP BY map_id
+) centroids;
+--;;
+CREATE OR REPLACE FUNCTION update_map (_map_id int)
+RETURNS void
+AS $$
+   BEGIN
+     DELETE FROM map_centres WHERE map_id = _map_id;
+     INSERT INTO map_centres
+     (SELECT map_id, envelope FROM
+      (SELECT map_id, ST_Envelope(ST_Collect(geometry)) envelope
+       FROM candidates INNER JOIN buildings on candidates.id = buildings.id
+       WHERE map_id = _map_id
+       GROUP BY map_id
+       ) a);
+
+     DELETE FROM map_icons WHERE map_id = _map_id;
+     INSERT INTO map_icons (map_id, png)
+            values (_map_id, map_icon(_map_id));
+
+     DELETE FROM tilecache WHERE map_id = _map_id;
+     DELETE FROM tilemaxima WHERE map_id = _map_id;
+   END;
+$$ LANGUAGE plpgsql;

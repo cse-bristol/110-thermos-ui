@@ -8,14 +8,14 @@
 
 (defn editor-page [name
                    initial-content
-                   map-centre]
+                   map-bounds]
   (str
    (html
     [:head
      (preloaded-values
       {:initial-state initial-content
        :name name
-       :map-centre map-centre})
+       :map-bounds map-bounds})
      [:title (str "THERMOS - " (or name "New network"))]
      [:meta {:charset "UTF-8"}]
      [:meta {:name :viewport :content "width=device-width, initial-scale=1"}]
