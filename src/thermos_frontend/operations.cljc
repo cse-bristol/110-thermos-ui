@@ -144,7 +144,7 @@
   candidates which have user changes on them"
   [document new-candidates]
   
-  (let [deletions (::document/deletions document)]
+  (let [deletions (set (::document/deletions document))]
     (update
      document
      ::document/candidates
