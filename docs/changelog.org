@@ -1,6 +1,11 @@
 #+TITLE: THERMOS Changelog
 
 * Version 5
+** 04 June 2019
+- Added some documentation about use of user data in the CSE thermos installation.
+- Switched to an azimuthal equidistant projection for connector creation.
+  This should make the connectors more sensible.
+- Added a tool for introducing new connections into a problem.
 ** 17 May 2019
 
 - Wrote some more documentation
