@@ -59,6 +59,7 @@
                ]
 
     [rc/v-split
+     :style {:height :100%}
      :initial-split (or @h-split-pos 75)
      :on-split-change #(reset! h-split-pos %)
      :margin "0"
@@ -128,16 +129,18 @@
                [:span "Running"]
                [:span "Number " position " in queue"]))
            ]])
-       
-       (case (or @selected-tab :candidates)
-         :candidates
-         [map-page state/state]
 
-         :parameters
-         [model-parameters/parameter-editor state/state]
+       [:div {:style {:overflow-y :auto
+                      :flex 1}}
+        (case (or @selected-tab :candidates)
+          :candidates
+          [map-page state/state]
 
-         :solution
-         [solution-view/component state/state])
+          :parameters
+          [model-parameters/parameter-editor state/state]
+
+          :solution
+          [solution-view/component state/state])]
        
        [popover/component state/state]
        [toaster/component]]
