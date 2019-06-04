@@ -44,8 +44,7 @@
 (def white "#ffffff")
 (def light-grey "#bbbbbb")
 (def dark-grey "#555555")
-(def green "#98fb98")
-(def cyan "#00ccaa")
+(def cyan "#ffd700")
 (def magenta "#ff00ff")
 
 (def white-light-grey-stripes
