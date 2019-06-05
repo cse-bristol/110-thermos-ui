@@ -4,11 +4,12 @@
 * Version 5
 ** 04 June 2019
 - Added some documentation about use of user data in the CSE thermos installation
-- Switched to an azimuthal equidistant projection for connector creation
+- Switched to an azimuthal equidistant projection for connector creation.
   This should make the connectors more sensible
 - Added a tool for introducing new connections into a problem
 - Swapped the green colour (not in solution) for yellow
 - Added colours to the selection info panel to act as a key to the map colours
+- Added the necessary EU funding statement to the front page
 ** 17 May 2019
 
 - Wrote some more documentation
