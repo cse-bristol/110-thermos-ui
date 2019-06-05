@@ -38,7 +38,9 @@
     (when on-save [:button {:on-click on-save} "Save"])]])
 
 (rum/defc version-list-widget [map-id versions]
-  [:div {:on-click (fn-js [] (close-dialog!))}
+  [:div {:on-click (fn-js [] (close-dialog!))
+         :style {:max-height :70%
+                 :overflow-y :auto}}
    [:table
     [:thead
      [:tr [:th "Date saved"] [:th "Author"] [:th "Optimisation"] [:th]]]
