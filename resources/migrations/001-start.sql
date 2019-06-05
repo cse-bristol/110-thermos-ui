@@ -288,3 +288,12 @@ AS $$
      DELETE FROM tilemaxima WHERE map_id = _map_id;
    END;
 $$ LANGUAGE plpgsql;
+--;;
+ALTER TABLE users
+ADD COLUMN login_count integer;
+--;;
+UPDATE users SET login_count = 0;
+--;;
+ALTER TABLE users ALTER COLUMN login_count SET DEFAULT 0;
+
+

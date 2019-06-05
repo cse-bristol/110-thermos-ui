@@ -114,6 +114,13 @@
       (:password)
       (->> (hash/check password))))
 
+(defn logged-in! [user-id]
+  {:pre [(string? user-id)]}
+  (-> (h/update :users)
+      (h/sset {:login-count (sql/call :+ :login-count 1)})
+      (h/where [:= :id user-id])
+      (db/execute!)))
+
 (defn gen-reset-token!
   "Generate a reset token for `user-id` and return it.
   If there is no user for `user-id` return nil."

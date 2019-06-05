@@ -10,7 +10,8 @@
             [clojure.string :as string]
             [thermos-backend.pages.login-form :refer [login-form]]
             [thermos-backend.current-uri :refer [*current-uri*]]
-            [clojure.tools.logging :as log]))
+            [clojure.tools.logging :as log]
+            [thermos-backend.db.users :as users]))
 
 (def ^:dynamic *current-user* nil)
 
@@ -95,12 +96,14 @@
   (let [email (string/lower-case email)]
     (if (db/correct-password? email password)
       (do (log/info email "logged in")
+          (users/logged-in! email)
           (-> (response/redirect (or redirect-to "/"))
               (update :session assoc ::user-id email)))
       (do (log/info email "login failed!")
           (response/redirect "/login?flash=failed")))))
 
 (defn handle-logout []
+  (log/info (:id *current-user*) "logged out")
   (-> (response/redirect "/")
       (update :session dissoc ::user-id)))
 

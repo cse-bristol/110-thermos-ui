@@ -33,3 +33,9 @@
                 %
                 :else
                 (format "private, max-age=%d" max-age))))
+
+(defn wrap-no-store [handler]
+  (fn [request]
+    (let [response (handler request)]
+      (and response (no-store response)))))
+

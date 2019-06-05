@@ -49,7 +49,7 @@
                          lm)))))))
 
 (defroutes site-routes
-  auth/auth-routes
+  (-> auth/auth-routes (cache-control/wrap-no-store))
 ;;  data/data-routes
   pages/page-routes)
 
