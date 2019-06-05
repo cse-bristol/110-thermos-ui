@@ -143,7 +143,11 @@
        (if purge
          (queue/erase (keyword queue-name))
          (queue/clean-up (keyword queue-name)))
-       (response/redirect "/admin"))))
+       (response/redirect "/admin"))
+
+     (wrap-json-response
+      (GET "/map-bounds" []
+        (response/response (maps/get-map-bounds-as-geojson))))))
     
   (auth/restricted
    {:logged-in true}

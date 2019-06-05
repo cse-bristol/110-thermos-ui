@@ -278,16 +278,34 @@
 
 (defn get-map-bounds
   "Get the map boundingbox"
-  [map-id]
-  (-> (h/select
-       :map-id
-       [(st/xmin :envelope) :x-min]
-       [(st/xmax :envelope) :x-max]
-       [(st/ymin :envelope) :y-min]
-       [(st/ymax :envelope) :y-max])
-      (h/from :map-centres)
-      (h/where [:= :map-id map-id])
-      (db/fetch-one!)))
+  ([map-id]
+   (-> (h/select
+        :map-id
+        [(st/xmin :envelope) :x-min]
+        [(st/xmax :envelope) :x-max]
+        [(st/ymin :envelope) :y-min]
+        [(st/ymax :envelope) :y-max])
+       (h/from :map-centres)
+       (h/where [:= :map-id map-id])
+       (db/fetch-one!))))
+
+(defn get-map-bounds-as-geojson []
+  (let [bounds
+        (-> (h/select
+             :map-centres.map-id :maps.name
+             [(sql/call :json (st/asgeojson :envelope)) :envelope])
+            (h/left-join :maps [:= :maps.id :map-centres.map-id])
+            (h/from :map-centres)
+            (db/fetch!))
+        ]
+    {:type :FeatureCollection
+     :features
+     (for [bound bounds]
+       {:type :Feature
+        :geometry (:envelope bound)
+        :id (:map-id bound)
+        :properties {:id (:map-id bound)
+                     :name (:name bound)}})}))
 
 (defn get-icon
   "Try and render an icon for the map"
