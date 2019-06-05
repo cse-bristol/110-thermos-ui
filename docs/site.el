@@ -57,9 +57,11 @@ attributes are not supported \(see `org-export-read-attribute')."
       (org-html-postamble nil)
       (org-html-head-include-default-style nil)
       (org-html-head-include-scripts nil)
+      (org-export-with-date nil)
       
       (org-publish-project-alist
        `(("docs-org"
+          :time-stamp-file nil
           :base-directory ,default-directory
           :publishing-directory ,(concat default-directory "../resources/help/")
           :recursive t

@@ -3,7 +3,6 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2019-06-04 Tue 15:25 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Data Protection</title>
@@ -30,7 +29,7 @@ This document enumerates all the ways in which we (as in, the THERMOS project co
 </p>
 
 <p>
-If you don't like this, you can run your own copy of THERMOS, in which case you will be in charge of your data.
+If you don't like this, you will soon be able to run your own copy of THERMOS, in which case you will be in charge of your data. The application will be licensed as free software when development is complete.
 </p>
 
 <div id="outline-container-org5d802df" class="outline-2">
@@ -51,8 +50,8 @@ You are allowed to use this copy of the application subject to the understanding
 <ul class="org-ul">
 <li>The application may disappear at any time. 
 However, we will provide you with your own data so long as we still have access to it ourselves.</li>
-<li>The program's outputs may be nonsense</li>
-<li>The system's reliability is arbitrary</li>
+<li>The program's outputs should not be relied upon at the moment</li>
+<li>The system's reliability or availability should not be relied up on at the moment</li>
 </ul></li>
 <li>You are using a shared and limited resource, so please don't be silly</li>
 </ol>
@@ -91,7 +90,7 @@ If you do give us your email address, we may send you emails for the purpose of:
 
 <p>
 A session cookie will be stored on your computer when you login. 
-These are a technical detail required to remember that you are logged in, and are explicitly allowed without confirmation under the EU legislation about cookies.
+Session cookies are a mechanism needed for the application to remember that you are logged in, and are explicitly allowed without confirmation under the EU legislation about cookies.
 </p>
 
 <p>
@@ -106,7 +105,7 @@ We also record about your user account:
 <li>How many participants are collaborating on projects</li>
 <li>How large the maps and networks you create are</li>
 <li><p>
-The geographic location of your maps and networks.
+The geographic location (bounding box) of your maps and networks.
 </p>
 
 <p>
@@ -134,7 +133,11 @@ If you extend project access to someone else, they will be able to see all the d
 </p>
 
 <p>
-All communications to the server are encrypted; data is not encrypted at rest within the machine, so an attacker who gained privileged access to the server could view all data anyone has uploaded.
+All communications to the server are encrypted, so an attacker with access to the network infrastructure between your computer and the server would not be able to view the data transmitted.
+</p>
+
+<p>
+Your data is not encrypted at rest on the server, so an attacker who gained privileged access to the machine could view all data anyone has uploaded.
 </p>
 </div>
 </div>
