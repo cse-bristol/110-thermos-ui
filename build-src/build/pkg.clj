@@ -18,7 +18,7 @@
     (edn/read-string (slurp "cljs-builds.edn")))
 
   (doseq [build cljs-builds]
-    (println (on-cyan (white "compile clojurescript for" (bold (:main build)))))
+    (println (on-cyan (white "compile clojurescript for " (bold (:main build)))))
     
     (cljs/build
      "src"
