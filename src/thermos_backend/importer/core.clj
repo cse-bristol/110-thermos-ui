@@ -10,6 +10,7 @@
             [thermos-importer.overpass :as overpass]
             [thermos-importer.lidar :as lidar]
             [thermos-importer.svm-predict :as svm]
+            [thermos-importer.lm-predict :as lm]
             [thermos-importer.spatial :as topo]
             [thermos-importer.util :refer [has-extension file-extension]]
 
@@ -49,18 +50,6 @@
 
 (defn- keyword-upcase-uscore [s]
   (keyword (str/replace s "_" "-")))
-
-(defn- load-model [name]
-  (-> name
-      (io/resource)
-      (slurp)
-      (json/read-str :key-fn keyword-upcase-uscore)
-      (svm/predictor)))
-
-(def svm-space-3d (load-model "thermos_backend/importer/space-3d.json"))
-(def svm-space-2d (load-model "thermos_backend/importer/space-2d.json"))
-(def svm-water-3d (load-model "thermos_backend/importer/water-3d.json"))
-(def svm-water-2d (load-model "thermos_backend/importer/water-2d.json"))
 
 (defn queue-import
   "Put an import job into the queue - at the moment :map-id is the only
@@ -185,7 +174,53 @@
     "Static caravan"
     "Cabin"})
 
-(defn- run-svm-models [x degree-days]
+(def svm-range-limit 1.5)
+
+(defn- load-svm [name]
+  (-> name
+      (io/resource)
+      (slurp)
+      (json/read-str :key-fn keyword-upcase-uscore)
+      (svm/predictor)))
+
+(defn- load-lm [name]
+  (-> name
+      (io/resource)
+      (slurp)
+      (json/read-str :key-fn keyword-upcase-uscore)
+      (lm/predictor)))
+
+(def svm-space-3d (load-svm "thermos_backend/importer/space-svm-3d.json"))
+(def svm-space-2d (load-svm "thermos_backend/importer/space-svm-2d.json"))
+(def svm-water-3d (load-svm "thermos_backend/importer/water-svm-3d.json"))
+(def svm-water-2d (load-svm "thermos_backend/importer/water-svm-2d.json"))
+
+(def lm-space-3d (load-lm "thermos_backend/importer/space-lm-3d.json"))
+(def lm-space-2d (load-lm "thermos_backend/importer/space-lm-2d.json"))
+(def lm-water-3d (load-lm "thermos_backend/importer/water-lm-3d.json"))
+(def lm-water-2d (load-lm "thermos_backend/importer/water-lm-2d.json"))
+
+(defn- svm-or-lm
+  "Run an svm on x; if it works, but the range result is out of bounds,
+  run the lm instead. If that works, but the lm result is negative,
+  return the svm value. Otherwise return the svm result, or nil if
+  nothing worked.
+
+  This assumes that if the svm doesn't work (wrong predictors) the lm
+  also won't work."
+  [svm lm x]
+  (let [svm-result ^doubles (svm x)]
+    (when svm-result
+      (let [svm-value (aget svm-result 0)
+            svm-range (aget svm-result 1)]
+        (if (> svm-range 1.5)
+          (let [lm-value ^double (lm x)]
+            (if (and lm-value (> lm-value 0))
+              lm-value
+              svm-value))
+          svm-value)))))
+
+(defn- run-svm-models [x sqrt-degree-days]
   (let [x (->> (for [[k v] x
                      :when (and (keyword? k)
                                 (or (= :residential k)
@@ -193,13 +228,17 @@
                  [(keyword (name k))
                   (if (= :residential k) (boolean v) v)])
                (into {}))
-        space3 (svm-space-3d x)
-        water3 (svm-water-3d x)
-        space-prediction  (or space3 (svm-space-2d x) 0)
-        water-prediction  (or water3 (svm-water-2d x) 0)
-        space-requirement (* space-prediction (Math/sqrt degree-days))]
-    {:annual-demand (+ space-prediction water-prediction)
-     :demand-source (if space3 :svm-3 :svm-2)}))
+        space3 (svm-or-lm svm-space-3d lm-space-3d x)]
+    (if space3
+      ;; assuming the water3 model works if the space3 one does
+      (let [water3 (svm-or-lm svm-water-3d lm-water-3d x)]
+        {:annual-demand (+ (* space3 sqrt-degree-days) water3)
+         :demand-source :regression-3d})
+
+      (let [space2 (svm-or-lm svm-space-2d lm-space-2d x)
+            water2 (svm-or-lm svm-water-2d lm-water-2d x)]
+        {:annual-demand (+ (* space2 sqrt-degree-days) water2)
+         :demand-source :regression-3d}))))
 
 (def peak-constant 21.84)
 (def peak-gradient 0.0004963)
@@ -399,7 +438,7 @@
 
 (defn- produce-demand
   "Make sure the feature has an :annual-demand and a :peak-demand"
-  [feature degree-days]
+  [feature sqrt-degree-days]
   (let [given-demand (as-double (:annual-demand feature))
         given-height (as-double (:height feature))
         given-floor-area (as-double (:floor-area feature))
@@ -441,7 +480,7 @@
                          (run-svm-models (assoc feature
                                                 :residential residential
                                                 ::lidar/height height)
-                                         degree-days)))
+                                         sqrt-degree-days)))
 
         ;; produce peak
         given-peak (as-double (:peak-demand feature))
@@ -489,6 +528,8 @@
         osm-roads     (-> parameters :roads :source (= :osm))
 
         progress* (fn [x p m] (progress :message m :percent p :can-cancel true) x)
+
+        sqrt-degree-days (Math/sqrt (:degree-days parameters))
         ]
     
     (log/info "About to import" map-id map-name "in" (.getName work-directory))
@@ -514,7 +555,7 @@
               (update :buildings lidar/add-lidar-to-shapes (load-lidar-index))
               (progress* 30 "Run demand model")
               (update :buildings geoio/update-features :produce-demands
-                      produce-demand (:degree-days parameters))
+                      produce-demand sqrt-degree-days)
 
               (progress* 40 "Add defaults")
               (add-defaults parameters)
