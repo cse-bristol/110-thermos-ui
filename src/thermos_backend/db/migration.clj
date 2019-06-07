@@ -62,7 +62,8 @@
 
         ;; otherwise we are good
         (doseq [migration remaining]
-          (log/info "Run migration: " (dissoc migration :sql))
+          (log/info "Run migration: "
+                    (update migration :sql #(first (.split % "\n"2))))
           (try (jdbc/execute conn (:sql migration))
                (catch Exception e
                  (log/error "Migration failed!\n" (:sql migration) e)

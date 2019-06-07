@@ -295,5 +295,118 @@ ADD COLUMN login_count integer;
 UPDATE users SET login_count = 0;
 --;;
 ALTER TABLE users ALTER COLUMN login_count SET DEFAULT 0;
+--;;
+ALTER TABLE paths DROP constraint paths_id_fkey;
+--;;
+ALTER TABLE buildings DROP CONSTRAINT buildings_id_fkey;
+--;; 
+ALTER TABLE candidates DROP CONSTRAINT candidates_pkey;
+--;;
+ALTER TABLE buildings DROP CONSTRAINT buildings_pkey;
+--;;
+ALTER TABLE paths DROP CONSTRAINT paths_pkey;
+--;;
+ALTER TABLE candidates RENAME COLUMN id to geoid;
+--;;
+ALTER TABLE candidates ADD COLUMN id SERIAL PRIMARY KEY;
+--;;
+ALTER TABLE paths ADD COLUMN candidate_id integer REFERENCES candidates(id) ON DELETE CASCADE;
+--;;
+UPDATE paths
+SET candidate_id = candidates.id
+FROM candidates
+WHERE candidates.geoid = paths.id;
+--;;
+ALTER TABLE paths ADD PRIMARY KEY (candidate_id);
+--;;
+ALTER TABLE buildings ADD COLUMN candidate_id integer REFERENCES candidates(id) ON DELETE CASCADE;
+--;;
+UPDATE buildings
+SET candidate_id = candidates.id
+FROM candidates
+WHERE candidates.geoid = buildings.id;
+--;;
+ALTER TABLE buildings ADD PRIMARY KEY (candidate_id);
+--;;
+CREATE OR REPLACE VIEW joined_candidates AS
+SELECT
+        candidates.geoid as id,
+        candidates.map_id as map_id,
+        candidates.name as name,
+        candidates.type as type,
+        candidates.geometry as raw_geometry,
+        ST_AsGeoJson(candidates.geometry) as geometry,
 
+        buildings.candidate_id is not null as is_building,
+        
+        array_to_string(buildings.connection_id, ',') as connection_ids,
+        buildings.demand_kwh_per_year as demand_kwh_per_year,
+        buildings.demand_kwp as demand_kwp,
+        buildings.connection_count as connection_count,
+        buildings.connection_cost as connection_cost,
 
+        paths.start_id as start_id,
+        paths.end_id as end_id,
+        paths.length as length,
+        paths.fixed_cost as fixed_cost,
+        paths.variable_cost as variable_cost
+FROM
+        candidates
+        LEFT JOIN buildings on candidates.id = buildings.candidate_id
+        LEFT JOIN paths on candidates.id = paths.candidate_id
+;
+--;;
+CREATE OR REPLACE VIEW heat_centroids AS
+SELECT
+        candidates.geometry as geometry,
+        ST_X(ST_Centroid(candidates.geometry)) as x,
+        ST_Y(ST_Centroid(candidates.geometry)) as y,
+        buildings.demand_kwh_per_year as demand,
+        map_id as map_id
+FROM
+        candidates
+        INNER JOIN buildings ON candidates.id = buildings.candidate_id
+;
+--;;
+ALTER TABLE buildings DROP COLUMN id;
+--;;
+ALTER TABLE paths DROP COLUMN id;
+--;;
+CREATE OR REPLACE FUNCTION update_map (_map_id int)
+RETURNS void
+AS $$
+   BEGIN
+     DELETE FROM map_centres WHERE map_id = _map_id;
+     INSERT INTO map_centres
+     (SELECT map_id, envelope FROM
+      (SELECT map_id, ST_Envelope(ST_Collect(geometry)) envelope
+       FROM candidates INNER JOIN buildings on candidates.id = buildings.candidate_id
+       WHERE map_id = _map_id
+       GROUP BY map_id
+       ) a);
+
+     DELETE FROM map_icons WHERE map_id = _map_id;
+     INSERT INTO map_icons (map_id, png)
+            values (_map_id, map_icon(_map_id));
+
+     DELETE FROM tilecache WHERE map_id = _map_id;
+     DELETE FROM tilemaxima WHERE map_id = _map_id;
+   END;
+$$ LANGUAGE plpgsql;
+--;;
+CREATE OR REPLACE FUNCTION map_icon (_map_id int)
+RETURNS bytea
+AS $$
+  WITH geoms AS
+  (SELECT geometry FROM candidates INNER JOIN paths ON candidates.id = paths.candidate_id
+  WHERE map_id = _map_id)
+  SELECT ST_AsPNG(
+         ST_AsRaster(
+         ST_ConcaveHull(ST_Collect(geometry), 0.75),
+         100, 100,
+         ARRAY['8BUI', '8BUI', '8BUI'],
+         ARRAY[230,100,100],
+         ARRAY[255,255,255])) png
+  FROM geoms
+  WHERE random() < 0.1;
+$$ LANGUAGE sql;

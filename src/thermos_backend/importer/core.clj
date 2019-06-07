@@ -253,7 +253,7 @@
 
      ;; uppercase the hyphens for database :(
      (for [b (::geoio/features buildings)]
-       {:id (::geoio/id b)
+       {:geoid (::geoio/id b)
         :orig-id (or (:identity b) "unknown")
         :name (or (:name b) "")
         :type (or (:subtype  b) "")
@@ -267,7 +267,7 @@
      
      :paths
      (for [b (::geoio/features roads)]
-       {:id (::geoio/id b)
+       {:geoid (::geoio/id b)
         :orig-id (or (:identity b) "unknown")
         :name (or (:name b) "")
         :type (or (:subtype b) "")
