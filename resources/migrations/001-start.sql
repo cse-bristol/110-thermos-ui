@@ -410,3 +410,8 @@ AS $$
   FROM geoms
   WHERE random() < 0.1;
 $$ LANGUAGE sql;
+--;;
+ALTER TABLE buildings
+  ADD COLUMN peak_source TEXT,
+  ADD COLUMN demand_source TEXT;
+

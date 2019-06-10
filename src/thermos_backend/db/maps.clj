@@ -11,7 +11,9 @@
             [clojure.string :as string]
             [clojure.edn :as edn]
             [clojure.tools.logging :as log]
-            [thermos-backend.maps.heat-density :as heat-density]))
+            [thermos-backend.maps.heat-density :as heat-density]
+            [clojure.data.json :as json]
+            ))
 
 (defmethod fmt/fn-handler "&&" [_ a b & more]
   (if (seq more)
@@ -63,7 +65,8 @@
   [:map-id :geoid :orig-id :name :type :geometry])
 
 (def buildings-keys
-  [:candidate-id :connection-id :demand-kwh-per-year :demand-kwp :connection-count :connection-cost])
+  [:candidate-id :connection-id :demand-kwh-per-year :demand-kwp :connection-count :connection-cost
+   :demand-source :peak-source])
 
 (def paths-keys
   [:candidate-id :start-id :end-id :length :fixed-cost :variable-cost])
@@ -112,7 +115,6 @@
       :or {srid 4326 format :wkt}}]
   {:pre [(integer? map-id)
          (= :wkt format)]}
-
   
   (let [tag (str "map import " map-id ":")]
     (db/with-connection [conn]
@@ -148,6 +150,7 @@
                                   (update :connection-id
                                           #(sql-types/array
                                             (string/split % #",")))
+                                  
                                   (assoc :map-id map-id)
                                   (update :geometry #(geom-from-text % srid)))))
 

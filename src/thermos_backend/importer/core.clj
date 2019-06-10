@@ -23,7 +23,8 @@
             [clojure.string :as string]
             [clojure.tools.logging :as log]
             [thermos-util :refer [as-double as-boolean assoc-by distinct-by annual-kwh->kw]]
-            [clojure.pprint :refer [pprint]])
+            [clojure.pprint :refer [pprint]]
+            [cljts.core :as jts])
   (:import [org.locationtech.jts.geom
             Envelope
             GeometryFactory
@@ -200,25 +201,40 @@
 (def lm-water-3d (load-lm "thermos_backend/importer/water-lm-3d.json"))
 (def lm-water-2d (load-lm "thermos_backend/importer/water-lm-2d.json"))
 
-(defn- svm-or-lm
-  "Run an svm on x; if it works, but the range result is out of bounds,
-  run the lm instead. If that works, but the lm result is negative,
-  return the svm value. Otherwise return the svm result, or nil if
-  nothing worked.
+(defn- svm-or-lm [x space-result sqrt-degree-days
+                  lm-space lm-water svm-water
+                  type]
+  (let [space-svm-value (aget space-result 0)
+        space-svm-range (aget space-result 1)
+        space-lm-value (and (> space-svm-range 1.5)
+                            (lm-space x))
+        
+        water (svm-water x)
+        water-svm-value (aget water 0)
+        water-svm-range (aget water 1)
+        water-lm-value (and (> water-svm-range 1.5)
+                            (lm-water x))
 
-  This assumes that if the svm doesn't work (wrong predictors) the lm
-  also won't work."
-  [svm lm x]
-  (let [svm-result ^doubles (svm x)]
-    (when svm-result
-      (let [svm-value (aget svm-result 0)
-            svm-range (aget svm-result 1)]
-        (if (> svm-range 1.5)
-          (let [lm-value ^double (lm x)]
-            (if (and lm-value (> lm-value 0))
-              lm-value
-              svm-value))
-          svm-value)))))
+        use-space-svm (or (not space-lm-value)
+                          (not (pos? space-lm-value)))
+
+        use-water-svm (or (not water-lm-value)
+                          (not (pos? water-lm-value)))
+
+        space-value (if use-space-svm space-svm-value space-lm-value)
+        water-value (if use-water-svm water-svm-value water-lm-value)
+        ]
+    {:annual-demand
+     (+ (* space-value sqrt-degree-days) water-value)
+     :demand-source
+     
+     (str type
+          "-"
+          (cond
+            (and use-space-svm use-water-svm) "both-svm"
+            use-space-svm "space-svm"
+            use-water-svm "water-svm"
+            :else "both-lm"))}))
 
 (defn- run-svm-models [x sqrt-degree-days]
   (let [x (->> (for [[k v] x
@@ -228,17 +244,14 @@
                  [(keyword (name k))
                   (if (= :residential k) (boolean v) v)])
                (into {}))
-        space3 (svm-or-lm svm-space-3d lm-space-3d x)]
-    (if space3
-      ;; assuming the water3 model works if the space3 one does
-      (let [water3 (svm-or-lm svm-water-3d lm-water-3d x)]
-        {:annual-demand (+ (* space3 sqrt-degree-days) water3)
-         :demand-source :regression-3d})
 
-      (let [space2 (svm-or-lm svm-space-2d lm-space-2d x)
-            water2 (svm-or-lm svm-water-2d lm-water-2d x)]
-        {:annual-demand (+ (* space2 sqrt-degree-days) water2)
-         :demand-source :regression-3d}))))
+        space3 (svm-space-3d x)]
+    
+    (if space3
+      (svm-or-lm x space3 sqrt-degree-days
+                 lm-space-3d lm-water-3d svm-water-3d "3d")
+      (svm-or-lm x (svm-space-2d x) sqrt-degree-days
+                 lm-space-2d lm-water-2d svm-water-2d "2d"))))
 
 (def peak-constant 21.84)
 (def peak-gradient 0.0004963)
@@ -282,6 +295,15 @@
         gf        (GeometryFactory. (PrecisionModel.) 4326)
         ]
 
+    (let [features (concat buildings roads)
+          features-by-id (group-by ::geoio/id features)]
+      
+      (doseq [[id features] features-by-id]
+        (when (> (count features) 1)
+          (log/warn "Duplicate features for" id)
+          (doseq [feat features]
+            (log/warn "Feature: " feat)))))
+    
     (db/insert-into-map!
      :map-id (:map-id job)
      
@@ -290,7 +312,6 @@
      :format :wkt
      :buildings
 
-     ;; uppercase the hyphens for database :(
      (for [b (::geoio/features buildings)]
        {:geoid (::geoio/id b)
         :orig-id (or (:identity b) "unknown")
@@ -302,7 +323,9 @@
         :demand-kwh-per-year (or (:annual-demand b) 0)
         :demand-kwp (or (:peak-demand b) 0)
         :connection-cost (or (:connection-cost b) 0)
-        :connection-count (or (:connection-count b) 1)})
+        :connection-count (or (:connection-count b) 1)
+        :demand-source (name (:demand-source b))
+        :peak-source (name (:peak-source b))})
      
      :paths
      (for [b (::geoio/features roads)]
@@ -521,8 +544,7 @@
   (let [{map-name :name parameters :parameters} (db/get-map map-id)
         work-directory (util/create-temp-directory!
                         (config :import-directory)
-                        (str (str/replace map-name #"[^a-zA-Z0-9]+" "-")
-                             "-"))
+                        (str (str/replace map-name #"[^a-zA-Z0-9]+" "-") "-"))
 
         osm-buildings (-> parameters :buildings :source (= :osm))
         osm-roads     (-> parameters :roads :source (= :osm))
