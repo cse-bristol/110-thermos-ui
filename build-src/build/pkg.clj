@@ -9,6 +9,21 @@
             [build.uberjar :as uberjar]
             [clojure.term.colors :refer :all]))
 
+(defn- in-thread-group [f & args]
+  (let [exception (atom nil)
+
+        group (proxy [ThreadGroup] ["Build group"]
+                (^void uncaughtException [^Thread t ^Throwable e]
+                 (println (on-red (white "Build error: " (bold (.getMessage e)))))
+                 (reset! exception e)))
+
+        thread (Thread. group #(apply f args))
+        ]
+    (.start thread)
+    (.join thread)
+    (when-let [e @exception]
+      (throw e))))
+
 (defn build-jar [{debug-optimizations :debug-optimizations}]
   (println (on-cyan (white "clean")))
 
@@ -26,7 +41,7 @@
        (assoc build
               :preloads nil
               :infer-externs true
-              ;:optimizations :advanced
+                                        ;:optimizations :advanced
               :pretty-print true 
               :pseudo-names true)
        
@@ -37,18 +52,19 @@
 
   (println (on-cyan (white "compile less to css")))
   (less/build
-   {:source-paths ["resources"]
-    :target-path "target/resources/"
-    :compression true})
+    {:source-paths ["resources"]
+     :target-path "target/resources/"
+     :compression true})
 
   (println (on-cyan (white "compile clojure")))
-  (compile/compile
-   '[thermos-backend.core]
-   {:compile-path "target/classes"
-    :compiler-options {:disable-locals-clearing false
-                       :elide-meta [:doc :file :line :added]
-                       :direct-linking true}
-    :classpath (classpath/make-classpath {:aliases [:server]})})
+  (in-thread-group
+   #(compile/compile
+     '[thermos-backend.core]
+     {:compile-path "target/classes"
+      :compiler-options {:disable-locals-clearing false
+                         :elide-meta [:doc :file :line :added]
+                         :direct-linking true}
+      :classpath (classpath/make-classpath {:aliases [:server]})}))
 
   ;; Finally create uberjar. For whatever reason, there is no good
   ;; library for doing this at the moment. Lots of people seem to have
@@ -65,3 +81,5 @@
               :Implementation-Title "com.sun.media.imageio"
               :Implementation-Version "1.1"
               :Implementation-Vendor "Forward Dynamics"}))
+
+
