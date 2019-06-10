@@ -300,9 +300,8 @@
       
       (doseq [[id features] features-by-id]
         (when (> (count features) 1)
-          (log/warn "Duplicate features for" id)
-          (doseq [feat features]
-            (log/warn "Feature: " feat)))))
+          (log/warn (count features)
+                    "duplicate features for" id))))
     
     (db/insert-into-map!
      :map-id (:map-id job)
@@ -338,7 +337,8 @@
         :end-id   (::geoio/id (::topo/end-node b))
         :length   (or (::topo/length b) 0)
         :fixed-cost (or (:fixed-cost b) 0)
-        :variable-cost (or (:variable-cost b) 0)}))))
+        :variable-cost (or (:variable-cost b) 0)})))
+  )
 
 (defn dedup [state]
   (-> state

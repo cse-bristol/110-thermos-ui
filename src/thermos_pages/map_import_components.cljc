@@ -700,7 +700,6 @@
           has-extra-road-columns (assoc :road-cols :other-parameters)
           )
         ]
-    (println result)
     result))
 
 (defn- too-large [boundary]
