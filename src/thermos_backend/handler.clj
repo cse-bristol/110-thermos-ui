@@ -16,7 +16,8 @@
             [ring.util.time]
             
             [clojure.edn :as edn]
-            
+
+            [thermos-backend.monitoring :as monitoring]
             [thermos-backend.pages.core :as pages]
             [thermos-backend.pages.cache-control :as cache-control]
             [thermos-backend.auth :as auth]
@@ -48,9 +49,16 @@
                          date
                          lm)))))))
 
+(defroutes monitoring-routes
+  (GET "/_prometheus" []
+    (-> (response/response (monitoring/formatted-metrics))
+        (response/content-type "text/plain; version=0.0.4")
+        (response/charset "UTF-8")
+        (cache-control/no-store))))
+
 (defroutes site-routes
   (-> auth/auth-routes (cache-control/wrap-no-store))
-;;  data/data-routes
+  monitoring-routes
   pages/page-routes)
 
 (defstate all

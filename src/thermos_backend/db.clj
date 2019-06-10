@@ -129,6 +129,13 @@
        (first)
        (:id))))
 
+(defn count-rows
+  [table]
+  (-> (h/select :%count.*)
+      (h/from table)
+      (fetch-one!)
+      :count))
+
 ;; This should allow us to read json results transparently from the
 ;; database. It's useful in concert with the functions to_json and
 ;; json_agg etc, effectively returning subquery hierarchy in one go.
