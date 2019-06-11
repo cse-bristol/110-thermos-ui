@@ -544,7 +544,9 @@
   (let [{map-name :name parameters :parameters} (db/get-map map-id)
         work-directory (util/create-temp-directory!
                         (config :import-directory)
-                        (str (str/replace map-name #"[^a-zA-Z0-9]+" "-") "-"))
+                        (str
+                         "map-" map-id "-"
+                         (str/replace map-name #"[^a-zA-Z0-9]+" "-") "-"))
 
         osm-buildings (-> parameters :buildings :source (= :osm))
         osm-roads     (-> parameters :roads :source (= :osm))
