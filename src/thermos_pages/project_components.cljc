@@ -238,10 +238,34 @@
 
              [:br {:style {:clear :both}}]]
 
-            [:div
-             (spinner) "Map import " (:state m) "..."]
-            
-            )])
+            (case (keyword (:state m))
+              :ready
+              [:div (spinner)
+               "Map import is queued, and waiting to start"]
+              :running
+              [:div
+               (spinner)
+               (str "Running " (:message m)
+                    ", "
+                    (or (:progress m) 0)
+                    "% complete")]
+              :completed
+              [:div
+               "Map import is completed, but not ready for presentation"]
+              :failed
+              [:div "Map has failed to import, because of an error:"
+               [:div (:message m)]]
+              :cancel
+              [:div (spinner) "Map import cancel requested"]
+              :cancelling
+              [:div (spinner) "Map import cancelling"]
+              :cancelled
+              [:div "Map import cancelled"]
+
+              [:div "Map import status unknown!"
+               [:pre {:style {:white-space :pre-wrap}}
+                (str m)]
+               ]))])
        [:div.card
         "This project has no maps in it yet. "
         "Get started by creating a new map above."])]))
