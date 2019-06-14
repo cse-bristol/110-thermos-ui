@@ -48,18 +48,42 @@
                  (db/fetch! conn)
                  (first))
 
-             (-> (h/select :*)
+             ;; we want to know about the things within the users-projects
+             ;; for efficiency.
+             (-> (h/select :users-projects.project-id
+                           :users-projects.user-id
+                           :users-projects.auth
+                           [(sql/raw "array_agg(distinct maps.id)") :map-ids]
+                           [(sql/raw "array_agg(distinct networks.id)") :network-ids])
+                 
                  (h/from :users-projects)
-                 (h/where [:= :user-id user-id])
+                 (h/join :projects [:= :projects.id :users-projects.project-id]
+                         :maps [:= :maps.project-id :projects.id]
+                         :networks [:= :networks.map-id :maps.id])
+                 
+                 (h/where [:= :users-projects.user-id user-id])
+                 (h/group :users-projects.project-id
+                          :users-projects.user-id
+                          :users-projects.auth)
                  (db/fetch! conn))
              ])]
       (-> user-details
           (update :auth keyword)
-          (assoc 
+          (assoc
              :projects
              (reduce
-              (fn [a m] (assoc a (:project-id m) (update m :auth keyword)))
-              {} project-details))))))
+              (fn [a m] (assoc a (:project-id m)
+                               (-> m
+                                   (update :auth keyword)
+                                   (update :map-ids set)
+                                   (update :network-ids set)
+                                   )))
+              {} project-details))
+          (assoc :maps
+                 (into #{} (mapcat :map-ids project-details))
+                 :networks
+                 (into #{} (mapcat :network-ids project-details)))
+          ))))
 
 (defn delete-user! [user-id]
   (-> (h/delete-from :users)
