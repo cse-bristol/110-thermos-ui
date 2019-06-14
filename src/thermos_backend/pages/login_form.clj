@@ -22,6 +22,7 @@
           :type :text
           :style (style :width :100%)
           :width :100%
+          :required :required
           :pattern ".{5,}"
           :title "A name to identify yourself to THERMOS. Must be at least 5 characters long."
           :id :username
@@ -30,6 +31,7 @@
        [:label "Password: "
         [:input.text-input
          {:type :password :name :password :id :password
+          :required :required
           :style (style :width :100%)
           :width :100%
           :title "A password, which you should remember. At least 6 characters."
