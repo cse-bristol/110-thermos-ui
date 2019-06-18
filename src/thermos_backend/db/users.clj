@@ -57,9 +57,9 @@
                            [(sql/raw "array_agg(distinct networks.id)") :network-ids])
                  
                  (h/from :users-projects)
-                 (h/join :projects [:= :projects.id :users-projects.project-id]
-                         :maps [:= :maps.project-id :projects.id]
-                         :networks [:= :networks.map-id :maps.id])
+                 (h/left-join :projects [:= :projects.id :users-projects.project-id]
+                              :maps [:= :maps.project-id :projects.id]
+                              :networks [:= :networks.map-id :maps.id])
                  
                  (h/where [:= :users-projects.user-id user-id])
                  (h/group :users-projects.project-id
