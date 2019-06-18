@@ -13,7 +13,7 @@
    ::demand/emissions {:co2 (/ 0.216 0.8) :nox 0 :pm25 0}
 
    ::document/mip-gap 0.1
-   ::document/maximum-runtime 3 ;; hours
+   ::document/maximum-runtime 0.5
 
    ::document/loan-term 25
    ::document/loan-rate 0.04
