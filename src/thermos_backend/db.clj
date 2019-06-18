@@ -34,9 +34,13 @@
                      :server-name (:host db-config)
                      :port-number 5432})]
     
-    (with-open [conn (jdbc/connection datasource)]
-      (migration/migrate conn))
-    datasource)
+    (try
+      (with-open [conn (jdbc/connection datasource)]
+        (migration/migrate conn))
+      datasource
+      (catch Exception e
+        (and datasource (hikari/close-datasource datasource))
+        (throw e))))
   :stop
   (hikari/close-datasource conn))
 
@@ -78,7 +82,7 @@
      (try
        (jdbc/execute conn query)
        (catch Exception e
-         (log/error e "Exception executing query: " query)
+         (log/error e "Exception executing query: " (pr-str query))
          (throw e))))))
 
 (defn fetch-one!
@@ -124,6 +128,13 @@
        (fetch!)
        (first)
        (:id))))
+
+(defn count-rows
+  [table]
+  (-> (h/select :%count.*)
+      (h/from table)
+      (fetch-one!)
+      :count))
 
 ;; This should allow us to read json results transparently from the
 ;; database. It's useful in concert with the functions to_json and

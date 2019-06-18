@@ -12,6 +12,7 @@
             [clojure.set :refer [map-invert]]
             [mount.core :refer [defstate]]))
 
+
 (def READY_STATE (sql/call :job_state "ready"))
 (def RUNNING_STATE (sql/call :job_state "running"))
 (def COMPLETE_STATE (sql/call :job_state "completed"))
@@ -101,30 +102,36 @@
             (fn [& {:keys [message percent can-cancel]}]
               ;; can-cancel is a convenience for when there have been
               ;; no side-effects and it is safe to just die
+
+              ;; update the job with progress message and percent
+              (when (or message percent)
+                (-> (update :jobs)
+                    (sset (cond-> {}
+                            message (assoc :message message)
+                            percent (assoc :progress percent)))
+                    (where [:= :id job-id])
+                    (db/execute!)))
               
               (when (and can-cancel (.isInterrupted (Thread/currentThread)))
                 (throw (ex-info "Cancelled" {:cancelled true}))))
             
             run-thread
-            (Thread. #(try (let [new-state
+            (Thread. #(try (let [[new-state message]
                                  (try
                                    (let [result (consumer job-args state-callback)]
                                      (cond
-                                       (= :cancelled result) CANCELLED_STATE
-                                       (= :error result) FAILED_STATE
-                                       :else COMPLETE_STATE))
-                                   ;; (catch InterruptedException e
-                                   ;;   ;; maybe cancelled state maybe not
-                                   ;;   ;; I guess to be safe FAILEd
-                                   ;;   )
+                                       (= :cancelled result) [CANCELLED_STATE]
+                                       (= :error result) [FAILED_STATE]
+                                       :else [COMPLETE_STATE]))
                                    (catch Throwable e
                                      (if (:cancelled (ex-data e))
-                                       CANCELLED_STATE
+                                       [CANCELLED_STATE]
                                        (do (log/error e "Running" queue-name job-id job-args)
-                                           FAILED_STATE))))]
+                                           [FAILED_STATE (or (.getMessage e) "Unknown cause")]))))]
 
                              (-> (update :jobs)
-                                 (sset {:state new-state})
+                                 (sset (cond-> {:state new-state}
+                                         message (assoc :message message)))
                                  (where [:= :id job-id])
                                  (db/execute!)))
                            (finally 

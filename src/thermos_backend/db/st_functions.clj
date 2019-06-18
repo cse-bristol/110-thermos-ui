@@ -21,6 +21,11 @@
 (defst geomfromtext
   [text]
   [text srid])
+(defst asgeojson
+  [geom]
+  [geom maxdecimaldigits]
+  [geom maxdecimaldigits options])
+
 (defst geogfromtext [text])
 (defst buffer [geom rad])
 (defn geometry [thing] (sql/call :geometry thing))

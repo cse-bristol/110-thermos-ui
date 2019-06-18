@@ -10,7 +10,8 @@
             [clojure.string :as string]
             [thermos-backend.pages.login-form :refer [login-form]]
             [thermos-backend.current-uri :refer [*current-uri*]]
-            [clojure.tools.logging :as log]))
+            [clojure.tools.logging :as log]
+            [thermos-backend.db.users :as users]))
 
 (def ^:dynamic *current-user* nil)
 
@@ -24,6 +25,8 @@
   ([{logged-in :logged-in
      user :user
      project :project
+     map-id :map
+     network :network
      project-admin :project-admin
      sysadmin :sysadmin :as restrict}]
    (authorized restrict *current-user*))
@@ -32,6 +35,8 @@
      user :user
      project :project
      project-admin :project-admin
+     map-id :map
+     network :network
      sysadmin :sysadmin
      :as restrict}
     this-user]
@@ -41,6 +46,10 @@
                          (= user (:id this-user)))
                      (or (not project)
                          (contains? (:projects this-user) project))
+                     (or (not map-id)
+                         (contains? (:maps this-user) map-id))
+                     (or (not network)
+                         (contains? (:networks this-user) network))
                      (or (not project-admin)
                          (= :admin (get-in this-user [:projects project-admin :auth] )))
                      (or (not sysadmin)
@@ -82,7 +91,9 @@
             (response/redirect (str "/login?redirect-to=" *current-uri*)))
           (response/header "Cache-Control" "no-store")))))
 
-(defmacro restricted [requirement & inner]
+(defmacro restricted
+  {:style/indent :defn}
+  [requirement & inner]
   (let [inner (if (seq (rest inner))
                 (cons 'routes inner)
                 (first inner))]
@@ -91,16 +102,25 @@
       restricted*
       ~requirement)))
 
+(defmacro restricted-context
+  {:style/indent :defn}
+  [path variables requirement & inner]
+  `(context ~path ~variables
+     (restricted ~requirement
+                 ~@inner)))
+
 (defn handle-login [email password redirect-to]
   (let [email (string/lower-case email)]
     (if (db/correct-password? email password)
       (do (log/info email "logged in")
+          (users/logged-in! email)
           (-> (response/redirect (or redirect-to "/"))
               (update :session assoc ::user-id email)))
       (do (log/info email "login failed!")
           (response/redirect "/login?flash=failed")))))
 
 (defn handle-logout []
+  (log/info (:id *current-user*) "logged out")
   (-> (response/redirect "/")
       (update :session dissoc ::user-id)))
 

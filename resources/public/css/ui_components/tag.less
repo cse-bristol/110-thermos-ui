@@ -20,18 +20,23 @@
 }
 
 .tag.constraint.optional {
-    background: #00ACE6;
+    background: @theme-blue;
     .tag__body { color: white; }
 }
 
 .tag.constraint.required {
-    background: #ED3027;
+    background: @theme-red;
     .tag__body { color: white; }
 }
 
 .tag.solution.impossible {
-    background: #ff00ff;
+    background: @theme-magenta;
     .tag__body { color: white; }
+}
+
+.tag.solution.no {
+    background: @theme-yellow;
+    .tag__body { color: black; }
 }
 
 .tag__body {

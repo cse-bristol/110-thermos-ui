@@ -10,6 +10,7 @@
             [thermos-importer.overpass :as overpass]
             [thermos-importer.lidar :as lidar]
             [thermos-importer.svm-predict :as svm]
+            [thermos-importer.lm-predict :as lm]
             [thermos-importer.spatial :as topo]
             [thermos-importer.util :refer [has-extension file-extension]]
 
@@ -22,7 +23,8 @@
             [clojure.string :as string]
             [clojure.tools.logging :as log]
             [thermos-util :refer [as-double as-boolean assoc-by distinct-by annual-kwh->kw]]
-            [clojure.pprint :refer [pprint]])
+            [clojure.pprint :refer [pprint]]
+            [cljts.core :as jts])
   (:import [org.locationtech.jts.geom
             Envelope
             GeometryFactory
@@ -49,18 +51,6 @@
 
 (defn- keyword-upcase-uscore [s]
   (keyword (str/replace s "_" "-")))
-
-(defn- load-model [name]
-  (-> name
-      (io/resource)
-      (slurp)
-      (json/read-str :key-fn keyword-upcase-uscore)
-      (svm/predictor)))
-
-(def svm-space-3d (load-model "thermos_backend/importer/space-3d.json"))
-(def svm-space-2d (load-model "thermos_backend/importer/space-2d.json"))
-(def svm-water-3d (load-model "thermos_backend/importer/water-3d.json"))
-(def svm-water-2d (load-model "thermos_backend/importer/water-2d.json"))
 
 (defn queue-import
   "Put an import job into the queue - at the moment :map-id is the only
@@ -185,7 +175,68 @@
     "Static caravan"
     "Cabin"})
 
-(defn- run-svm-models [x degree-days]
+(def svm-range-limit 1.5)
+
+(defn- load-svm [name]
+  (-> name
+      (io/resource)
+      (slurp)
+      (json/read-str :key-fn keyword-upcase-uscore)
+      (svm/predictor)))
+
+(defn- load-lm [name]
+  (-> name
+      (io/resource)
+      (slurp)
+      (json/read-str :key-fn keyword-upcase-uscore)
+      (lm/predictor)))
+
+(def svm-space-3d (load-svm "thermos_backend/importer/space-svm-3d.json"))
+(def svm-space-2d (load-svm "thermos_backend/importer/space-svm-2d.json"))
+(def svm-water-3d (load-svm "thermos_backend/importer/water-svm-3d.json"))
+(def svm-water-2d (load-svm "thermos_backend/importer/water-svm-2d.json"))
+
+(def lm-space-3d (load-lm "thermos_backend/importer/space-lm-3d.json"))
+(def lm-space-2d (load-lm "thermos_backend/importer/space-lm-2d.json"))
+(def lm-water-3d (load-lm "thermos_backend/importer/water-lm-3d.json"))
+(def lm-water-2d (load-lm "thermos_backend/importer/water-lm-2d.json"))
+
+(defn- svm-or-lm [x space-result sqrt-degree-days
+                  lm-space lm-water svm-water
+                  type]
+  (let [space-svm-value (aget space-result 0)
+        space-svm-range (aget space-result 1)
+        space-lm-value (and (> space-svm-range 1.5)
+                            (lm-space x))
+        
+        water (svm-water x)
+        water-svm-value (aget water 0)
+        water-svm-range (aget water 1)
+        water-lm-value (and (> water-svm-range 1.5)
+                            (lm-water x))
+
+        use-space-svm (or (not space-lm-value)
+                          (not (pos? space-lm-value)))
+
+        use-water-svm (or (not water-lm-value)
+                          (not (pos? water-lm-value)))
+
+        space-value (if use-space-svm space-svm-value space-lm-value)
+        water-value (if use-water-svm water-svm-value water-lm-value)
+        ]
+    {:annual-demand
+     (+ (* space-value sqrt-degree-days) water-value)
+     :demand-source
+     
+     (str type
+          "-"
+          (cond
+            (and use-space-svm use-water-svm) "both-svm"
+            use-space-svm "space-svm"
+            use-water-svm "water-svm"
+            :else "both-lm"))}))
+
+(defn- run-svm-models [x sqrt-degree-days]
   (let [x (->> (for [[k v] x
                      :when (and (keyword? k)
                                 (or (= :residential k)
@@ -193,13 +244,14 @@
                  [(keyword (name k))
                   (if (= :residential k) (boolean v) v)])
                (into {}))
-        space3 (svm-space-3d x)
-        water3 (svm-water-3d x)
-        space-prediction  (or space3 (svm-space-2d x) 0)
-        water-prediction  (or water3 (svm-water-2d x) 0)
-        space-requirement (* space-prediction (Math/sqrt degree-days))]
-    {:annual-demand (+ space-prediction water-prediction)
-     :demand-source (if space3 :svm-3 :svm-2)}))
+
+        space3 (svm-space-3d x)]
+    
+    (if space3
+      (svm-or-lm x space3 sqrt-degree-days
+                 lm-space-3d lm-water-3d svm-water-3d "3d")
+      (svm-or-lm x (svm-space-2d x) sqrt-degree-days
+                 lm-space-2d lm-water-2d svm-water-2d "2d"))))
 
 (def peak-constant 21.84)
 (def peak-gradient 0.0004963)
@@ -243,6 +295,14 @@
         gf        (GeometryFactory. (PrecisionModel.) 4326)
         ]
 
+    (let [features (concat buildings roads)
+          features-by-id (group-by ::geoio/id features)]
+      
+      (doseq [[id features] features-by-id]
+        (when (> (count features) 1)
+          (log/warn (count features)
+                    "duplicate features for" id))))
+    
     (db/insert-into-map!
      :map-id (:map-id job)
      
@@ -251,9 +311,8 @@
      :format :wkt
      :buildings
 
-     ;; uppercase the hyphens for database :(
      (for [b (::geoio/features buildings)]
-       {:id (::geoio/id b)
+       {:geoid (::geoio/id b)
         :orig-id (or (:identity b) "unknown")
         :name (or (:name b) "")
         :type (or (:subtype  b) "")
@@ -263,11 +322,13 @@
         :demand-kwh-per-year (or (:annual-demand b) 0)
         :demand-kwp (or (:peak-demand b) 0)
         :connection-cost (or (:connection-cost b) 0)
-        :connection-count (or (:connection-count b) 1)})
+        :connection-count (or (:connection-count b) 1)
+        :demand-source (name (:demand-source b))
+        :peak-source (name (:peak-source b))})
      
      :paths
      (for [b (::geoio/features roads)]
-       {:id (::geoio/id b)
+       {:geoid (::geoio/id b)
         :orig-id (or (:identity b) "unknown")
         :name (or (:name b) "")
         :type (or (:subtype b) "")
@@ -276,7 +337,8 @@
         :end-id   (::geoio/id (::topo/end-node b))
         :length   (or (::topo/length b) 0)
         :fixed-cost (or (:fixed-cost b) 0)
-        :variable-cost (or (:variable-cost b) 0)}))))
+        :variable-cost (or (:variable-cost b) 0)})))
+  )
 
 (defn dedup [state]
   (-> state
@@ -399,7 +461,7 @@
 
 (defn- produce-demand
   "Make sure the feature has an :annual-demand and a :peak-demand"
-  [feature degree-days]
+  [feature sqrt-degree-days]
   (let [given-demand (as-double (:annual-demand feature))
         given-height (as-double (:height feature))
         given-floor-area (as-double (:floor-area feature))
@@ -441,7 +503,7 @@
                          (run-svm-models (assoc feature
                                                 :residential residential
                                                 ::lidar/height height)
-                                         degree-days)))
+                                         sqrt-degree-days)))
 
         ;; produce peak
         given-peak (as-double (:peak-demand feature))
@@ -482,13 +544,16 @@
   (let [{map-name :name parameters :parameters} (db/get-map map-id)
         work-directory (util/create-temp-directory!
                         (config :import-directory)
-                        (str (str/replace map-name #"[^a-zA-Z0-9]+" "-")
-                             "-"))
+                        (str
+                         "map-" map-id "-"
+                         (str/replace map-name #"[^a-zA-Z0-9]+" "-") "-"))
 
         osm-buildings (-> parameters :buildings :source (= :osm))
         osm-roads     (-> parameters :roads :source (= :osm))
 
         progress* (fn [x p m] (progress :message m :percent p :can-cancel true) x)
+
+        sqrt-degree-days (Math/sqrt (:degree-days parameters))
         ]
     
     (log/info "About to import" map-id map-name "in" (.getName work-directory))
@@ -514,7 +579,7 @@
               (update :buildings lidar/add-lidar-to-shapes (load-lidar-index))
               (progress* 30 "Run demand model")
               (update :buildings geoio/update-features :produce-demands
-                      produce-demand (:degree-days parameters))
+                      produce-demand sqrt-degree-days)
 
               (progress* 40 "Add defaults")
               (add-defaults parameters)

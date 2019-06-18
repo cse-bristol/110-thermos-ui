@@ -67,6 +67,8 @@
       (h/left-join
        [(-> (h/select :maps.*
                       :jobs.state
+                      :jobs.message
+                      :jobs.progress
                       [(join-json :networks.id
                                   :networks.name
                                   :networks.user-id
@@ -83,10 +85,11 @@
                          :users
                          [:= :networks.user-id :users.id])
             
-            (h/group :maps.id :jobs.state)) :maps]
+            (h/group :maps.id :jobs.state :jobs.message :jobs.progress)) :maps]
        [:= :projects.id :maps.project-id])
       
       (h/group :projects.id)
+      (h/order-by :projects.name)
       (h/where [:= :projects.id project-id])
       (db/fetch!)
       (first)

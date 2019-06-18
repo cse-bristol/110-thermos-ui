@@ -3,7 +3,6 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2019-05-17 Fri 16:08 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>THERMOS Changelog</title>
@@ -17,10 +16,12 @@
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#org1469dae">1. Version 5</a>
+<li><a href="#org1469dae">Version 5</a>
 <ul>
-<li><a href="#orgd17a58f">1.1. 17 May 2019</a></li>
-<li><a href="#org0add898">1.2. 15 May 2019</a></li>
+<li><a href="#orgb683966">07 June 2019</a></li>
+<li><a href="#org0d73f49">04 June 2019</a></li>
+<li><a href="#orgd17a58f">17 May 2019</a></li>
+<li><a href="#org0add898">15 May 2019</a></li>
 </ul>
 </li>
 </ul>
@@ -28,12 +29,36 @@
 </div>
 
 <div id="outline-container-org1469dae" class="outline-2">
-<h2 id="org1469dae"><span class="section-number-2">1</span> Version 5</h2>
-<div class="outline-text-2" id="text-1">
+<h2 id="org1469dae">Version 5</h2>
+<div class="outline-text-2" id="text-org1469dae">
+</div>
+<div id="outline-container-orgb683966" class="outline-3">
+<h3 id="orgb683966">07 June 2019</h3>
+<div class="outline-text-3" id="text-orgb683966">
+<ul class="org-ul">
+<li>Added fallback linear models for heat demand prediction.
+These models are used when the predictors for a building are far out of range for the SVM model</li>
+<li>Fixed a bug where importing a map would delete everything in any other map within the bounding box of the imported data (!)</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-org0d73f49" class="outline-3">
+<h3 id="org0d73f49">04 June 2019</h3>
+<div class="outline-text-3" id="text-org0d73f49">
+<ul class="org-ul">
+<li>Added some documentation about use of user data in the CSE thermos installation</li>
+<li>Switched to an azimuthal equidistant projection for connector creation.
+This should make the connectors more sensible</li>
+<li>Added a tool for introducing new connections into a problem</li>
+<li>Swapped the green colour (not in solution) for yellow</li>
+<li>Added colours to the selection info panel to act as a key to the map colours</li>
+<li>Added the necessary EU funding statement to the front page</li>
+</ul>
+</div>
 </div>
 <div id="outline-container-orgd17a58f" class="outline-3">
-<h3 id="orgd17a58f"><span class="section-number-3">1.1</span> 17 May 2019</h3>
-<div class="outline-text-3" id="text-1-1">
+<h3 id="orgd17a58f">17 May 2019</h3>
+<div class="outline-text-3" id="text-orgd17a58f">
 <ul class="org-ul">
 <li>Wrote some more documentation</li>
 <li>Improved the display of solution finances to include connection costs</li>
@@ -41,10 +66,9 @@
 </ul>
 </div>
 </div>
-
 <div id="outline-container-org0add898" class="outline-3">
-<h3 id="org0add898"><span class="section-number-3">1.2</span> 15 May 2019</h3>
-<div class="outline-text-3" id="text-1-2">
+<h3 id="org0add898">15 May 2019</h3>
+<div class="outline-text-3" id="text-org0add898">
 <ul class="org-ul">
 <li>Improved the documentation system</li>
 <li>Modified map creation wizard so that an input heat demand of zero is respected</li>

@@ -700,14 +700,38 @@
           has-extra-road-columns (assoc :road-cols :other-parameters)
           )
         ]
-    (println result)
     result))
 
+(defn- too-large [boundary]
+  (println "validate size of " boundary)
+  (let [geo (or (get-in boundary ["geometry" "coordinates"])
+                (get-in boundary ["coordinates"]))
+        ring (first geo)
+        xs (map first ring)
+        ys (map second ring)
+        minx (reduce min xs)
+        maxx (reduce max xs)
+        miny (reduce min ys)
+        maxy (reduce max ys)
+        dx (- maxx minx)
+        dy (- maxy miny)]
+    (or (> dx 0.15)
+        (> dy 0.15))))
+
 (defn- validate-osm-area [geo]
-  (when (and (= :osm (:source geo))
-             (not (or (:osm-id (:osm geo))
-                      (:boundary (:osm geo)))))
-    ["Select an area on the map to continue"]))
+  (cond
+    (and (= :osm (:source geo))
+         (not (or (:osm-id (:osm geo))
+                  (:boundary (:osm geo)))))
+    ["Select an area on the map to continue"]
+
+    ;; here we really want to know whether the region drawn is huge
+
+    (and (= :osm (:source geo))
+         (:boundary (:osm geo))
+         (too-large (:boundary (:osm geo))))
+    ["Select a smaller area on the map to continue"]))
+
 
 (defn- validate-files [geo]
   (when (= :files (:source geo))

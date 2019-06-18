@@ -1,0 +1,79 @@
+#+TITLE: Data Protection
+#+AUTHOR: CSE
+
+This document enumerates all the ways in which we (as in, the THERMOS project consortium) may use data entered into a THERMOS installation.
+
+If you don't like this, you will soon be able to run your own copy of THERMOS, in which case you will be in charge of your data. The application will be licensed as free software when development is complete.
+
+* Principle
+
+THERMOS is currently a research project without an active goal of commercial exploitation.
+The source code for the system will be published and permissively licensed, with the explicit goal of delivering whatever value the system can to the wider society.
+
+To let you look at THERMOS without having to install it yourself, we are providing a copy running on this server.
+You are allowed to use this copy of the application subject to the understanding that:
+
+1. There is no guarantee of service.
+   - The application may disappear at any time. 
+     However, we will provide you with your own data so long as we still have access to it ourselves.
+   - The program's outputs should not be relied upon at the moment
+   - The system's reliability or availability should not be relied up on at the moment
+2. You are using a shared and limited resource, so please don't be silly
+
+* User data
+
+THERMOS does not store very much user data; the system's user accounts are there to help you keep your data private.
+We are not interested in spying on you or building business leads.
+
+The information you can enter about yourself is:
+
+1. An email address
+2. Your name
+
+However, you need not use an email address and need not give us your name.
+
+If you do give us your email address, we may send you emails for the purpose of:
+
+1. Telling you about changes to the service
+2. Contacting you to ask you your use of the service, for the purposes of assessing the impact and value of the project.
+
+A session cookie will be stored on your computer when you login. 
+Session cookies are a mechanism needed for the application to remember that you are logged in, and are explicitly allowed without confirmation under the EU legislation about cookies.
+
+We also record about your user account:
+
+- When you login and out of the system
+- How many projects, maps, and network models you have run
+- Summary statistics about these data, specficially
+  - How many participants are collaborating on projects
+  - How large the maps and networks you create are
+  - The geographic location (bounding box) of your maps and networks.
+
+    We will not otherwise process or look at your uploaded GIS files, except insofar as needed to provide the services you request.
+- Diagnostic information about errors or faults in the system
+- Which other accounts you have worked with; this information is only used for access control.
+  We are not interested in building a picture of your social network, and will not look at this stuff.
+
+* Data security
+
+All data in THERMOS is stored in a physical server on site at CSE.
+We keep this server updated and secured to the best of our ability. 
+Server access is restricted to those employees who manage the system.
+
+If you extend project access to someone else, they will be able to see all the data in that project.
+
+All communications to the server are encrypted, so an attacker with access to the network infrastructure between your computer and the server would not be able to view the data transmitted.
+
+Your data is not encrypted at rest on the server, so an attacker who gained privileged access to the machine could view all data anyone has uploaded.
+
+* Acquiring your data
+
+At the moment you can download your network diagrams and maps via the user interface.
+If you want to get hold of any other bits of data contact us and we can work something out.
+We have no interest in holding onto your data so we can wring money out of you, and indeed are not that interested in the data itself.
+
+* Removing your data
+
+At the moment there is no button to delete your user account, but we can delete it for you if you drop us a line.
+Later we will probably put in a button to do this, the only reason we haven't is that we're busy people.
+You can delete projects, maps, and networks. When you do this, they are genuinely deleted in an unrecoverable way.

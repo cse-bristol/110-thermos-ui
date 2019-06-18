@@ -11,7 +11,9 @@
             [clojure.string :as string]
             [clojure.edn :as edn]
             [clojure.tools.logging :as log]
-            [thermos-backend.maps.heat-density :as heat-density]))
+            [thermos-backend.maps.heat-density :as heat-density]
+            [clojure.data.json :as json]
+            ))
 
 (defmethod fmt/fn-handler "&&" [_ a b & more]
   (if (seq more)
@@ -60,13 +62,46 @@
    (st/geomfromtext geom (sql/inline (int srid)))))
 
 (def candidates-keys
-  [:map-id :id :orig-id :name :type :geometry])
+  [:map-id :geoid :orig-id :name :type :geometry])
 
 (def buildings-keys
-  [:map-id :id :connection-id :demand-kwh-per-year :demand-kwp :connection-count :connection-cost])
+  [:candidate-id :connection-id :demand-kwh-per-year :demand-kwp :connection-count :connection-cost
+   :demand-source :peak-source])
 
 (def paths-keys
-  [:map-id :id :start-id :end-id :length :fixed-cost :variable-cost])
+  [:candidate-id :start-id :end-id :length :fixed-cost :variable-cost])
+
+(defn- data-values
+  "A helper to create a vector to in a WITH statement for honeysql that creates a temporary VALUES table.
+
+  `alias` is the name of the temporary table, and `values` are the values, as you might pass to honeysql.helpers/values.
+
+  If you write (helpers/with (data-values :some-data [...])) then you can join/select etc from :some-data in the rest of the query.
+  "
+  [alias values]
+  (let [all-keys (sort (reduce into #{} (for [v values] (keys v))))
+        all-values
+        (fn [value]
+          `("(" ~@(interpose ", " (map
+                                   ;; unfortunately some of these values are strings
+                                   #(let [v (get value %)]
+                                      (if (string? v)
+                                        ;; if we return a string into the list of values,
+                                        ;; it will be interpolated as a raw string into the output
+                                        ;; so we do a horrible thing here to prevent this.
+                                        (sql/call :text v)
+                                        v)
+                                      )
+                                   all-keys)) ")"))]
+    [(sql/raw
+      `[~(sql/quote-identifier alias)
+        "("
+        ~@(flatten (interpose ", " (for [k all-keys] (sql/quote-identifier k))))
+        ")"])
+     (sql/raw
+      `["(VALUES "
+        ~@(flatten (interpose ", " (map all-values values)))
+        ")"])]))
 
 (defn insert-into-map!
   "Insert data into a map, possibly erasing what is already there.
@@ -81,60 +116,98 @@
   {:pre [(integer? map-id)
          (= :wkt format)]}
   
-  (db/with-connection [conn]
-    (let [deleted
-          (-> (h/delete-from :candidates)
-              (h/where [:&& :geometry (geom-from-text erase-geometry srid)])
-              (db/execute! conn))]
+  (let [tag (str "map import " map-id ":")]
+    (db/with-connection [conn]
+      (let [deleted
+            (-> (h/delete-from :candidates)
+                (h/where [:and
+                          [:&& :geometry (geom-from-text erase-geometry srid)]
+                          [:= :map-id map-id]])
+                (db/execute! conn))]
 
-      ;; TODO this should delete all affected density tiles as well
-      (log/info "Deleted" deleted "candidates in target area"))
+        ;; TODO this should delete all affected density tiles as well
+        (log/info tag "deleted" deleted "candidates in target area"))
 
-    (doseq [chunk (partition-all *insert-block-size* buildings)]
-      (jdbc/atomic
-       conn
-       (-> (h/insert-into :candidates)
-           (h/values (for [c chunk]
-                       (-> c
-                           (select-keys candidates-keys)
-                           (update :geometry #(geom-from-text % srid))
-                           (assoc :map-id map-id))))
-           (db/execute! conn))
+      (doseq [block (partition-all *insert-block-size* buildings)]
+        (jdbc/atomic
+            conn
 
-       (-> (h/insert-into :buildings)
-           (h/values (for [b chunk]
-                       (-> b
-                           (select-keys buildings-keys)
-                           (update :connection-id
-                                   #(sql-types/array
-                                     (string/split % #","))))))
-           (db/execute! conn))))
+          ;; This weird syntax is the way to insert related rows in pgsql
+          ;; 
+          ;; What we're doing is of the form
+          ;; WITH tablename (cols) AS (VALUES ()...),
+          ;;      inserts AS (INSERT INTO x SELECT FROM tablename),
+          ;; INSERT INTO other (select stuff from tablename join inserts)
+          ;;
+          ;; so we can get hold of the new FK from inserts for use in other
+          
+          (-> (h/with
+               (data-values :building-data
+                            (for [c block]
+                              (-> c
+                                  (select-keys (remove #{:candidate-id}
+                                                       (concat candidates-keys buildings-keys)))
+                                  (update :connection-id
+                                          #(sql-types/array
+                                            (string/split % #",")))
+                                  
+                                  (assoc :map-id map-id)
+                                  (update :geometry #(geom-from-text % srid)))))
 
-    (doseq [chunk (partition-all *insert-block-size* paths)]
-      (jdbc/atomic
-       conn
-       (-> (h/insert-into :candidates)
-           (h/values (for [c chunk]
-                       (-> c
-                           (select-keys candidates-keys)
-                           (update :geometry #(geom-from-text % srid))
-                           (assoc :map-id map-id))))
-           (db/execute! conn))
+               [:new-candidates
+                (-> (h/insert-into [[:candidates candidates-keys]
+                                    (-> (apply h/select candidates-keys)
+                                        (h/from :building-data))])
+                    (p/returning :geoid [:id :candidate-id]))])
 
-       (-> (h/insert-into :paths)
-           (h/values (for [p chunk]
-                       (-> p
-                           (select-keys paths-keys))))
-           (db/execute! conn))))
+              (h/insert-into [[:buildings buildings-keys]
+                              (-> (apply h/select buildings-keys)
+                                  (h/from :new-candidates)
+                                  (h/join :building-data
+                                          [:= :new-candidates.geoid :building-data.geoid]))])
 
-    ;; (re)generate map icon and so on
-    (-> (h/select (sql/call :update_map (int map-id)))
-        (db/fetch! conn))
+              (db/execute! conn))))
 
-    (-> (h/update :maps)
-        (h/sset {:import-completed true})
-        (h/where [:= :id map-id])
-        (db/execute! conn))))
+      (doseq [block (partition-all *insert-block-size* paths)]
+        (jdbc/atomic
+            conn
+          ;; this ought to work???
+          (-> (h/with
+               (data-values :path-data
+                            (for [c block]
+                              (-> c
+                                  (select-keys (remove #{:candidate-id}
+                                                       (concat candidates-keys paths-keys)))
+                                  (assoc :map-id map-id)
+                                  (update :geometry #(geom-from-text % srid)))))
+
+               [:new-candidates
+                (-> (h/insert-into [[:candidates candidates-keys]
+                                    (-> (apply h/select candidates-keys)
+                                        (h/from :path-data))])
+                    (p/returning :geoid [:id :candidate-id]))])
+
+              (h/insert-into [[:paths paths-keys]
+                              (-> (apply h/select paths-keys)
+                                  (h/from :new-candidates)
+                                  (h/join :path-data
+                                          [:= :new-candidates.geoid :path-data.geoid]))])
+
+              (db/execute! conn)
+              )))
+
+      (log/info tag "inserted" (+ (count paths) (count buildings)) "candidates")
+      ;; (re)generate map icon and so on
+      (-> (h/select (sql/call :update_map (int map-id)))
+          (db/fetch! conn))
+
+      (log/info tag "updated summary information")
+      
+      (-> (h/update :maps)
+          (h/sset {:import-completed true})
+          (h/where [:= :id map-id])
+          (db/execute! conn))
+      (log/info tag "import finished"))))
 
 (defn- make-bounding-points [zoom x-tile y-tile]
   (let [n (Math/pow 2 zoom)
@@ -278,16 +351,34 @@
 
 (defn get-map-bounds
   "Get the map boundingbox"
-  [map-id]
-  (-> (h/select
-       :map-id
-       [(st/xmin :envelope) :x-min]
-       [(st/xmax :envelope) :x-max]
-       [(st/ymin :envelope) :y-min]
-       [(st/ymax :envelope) :y-max])
-      (h/from :map-centres)
-      (h/where [:= :map-id map-id])
-      (db/fetch-one!)))
+  ([map-id]
+   (-> (h/select
+        :map-id
+        [(st/xmin :envelope) :x-min]
+        [(st/xmax :envelope) :x-max]
+        [(st/ymin :envelope) :y-min]
+        [(st/ymax :envelope) :y-max])
+       (h/from :map-centres)
+       (h/where [:= :map-id map-id])
+       (db/fetch-one!))))
+
+(defn get-map-bounds-as-geojson []
+  (let [bounds
+        (-> (h/select
+             :map-centres.map-id :maps.name
+             [(sql/call :json (st/asgeojson :envelope)) :envelope])
+            (h/left-join :maps [:= :maps.id :map-centres.map-id])
+            (h/from :map-centres)
+            (db/fetch!))
+        ]
+    {:type :FeatureCollection
+     :features
+     (for [bound bounds]
+       {:type :Feature
+        :geometry (:envelope bound)
+        :id (:map-id bound)
+        :properties {:id (:map-id bound)
+                     :name (:name bound)}})}))
 
 (defn get-icon
   "Try and render an icon for the map"
@@ -307,7 +398,7 @@
   (db/with-connection [conn]
     (jdbc/atomic conn
       (with-open [cursor
-                  (-> (h/select :candidates.id :orig-id :name :type
+                  (-> (h/select :candidates.geoid :orig-id :name :type
                                 :connection-id
                                 :demand-kwh-per-year
                                 :demand-kwp
@@ -316,7 +407,7 @@
                                 [(sql/call :ST_AsGeoJson
                                            :geometry) :geometry])
                       (h/from :candidates)
-                      (h/join :buildings [:= :candidates.id :buildings.id])
+                      (h/join :buildings [:= :candidates.id :buildings.candidate-id])
                       (h/where [:= :map-id map-id])
                       (sql/format)
                       (->> (jdbc/fetch-lazy conn)))]
@@ -324,12 +415,12 @@
           (callback row)))
       
       (with-open [cursor
-                  (-> (h/select :candidates.id :orig-id :name :type
+                  (-> (h/select :candidates.geoid :orig-id :name :type
                                 :start-id :end-id :length :fixed-cost :variable-cost
                                 [(sql/call :ST_AsGeoJson
                                            :geometry) :geometry])
                       (h/from :candidates)
-                      (h/join :paths [:= :candidates.id :paths.id])
+                      (h/join :paths [:= :candidates.id :paths.candidate-id])
                       (h/where [:= :map-id map-id])
                       (sql/format)
                       (->> (jdbc/fetch-lazy conn)))]

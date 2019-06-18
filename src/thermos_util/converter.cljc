@@ -21,6 +21,14 @@
        key-name))
     :else key))
 
+(defn- process-value [value]
+  (if (or (string? value)
+          (boolean? value)
+          (nil? value)
+          (and (number? value) (Double/isFinite value)))
+    value
+    (str value)))
+
 (defn- process-properties
   "Recursively flatten map of properties and simplify column names"
   {:test #(do (assert (= (process-properties {:this/that 1}) {"this-that" 1}))
@@ -32,7 +40,7 @@
       (let [k (str prefix (process-key k))]
         (if (map? v)
           (merge a (process-properties v (str k "-")))
-          (assoc a k v))))
+          (assoc a k (process-value v)))))
     {} properties)))
 
 (defn network-candidate->geojson [candidate]
