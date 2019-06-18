@@ -53,8 +53,8 @@
              (-> (h/select :users-projects.project-id
                            :users-projects.user-id
                            :users-projects.auth
-                           [(sql/raw "array_agg(distinct maps.id)") :map-ids]
-                           [(sql/raw "array_agg(distinct networks.id)") :network-ids])
+                           [(sql/raw "array_remove(array_agg(distinct maps.id), NULL)") :map-ids]
+                           [(sql/raw "array_remove(array_agg(distinct networks.id), NULL)") :network-ids])
                  
                  (h/from :users-projects)
                  (h/left-join :projects [:= :projects.id :users-projects.project-id]
