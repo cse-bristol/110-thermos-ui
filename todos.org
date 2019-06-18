@@ -1,4 +1,5 @@
 * Major
+** Heuristic optimisation
 ** Supply model
 *** Adding profiles to buildings
 *** Generating overall profile with right properties
@@ -93,11 +94,20 @@ More specification work is need to include more detail about non-network technol
 *** Consider trigeneration?
 **** Are the pipe costs affected by sharing a trench?
 * Minor improvements & bugs
-** TODO Count of supplies constraint
+** TODO Non-diversified load category
+** TODO Scenario generation tools
+- Modulate demands by X% either way
+** TODO Clear solution button
+** TODO Reevaluate solution with other parameters?
+** TODO Evaluate solution with more detailed objective?
+- Nonlinear cost curve
+- Stepped pipe sizes
+** TODO Count of supplies constraint / count of demands constraint
 ** TODO More detail in cost structure
 - Tariff: fixed cost, capacity cost, unit cost
 - Plant: ???
 - Connection cost: fixed, capacity
+- Repeating capital costs for plant
 ** TODO Rearrangement of storage for parameters
 - Defined sets of parameters for buildings & paths
 - Buildings should take tariff parameters, connection cost parameters, co2 parameters
