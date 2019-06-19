@@ -11,14 +11,19 @@
             [goog.object :as o]
             ))
 
+(defn- message [& contents]
+  [:div {:style {:margin :1em :background :white :border "1px grey solid"
+                 :padding :0.5em}}
+   contents])
+
 (defn- solution-not-found []
-  [:div
+  [message
    [:p [:b "No solution found"] " for this problem"]
    [:p "A solution may exist, but one could not be found with the resources available."]
    [:p "Reduce the problem size, or increase the maximum running time or allowable distance from the best possible answer."]])
 
 (defn- solution-infeasible []
-  [:div
+  [message
    [:p "The problem is " [:b "infeasible"] "."]
    [:p "This means that no solution exists for this problem."]
    [:p "Possible explanations for this are:"]
@@ -31,6 +36,20 @@
 
     [:li
      [:p "The emissions limits cannot be achieved."]]]])
+
+(defn- problem-empty []
+  [message
+   [:p "The problem is " [:b "empty"] "."]
+   [:p "This means that you have defined a problem in which there are no demands that can be connected to a supply."]
+   [:p "Possible explanations for this are:"]
+   [:ol
+    [:li [:p "The supply is disconnected from all the demands in the network. Disconnected segments are coloured magenta on the map."]]
+    [:li [:p "You have not specified a supply, or the supply is to small to meet any of the demands."]]
+    [:li [:p "There are no demands in the network."]]]
+   [:p "To fix this you need to manipulate the candidates offered to the optimiser so that there is a supply point with some reachable demands, whose constraint state is not forbidden."]
+   [:p "You might want to read the " [:a {:target :_blank
+                                          :href "/help/quick-start.html"} "quick start guide"] " in the help for an introduction to constructing a network. "
+    "Alternatively a more detailed explanation of how to use the network editor is " [:a {:target :_blank :href "/help/networks.html"} "here"] "."]])
 
 (defn- solution-summary [solution-members finance-parameters objective-value runtime]
   [:div {:style {:flex-grow 1 :margin-top :1em}}
@@ -379,6 +398,7 @@
 (defn component [document]
   [:div.solution-component
    (case (keyword (::solution/state @document))
+     :empty-problem [problem-empty]
      :infeasible [solution-infeasible]
      ::noSolution [solution-not-found]
      (:valid :feasible :optimal :globallyOptimal :locallyOptimal :maxIterations :maxTimeLimit)

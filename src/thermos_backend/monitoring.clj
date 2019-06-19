@@ -57,7 +57,7 @@
         :value n
         :queue-name queue
         :task-state state})
-     (for [table [:users :projects :maps :candidates]]
+     (for [table [:users :projects :maps :candidates :networks]]
        {:name :object-count
         :value (db/count-rows table)
         :object (name table)}))))

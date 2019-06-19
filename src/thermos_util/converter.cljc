@@ -25,7 +25,9 @@
   (if (or (string? value)
           (boolean? value)
           (nil? value)
-          (and (number? value) (Double/isFinite value)))
+          (and (number? value)
+               #?(:clj (Double/isFinite value)
+                  :cljs (js/isFinite value))))
     value
     (str value)))
 

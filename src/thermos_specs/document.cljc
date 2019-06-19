@@ -5,6 +5,7 @@
             [thermos-specs.path :as path]
             [thermos-specs.solution :as solution]
             [thermos-specs.view :as view]
+            [thermos-specs.supply :as supply]
             [clojure.string :as str]
             [clojure.walk :refer [prewalk]]
             [com.rpl.specter :as sr :refer-macros [setval]]))
@@ -188,4 +189,14 @@
    (::mechanical-cost-per-m2 document)
    (::mechanical-cost-exponent document)
    10))
+
+
+(defn is-runnable?
+  "Tells you if the document might be runnable.
+  At the moment checks for the presence of 
+  "
+  [document]
+  (and (not (empty? (::candidates document)))
+       (some (comp #{:building} ::candidate/type) (vals (::candidates document)))
+       (some ::supply/capacity-kwp (vals (::candidates document)))))
 
