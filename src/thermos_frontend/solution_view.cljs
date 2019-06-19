@@ -11,14 +11,19 @@
             [goog.object :as o]
             ))
 
+(defn- message [& contents]
+  [:div {:style {:margin :1em :background :white :border "1px grey solid"
+                 :padding :0.5em}}
+   contents])
+
 (defn- solution-not-found []
-  [:div
+  [message
    [:p [:b "No solution found"] " for this problem"]
    [:p "A solution may exist, but one could not be found with the resources available."]
    [:p "Reduce the problem size, or increase the maximum running time or allowable distance from the best possible answer."]])
 
 (defn- solution-infeasible []
-  [:div
+  [message
    [:p "The problem is " [:b "infeasible"] "."]
    [:p "This means that no solution exists for this problem."]
    [:p "Possible explanations for this are:"]
@@ -33,8 +38,7 @@
      [:p "The emissions limits cannot be achieved."]]]])
 
 (defn- problem-empty []
-  [:div {:style {:margin :1em :background :white :border "1px grey solid"
-                 :padding :0.5em}}
+  [message
    [:p "The problem is " [:b "empty"] "."]
    [:p "This means that you have defined a problem in which there are no demands that can be connected to a supply."]
    [:p "Possible explanations for this are:"]

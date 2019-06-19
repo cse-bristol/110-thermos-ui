@@ -30,22 +30,21 @@
 (enable-console-print!)
 
 (defn do-save [run? name]
-  (state/save!
-   name
-   :run run?
-   :callback
-   #(do (toaster/show! [:div.toaster.toaster--success "Project saved"]))
-   )
-  ;; (state/save-document!
-  ;;  org-name name run?
-  ;;  (fn [org-name name new-id]
-  ;;    (js/window.history.pushState
-  ;;     nil
-  ;;     name
-  ;;     (urls/editor org-name name new-id))
-  ;;    ;; Show "toaster" message notifying successful save
-  ;;    (toaster/show! [:div.toaster.toaster--success "Project saved"])))
-  )
+  (let [can-run (document/is-runnable? @state/state)
+        invalid (and run? (not can-run))]
+    (when invalid
+      (toaster/show!
+       [:div.toaster.toaster--error
+        "Cannot optimise until you have added some demands and supplies!"]))
+    
+    (when-not (and invalid (not (state/needs-save?)))
+      (state/save!
+       name
+       :run (and run? can-run)
+       :callback
+       #(when-not invalid
+          (toaster/show! [:div.toaster.toaster--success "Project saved"]))))))
+
 
 (defn map-page [document]
   (r/with-let [h-split-pos (r/cursor document
