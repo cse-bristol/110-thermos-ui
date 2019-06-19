@@ -402,42 +402,53 @@
         ;; Edges can have attributes :ids, which say the input paths,
         ;; and :cost which say the total pipe cost for the edge.
         
-        input-json (postwalk identity (instance->json instance net-graph))
+        
         ]
-    ;; write the scenario down
-    (log/info "Output scenario to" input-file)
-    (with-open [writer (io/writer input-file)]
-      (json/write input-json writer :escape-unicode false))
+    ;; check whether there are actually any vertices
+    (cond
+      (empty? (graph/nodes net-graph))
+      (-> instance
+          (assoc ::solution/log "The problem is empty - you need to include some buildings and paths in the problem for the optimiser to consider"
+                 ::solution/state :empty-problem
+                 ::solution/message "Empty problem"
+                 ::solution/runtime 0)
+          (mark-unreachable net-graph))
+      
+      :else
+      (let [input-json (postwalk identity (instance->json instance net-graph))]
+        (log/info "Output scenario to" input-file)
+        (with-open [writer (io/writer input-file)]
+          (json/write input-json writer :escape-unicode false))
+        
+        (log/info "Starting solver")
+        ;; invoke the solver
+        (let [start-time (System/currentTimeMillis)
+              output (sh solver-command "problem.json" "solution.json"
+                         :dir working-directory)
+              
+              end-time (System/currentTimeMillis)
+
+              _ (println "Solver ran in" (- end-time start-time) "ms")
+
+              output-json (try
+                            (with-open [r (io/reader (io/file working-directory "solution.json"))]
+                              (json/read r :key-fn keyword))
+                            (catch Exception ex
+                              {:state :error
+                               :message (.getMessage ex)}))
+
+              solved-instance
+              (-> instance
+                  (assoc
+                   ::solution/log (str (:out output) "\n" (:err output))
+                   ::solution/state (:state output-json)
+                   ::solution/message (:message output-json)
+                   ::solution/runtime (/ (- end-time start-time) 1000.0))
+                  (merge-solution net-graph output-json)
+                  (mark-unreachable net-graph))
+              ]
+          (spit (io/file working-directory "instance.edn") solved-instance)
+          solved-instance)))
     
-    (log/info "Starting solver")
-    ;; invoke the solver
-    (let [start-time (System/currentTimeMillis)
-          output (sh solver-command "problem.json" "solution.json"
-                     :dir working-directory)
-          
-          end-time (System/currentTimeMillis)
-
-          _ (println "Solver ran in" (- end-time start-time) "ms")
-
-          output-json (try
-                        (with-open [r (io/reader (io/file working-directory "solution.json"))]
-                          (json/read r :key-fn keyword))
-                        (catch Exception ex
-                          {:state :error
-                           :message (.getMessage ex)}))
-
-          solved-instance
-          
-          (-> instance
-              (assoc
-               ::solution/log (str (:out output) "\n" (:err output))
-               ::solution/state (:state output-json)
-               ::solution/message (:message output-json)
-               ::solution/runtime (/ (- end-time start-time) 1000.0))
-              (merge-solution net-graph output-json)
-              (mark-unreachable net-graph))
-          
-          ]
-      (spit (io/file working-directory "instance.edn") solved-instance)
-      solved-instance
-      )))
+    ;; write the scenario down
+    ))
