@@ -227,8 +227,16 @@
             (Math/sqrt
              (+ (Math/pow (- (.-lat zz) (.-lat oo)) 2)
                 (Math/pow (- (.-lng zz) (.-lng oo)) 2)))
-            ))]
+            ))
 
+        ;; these next 3 are a bit of a hack which I could improve.
+        ;; poke-map-size! should get invoked when the splitters are moved
+        h-split-pos (reagent/cursor document [::view/view-state ::view/map-page-h-split])
+        v-split-pos (reagent/cursor document [::view/view-state ::view/map-page-v-split])
+        poke-map-size! #(let [_ @h-split-pos
+                              _ @v-split-pos]
+                          (.invalidateSize map))]
+    (track! poke-map-size!)
     (track! show-bounding-box!)
     (track! show-map-layers!)
     
