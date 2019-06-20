@@ -223,6 +223,8 @@
              ::candidate/id       spline-id
              ::candidate/geometry spline-geojson
              ::candidate/modified true
+             ::candidate/selected true
+             ::candidate/inclusion :optional
              
              ::spatial/jsts-geometry spline-geometry
              
