@@ -1,14 +1,18 @@
 (ns thermos-frontend.inputs
-  (:require [reagent.core :as reagent]))
+  (:require [reagent.core :as reagent]
+            [clojure.set :refer [map-invert]]
+            [thermos-frontend.util :refer [target-value]]))
 
 (defn text [& {:keys [value-atom] :as ks
                :or {value-atom nil}}]
   [:input.input
    (merge {:type :text
            :placeholder "some text"
-           :value (or (:value ks) (when value-atom @value-atom))
-           :on-change (when value-atom #(reset! value-atom (.. % -target -value)))
-           } ks)])
+           :on-change (when value-atom #(reset! value-atom (target-value %)))
+           }
+          (when value-atom
+            {:value @value-atom})
+          ks)])
 
 (defn number [{value-atom :value-atom scale :scale step :step :as ks}]
   (reagent/with-let [element (atom nil)]
@@ -21,38 +25,44 @@
                    (* scale (or (when value-atom @value-atom) (:value ks)))
                    digits)
           on-change (or (:on-change ks) (partial reset! value-atom))
-          parse (if (integer? (or (:step ks) 1))
+          parse (if (integer? step)
                   js/parseInt
                   js/parseFloat)
           ]
-      
+
       [:input.input.number-input
        (merge {:type :number
                :placeholder "0"
                :default-value s-value}
               
-              (dissoc ks :value-atom :scale)
+              (dissoc ks :value-atom :scale :value)
+              
+              (when value-atom
+                {:on-blur
+                 
+                 #(let [val @value-atom]
+                    (set! (.. @element -value)
+                          (* val scale)))})
+              
               {:ref #(reset! element %)
-
-               :on-blur
-               #(let [val @value-atom]
-                  (set! (.. @element -value)
-                        (* val scale)))
-               
                :on-change
-               #(let [val (.. % -target -value)
+               #(let [val (target-value %)
                       val (/ (parse val) scale)]
+                  (println "changed to" (target-value %))
                   (on-change val))})])))
 
 (defn select [{value-atom :value-atom values :values}]
-  [:select
-   {:value (str @value-atom)
-    :on-change
-    (when value-atom #(reset! value-atom (keyword (.substring (.. % -target -value) 1))))}
-   
-   (let [val @value-atom]
-     (for [[k v] values]
-       [:option {:value (str k) :key k} v]))])
+  (let [index->key (into {} (map-indexed #(vector (str %1) %2) (map first values)))
+        key->index (map-invert index->key)]
+    [:select
+     {:value (key->index @value-atom)
+      :on-change
+      (when value-atom #(reset! value-atom (index->key (.. % -target -value))))}
+     
+     (let [val @value-atom]
+       (for [[k v] values]
+         (let [k (key->index k)]
+           [:option {:value (str k) :key k} v])))]))
 
 (defn check-number [{check-atom :check-atom :as ks}]
   [:div {:style {:display :flex}}

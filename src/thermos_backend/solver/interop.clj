@@ -23,7 +23,8 @@
             [thermos-backend.config :refer [config]]
             [thermos-util :refer [annual-kwh->kw]]
             [clojure.walk :refer [postwalk]]
-            )
+
+            [thermos-specs.tariff :as tariff])
   
   (:import [java.io StringWriter]))
 
@@ -195,8 +196,7 @@
 
         _ (log/info "Computed flow bounds")
         
-        global-factors (::demand/emissions instance)
-        default-price  (float (::demand/price instance))]
+        global-factors (::demand/emissions instance)]
     
     {:time-limit (float (::document/maximum-runtime instance 1.0))
      :mip-gap    (float (::document/mip-gap instance 0.05))
@@ -214,8 +214,7 @@
      {:loan-term  (int (::document/loan-term instance))
       :loan-rate  (float (::document/loan-rate instance))
       :npv-term   (int (::document/npv-term instance))
-      :npv-rate   (float (::document/npv-rate instance))
-      :heat-price default-price}
+      :npv-rate   (float (::document/npv-rate instance))}
 
      :emissions
      (into {}
@@ -232,17 +231,24 @@
        (cond-> {:id vertex}
          (candidate/has-demand? candidate)
          (assoc :demand
-                {:kw        (float   (annual-kwh->kw (::demand/kwh candidate 0)))
-                 :kwp       (float   (::demand/kwp candidate (annual-kwh->kw (::demand/kwh candidate 0))))
-                 :required  (boolean (candidate/required? candidate))
-                 :count     (int     (::demand/connection-count candidate 1))
-                 :emissions (into {} (for [e candidate/emissions-types
-                                           :let [em (candidate/emissions candidate e instance)]
-                                           :when (pos? em)]
-                                       [e (float em)]))
-                 :connection-cost (float (* (::demand/connection-cost candidate 0)
-                                            (::demand/kwp candidate (annual-kwh->kw (::demand/kwh candidate 0)))))
-                 :heat-price (float (::demand/price candidate default-price))})
+                (let [tariff (document/tariff-for-id instance (::tariff/id candidate))]
+                  {:kw        (float   (annual-kwh->kw (::demand/kwh candidate 0)))
+                   :kwp       (float   (::demand/kwp candidate (annual-kwh->kw (::demand/kwh candidate 0))))
+                   :required  (boolean (candidate/required? candidate))
+                   :count     (int     (::demand/connection-count candidate 1))
+                   :emissions (into {} (for [e candidate/emissions-types
+                                             :let [em (candidate/emissions candidate e instance)]
+                                             :when (pos? em)]
+                                         [e (float em)]))
+                   :connection-cost
+                   (float (tariff/connection-cost tariff
+                                                  (::demand/kwh candidate)
+                                                  (::demand/kwp candidate)))
+
+                   :heat-revenue
+                   (float (tariff/annual-heat-revenue tariff
+                                                      (::demand/kwh candidate)
+                                                      (::demand/kwp candidate)))}))
 
          (candidate/has-supply? candidate)
          (assoc :supply
@@ -364,7 +370,6 @@
   [label instance]
   
   (let [instance (document/remove-solution instance)
-        ;; ^^throw away any existing solution
 
         working-directory (util/create-temp-directory!
                            (config :solver-directory)

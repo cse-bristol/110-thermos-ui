@@ -1,13 +1,14 @@
 (ns thermos-util
-  (:require [clojure.string :as string]))
+  (:require [clojure.string :as string]
+            [clojure.test :as test]))
 
 (defn assoc-by
   "Given a sequence `s` and a function `f`, returns a map from (f x) to
   x for each x in s. If there are multiple x in s with same (f x), the
   last one is what you find in the map"
   {:test
-   #(do (assert (= (assoc-by [1 2 3 4] even?) {false 3 true 4}))
-        (assert (= (assoc-by ["this" "is" "great"] first) {\t "this"
+   #(do (test/is (= (assoc-by [1 2 3 4] even?) {false 3 true 4}))
+        (test/is (= (assoc-by ["this" "is" "great"] first) {\t "this"
                                                            \i "is"
                                                            \g "great"})))}
   [s f]

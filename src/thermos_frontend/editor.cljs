@@ -14,7 +14,8 @@
             [thermos-frontend.network-candidates-panel :as network-candidates-panel]
             [thermos-frontend.selection-info-panel :as selection-info-panel]
             [thermos-frontend.popover :as popover]
-            [thermos-frontend.model-parameters :as model-parameters]
+            [thermos-frontend.params.global :as global-parameters]
+            [thermos-frontend.params.tariffs :as tariff-parameters]
             [thermos-frontend.solution-view :as solution-view]
             [thermos-frontend.toaster :as toaster]
             [thermos-frontend.editor-keys :as keys]
@@ -24,6 +25,7 @@
             [goog.events :refer [listen]]
             [goog.math :refer [Size]]
             [goog.functions :refer [debounce]]
+            [thermos-frontend.util :refer [target-value]]
 
             [re-com.core :as rc]))
 
@@ -75,8 +77,11 @@
   
   )
 (defn main-page []
-  (r/with-let [selected-tab (r/cursor state/state [::view/view-state ::view/selected-tab])
-               has-solution? (r/track #(document/has-solution? @state/state))]
+  (r/with-let [*selected-tab (r/cursor state/state [::view/view-state ::view/selected-tab])
+               *show-menu (r/atom false)
+               has-solution? (r/track #(document/has-solution? @state/state))
+               has-valid-solution? (r/track #(solution/valid-state?
+                                             (keyword (::solution/state @state/state))))]
     
     (let [close-popover
           (fn [e]
@@ -90,29 +95,27 @@
           (fn [e]
             (when (operations/table-filter-open? @state/state)
               (state/edit! state/state operations/close-table-filter)))
-          ]
+
+          selected-tab (or @*selected-tab :candidates)]
       [:div.editor__container
        {:on-click (fn [e] (close-popover e) (close-table-filter e))
         :on-context-menu close-popover
         :ref popover/set-focus-element!}
-
+          
        [main-nav/component
         {:on-save (partial do-save false)
          :on-run (partial do-save true)
-         :on-tab-switch #(reset! selected-tab %)
+         :on-hamburger #(reset! *show-menu true)
+         :hamburger (case selected-tab
+                      :candidates
+                      "Map"
+                      (name selected-tab))
+         
          :name (preload/get-value :name)
-         :unsaved? (state/needs-save?)
-         :selected-tab (or @selected-tab :candidates)
-         :tabs
-         [
-          {:key :candidates :label "Map"}
-          {:key :parameters :label "Options"}
-          (when @has-solution? {:key :solution :label "Result"})
-          {:key :help :label "Help" :href "/help"}
-          ]
-         }]
+         :unsaved? (state/needs-save?)}]
 
-       (when (state/is-running?)
+       (cond
+         (state/is-running?)
          [:div
           {:style {:position :absolute
                    :z-index 1000000
@@ -127,19 +130,102 @@
              (if (zero? position)
                [:span "Running"]
                [:span "Number " position " in queue"]))
-           ]])
+           ]]
 
-       [:div {:style {:overflow-y :auto
-                      :flex 1}}
-        (case (or @selected-tab :candidates)
-          :candidates
+         @*show-menu
+         ;; show fullwidth fullheight box
+         (let [goto #(do (reset! *selected-tab %)
+                         ;; (reset! *show-menu false)
+                         )]
+           [:div.main-menu.fade-in
+            {:style {:position :absolute
+                     :z-index 1000000
+                     :width :100%
+                     :display :flex
+                     :background "rgba(255,255,255,0.95)"
+                     :box-shadow "0px 0px 93px 62px rgba(0,0,0,0.5)"
+                     }
+             :on-mouse-leave
+             #(reset! *show-menu false)}
+            
+            [:div
+             [:h1 "Problem"]
+             [:ul
+              [:li [:button.button--link-style
+                    {:on-click #(goto :candidates)}
+                    "Map view"]]
+              [:li [:button.button--link-style 
+                    {:on-click #(goto :parameters)} "General settings"]]
+              [:li [:button.button--link-style 
+                    {:on-click #(goto :tariffs)} "Tariffs"]]
+              [:li [:button.button--link-style 
+                    {:on-click #(goto :pipe-costs)} "Pipe costs"]]]]
+            
+            (when @has-solution?
+              [:div
+               [:h1 "Solution"]
+               [:ul
+                [:li [:button.button--link-style
+                      {:on-click #(goto :solution)} "Solution summary"]]
+                (when @has-valid-solution?
+                  [:li [:button.button--link-style
+                       {:on-click #(goto :solution-buildings)} "Building connections"]])
+                (when @has-valid-solution?
+                  [:li [:button.button--link-style
+                        {:on-click #(goto :solution-pipework)} "Pipework"]])
+                (when @has-valid-solution?
+                  [:li [:button.button--link-style
+                        {:on-click #(goto :solution-supply)} "Supply"]])]])
+
+            [:div
+             [:h1 "Help"]
+             [:input
+              {:placeholder "Search help..."
+               :type :search
+               :on-key-press
+               #(let [key (.-key %)]
+                  (when (= key "Enter")
+                    (->> (target-value %)
+                         (str "/help/search?q=")
+                         (js/window.open))))}
+              ]
+
+             
+             [:ul
+              [:li [:a {:href "/help" :target "help"} "Help contents"]]
+              [:li [:a {:href "/help/networks.html" :target "help"} "Network editor help"]]]
+  
+             ]
+            ]))
+
+       [:div {:style {:overflow-y :auto :flex 1 :height 1}}
+        (cond 
+          (= selected-tab :candidates)
           [map-page state/state]
 
-          :parameters
-          [model-parameters/parameter-editor state/state]
+          (= selected-tab :parameters)
+          [global-parameters/parameter-editor state/state]
+          
+          (= selected-tab :tariffs)
+          [tariff-parameters/tariff-parameters state/state]
 
-          :solution
-          [solution-view/component state/state])]
+          (= selected-tab :solution)
+          [:div.solution-component
+           [solution-view/solution-summary state/state]]
+
+          (= selected-tab :solution-buildings)
+          [solution-view/demands-list state/state]
+
+          (= selected-tab :solution-pipework)
+          [solution-view/network-list state/state]
+
+          (= selected-tab :solution-supply)
+          [:div.solution-component
+           [solution-view/supply-list state/state]]
+
+          :else
+          [:div "Unknown page!!! urgh!"])]
+       
        
        [popover/component state/state]
        [toaster/component]]

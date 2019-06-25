@@ -6,16 +6,16 @@
             [thermos-specs.solution :as solution]
             [thermos-specs.view :as view]
             [thermos-specs.supply :as supply]
+            [thermos-specs.tariff :as tariff]
             [clojure.string :as str]
             [clojure.walk :refer [prewalk]]
-            [com.rpl.specter :as sr :refer-macros [setval]]))
+            [com.rpl.specter :as sr :refer-macros [setval]]
+            [clojure.test :as test]))
 
 (s/def ::document
   (s/keys :req [::candidates
                 ::view/view-state
 
-                ;; default values for price & emissions at demands
-                ::demand/price
                 ::demand/emissions
 
                 ::npv-term
@@ -39,6 +39,7 @@
                 ::mechanical-cost-exponent
                 ::civil-cost-exponent
 
+                ::tariffs
                 ]
           :opt [::solution/summary
                 ::deletions]))
@@ -57,6 +58,10 @@
 
 (s/def ::deletions (s/* ::candidate/id))
 
+(s/def ::tariffs
+  (s/and (redundant-key ::tariff/id)
+         (s/map-of ::tariff/id ::tariff/tariff)))
+
 (s/def ::candidates
   (s/and
    (redundant-key ::candidate/id)
@@ -70,7 +75,7 @@
   "Given a document, remove any candidates which are not either ::candidate/modified,
   or having ::candidate/inclusion :optional or :required"
   [doc]
-  {:test #(assert
+  {:test #(test/is
            (= (set (keys (::candidates
                           (keep-interesting-candidates
                            {::candidates {"one" {::candidate/inclusion :optional}
@@ -92,11 +97,11 @@
 (defn- is-transient-key?
   "A key is transient if it's namespaced and not within thermos-specs."
   [x]
-  {:test #(assert (and (is-transient-key? :some.ns/kw)
-                       (not (is-transient-key? :some-kw))
-                       (not (is-transient-key? ::some-kw))
-                       (not (is-transient-key? 1))
-                       (not (is-transient-key? "str"))))}
+  {:test #(test/is (and (is-transient-key? :some.ns/kw)
+                        (not (is-transient-key? :some-kw))
+                        (not (is-transient-key? ::some-kw))
+                        (not (is-transient-key? 1))
+                        (not (is-transient-key? "str"))))}
   (and (keyword? x)
        (namespace x)
        (not (str/starts-with? (namespace x) "thermos-specs"))))
@@ -120,7 +125,7 @@
 
   This function removes all these keys"
   [doc]
-  {:test #(assert
+  {:test #(test/is
            (and
             (= (remove-transient-keys {}) {})
             (= (remove-transient-keys {::keep-this 1}) {::keep-this 1})
@@ -200,3 +205,30 @@
        (some (comp #{:building} ::candidate/type) (vals (::candidates document)))
        (some ::supply/capacity-kwp (vals (::candidates document)))))
 
+(defn tariff-for-id [doc tariff-id]
+  (let [tariffs (::tariffs doc)]
+    (or (get tariffs tariff-id)
+        (get tariffs
+             (reduce min (keys tariffs))))))
+
+(defn tariff-name [doc tariff-id]
+  (or (::tariff/name (tariff-for-id doc tariff-id)) "None"))
+
+(defn remove-tariff
+  {:test #(test/is
+           (= {::tariffs {1 {}}
+               ::candidates {1 {::tariff/id 1}
+                             2 {}}}
+              (remove-tariff
+               {::tariffs {1 {} 2 {}}
+                ::candidates {1 {::tariff/id 1}
+                              2 {::tariff/id 2}}}
+               2)))}
+  [doc tariff-id]
+  (-> doc
+      (update ::tariffs dissoc tariff-id)
+      (map-candidates
+       (fn [c]
+         (if (= tariff-id (::tariff/id c))
+           (dissoc c ::tariff/id)
+           c)))))

@@ -108,13 +108,17 @@
         track! (fn [f & a]
                  (let [watch (apply reagent/track! f a)]
                    (swap! watches conj #(reagent/dispose! watch))))
-
+        
+        map-bounding-box (reagent/cursor document [::view/view-state ::view/bounding-box])
+        
         map (js/L.map map-node (clj->js {:preferCanvas true
                                          :fadeAnimation true
                                          :zoom 15
-                                         :center [51.553356 -0.109271]
-                                         }))
-
+                                         :center
+                                         (let [{n :north s :south
+                                                w :west e :east}
+                                               @map-bounding-box]
+                                           [(* 0.5 (+ w e)) (* 0.5 (+ n s))])}))
         
         ;; The tilesize of 256 is related to the x, y values when talking
         ;; to the server for tile data, so if the tilesize changes, effectively
@@ -211,7 +215,7 @@
                (when (get target-state k)
                  (.addLayer map v)))))
         
-        map-bounding-box (reagent/cursor document [::view/view-state ::view/bounding-box])
+
         
         show-bounding-box!
         #(let [{n :north s :south

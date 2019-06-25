@@ -58,3 +58,23 @@
 
 (def blue-dark-grey-stripes
   (create-stripes blue dark-grey 4 8))
+
+(def icon
+  [:svg {:width 35 :height 35
+         :view-box "0 0 1 1"}
+   [:path
+    {:d "M 0.15 0.5 A 0.35 0.35 0 0 1 0.85 0.5"
+     :stroke red
+     :fill :transparent
+     :stroke-width 0.25}]
+   [:path
+    {:d "M 0.15 0.5 A 0.35 0.35 0 0 0 0.85 0.5"
+     :stroke blue
+     :fill :transparent
+     :stroke-width 0.25}]
+   [:path
+    {:d "M 0 0.5 l 1 0"
+     :stroke :white
+     :stroke-width 0.06}
+    ]
+   ])

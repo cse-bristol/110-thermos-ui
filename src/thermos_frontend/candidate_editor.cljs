@@ -1,6 +1,7 @@
 (ns thermos-frontend.candidate-editor
   (:require [thermos-specs.candidate :as candidate]
             [thermos-specs.demand :as demand]
+            [thermos-specs.tariff :as tariff]
             [thermos-specs.path :as path]
             [thermos-specs.document :as document]
             [thermos-frontend.popover :as popover]
@@ -22,12 +23,12 @@
 (def nil-value-label {::candidate/name "None"
                       ::candidate/subtype "Unclassified"})
 
-(defn- demand-editor [state buildings]
+(defn- demand-editor [tariffs state buildings]
   (reagent/with-let
     [group-by-key  (reagent/cursor state [:group-by])
      benchmarks    (reagent/cursor state [:benchmarks])
-     values        (reagent/cursor state [:values])
-     ]
+     values        (reagent/cursor state [:values])]
+    
     [:div
      (when (seq (rest buildings))
        [:div
@@ -43,7 +44,9 @@
            benchmarks @benchmarks
            demand-key (if benchmarks :demand-benchmark :demand)
            peak-key (if benchmarks :peak-benchmark :peak-demand)
-           ]
+
+           ;; this is a bit wrong still
+           tariff-frequencies (frequencies (map ::tariff/id buildings))]
        [:table {:style {:max-height :400px :overflow-y :auto}}
         [:thead
          [:tr
@@ -52,8 +55,8 @@
           [:th "Count"]
           [:th "Demand"]
           [:th "Peak"]
-          [:th "Heat price"]
-          [:th "Conn. cost"]
+          [:th "Tariff"]
+          
           (for [e candidate/emissions-types]
             [:th {:key e} (name e)])
           ]
@@ -62,13 +65,10 @@
           [:th]
           [:th (if benchmarks "kWh/m2 yr" "MWh/yr")]
           [:th (if benchmarks "kW/m2" "kW")]
-          [:th "c/kWh"]
-          [:th "¤/kWp"]
+          [:th]
           (for [e candidate/emissions-types]
-            [:th {:key e} "kg/kWh"])
-          ]
-         
-         ]
+            [:th {:key e} "kg/kWh"])]]
+        
         [:tbody
          (doall
           (for [[k cands] grouped]
@@ -97,25 +97,14 @@
                     (reagent/cursor values [group-by-key k peak-key :value])
                     :check-atom
                     (reagent/cursor values [group-by-key k :peak-demand :check])}]]
-             [:td [inputs/check-number
-                   {:scale 100 ;; store in £ not p
-                    :style {:max-width :5em}
-                    :step 0.1
-                    :max 100
-                    :min 0
-                    :value-atom
-                    (reagent/cursor values [group-by-key k :price :value])
-                    :check-atom
-                    (reagent/cursor values [group-by-key k :price :check])}]]
-             [:td [inputs/check-number
-                   {:style {:max-width :5em}
-                    :max 1000
-                    :min 0
-                    :step 1
-                    :value-atom
-                    (reagent/cursor values [group-by-key k :connection-cost :value])
-                    :check-atom
-                    (reagent/cursor values [group-by-key k :connection-cost :check])}]]
+             [:td [inputs/select
+                   {:value-atom (reagent/cursor values [group-by-key k :tariff])
+                    :values `[[:unset "Unchanged"]
+                              ~@(map
+                                 (fn [[id {name ::tariff/name}]] [id (str name " ("
+                                                                          (get tariff-frequencies id 0 )
+                                                                          ")")])
+                                 tariffs)]}]]
              (doall
               (for [e candidate/emissions-types]
                 [:th {:key e}
@@ -209,11 +198,10 @@
                 (map (fn [[k v]]
                        [k (merge
                            {:demand {:value (mean (map ::demand/kwh v))}
+                            :tariff :unset
                             :peak-demand {:value (mean (map ::demand/kwp v))}
                             :demand-benchmark {:value 2}
-                            :peak-benchmark {:value 3}
-                            :price {:value (mean (map ::demand/price v))}
-                            :connection-cost {:value (mean (map ::demand/connection-cost v))}}
+                            :peak-benchmark {:value 3}}
                            (->> (for [e candidate/emissions-types]
                                   [e {:value
                                       (mean
@@ -258,7 +246,6 @@
 
              {set-peak :check peak-value :value} (:peak-demand values)
              {set-demand :check demand-value :value} (:demand values)
-             {set-conn-cost :check conn-cost-value :value} (:connection-cost values)
 
              peak-value   (if bench
                             (* (:peak-benchmark values) (::candidate/area building))
@@ -268,7 +255,9 @@
                             (* (:demand-benchmark values) (::candidate/area building))
                             demand-value)
 
-             {set-heat-price :check price-value :value} (:price values)
+             tariff (:tariff values)
+
+             set-tariff (not= :unset tariff)
 
              emissions-factors
              (select-keys values candidate/emissions-types)
@@ -282,8 +271,7 @@
          (cond-> building
            set-demand              (assoc ::demand/kwh demand-value)
            set-peak                (assoc ::demand/kwp peak-value)
-           set-heat-price          (assoc ::demand/price price-value)
-           set-conn-cost           (assoc ::demand/connection-cost conn-cost-value)
+           set-tariff              (assoc ::tariff/id tariff)
            (seq emissions-factors) (update ::demand/emissions merge emissions-factors))))
 
      building-ids)))
@@ -295,10 +283,11 @@
 
                      demand-state (reagent/atom (initial-building-state buildings))
                      path-state   (reagent/atom (initial-path-state paths))
-                     ]
+                     tariffs (sort-by first (::document/tariffs @document))]
+    
     [:div.popover-dialog
      (when (seq buildings)
-       [demand-editor demand-state buildings])
+       [demand-editor tariffs demand-state buildings])
      (when (seq paths)
        [:div
         (when (seq buildings) [:hr])

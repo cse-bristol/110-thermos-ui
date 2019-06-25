@@ -3,6 +3,7 @@
             [thermos-specs.solution :as solution]
             [thermos-specs.supply :as supply]
             [thermos-specs.demand :as demand]
+            [thermos-specs.tariff :as tariff]
             [thermos-specs.path :as path]))
 
 (defn- nil-or-string? [x] (or (nil? x) (string? x)))
@@ -18,7 +19,9 @@
 (s/def ::building
   (s/and
    #(= (::type % :building))
-   (s/keys :req [::connections ])
+   (s/keys :req [::connections ]
+           :opt [::tariff/id])
+   
    (s/or :has-demand ::demand/demand ;; TODO this is not quite right
          :has-supply ::supply/supply
          :has-nothing (constantly true))))

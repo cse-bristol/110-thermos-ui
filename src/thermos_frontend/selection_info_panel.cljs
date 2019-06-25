@@ -3,6 +3,7 @@
             [thermos-specs.candidate :as candidate]
             [thermos-specs.document :as document]
             [thermos-specs.demand :as demand]
+            [thermos-specs.tariff :as tariff]
             [thermos-specs.path :as path]
             [thermos-specs.solution :as solution]
             [thermos-frontend.editor-state :as state]
@@ -48,20 +49,19 @@
 
         base-cost #(case (::candidate/type %)
                      :path (document/path-cost % @document)
-                     :building (when-let [cc (::demand/connection-cost %)]
-                                 (and (not (zero? cc))
-                                      (* cc (::demand/kwp % 0))))
+                     :building (tariff/connection-cost
+                                (document/tariff-for-id @document (::tariff/id %))
+                                (::demand/kwh %)
+                                (::demand/kwp %))
                      nil)
         
         has-solution (document/has-solution? @document)
         selected-candidates (operations/selected-candidates @document)
-        selected-technologies (mapcat (comp ::solution/technologies ::solution/candidate)
-                                      selected-candidates)
+        
         sc-class "selection-table-cell--tag-container"
         cat (fn [k u & {:keys [add-classes]}]
               (category-row document #(or (k %) u) selected-candidates
-                            :add-classes add-classes
-                            ))
+                            :add-classes add-classes))
 
         num (fn [k agg unit & [scale]]
               (let [scale (or scale 1)
@@ -84,6 +84,13 @@
                                          :add-classes "constraint")]
              
              ["Name" sc-class (cat ::candidate/name "None")]
+             ["Tariff" sc-class (cat
+                                 (fn [x]
+                                   (when (candidate/is-building? x)
+                                     (document/tariff-name
+                                      @document
+                                      (::tariff/id x))))
+                                 nil)]
              
              ["Length" nil (num ::path/length  rsum "m")]
              [[:span.has-tt

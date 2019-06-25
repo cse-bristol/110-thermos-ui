@@ -5,3 +5,8 @@
 (s/def ::state keyword?)
 (s/def ::message string?)
 (s/def ::runtime integer?)
+
+(def valid-state? 
+  #{:valid :feasible :optimal :globallyOptimal
+    :locallyOptimal :maxIterations :maxTimeLimit})
+

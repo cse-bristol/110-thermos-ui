@@ -7,8 +7,7 @@
 
 (defn parameter-editor [document]
   (reagent/with-let
-    [heat-price (reagent/cursor document [::demand/price])
-     emissions-factor (into {} (for [e candidate/emissions-types] [e (reagent/cursor document [::demand/emissions e])]))
+    [emissions-factor (into {} (for [e candidate/emissions-types] [e (reagent/cursor document [::demand/emissions e])]))
      emissions-cost (into {} (for [e candidate/emissions-types] [e (reagent/cursor document [::document/emissions-cost e])]))
      emissions-limit (into {} (for [e candidate/emissions-types] [e (reagent/cursor document [::document/emissions-limit :value e])]))
      emissions-check (into {} (for [e candidate/emissions-types] [e (reagent/cursor document [::document/emissions-limit :enabled e])]))
@@ -116,13 +115,6 @@
     [:div
       [:h1 "Building defaults"]
       [:p "These values will only be used for buildings where you have not set per-building values"]
-      [:h2 "Heat sale price"]
-      [inputs/number
-       {:value-atom heat-price
-        :min 0
-        :max 100
-        :scale 100
-        :step 0.1}] "c/kWh"
      [:h2 "Avoided emissions factors"]
      [:p "If a building is connected to the network, these factors will be used with its annual demand to quantify the emissions avoided by replacing its existing heating system."]
       [:table

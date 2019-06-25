@@ -24,7 +24,9 @@
             [clojure.tools.logging :as log]
             [thermos-util :refer [as-double as-boolean assoc-by distinct-by annual-kwh->kw]]
             [clojure.pprint :refer [pprint]]
-            [cljts.core :as jts])
+            [cljts.core :as jts]
+            [clojure.test :as test])
+  
   (:import [org.locationtech.jts.geom
             Envelope
             GeometryFactory
@@ -348,11 +350,11 @@
 (defn- table->maps
   "Given a seq of seqs whose first element is a header,
   return a seq of maps from header values to row values"
-  {:test #(assert (= (table->maps [["this" "that"]
-                                   [1 2]
-                                   [3 4]])
-                     (list {"this" 1 "that" 2}
-                           {"this" 3 "that" 4})))}
+  {:test #(test/is (= (table->maps [["this" "that"]
+                                    [1 2]
+                                    [3 4]])
+                      (list {"this" 1 "that" 2}
+                            {"this" 3 "that" 4})))}
   [[header & rows]]
   (map zipmap (repeat header) rows))
 
@@ -367,8 +369,8 @@
   {:test
    #(let [c (compose-mapping {"widget" :sprocket
                               "blink" :blonk})]
-      (assert (= (get (c {"widget" 13 "blink" nil})
-                      :sprocket) 13)))}
+      (test/is (= (get (c {"widget" 13 "blink" nil})
+                       :sprocket) 13)))}
   [fields]
   (apply comp
          (for [[field-name field-purpose] fields]
@@ -399,8 +401,8 @@
                        {"a" 2 :hello :i-love-you}]})
           ]
 
-      (assert (= :world (get (c {"b" 1}) :hello)))
-      (assert (= :i-love-you (get (c {"b" 2}) :hello))))}
+      (test/is (= :world (get (c {"b" 1}) :hello)))
+      (test/is (= :i-love-you (get (c {"b" 2}) :hello))))}
   
   [joins tables]
 

@@ -2,12 +2,13 @@
   (:require [thermos-specs.document :as document]
             [thermos-specs.candidate :as candidate]
             [clojure.string :as string]
-
+            [clojure.test :as test]
+            
             #?@(:clj [[clojure.data.json :as json]])))
 
 (defn- process-key
-  {:test #(do (assert (= "candidate-id" (process-key ::candidate/id)))
-              (assert (= "thing" (process-key :thing))))}
+  {:test #(do (test/is (= "candidate-id" (process-key ::candidate/id)))
+              (test/is (= "thing" (process-key :thing))))}
   [key]
   (cond
     (string? key) key
