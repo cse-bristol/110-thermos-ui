@@ -5,7 +5,9 @@
             [thermos-backend.config :refer [config]]
             [thermos-backend.pages.landing-page :refer [landing-page]]
             [thermos-backend.pages.user-settings :refer [settings-page]]
-            [thermos-backend.pages.projects :refer [new-project-page project-page delete-project-page]]
+            [thermos-backend.pages.projects :refer [new-project-page
+                                                    project-page
+                                                    delete-project-page]]
             [thermos-backend.pages.maps :as map-pages]
             [thermos-backend.pages.help :refer [help-page help-search]]
             [thermos-backend.pages.admin :as admin]
@@ -143,7 +145,11 @@
        (if purge
          (queue/erase (keyword queue-name))
          (queue/clean-up (keyword queue-name)))
-       (response/redirect "/admin"))))
+       (response/redirect "/admin"))
+
+     (wrap-json-response
+      (GET "/map-bounds" []
+        (response/response (maps/get-map-bounds-as-geojson))))))
     
   (auth/restricted
    {:logged-in true}
@@ -181,22 +187,21 @@
                              name description members)]
          (response/redirect (str "./" new-project-id))))
 
-     (context "/:project-id" [project-id :<< as-int]
+     (auth/restricted-context "/:project-id" [project-id :<< as-int]
+       {:project project-id}
+       (GET "/" []
+         (-> (project-page
+              (get-project project-id))
+             (response/response)
+             (response/content-type "text/html")
+             (cache-control/no-store)))
+
+       (GET "/poll.t" []
+         (-> (transit-json-response
+              (get-project project-id))
+             (cache-control/no-store)))
+
        (auth/restricted
-        {:project project-id}
-        (GET "/" []
-          (-> (project-page
-               (get-project project-id))
-              (response/response)
-              (response/content-type "text/html")
-              (cache-control/no-store)))
-
-        (GET "/poll.t" []
-          (-> (transit-json-response
-               (get-project project-id))
-              (cache-control/no-store)))
-
-        (auth/restricted
          {:project-admin project-id}
 
          (DELETE "/" []
@@ -219,36 +224,38 @@
          (POST "/users" [users :as r]
            (projects/set-users! project-id auth/*current-user* users)
            (response/redirect ".")))
-        
-        (context "/map" []
-          (GET "/new" []
-            (map-pages/create-map-form))
+       
+       (context "/map" []
+         (GET "/new" []
+           (map-pages/create-map-form))
 
-          (POST "/new" [& params]
-            ;; body params contains the form state.
-            (handle-map-creation project-id params)
-            (response/created (str "/project/" project-id)))
+         (POST "/new" [& params]
+           ;; body params contains the form state.
+           (handle-map-creation project-id params)
+           (response/created (str "/project/" project-id)))
 
-          (POST "/new/add-file" [file :as {s :session}]
-            (let [files (if (vector? file) file [file])
-                  ident (str (java.util.UUID/randomUUID))
-                  target-dir (io/file (:import-directory config) ident)]
-              
-              (.mkdirs target-dir)
+         (POST "/new/add-file" [file :as {s :session}]
+           (let [files (if (vector? file) file [file])
+                 ident (str (java.util.UUID/randomUUID))
+                 target-dir (io/file (:import-directory config) ident)]
+             
+             (.mkdirs target-dir)
 
-              (doseq [file files]
-                (let [target-file ^java.io.File (io/file target-dir (:filename file))]
-                  (java.nio.file.Files/move
-                   (.toPath (:tempfile file))
-                   (.toPath target-file)
-                   (into-array java.nio.file.CopyOption []))))
-              
-              (response/response
-               (assoc (importer/get-file-info target-dir)
-                      :id ident))))
-          
-          (context "/:map-id" [map-id :<< as-int]
-            (auth/restricted
+             (doseq [file files]
+               (let [target-file ^java.io.File (io/file target-dir (:filename file))]
+                 (java.nio.file.Files/move
+                  (.toPath (:tempfile file))
+                  (.toPath target-file)
+                  (into-array java.nio.file.CopyOption []))))
+             
+             (response/response
+              (assoc (importer/get-file-info target-dir)
+                     :id ident))))
+         
+         (auth/restricted-context "/:map-id" [map-id :<< as-int]
+           {:map map-id}
+           
+           (auth/restricted
              {:project-admin project-id}
              (GET "/delete" [] (map-pages/delete-map-page))
 
@@ -259,91 +266,92 @@
              (POST "/delete" []
                (maps/delete-map! map-id)
                (response/redirect "../..")))
-            
-            (wrap-json-response
-             (GET "/t/:z/:x/:y" [z :<< as-int x :<< as-int y :<< as-int]
-               (response/response (maps/get-tile map-id z x y))))
-            
-            (GET "/d/:z/:x/:y.png" [z :<< as-int x :<< as-int y :<< as-int]
-              (-> (maps/get-density-tile map-id z x y)
-                  (ByteArrayInputStream.)
-                  (response/response)
-                  (response/content-type "image/png")))
-            
-            (GET "/icon.png" []
-              (-> (maps/get-icon map-id)
-                  (ByteArrayInputStream.)
-                  (response/response)
-                  (response/content-type "image/png")))
+           
+           (wrap-json-response
+            (GET "/t/:z/:x/:y" [z :<< as-int x :<< as-int y :<< as-int]
+              (response/response (maps/get-tile map-id z x y))))
+           
+           (GET "/d/:z/:x/:y.png" [z :<< as-int x :<< as-int y :<< as-int]
+             (-> (maps/get-density-tile map-id z x y)
+                 (ByteArrayInputStream.)
+                 (response/response)
+                 (response/content-type "image/png")))
+           
+           (GET "/icon.png" []
+             (-> (maps/get-icon map-id)
+                 (ByteArrayInputStream.)
+                 (response/response)
+                 (response/content-type "image/png")))
 
-            (GET "/data.json" []
-              (-> (response/response (streaming-map map-id))
-                  (response/content-type "application/json")
-                  (attachment-disposition
-                   (str (:name (maps/get-map map-id)) ".json"))))
+           (GET "/data.json" []
+             (-> (response/response (streaming-map map-id))
+                 (response/content-type "application/json")
+                 (attachment-disposition
+                  (str (:name (maps/get-map map-id)) ".json"))))
 
-            (DELETE "/net/:network-name" [network-name]
-              ;; delete all networks in project with name
-              (projects/delete-networks! map-id network-name)
-              deleted)
-            
-            (context "/net/:net-id" [net-id]
-              (GET "/" {{accept "accept"} :headers}
-                (let [accept (set (string/split accept #","))
-                      info (when-not (= "new" net-id)
-                             (projects/get-network (as-int net-id) :include-content true))]
-                  (-> (cond
-                        (accept "application/edn")
-                        (-> (response/response (:content info))
-                            (response/status 200)
-                            (response/content-type "text/edn"))
-                        
-                        (or (accept "*/*")
-                            (accept "text/html"))
-                        (-> (editor-page (:name info)
-                                         (:content info)
-                                         (when-not info
-                                           (maps/get-map-bounds map-id)))
-                            
-                            (response/response)
-                            (response/status 200)
-                            (response/content-type "text/html")))
-                      
-                      (cache-control/no-store)
-                      (response/header "X-Queue-Position" (:queue-position info))
-                      (response/header "X-Name" (:name info))
-                      (response/header "X-Run-State" (:state info)))))
+           (DELETE "/net/:network-name" [network-name]
+             ;; delete all networks in project with name
+             (projects/delete-networks! map-id network-name)
+             deleted)
+           
+           (auth/restricted-context "/net/:net-id" [net-id]
+             (when-let [id (as-int net-id)] {:network id})
+             (GET "/" {{accept "accept"} :headers}
+               (let [accept (set (string/split accept #","))
+                     info (when-not (= "new" net-id)
+                            (projects/get-network (as-int net-id) :include-content true))]
+                 (-> (cond
+                       (accept "application/edn")
+                       (-> (response/response (:content info))
+                           (response/status 200)
+                           (response/content-type "text/edn"))
+                       
+                       (or (accept "*/*")
+                           (accept "text/html"))
+                       (-> (editor-page (:name info)
+                                        (:content info)
+                                        (when-not info
+                                          (maps/get-map-bounds map-id)))
+                           
+                           (response/response)
+                           (response/status 200)
+                           (response/content-type "text/html")))
+                     
+                     (cache-control/no-store)
+                     (response/header "X-Queue-Position" (:queue-position info))
+                     (response/header "X-Name" (:name info))
+                     (response/header "X-Run-State" (:state info)))))
 
-              (GET "/data.json" []
-                ;; convert the problem into geojson for external save
-                (let [network  (projects/get-network (as-int net-id) :include-content true)]
-                  (-> (:content network)
-                      (edn/read-string)
-                      (network-problem->geojson)
-                      (json/write-str)
-                      (response/response)
-                      (response/content-type "application/json")
-                      (attachment-disposition (str (:name network) ".json"))
-                      (cache-control/no-store))))
+             (GET "/data.json" []
+               ;; convert the problem into geojson for external save
+               (let [network  (projects/get-network (as-int net-id) :include-content true)]
+                 (-> (:content network)
+                     (edn/read-string)
+                     (network-problem->geojson)
+                     (json/write-str)
+                     (response/response)
+                     (response/content-type "application/json")
+                     (attachment-disposition (str (:name network) ".json"))
+                     (cache-control/no-store))))
 
-              (HEAD "/" []
-                (let [info (projects/get-network net-id)]
-                  (-> (response/status 200)
-                      (response/header "X-Name" (:name info))
-                      (response/header "X-Queue-Position" (:queue-position info))
-                      (response/header "X-Run-State" (:state info))
-                      (cache-control/no-store))))
-              
-              (POST "/" [name run content]
-                (let [content (if (:tempfile content)
-                                (slurp (:tempfile content))
-                                (str content))
-                      new-id (projects/save-network!
-                              (:id auth/*current-user*)
-                              project-id map-id name content)]
-                  (when run (solver/queue-problem new-id))
-                  (-> (response/created (str new-id))
-                      (response/header "X-ID" new-id))))))
-          
-          ))
+             (HEAD "/" []
+               (let [info (projects/get-network net-id)]
+                 (-> (response/status 200)
+                     (response/header "X-Name" (:name info))
+                     (response/header "X-Queue-Position" (:queue-position info))
+                     (response/header "X-Run-State" (:state info))
+                     (cache-control/no-store))))
+             
+             (POST "/" [name run content]
+               (let [content (if (:tempfile content)
+                               (slurp (:tempfile content))
+                               (str content))
+                     new-id (projects/save-network!
+                             (:id auth/*current-user*)
+                             project-id map-id name content)]
+                 (when run (solver/queue-problem new-id))
+                 (-> (response/created (str new-id))
+                     (response/header "X-ID" new-id))))))
+         
+         )
        ))))
