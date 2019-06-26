@@ -40,8 +40,9 @@
      sysadmin :sysadmin
      :as restrict}
     this-user]
-   
-   (let [result (and (or (not logged-in) this-user)
+
+   (let [result (and (or (not logged-in)
+                         (:id this-user))
                      (or (not user)
                          (= user (:id this-user)))
                      (or (not project)
@@ -85,7 +86,10 @@
     (if (authorized requirement)
       (handler request)
       (-> (if *current-user*
-            (-> (response/response "Unauthorized")
+            (-> (response/response
+                 "I can neither confirm nor deny that this exists.
+If it does exist, you don't have privileges to see it.")
+                (response/content-type "text/plain")
                 (response/status 401))
 
             (response/redirect (str "/login?redirect-to=" *current-uri*)))
