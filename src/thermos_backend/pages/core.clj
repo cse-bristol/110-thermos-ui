@@ -125,31 +125,32 @@
   (GET "/help/:section" [section]
     (help-page section))
 
-  (context "/admin" []
-    (auth/restricted
-     {:sysadmin true}
-     
-     (GET "/" []
-       (admin/admin-page
-        (users/users)
-        (queue/list-tasks)))
+  (cache-control/wrap-no-store
+   (context "/admin" []
+     (auth/restricted
+      {:sysadmin true}
+      
+      (GET "/" []
+        (admin/admin-page
+         (users/users)
+         (queue/list-tasks)))
 
-     (GET "/send-email" []
-       (admin/send-email-page))
+      (GET "/send-email" []
+        (admin/send-email-page))
 
-     (POST "/send-email" [subject message]
-       (users/send-system-message! subject message)
-       (response/redirect "/admin"))
-     
-     (GET "/clean-queue/:queue-name" [queue-name purge]
-       (if purge
-         (queue/erase (keyword queue-name))
-         (queue/clean-up (keyword queue-name)))
-       (response/redirect "/admin"))
+      (POST "/send-email" [subject message]
+        (users/send-system-message! subject message)
+        (response/redirect "/admin"))
+      
+      (GET "/clean-queue/:queue-name" [queue-name purge]
+        (if purge
+          (queue/erase (keyword queue-name))
+          (queue/clean-up (keyword queue-name)))
+        (response/redirect "/admin"))
 
-     (wrap-json-response
-      (GET "/map-bounds" []
-        (response/response (maps/get-map-bounds-as-geojson))))))
+      (wrap-json-response
+       (GET "/map-bounds" []
+         (response/response (maps/get-map-bounds-as-geojson)))))))
     
   (auth/restricted
    {:logged-in true}
