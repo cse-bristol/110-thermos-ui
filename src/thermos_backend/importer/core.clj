@@ -323,7 +323,6 @@
         :connection-id (str/join "," (::spatial/connects-to-node b))
         :demand-kwh-per-year (or (:annual-demand b) 0)
         :demand-kwp (or (:peak-demand b) 0)
-        :connection-cost (or (:connection-cost b) 0)
         :connection-count (or (:connection-count b) 1)
         :demand-source (name (:demand-source b))
         :peak-source (name (:peak-source b))})
@@ -528,12 +527,9 @@
                          :peak-source :regression))]
     feature))
 
-(defn- add-defaults [job {connection-cost :default-connection-cost
-                          fixed-civil :default-fixed-civil-cost
+(defn- add-defaults [job {fixed-civil :default-fixed-civil-cost
                           variable-civil :default-variable-civil-cost}]
   (-> job
-      (update :buildings geoio/update-features :add-defaults
-              #(-> % (update :connection-cost (fn [x] (or x connection-cost)))))
       (update :roads geoio/update-features :add-defaults
               #(-> %
                    (update :fixed-cost (fn [x] (or x fixed-civil)))

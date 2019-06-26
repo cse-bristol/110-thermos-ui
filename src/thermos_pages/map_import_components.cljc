@@ -772,17 +772,7 @@
                          :on-change #(swap! *form-state assoc :degree-days
                                             (as-int (.. % -target -value)))}] " °C × days"]
      [:p "The number of heating degree days per year in this location, relative to a 17° base temperature."]]
-    
-    [:div.card.flex-grow
-     [:h1 "Default connection cost"]
-     [:div.flex-cols [:input.flex-grow
-                      {:type :number
-                       :min 0 :max 10000
-                       :value (:default-connection-cost (rum/react *form-state))
-                       :on-change #(swap! *form-state
-                                          assoc :default-connection-cost
-                                          (as-int (.. % -target -value)))}] " ¤/kW"]
-     [:p "The default cost of connecting a building to the network. This is the cost of work within the building, separate from the cost of pipes."]]]
+    ]
    
 
    [:div.card
@@ -878,10 +868,6 @@
    {:value :connection-count :label "Connection count"
     :doc
     [:span "The number of end-user connections the building contains. This affects only the application of diversity curves within the model."]}
-   
-   {:value :connection-cost :label "Connection cost (¤/kW)"
-    :doc
-    [:span "A fixed cost for connecting this building - this is separate to the cost for the connecting pipe."]}
    
    {:value :identity :label "Identity (text)"
     :doc
@@ -980,7 +966,6 @@
    :buildings {:source :osm :files {}}
    :roads {:source :osm :files {}}
    :degree-days 2000
-   :default-connection-cost 50.0
    :default-fixed-civil-cost 350.0
    :default-variable-civil-cost 700.0})
 
