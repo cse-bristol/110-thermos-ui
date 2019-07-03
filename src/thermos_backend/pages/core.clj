@@ -47,8 +47,10 @@
         (string/split text #"\n")))
 
 (defn- as-double [x]
-  (and x (try (Double/parseDouble x)
-              (catch NumberFormatException e))))
+  (cond
+    (number? x) (double x)
+    (string? x) (try (Double/parseDouble x)
+                     (catch NumberFormatException e))))
 
 (defn- streaming-map [map-id]
   (ring-io/piped-input-stream

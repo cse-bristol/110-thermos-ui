@@ -3,6 +3,7 @@
             [thermos-backend.util :as util]
             [thermos-backend.config :refer [config]]
 
+            [clojure.set :as set]
             [clojure.java.io :as io]
             [org.tobereplaced.nio.file :as nio]
 
@@ -238,8 +239,8 @@
             use-water-svm "water-svm"
             :else "both-lm"))}))
 
-(defn- run-svm-models [x sqrt-degree-days]
-  (let [x (->> (for [[k v] x
+(defn- run-svm-models [f sqrt-degree-days]
+  (let [x (->> (for [[k v] f
                      :when (and (keyword? k)
                                 (or (= :residential k)
                                     (and v (= "thermos-importer.lidar" (namespace k)))))]
@@ -252,8 +253,16 @@
     (if space3
       (svm-or-lm x space3 sqrt-degree-days
                  lm-space-3d lm-water-3d svm-water-3d "3d")
-      (svm-or-lm x (svm-space-2d x) sqrt-degree-days
-                 lm-space-2d lm-water-2d svm-water-2d "2d"))))
+      (if-let [space2 (svm-space-2d x)]
+        (svm-or-lm x space2 sqrt-degree-days
+                   lm-space-2d lm-water-2d svm-water-2d "2d")
+        (do (log/warn x "doesn't have the features needed to run any models!"
+                      (set/difference
+                       (into #{} (:predictors (meta svm-space-2d)))
+                       (into #{} (keys x)))
+                      "missing")
+            {:annual-demand 0 :demand-source :invalid}))
+      )))
 
 (def peak-constant 21.84)
 (def peak-gradient 0.0004963)
@@ -460,8 +469,31 @@
          gis-files)]
     {::geoio/crs "EPSG:4326" ::geoio/features all-features}))
 
+(defn- produce-peak
+  "Make sure the feature has a :peak-demand"
+  [feature]
+  (let [given-peak (as-double (:peak-demand feature))
+        given-pbr  (as-double (:peak-base-ratio feature))]
+    (cond
+      given-peak
+      (assoc feature
+             :peak-demand given-peak
+             :peak-source :given)
+      
+      given-pbr
+      (assoc feature
+             :peak-demand
+             (let [demand-kw (annual-kwh->kw (:annual-demand feature))]
+               (* (max given-pbr 1.0) demand-kw))
+             :peak-source :ratio)
+      
+      :else
+      (assoc feature
+             :peak-demand (run-peak-model (:annual-demand feature))
+             :peak-source :regression))))
+
 (defn- produce-demand
-  "Make sure the feature has an :annual-demand and a :peak-demand"
+  "Make sure the feature has an :annual-demand"
   [feature sqrt-degree-days]
   (let [given-demand (as-double (:annual-demand feature))
         given-height (as-double (:height feature))
@@ -469,7 +501,6 @@
         benchmark-m  (as-double (:benchmark-m feature))
         benchmark-c  (or (as-double (:benchmark-c feature))
                          (when benchmark-m 0))
-        
 
         storey-height lidar/*storey-height*
         height     (or given-height (::lidar/height feature))
@@ -504,27 +535,7 @@
                          (run-svm-models (assoc feature
                                                 :residential residential
                                                 ::lidar/height height)
-                                         sqrt-degree-days)))
-
-        ;; produce peak
-        given-peak (as-double (:peak-demand feature))
-        given-pbr  (as-double (:peak-base-ratio feature))
-
-        feature (cond
-                  given-peak
-                  (assoc feature
-                         :peak-demand given-peak
-                         :peak-source :given)
-                  given-pbr
-                  (assoc feature
-                         :peak-demand
-                         (let [demand-kw (annual-kwh->kw (:annual-demand feature))]
-                           (* (max given-pbr 1.0) demand-kw))
-                         :peak-source :ratio)
-                  :else
-                  (assoc feature
-                         :peak-demand (run-peak-model (:annual-demand feature))
-                         :peak-source :regression))]
+                                         sqrt-degree-days)))]
     feature))
 
 (defn- add-defaults [job {fixed-civil :default-fixed-civil-cost
@@ -536,6 +547,68 @@
                    (update :variable-cost (fn [x] (or x variable-civil)))
                    ))))
 
+(defn- should-explode?
+  "If a feature is going to end up with a summable prediction of demand,
+  it should be exploded. Otherwise we can leave it alone."
+  [feature]
+
+  (and
+   (#{:multi-polygon :multi-point} (::geoio/type feature))
+   (not (or (:annual-demand feature)
+            (and (:given-floor-area feature)
+                 (or (:benchmark-m feature)
+                     (:benchmark-c feature)))))))
+
+(defn- explode-multi-polygons
+  "Some of the features in the input may be multi-polygons.
+  If they are, we want to break them into parts, so we can recombine
+  them later."
+  [features]
+  (let [count-before (count features)
+        features (->> features
+                      (map-indexed (fn [i x] (assoc x ::id i)))
+                      (mapcat (fn [feature]
+                                (let [feature
+                                      (-> feature
+                                          (update :annual-demand as-double)
+                                          (update :given-floor-area as-double)
+                                          (update :benchmark-m as-double)
+                                          (update :benchmark-c as-double))]
+                                  (if (should-explode? feature)
+                                    (geoio/explode-multi feature)
+                                    [feature])))))
+        count-after (count features)
+        ]
+    (log/info "Exploded multipolygons from" count-before "to" count-after)
+    features))
+
+(defn- merge-multi-polygon
+  "Used by `merge-multi-polygons` to combine a bunch of features that
+  have the same ::id, and so came from the same input feature."
+  [polygons]
+  (if (= 1 (count polygons))
+    (first polygons)
+
+    (let [basis (dissoc (first polygons) ::geoio/geometry)
+          geoms (map ::geoio/geometry polygons)]
+      (cond-> (geoio/update-geometry
+               basis
+               (jts/create-multipolygon geoms))
+
+        (:sum-demands basis)
+        (assoc :annual-demand (reduce + (map :annual-demand polygons)))
+
+        (:sum-peaks basis)
+        (assoc :peak-demand (reduce + (map :peak-demand polygons)))))))
+
+(defn merge-multi-polygons
+  "The inverse of `explode-multi-polygons`."
+  [features]
+  (->> features
+       (group-by ::id)
+       (map second)
+       (map merge-multi-polygon)))
+
 (defn run-import
   "Run an import job enqueued by `queue-import`"
   [{map-id :map-id} progress]
@@ -544,7 +617,7 @@
                         (config :import-directory)
                         (str
                          "map-" map-id "-"
-                         (str/replace map-name #"[^a-zA-Z0-9]+" "-") "-"))
+                         (str/replace (or map-name "????") #"[^a-zA-Z0-9]+" "-") "-"))
 
         osm-buildings (-> parameters :buildings :source (= :osm))
         osm-roads     (-> parameters :roads :source (= :osm))
@@ -573,12 +646,28 @@
                 (-> (progress* 10 "Query OSM")
                     (query-osm parameters)))
 
+              ;; at this point, if we have multipolygons we should
+              ;; explode them so that the LIDAR processing calculates
+              ;; its stuff on a per-shape basis.
+
+              ;; step 1: subdivide multi-features into bits
+              (update-in [:buildings ::geoio/features] explode-multi-polygons)
+              ;; now we have several of everything, potentially
               (progress* 20 "LIDAR")
               (update :buildings lidar/add-lidar-to-shapes (load-lidar-index))
+              
               (progress* 30 "Run demand model")
               (update :buildings geoio/update-features :produce-demands
                       produce-demand sqrt-degree-days)
 
+              ;; at this point we need to recombine anything that has
+              ;; been exploded.
+              (update-in [:buildings ::geoio/features] merge-multi-polygons)
+
+              ;; we want to do peak modelling afterwards
+              (progress* 35 "Run peak model")
+              (update :buildings geoio/update-features :produce-peaks produce-peak)
+              
               (progress* 40 "Add defaults")
               (add-defaults parameters)
               (progress* 45 "Deduplicate")

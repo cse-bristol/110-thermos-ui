@@ -273,13 +273,13 @@
                :response-format :transit
                :handler
                (fn [x]
-                 (let [geom-types (set (:geometry-types x))]
-                   (if (and (not (empty? geom-types))
-                            (not= geom-types legal-geometries))
+                 (let [geom-types (set (:geometry-types x))
+                       invalid-geom-types (set/difference geom-types legal-geometries)]
+                   (if (and (not-empty geom-types)
+                            (not-empty invalid-geom-types))
                      (swap! status assoc
                             :state :invalid
-                            :message (str "File contains unsupported geometry types: "
-                                          (set/difference geom-types legal-geometries)))
+                            :message (str "File contains supported geometry types: " invalid-geom-types))
                      (swap! status
                             merge
                             (assoc x :state :uploaded)))))
@@ -364,7 +364,7 @@
         [:div.flex-cols base-name (interpose ", " extensions)
          [:span {:style {:margin-left :auto}} " "
           (if (= :uploading state)
-            (spinner :size 16)
+            (spinner {:size 16})
             [:button
              {:style {:border-radius :16px}
               :on-click #(swap! files dissoc i)}
@@ -463,7 +463,7 @@
          
          (file-uploader {:legal-geometries
                          (case category
-                           :buildings #{:polygon}
+                           :buildings #{:polygon :point :multi-polygon}
                            :roads #{:line-string}
                            #{})}
 

@@ -65,8 +65,7 @@
   [:map-id :geoid :orig-id :name :type :geometry])
 
 (def buildings-keys
-  [:candidate-id :connection-id :demand-kwh-per-year :demand-kwp :connection-count
-   :demand-source :peak-source])
+  [:candidate-id :connection-id :demand-kwh-per-year :demand-kwp :connection-count :demand-source :peak-source])
 
 (def paths-keys
   [:candidate-id :start-id :end-id :length :fixed-cost :variable-cost])
