@@ -10,9 +10,7 @@
     on-save :on-save
     on-run :on-run
     unsaved :unsaved?
-
     hamburger :hamburger
-    on-hamburger :on-hamburger
     }]
   (reagent/with-let [state (reagent/atom {:name name})
                      element (atom nil)
@@ -25,11 +23,7 @@
                                          (.focus el)))))
                      ]
     [:nav.nav {:style {:display :flex}}
-     [:button {:on-click on-hamburger
-               :on-mouse-enter on-hamburger
-               :style {:background :none
-                       :border :none}}
-      theme/icon]
+     hamburger
      
      [:span {:style {:display :flex
                      :margin-left :2em

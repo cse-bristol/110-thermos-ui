@@ -6,6 +6,7 @@
             [thermos-specs.tariff :as tariff]
             [thermos-specs.path :as path]
             [thermos-specs.solution :as solution]
+            [thermos-specs.view :as view]
             [thermos-frontend.editor-state :as state]
             [thermos-frontend.operations :as operations]
             [thermos-frontend.tag :as tag]
@@ -84,13 +85,32 @@
                                          :add-classes "constraint")]
              
              ["Name" sc-class (cat ::candidate/name "None")]
-             ["Tariff" sc-class (cat
-                                 (fn [x]
-                                   (when (candidate/is-building? x)
-                                     (document/tariff-name
-                                      @document
-                                      (::tariff/id x))))
-                                 nil)]
+             [[:span "Tariff " [:span
+                                {:on-click #(swap! document view/switch-to-tariffs)
+                                 :style {:cursor :pointer }
+                                 }
+                                "👁"]]
+              sc-class
+              (cat
+               (fn [x]
+                 (when (candidate/is-building? x)
+                   (document/tariff-name
+                    @document
+                    (::tariff/id x))))
+               nil)]
+
+             [[:span "Civils " [:span
+                                {:on-click #(swap! document view/switch-to-pipe-costs)
+                                 :style {:cursor :pointer}}
+                                "👁"]]
+              
+              sc-class (cat
+                        (fn [x]
+                          (when (candidate/is-path? x)
+                            (document/civil-cost-name
+                             @document
+                             (::path/civil-cost-id x))))
+                        nil)]
              
              ["Length" nil (num ::path/length  rsum "m")]
              [[:span.has-tt

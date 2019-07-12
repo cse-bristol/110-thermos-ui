@@ -40,6 +40,8 @@
                 ::civil-cost-exponent
 
                 ::tariffs
+
+                ::civil-costs
                 ]
           :opt [::solution/summary
                 ::deletions]))
@@ -61,6 +63,10 @@
 (s/def ::tariffs
   (s/and (redundant-key ::tariff/id)
          (s/map-of ::tariff/id ::tariff/tariff)))
+
+(s/def ::civil-costs
+  (s/and (redundant-key ::path/civil-cost-id)
+         (s/map-of ::path/civil-cost-id ::path/civil-cost)))
 
 (s/def ::candidates
   (s/and
@@ -186,19 +192,31 @@
 (defn has-solution? [document]
   (contains? document ::solution/state))
 
-(defn path-cost [path document]
-  (path/cost
-   path
-   (::civil-cost-exponent document)
-   (::mechanical-cost-per-m document)
-   (::mechanical-cost-per-m2 document)
-   (::mechanical-cost-exponent document)
-   10))
+(defn civil-cost-for-id [doc cost-id]
+  (let [costs (::civil-costs doc)]
+    (or (get costs cost-id)
+        (get costs (reduce min (keys costs))))))
 
+(defn civil-cost-name [doc cost-id]
+  (or (::path/civil-cost-name (civil-cost-for-id doc cost-id))
+      "None"))
+
+(defn path-cost [path document]
+  (let [cost (civil-cost-for-id document (::path/civil-cost-id path))]
+    (path/cost
+     path
+     (::path/fixed-cost cost)
+     (::path/variable-cost cost)
+     (::civil-cost-exponent document)
+     
+     (::mechanical-cost-per-m document)
+     (::mechanical-cost-per-m2 document)
+     (::mechanical-cost-exponent document)
+     10)))
 
 (defn is-runnable?
   "Tells you if the document might be runnable.
-  At the moment checks for the presence of 
+  At the moment checks for the presence of a supply and some demands.
   "
   [document]
   (and (not (empty? (::candidates document)))
@@ -231,4 +249,13 @@
        (fn [c]
          (if (= tariff-id (::tariff/id c))
            (dissoc c ::tariff/id)
+           c)))))
+
+(defn remove-civils [doc cost-id]
+  (-> doc
+      (update ::civil-costs dissoc cost-id)
+      (map-candidates
+       (fn [c]
+         (if (= cost-id (::path/civil-cost-id c))
+           (dissoc c ::path/civil-cost-id)
            c)))))

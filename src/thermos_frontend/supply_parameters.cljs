@@ -14,7 +14,10 @@
         parmeters (just-number-values parameters)]
     (document/map-candidates
      document
-     #(-> % (update ::supply/emissions merge emissions) (merge parameters))
+     #(-> %
+          (assoc ::candidate/modified true)
+          (update ::supply/emissions merge emissions)
+          (merge parameters))
      candidate-ids)))
 
 (defn- supply-parameters-form [document candidate-ids]

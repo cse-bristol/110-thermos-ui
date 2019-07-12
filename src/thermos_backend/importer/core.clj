@@ -346,8 +346,7 @@
         :start-id (::geoio/id (::topo/start-node b))
         :end-id   (::geoio/id (::topo/end-node b))
         :length   (or (::topo/length b) 0)
-        :fixed-cost (or (:fixed-cost b) 0)
-        :variable-cost (or (:variable-cost b) 0)})))
+        })))
   )
 
 (defn dedup [state]
@@ -538,15 +537,6 @@
                                          sqrt-degree-days)))]
     feature))
 
-(defn- add-defaults [job {fixed-civil :default-fixed-civil-cost
-                          variable-civil :default-variable-civil-cost}]
-  (-> job
-      (update :roads geoio/update-features :add-defaults
-              #(-> %
-                   (update :fixed-cost (fn [x] (or x fixed-civil)))
-                   (update :variable-cost (fn [x] (or x variable-civil)))
-                   ))))
-
 (defn- should-explode?
   "If a feature is going to end up with a summable prediction of demand,
   it should be exploded. Otherwise we can leave it alone."
@@ -643,7 +633,7 @@
                 
                 ;; 2. If we need some OSM stuff, load that
                 (or osm-buildings osm-roads)
-                (-> (progress* 10 "Query OSM")
+                (-> (progress* 10 "Quering OpenStreetMap")
                     (query-osm parameters)))
 
               ;; at this point, if we have multipolygons we should
@@ -653,10 +643,10 @@
               ;; step 1: subdivide multi-features into bits
               (update-in [:buildings ::geoio/features] explode-multi-polygons)
               ;; now we have several of everything, potentially
-              (progress* 20 "LIDAR")
+              (progress* 20 "Checking for LIDAR coverage")
               (update :buildings lidar/add-lidar-to-shapes (load-lidar-index))
               
-              (progress* 30 "Run demand model")
+              (progress* 30 "Computing annual demands")
               (update :buildings geoio/update-features :produce-demands
                       produce-demand sqrt-degree-days)
 
@@ -665,18 +655,17 @@
               (update-in [:buildings ::geoio/features] merge-multi-polygons)
 
               ;; we want to do peak modelling afterwards
-              (progress* 35 "Run peak model")
+              (progress* 35 "Computing peak demands")
               (update :buildings geoio/update-features :produce-peaks produce-peak)
-              
-              (progress* 40 "Add defaults")
-              (add-defaults parameters)
-              (progress* 45 "Deduplicate")
+
+              (progress* 45 "De-duplicating geometry")
               (dedup)
-              (progress* 50 "Node")
+              (progress* 50 "Noding paths and adding connectors")
               (topo)
-              (progress* 80 "Database insert") ;; this is the last
-                                               ;; place it's safe to
-                                               ;; cancel
+              (progress* 80 "Adding map to database")
+              ;; this is the last
+              ;; place it's safe to
+              ;; cancel
               (add-to-database (assoc parameters
                                       :work-directory work-directory
                                       :map-id map-id)))

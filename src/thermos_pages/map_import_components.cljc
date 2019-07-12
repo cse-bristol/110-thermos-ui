@@ -773,44 +773,10 @@
                                             (as-int (.. % -target -value)))}] " °C × days"]
      [:p "The number of heating degree days per year in this location, relative to a 17° base temperature."]]
     ]
-   
-
-   [:div.card
-    [:h1 "Default pipe costs"]
-    
-    [:div
-     "The default civil engineering cost for pipework will be "
-     [:input
-      {:type :number
-       :min 0 :max 10000
-       :value (:default-fixed-civil-cost (rum/react *form-state))
-       :on-change #(swap! *form-state
-                          assoc :default-fixed-civil-cost
-                          (as-int (.. % -target -value)))}] "¤/m + "
-     [:input
-      {:type :number
-       :min 0 :max 10000
-       :value (:default-variable-civil-cost (rum/react *form-state))
-       :on-change #(swap! *form-state
-                          assoc :default-variable-civil-cost
-                          (as-int (.. % -target -value)))}] "¤/(m × m " [:sup "1.1"] "). "
-     "This is the value which will be used if your road data does not otherwise have a value."]
-    
-    [:p "The mechanical engineering cost is set in the network problem."]]])
+   ])
 
 (def road-fields
-  [{:value :fixed-cost
-    :label "Fixed cost (¤/m)"
-    :doc [:span "Civil engineering costs for pipe are calculated as "
-          "length × (A + (b × ⌀)" [:sup "1.1"] ". This value is A."
-          ]}
-   
-   {:value :variable-cost
-    :label "Variable cost (¤/m2 ^ 1.1)"
-    :doc [:span "The variable civil engineering costs per metre of pipe. "
-          "This value is b in the cost equation (see fixed cost)."]}
-
-   {:value :identity :label "Identity (text)"
+  [{:value :identity :label "Identity (text)"
     :doc
     [:span "An identifier - these are stored on the roads in the database and visible in downloaded GIS files."]}
    
@@ -831,7 +797,7 @@
      "A value for annual demand will be used in preference to any other estimate. "
      "Otherwise, a benchmark estimate will be used if available, or the built-in regression model otherwise."]}
    
-   {:value :peak-demand :label "Peak demand (kWh)"
+   {:value :peak-demand :label "Peak demand (kW)"
     :doc
     [:span
      "A value for peak demand will be used in preference to any other estimate. "

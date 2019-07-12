@@ -1,6 +1,8 @@
 (ns thermos-backend.pages.landing-page
   (:require [thermos-backend.pages.common :refer [page]]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [thermos-backend.changelog :refer [changelog]]
+            ))
 
 (defn- project-card [project]
   [:div.card {:style {:flex 1}}
@@ -14,8 +16,33 @@
 
 (defn landing-page [user projects]
   (page
-   {:title (str "Welcome " user)}
+   {:title (str "Welcome " (:name user))}
    [:div
+    (let [last-log (:changelog-seen user 0)
+          max-log (count changelog)
+          new-items (- max-log last-log)
+          changelog (take new-items changelog)]
+      (when (seq changelog)
+        [:div.card
+         [:div.flex-cols
+          [:h1 "THERMOS updated"]
+          [:a.button {:href "/help/changelog"
+                      :style {:margin-left "auto"}}
+           "🛈 Details"]
+          [:a.button {:href (str "?changes=" max-log)
+                      :style {:margin-left "1em"}}
+           "Close"]]
+         
+         [:p {:style {:margin-bottom 0}}
+          "Now featuring: "
+          (interpose " • "
+                     (for [rel changelog
+                           change (:changes rel)]
+                       (:title change)
+                       ))]
+         ]))
+    
+    
     [:div.flex-cols.card
      (if (seq projects)
        [:h1 "You are participating in " (count projects) " projects"]

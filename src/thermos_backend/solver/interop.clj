@@ -66,12 +66,17 @@
         ;; tag all the edges with their path IDs and cost parameters
         net-graph (reduce (fn [g p]
                             (-> g
+                                ;; the variable and fixed cost
+                                ;; parameters are merged into the path
+                                ;; by code later on. Within a normal
+                                ;; candidate they would be a reference
+                                ;; to something in the document.
                                 (attr/add-attr (::path/start p) (::path/end p)
                                                :ids #{(::candidate/id p)})
                                 (attr/add-attr (::path/start p) (::path/end p)
-                                               :variable-cost (::path/cost-per-m2 p 0))
+                                               :variable-cost (::path/variable-cost p 0))
                                 (attr/add-attr (::path/start p) (::path/end p)
-                                               :fixed-cost (::path/cost-per-m p 0))))
+                                               :fixed-cost (::path/fixed-cost p 0))))
                           net-graph
                           paths)
 
@@ -241,14 +246,16 @@
                                              :when (pos? em)]
                                          [e (float em)]))
                    :connection-cost
-                   (float (tariff/connection-cost tariff
-                                                  (::demand/kwh candidate)
-                                                  (::demand/kwp candidate)))
+                   (float (tariff/connection-cost
+                           tariff
+                           (::demand/kwh candidate)
+                           (::demand/kwp candidate)))
 
                    :heat-revenue
-                   (float (tariff/annual-heat-revenue tariff
-                                                      (::demand/kwh candidate)
-                                                      (::demand/kwp candidate)))}))
+                   (float (tariff/annual-heat-revenue
+                           tariff
+                           (::demand/kwh candidate)
+                           (::demand/kwp candidate)))}))
 
          (candidate/has-supply? candidate)
          (assoc :supply
@@ -381,8 +388,14 @@
 
         included-candidates (->> (::document/candidates instance)
                                  (vals)
-                                 (filter candidate/is-included?))
-
+                                 (filter candidate/is-included?)
+                                 ;; we also merge in the civil
+                                 ;; engineering cost data for every
+                                 ;; path, as that makes things easier.
+                                 (map #(cond-> %
+                                         (candidate/is-path? %)
+                                         (merge (document/civil-cost-for-id instance (::path/civil-cost-id %))))))
+        
         net-graph (simplify-topology included-candidates)
         net-graph (summarise-attributes net-graph included-candidates)
 
@@ -433,7 +446,7 @@
               
               end-time (System/currentTimeMillis)
 
-              _ (println "Solver ran in" (- end-time start-time) "ms")
+              _ (log/info "Solver ran in" (- end-time start-time) "ms")
 
               output-json (try
                             (with-open [r (io/reader (io/file working-directory "solution.json"))]

@@ -1,6 +1,5 @@
 (ns thermos-pages.project-components
-  (:require [thermos-pages.menu :refer [menu]]
-            [clojure.string :as string]
+  (:require [clojure.string :as string]
             [rum.core :as rum]
             [net.cgrand.macrovich :as macro]
             [thermos-pages.common :refer [fn-js] :refer-macros [fn-js]]
@@ -205,7 +204,8 @@
                        (when (seq (rest versions))
                          [:a {:on-click
                               (fn-js [e]
-                                (show-dialog! (version-list-widget (:id m) versions))
+                                (show-dialog! (version-list-widget (:id m)
+                                                                   (sort-by :id versions)))
                                 (.preventDefault e))
                               
                               :href (str "map/" (:id m) "/net/history/" name)}
@@ -230,7 +230,7 @@
                       (when (some (fn [v]
                                     (and (:job-id v) (not (:has-run v))))
                                   versions)
-                        (spinner :size 16))]
+                        (spinner {:size 16}))]
                      ]))]
 
                [:div
@@ -245,7 +245,7 @@
               :running
               [:div
                (spinner)
-               (str "Running " (:message m)
+               (str (:message m)
                     ", "
                     (or (:progress m) 0)
                     "% complete")]

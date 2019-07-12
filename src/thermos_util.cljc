@@ -15,25 +15,25 @@
   (reduce #(assoc %1 (f %2) %2)  {} s))
 
 (defn distinct-by
-  "Given a sequence `v` and a function `f`, returns a sequence
-  containing only the first x in v for a given value of (f x)
+  "Given a sequence `values` and a function `f`, returns a sequence
+  containing only the first x in values for a given value of (f x)
 
   Order of the input will be reversed."
   {:test
    #(do (assert (= (set (distinct-by [1 2 3 4] even?)) #{1 2})))}
   
-  [v f]
+  [values f]
   (let [seen (volatile! #{})]
     (reduce
-     (fn [a v]
-       (let [vf (f v)]
+     (fn [a values]
+       (let [vf (f values)]
          (if (contains? @seen vf)
            (do
-             (println "Removing duplicate:" vf v)
+             (println "Removing duplicate:" vf values)
              a)
            (do (vswap! seen conj vf)
-               (cons v a)))))
-     nil v)))
+               (cons values a)))))
+     nil values)))
 
 (defn assoc-when
   "If v is not false, assoc it to m under k, otherwise m"
@@ -71,3 +71,12 @@
 
 (defn kw->annual-kwh [kwh]
   (* kwh HOURS-PER-YEAR))
+
+(defn to-fixed [num digits]
+  #?(:clj
+     (.format (java.text.DecimalFormat.
+               (apply str "0." (repeat digits "0")))
+              num)
+
+     :cljs
+     (.toFixed num digits)))

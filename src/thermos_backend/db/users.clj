@@ -248,6 +248,16 @@
       (h/where [:= :id user-id])
       (db/execute!)))
 
+(defn seen-changes!
+  "State that a user has seen changes up to version in changelog.edn"
+  [user-id version]
+  {:pre [(int? version)
+         (string? user-id)]}
+  (-> (h/update :users)
+      (h/sset {:changelog-seen version})
+      (h/where [:= :id user-id])
+      (db/execute!)))
+
 (defn send-system-message! [subject message]
   {:pre [(string? subject)
          (string? message)

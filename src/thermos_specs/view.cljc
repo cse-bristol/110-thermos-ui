@@ -21,3 +21,15 @@
 (s/def ::view-state (s/keys :req [::table-state ::bounding-box ::popover ::show-forbidden]))
 
 (s/def ::show-forbidden boolean?)
+
+(defn switch-to-tab [document tab]
+  (assoc-in document [::view-state ::selected-tab] tab))
+
+(defn switch-to-map [document]
+  (switch-to-tab document :candidates))
+
+(defn switch-to-tariffs [document]
+  (switch-to-tab document :tariffs))
+
+(defn switch-to-pipe-costs [document]
+  (switch-to-tab document :pipe-costs))

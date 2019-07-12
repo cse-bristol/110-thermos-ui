@@ -13,6 +13,7 @@
             [clojure.tools.logging :as log]
             [thermos-backend.maps.heat-density :as heat-density]
             [clojure.data.json :as json]
+            [thermos-util :refer [distinct-by]]
             ))
 
 (defmethod fmt/fn-handler "&&" [_ a b & more]
@@ -68,7 +69,7 @@
   [:candidate-id :connection-id :demand-kwh-per-year :demand-kwp :connection-count :demand-source :peak-source])
 
 (def paths-keys
-  [:candidate-id :start-id :end-id :length :fixed-cost :variable-cost])
+  [:candidate-id :start-id :end-id :length])
 
 (defn- data-values
   "A helper to create a vector to in a WITH statement for honeysql that creates a temporary VALUES table.
@@ -115,7 +116,9 @@
   {:pre [(integer? map-id)
          (= :wkt format)]}
   
-  (let [tag (str "map import " map-id ":")]
+  (let [tag (str "map import " map-id ":")
+        buildings (distinct-by buildings :geoid)
+        paths     (distinct-by paths :geoid)]
     (db/with-connection [conn]
       (let [deleted
             (-> (h/delete-from :candidates)
@@ -139,6 +142,7 @@
           ;; INSERT INTO other (select stuff from tablename join inserts)
           ;;
           ;; so we can get hold of the new FK from inserts for use in other
+          ;; TODO if two candidates have the same geoid then we get a pkey collision
           
           (-> (h/with
                (data-values :building-data
@@ -146,6 +150,7 @@
                               (-> c
                                   (select-keys (remove #{:candidate-id}
                                                        (concat candidates-keys buildings-keys)))
+                                  
                                   (update :connection-id
                                           #(sql-types/array
                                             (string/split % #",")))
@@ -236,7 +241,7 @@
   (let [query
         (-> (h/select :id :name :type :geometry :is_building
                       :demand_kwh_per_year :demand_kwp :connection_count :connection_ids
-                      :start_id :end_id :length :fixed_cost :variable_cost)
+                      :start_id :end_id :length)
             (h/from :joined_candidates) ;; this view is defined in the migration SQL
             (h/where [:and
                       [:= :map-id map-id]

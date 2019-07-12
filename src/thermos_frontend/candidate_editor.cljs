@@ -122,7 +122,7 @@
         ])]))
 
 
-(defn- path-editor [state paths]
+(defn- path-editor [civils state paths]
   (reagent/with-let
     [group-by-key (reagent/cursor state [:group-by])
      values       (reagent/cursor state [:values])]
@@ -142,13 +142,8 @@
           [:th (group-by-options group-by-key)]
           [:th "Length (m)"]
           [:th.has-tt
-           {:title "This is the fixed part of the civil engineering cost."}
-           "Civil cost (¤/m)"]
-          [:th.has-tt
-           {:title (str "This is the variable part of the civil engineering cost. "
-                        "The actual cost will be length * (fixed cost + (variable cost * diameter)^1.1)")}
-           
-           "Civil cost (¤/~m2)"]]]
+           {:title "You can set up civil engineering costs in the pipe costs page."}
+           "Civil cost"]]]
         
         [:tbody
          (doall
@@ -156,24 +151,25 @@
             [:tr {:key (or k "nil")}
              [:td (or k (nil-value-label group-by-key))]
              [:td (format/si-number (apply + (map ::path/length cands)))]
-             [:td [inputs/check-number
-                   {:value-atom
-                    (reagent/cursor values [group-by-key k :cost-per-m :value])
-                    :check-atom
-                    (reagent/cursor values [group-by-key k :cost-per-m :check])}
+             [:td [inputs/select
+                   {:value-atom (reagent/cursor values [group-by-key k :civil-cost])
+                    :values `[[:unset "Unchanged"]
+                              ~@(for [[id c] civils]
+                                  [id (::path/civil-cost-name c)])]
+                    }
                    ]]
 
-             [:td [inputs/check-number
-                   {:value-atom
-                    (reagent/cursor values [group-by-key k :cost-per-m2 :value])
-                    :check-atom
-                    (reagent/cursor values [group-by-key k :cost-per-m2 :check])}
-                   ]]
+             
              ]))]
         ])]))
 
 (defn- mean [vals]
   (/ (reduce + vals) (float (count vals))))
+
+(defn- unset? [vals]
+  (if (apply = vals)
+    (first vals)
+    :unset))
 
 (defn- initial-path-state [paths]
   {:group-by ::candidate/subtype
@@ -181,9 +177,9 @@
    (->> (for [k (keys group-by-options)]
           [k (->> paths (group-by k)
                   (map (fn [[k v]]
-                         [k {:cost-per-m {:value (mean (map ::path/cost-per-m v))}
-                             :cost-per-m2 {:value (mean (map ::path/cost-per-m2 v))}
-                             }]))
+                         [k {:civil-cost
+                             (unset? (map ::path/civil-cost-id v))}
+                          ]))
                   (into {}))])
         (into {}))})
 
@@ -198,7 +194,7 @@
                 (map (fn [[k v]]
                        [k (merge
                            {:demand {:value (mean (map ::demand/kwh v))}
-                            :tariff :unset
+                            :tariff (unset? (map ::tariff/id v))
                             :peak-demand {:value (mean (map ::demand/kwp v))}
                             :demand-benchmark {:value 2}
                             :peak-benchmark {:value 3}}
@@ -221,14 +217,12 @@
      document
      (fn [path]
        (let [path-group (group path)
-             {f-cost :value f-set-cost :check} (get-in values [group path-group :cost-per-m])
-             {v-cost :value v-set-cost :check} (get-in values [group path-group :cost-per-m2])
-             ]
+             civil-cost-id (get-in values [group path-group :civil-cost])]
          (cond-> path
-           f-set-cost (assoc ::path/cost-per-m f-cost)
-           v-set-cost (assoc ::path/cost-per-m2 v-cost))))
+           (not= :unset civil-cost-id)
+           (assoc ::path/civil-cost-id civil-cost-id
+                  ::candidate/modified true))))
      path-ids)))
-
 
 (defn- apply-building-state [document building-state building-ids]
   (let [{group :group-by
@@ -272,7 +266,14 @@
            set-demand              (assoc ::demand/kwh demand-value)
            set-peak                (assoc ::demand/kwp peak-value)
            set-tariff              (assoc ::tariff/id tariff)
-           (seq emissions-factors) (update ::demand/emissions merge emissions-factors))))
+           (seq emissions-factors) (update ::demand/emissions merge emissions-factors)
+
+           ;; ensure we don't delete it since we edited it
+           (or set-demand
+               set-peak
+               set-tariff
+               (seq emissions-factors)) (assoc ::candidate/modified true)
+           )))
 
      building-ids)))
 
@@ -283,7 +284,9 @@
 
                      demand-state (reagent/atom (initial-building-state buildings))
                      path-state   (reagent/atom (initial-path-state paths))
-                     tariffs (sort-by first (::document/tariffs @document))]
+                     tariffs (sort-by first (::document/tariffs @document))
+                     civils (sort-by first (::document/civil-costs @document))
+                     ]
     
     [:div.popover-dialog
      (when (seq buildings)
@@ -291,7 +294,7 @@
      (when (seq paths)
        [:div
         (when (seq buildings) [:hr])
-        [path-editor path-state paths]])
+        [path-editor civils path-state paths]])
      [:div
       [:button.button.button--danger
        {:on-click popover/close!

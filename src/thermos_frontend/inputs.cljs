@@ -5,7 +5,7 @@
 
 (defn text [& {:keys [value-atom] :as ks
                :or {value-atom nil}}]
-  [:input.input
+  [:input.input.text-input
    (merge {:type :text
            :placeholder "some text"
            :on-change (when value-atom #(reset! value-atom (target-value %)))

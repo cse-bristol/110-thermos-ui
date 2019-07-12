@@ -100,26 +100,39 @@
   (reagent/with-let
     [*tariffs (reagent/cursor doc [::document/tariffs])]
     [:div
+     [:div.card {:style {:display :flex :flex-direction :row}}
+      [:span "Each building can have an associated tariff, which determines:"
+       [:ul
+        [:li "The annual revenue the network will receive if the building is connected."]
+        [:li "The one-off capital cost of connecting the building to the network."]]
+       (when-not (seq @*tariffs)
+         "At the moment you have no tariffs, so connections will produce no revenue or cost. Click 'add' to define a tariff.")
+       
+       ]
+      
+      [:div {:style {:margin-left :auto}}
+       [:button.button
+        {:on-click #(swap! *tariffs
+                           (fn [t]
+                             (let [id (inc (reduce max -1 (keys t)))]
+                               (assoc
+                                t
+                                id
+                                {::tariff/name ""
+                                 ::tariff/id id ;; urgh? yes? no?
+                                 ::tariff/standing-charge 0
+                                 ::tariff/capacity-charge 0
+                                 ::tariff/unit-charge 0
+                                 
+                                 ::tariff/fixed-connection-cost 0
+                                 ::tariff/variable-connection-cost 0
+                                 }))))}
+        symbols/plus " Add"]]
+      ]
      (doall
       (for [id (sort (keys @*tariffs))]
         (tariff-row doc *tariffs id)))
-     [:button.button
-      {:on-click #(swap! *tariffs
-                         (fn [t]
-                           (let [id (inc (reduce max -1 (keys t)))]
-                             (assoc
-                              t
-                              id
-                              {::tariff/name ""
-                               ::tariff/id id ;; urgh? yes? no?
-                               ::tariff/standing-charge 0
-                               ::tariff/capacity-charge 0
-                               ::tariff/unit-charge 0
-                               
-                               ::tariff/fixed-connection-cost 0
-                               ::tariff/variable-connection-cost 0
-                               }))))}
-      symbols/plus " Add"]
+     
 
      
      ]))

@@ -16,9 +16,12 @@
             [thermos-frontend.popover :as popover]
             [thermos-frontend.params.global :as global-parameters]
             [thermos-frontend.params.tariffs :as tariff-parameters]
+            [thermos-frontend.params.pipes :as pipe-parameters]
             [thermos-frontend.solution-view :as solution-view]
             [thermos-frontend.toaster :as toaster]
             [thermos-frontend.editor-keys :as keys]
+            [thermos-frontend.theme :as theme]
+            
             [clojure.pprint :refer [pprint]]
             [clojure.string :as s]
             [goog.ui.SplitPane :refer [SplitPane Component]]
@@ -96,20 +99,25 @@
             (when (operations/table-filter-open? @state/state)
               (state/edit! state/state operations/close-table-filter)))
 
+          menu-timer (atom nil)
+
           selected-tab (or @*selected-tab :candidates)]
       [:div.editor__container
        {:on-click (fn [e] (close-popover e) (close-table-filter e))
         :on-context-menu close-popover
         :ref popover/set-focus-element!}
-          
+       
        [main-nav/component
         {:on-save (partial do-save false)
          :on-run (partial do-save true)
-         :on-hamburger #(reset! *show-menu true)
-         :hamburger (case selected-tab
-                      :candidates
-                      "Map"
-                      (name selected-tab))
+
+         :hamburger
+         [:button.hamburger
+          {:on-click #(swap! *show-menu not)
+           :class (when (state/is-running?) "spin-around")
+           :style {:background :none
+                   :border :none}}
+          theme/icon]
          
          :name (preload/get-value :name)
          :unsaved? (state/needs-save?)}]
@@ -130,75 +138,91 @@
              (if (zero? position)
                [:span "Running"]
                [:span "Number " position " in queue"]))
-           ]]
-
-         @*show-menu
-         ;; show fullwidth fullheight box
-         (let [goto #(do (reset! *selected-tab %)
-                         ;; (reset! *show-menu false)
-                         )]
-           [:div.main-menu.fade-in
-            {:style {:position :absolute
-                     :z-index 1000000
-                     :width :100%
-                     :display :flex
-                     :background "rgba(255,255,255,0.95)"
-                     :box-shadow "0px 0px 93px 62px rgba(0,0,0,0.5)"
-                     }
-             :on-mouse-leave
-             #(reset! *show-menu false)}
-            
-            [:div
-             [:h1 "Problem"]
-             [:ul
-              [:li [:button.button--link-style
-                    {:on-click #(goto :candidates)}
-                    "Map view"]]
-              [:li [:button.button--link-style 
-                    {:on-click #(goto :parameters)} "General settings"]]
-              [:li [:button.button--link-style 
-                    {:on-click #(goto :tariffs)} "Tariffs"]]
-              [:li [:button.button--link-style 
-                    {:on-click #(goto :pipe-costs)} "Pipe costs"]]]]
-            
-            (when @has-solution?
-              [:div
-               [:h1 "Solution"]
-               [:ul
-                [:li [:button.button--link-style
-                      {:on-click #(goto :solution)} "Solution summary"]]
-                (when @has-valid-solution?
-                  [:li [:button.button--link-style
-                       {:on-click #(goto :solution-buildings)} "Building connections"]])
-                (when @has-valid-solution?
-                  [:li [:button.button--link-style
-                        {:on-click #(goto :solution-pipework)} "Pipework"]])
-                (when @has-valid-solution?
-                  [:li [:button.button--link-style
-                        {:on-click #(goto :solution-supply)} "Supply"]])]])
-
-            [:div
-             [:h1 "Help"]
-             [:input
-              {:placeholder "Search help..."
-               :type :search
-               :on-key-press
-               #(let [key (.-key %)]
-                  (when (= key "Enter")
-                    (->> (target-value %)
-                         (str "/help/search?q=")
-                         (js/window.open))))}
-              ]
-
-             
-             [:ul
-              [:li [:a {:href "/help" :target "help"} "Help contents"]]
-              [:li [:a {:href "/help/networks.html" :target "help"} "Network editor help"]]]
-  
-             ]
-            ]))
+           ]])
 
        [:div {:style {:overflow-y :auto :flex 1 :height 1}}
+        (when
+            @*show-menu
+          (let [goto #(reset! *selected-tab %)]
+            [:div.main-menu.slide-left.shadow.right
+             {:style {:position :absolute
+                      :z-index 1000000
+                      :width :20em
+                      :left :-20em
+                      :flex-grow 1
+                      :height "calc(100% - 50px)" ;; urgh urgh urgh yuck
+                      :display :flex
+                      :flex-direction :column
+                      :background "rgba(255,255,255,0.9)"}
+              
+              :on-mouse-enter
+              #(js/clearTimeout @menu-timer)
+              :on-mouse-leave
+              #(reset! menu-timer
+                       (js/setTimeout
+                        (fn [] (reset! *show-menu false))
+                        300))
+
+              }
+             
+             [:div
+              [:h1 "Problem"]
+              [:ul
+               [:li [:button.button--link-style
+                     {:on-click #(goto :candidates)}
+                     "Map view"]]
+               [:li [:button.button--link-style 
+                     {:on-click #(goto :parameters)} "General settings"]]
+               [:li [:button.button--link-style 
+                     {:on-click #(goto :tariffs)} "Tariffs"]]
+               [:li [:button.button--link-style 
+                     {:on-click #(goto :pipe-costs)} "Pipe costs"]]]]
+             
+             (when @has-solution?
+               [:div
+                [:h1 "Solution"]
+                [:ul
+                 [:li [:button.button--link-style
+                       {:on-click #(goto :solution)} "Solution summary"]]
+                 (when @has-valid-solution?
+                   [:li [:button.button--link-style
+                         {:on-click #(goto :solution-buildings)} "Building connections"]])
+                 (when @has-valid-solution?
+                   [:li [:button.button--link-style
+                         {:on-click #(goto :solution-pipework)} "Pipework"]])
+                 (when @has-valid-solution?
+                   [:li [:button.button--link-style
+                         {:on-click #(goto :solution-supply)} "Supply"]])]])
+
+             [:div
+              [:h1 "Help"]
+              [:input
+               {:placeholder "Search help..."
+                :type :search
+                :on-key-press
+                #(let [key (.-key %)]
+                   (when (= key "Enter")
+                     (->> (target-value %)
+                          (str "/help/search?q=")
+                          (js/window.open))))}
+               ]
+
+              
+              [:ul
+               [:li [:a {:href "/help" :target "help"} "Help contents"]]
+               [:li [:a {:href "/help/networks.html" :target "help"} "Network editor help"]]]
+              
+              ]
+             [:div
+              [:h1 "Project"]
+              [:ul
+               [:li [:a {:href "../../../"} "Back to project"]]
+               [:li [:a {:href "/"} "THERMOS home page"]]
+               ]
+              ]
+             
+             ]))
+        
         (cond 
           (= selected-tab :candidates)
           [map-page state/state]
@@ -209,6 +233,9 @@
           (= selected-tab :tariffs)
           [tariff-parameters/tariff-parameters state/state]
 
+          (= selected-tab :pipe-costs)
+          [pipe-parameters/pipe-parameters state/state]
+          
           (= selected-tab :solution)
           [:div.solution-component
            [solution-view/solution-summary state/state]]

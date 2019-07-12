@@ -1,3 +1,7 @@
+!thermos-backend.content-migrations.patch-civils/migrate
+--;;
+!thermos-backend.content-migrations.patch-tariffs/migrate
+--;;
 DROP VIEW joined_candidates;
 --;;
 CREATE OR REPLACE VIEW joined_candidates
@@ -18,9 +22,7 @@ AS SELECT
 
         paths.start_id as start_id,
         paths.end_id as end_id,
-        paths.length as length,
-        paths.fixed_cost as fixed_cost,
-        paths.variable_cost as variable_cost
+        paths.length as length
 FROM
         candidates
         LEFT JOIN buildings on candidates.id = buildings.candidate_id
@@ -28,3 +30,5 @@ FROM
 ;
 --;;
 ALTER TABLE buildings DROP COLUMN connection_cost;
+--;;
+ALTER TABLE paths DROP COLUMN fixed_cost, DROP COLUMN variable_cost;

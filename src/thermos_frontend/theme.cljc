@@ -66,7 +66,7 @@
 
 (def icon
   [:svg {:width 35 :height 35
-         :view-box "0 0 1 1"}
+         :viewBox "0 0 1 1"}
    [:path
     {:d "M 0.15 0.5 A 0.35 0.35 0 0 1 0.85 0.5"
      :stroke red
