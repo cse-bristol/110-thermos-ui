@@ -22,6 +22,8 @@
             [thermos-backend.solver.bounds :as bounds]
             [thermos-backend.config :refer [config]]
             [thermos-util :refer [annual-kwh->kw]]
+            [thermos-util.finance :as finance]
+            [thermos-util.pipes :as pipes]
             [clojure.walk :refer [postwalk]]
 
             [thermos-specs.tariff :as tariff])
@@ -183,6 +185,110 @@
             
             net-graph (graph/edges net-graph))))
 
+(defn- demand-value-terms
+  "Given a vertex, calculate the value terms for it. These are value, value/kwh, and value/kwp.
+  They are needed separately to allow the optimiser to think about demand reduction measures."
+  [instance candidate]
+
+  (let [kwh (float   (::demand/kwh candidate 0))
+        kwp (float   (::demand/kwp candidate (annual-kwh->kw (::demand/kwh candidate 0))))
+
+        {standing-charge     ::tariff/standing-charge
+         unit-charge         ::tariff/unit-charge
+         capacity-charge     ::tariff/capacity-charge
+         fixed-connection    ::tariff/fixed-connection-cost
+         variable-connection ::tariff/variable-connection-cost}
+        (document/tariff-for-id instance (::tariff/id candidate))
+
+        ]
+    {:kwh        kwh
+     :kwp        kwp
+     :value      (float (+ (finance/objective-value instance
+                                                    :heat-revenue
+                                                    standing-charge)
+                           (finance/objective-value instance
+                                                    :connection
+                                                    fixed-connection)))
+     
+     "value/kwh" (float (finance/objective-value instance :heat-revenue unit-charge))
+     "value/kwp" (float (+ (finance/objective-value instance :heat-revenue capacity-charge)
+                           (finance/objective-value instance :connection variable-connection)))}))
+
+(defn demand-terms [instance candidate]
+  (merge
+   {:required  (boolean (candidate/required? candidate))
+    :count     (int     (::demand/connection-count candidate 1))}
+
+   ;; this gives cost and demand
+   (demand-value-terms instance candidate)
+   ;; TODO emissions for candidate
+   ;; to be superseded later
+   {:emissions
+    (into {} (for [e candidate/emissions-types
+                   :let [em (get (::demand/emissions candidate) e 0)]
+                   :when (pos? em)]
+               [e (float em)]))
+    }
+   
+   ;; TODO demand reduction technologies
+   ;; TODO individual supply technologies
+   ))
+
+(defn- supply-terms [instance candidate]
+  (let [fixed-cost
+        (-> candidate
+            (::supply/fixed-cost 0)
+            (->> (finance/objective-value instance :supply-capex)))
+
+        capex-per-kwp
+        (-> candidate
+            (::supply/capex-per-kwp 0)
+            (->> (finance/objective-value instance :supply-capex)))
+
+        heat-cost-per-kwh
+        (-> candidate
+            (::supply/cost-per-kwh 0)
+            (->> (finance/objective-value instance :supply-opex)))
+
+        opex-per-kwp
+        (-> candidate
+            (::supply/opex-per-kwp 0)
+            (->> (finance/objective-value instance :supply-opex)))
+        ]
+    
+    {:capacity-kw (float (::supply/capacity-kwp  candidate 0))
+     :cost        (float fixed-cost)
+     "cost/kwh"   (float heat-cost-per-kwh)
+     "cost/kwp"   (float (+ capex-per-kwp opex-per-kwp))
+
+     :emissions   (into {}
+                        (for [e candidate/emissions-types]
+                          [e (float (get-in candidate [::supply/emissions e] 0))]))}))
+
+(defn- edge-terms [instance bounds net-graph edge]
+  (let [{[lower upper] :mean} bounds
+
+        [fixed-cost variable-cost]
+        (pipes/linear-cost-per-kw
+         (- (::document/flow-temperature instance)
+            (::document/return-temperature instance))
+         (apply max lower) (apply max upper) ;; forwards vs backwards - TODO should I think about zeroes specially here?
+
+         (::document/mechanical-cost-per-m instance 0.0)
+         (::document/mechanical-cost-per-m2 instance 0.0)
+         (::document/mechanical-cost-exponent instance 1.0)
+         
+         (or (attr/attr net-graph edge :fixed-cost) 0.0)
+         (or (attr/attr net-graph edge :variable-cost) 0.0)
+         (::document/civil-cost-exponent instance 1.0))
+        ]
+    {:i (first edge) :j (second edge)
+     :length    (float (or (attr/attr net-graph edge :length) 0))
+     "cost/m"   (float (finance/objective-value instance :pipe-capex fixed-cost))
+     "cost/kwm" (float (finance/objective-value instance :pipe-capex variable-cost))
+     :bounds bounds
+     :required (boolean (attr/attr net-graph edge :required))}))
+
 (defn- instance->json [instance net-graph]
   (let [candidates     (::document/candidates instance)
 
@@ -203,28 +309,25 @@
         
         global-factors (::demand/emissions instance)]
     
-    {:time-limit (float (::document/maximum-runtime instance 1.0))
-     :mip-gap    (float (::document/mip-gap instance 0.05))
+    {:time-limit  (float (::document/maximum-runtime instance 1.0))
+     :mip-gap     (float (::document/mip-gap instance 0.05))
+     :pipe-losses
+     (let [losses (pipes/heat-loss-curve
+                   (::document/flow-temperature instance)
+                   (::document/return-temperature instance)
+                   (::document/ground-temperature instance))]
+       {:kwp  (map (comp float first) losses)
+        "w/m" (map (comp float second) losses)})
 
-     :flow-temperature   (float (::document/flow-temperature instance 90.0))
-     :return-temperature (float (::document/return-temperature instance 60.0))
-     :ground-temperature (float (::document/ground-temperature instance 8.0))
-
-     :mechanical-fixed-cost        (float (::document/mechanical-cost-per-m instance 50.0))
-     :mechanical-variable-cost     (float (::document/mechanical-cost-per-m2 instance 700.0))
-     :mechanical-variable-exponent (float (::document/mechanical-cost-exponent instance 1.3))
-     :civil-variable-exponent      (float (::document/civil-cost-exponent instance 1.1))
-     
-     :finance
-     {:loan-term  (int (::document/loan-term instance))
-      :loan-rate  (float (::document/loan-rate instance))
-      :npv-term   (int (::document/npv-term instance))
-      :npv-rate   (float (::document/npv-rate instance))}
-
+     ;; global emissions costs and limits
      :emissions
      (into {}
            (for [e candidate/emissions-types]
-             [e (merge {:cost    (float (get-in instance [::document/emissions-cost e] 0))}
+             [e (merge {:cost    (float
+                                  (finance/objective-value
+                                   instance
+                                   :emissions-cost
+                                   (get-in instance [::document/emissions-cost e] 0)))}
                        (when     (get-in instance [::document/emissions-limit e :enabled])
                          {:limit (float (get-in instance [::document/emissions-limit e :value]))}))]))
 
@@ -235,53 +338,16 @@
                      (candidate/has-supply? candidate))]
        (cond-> {:id vertex}
          (candidate/has-demand? candidate)
-         (assoc :demand
-                (let [tariff (document/tariff-for-id instance (::tariff/id candidate))]
-                  {:kw        (float   (annual-kwh->kw (::demand/kwh candidate 0)))
-                   :kwp       (float   (::demand/kwp candidate (annual-kwh->kw (::demand/kwh candidate 0))))
-                   :required  (boolean (candidate/required? candidate))
-                   :count     (int     (::demand/connection-count candidate 1))
-                   :emissions (into {} (for [e candidate/emissions-types
-                                             :let [em (candidate/emissions candidate e instance)]
-                                             :when (pos? em)]
-                                         [e (float em)]))
-                   :connection-cost
-                   (float (tariff/connection-cost
-                           tariff
-                           (::demand/kwh candidate)
-                           (::demand/kwp candidate)))
-
-                   :heat-revenue
-                   (float (tariff/annual-heat-revenue
-                           tariff
-                           (::demand/kwh candidate)
-                           (::demand/kwp candidate)))}))
+         (assoc :demand (demand-terms instance candidate))
 
          (candidate/has-supply? candidate)
-         (assoc :supply
-                {:capacity-kw (float (::supply/capacity-kwp  candidate 0))
-                 :capex       (float (::supply/fixed-cost    candidate 0))
-                 "capex/kwp"  (float (::supply/capex-per-kwp candidate 0))
-                 "opex/kwp"   (float (::supply/opex-per-kwp  candidate 0))
-                 "opex/kwh"   (float (::supply/cost-per-kwh  candidate 0))
-                 :emissions   (into {}
-                                    (for [e candidate/emissions-types]
-                                      [e (float (get-in candidate [::supply/emissions e] 0))]))})))
+         (assoc :supply (supply-terms instance candidate))))
      
      :edges
      (for [edge (->> (graph/edges net-graph)
                      (map (comp vec sort))
                      (set))]
-       {:i (first edge) :j (second edge)
-        ;; :components (vec (attr/attr net-graph edge :ids))
-        :length (float (or (attr/attr net-graph edge :length) 0))
-        :fixed-cost (float (or (attr/attr net-graph edge :fixed-cost) 0))
-        :variable-cost (float (or (attr/attr net-graph edge :variable-cost) 0))
-        :bounds (edge-bounds edge)
-        ;; the above may seem odd (dividing the cost - didn't we multiply it?)
-        ;; this is because we want a unit cost for the edge.
-        :required (boolean (attr/attr net-graph edge :required))})
-     }))
+       (edge-terms instance (get edge-bounds edge) net-graph edge))}))
 
 (defn- index-by [f vs]
   (reduce #(assoc %1 (f %2) %2) {} vs))
@@ -301,44 +367,69 @@
                                (into {}))
 
         update-vertex (fn [v]
-                        (let [solution-vertex (solution-vertices (::candidate/id v))]
+                        (let [solution-vertex (solution-vertices (::candidate/id v))
+                              tariff (document/tariff-for-id instance (::tariff/id v))]
                           (cond-> (assoc v ::solution/included true)
                             ;; demand facts
-                            (:heat-revenue solution-vertex)
-                            (assoc ::solution/heat-revenue   (:heat-revenue solution-vertex)
-                                   ::solution/connection-cost (:connection-cost solution-vertex)
-                                   ::solution/avoided-emissions (:avoided-emissions solution-vertex))
+                            (:connected solution-vertex)
+                            (assoc ::solution/heat-revenue
+                                   (tariff/annual-heat-revenue
+                                    tariff
+                                    (::demand/kwh v)
+                                    (::demand/kwp v))
+                                   
+                                   ::solution/connection-cost
+                                   (tariff/connection-cost
+                                    tariff
+                                    (::demand/kwh v)
+                                    (::demand/kwp v))
+                                   
+                                   ::solution/avoided-emissions {})
 
                             ;; supply facts
                             (:capacity-kw solution-vertex)
                             (assoc ::solution/capacity-kw (:capacity-kw solution-vertex)
                                    ::solution/diversity   (:diversity solution-vertex)
                                    ::solution/output-kwh  (:output-kwh solution-vertex)
-                                   ::solution/principal   (:principal solution-vertex)
-                                   ::solution/opex        (:opex solution-vertex)
-                                   ::solution/heat-cost   (:heat-cost solution-vertex)
-                                   ::solution/emissions   (:emissions solution-vertex)
+                                   ::solution/principal   (supply/principal v (:capacity-kw solution-vertex))
+                                   ::solution/opex        (supply/opex v (:capacity-kw solution-vertex))
+                                   ::solution/heat-cost   (supply/heat-cost v (:output-kwh solution-vertex))
+                                   ::solution/emissions   {}
                                    )
                             )))
+
+        ;; in kw -> diameter
+        power-curve   (pipes/power-curve (- (::document/flow-temperature instance)
+                                            (::document/return-temperature instance)))
+        civil-exponent       (::document/civil-cost-exponent instance 1)
+        mechanical-fixed     (::document/mechanical-cost-per-m instance 0)
+        mechanical-variable  (::document/mechanical-cost-per-m2 instance 0)
+        mechanical-exponent  (::document/mechanical-cost-exponent instance 1)
         
         update-edge   (fn [e]
                         (let [solution-edge (solution-edges (::candidate/id e))
                               candidate-length (::path/length e)
                               input-length (or (attr/attr net-graph [(:i solution-edge) (:j solution-edge)] :length) candidate-length)
-                              
                               length-factor (if (zero? candidate-length) 0 (/ candidate-length input-length))
-                              ]
+                              diameter-mm (* (pipes/linear-evaluate power-curve (:capacity-kw solution-edge)) 1000.0)
 
-                          
-                          
+                              {civil-fixed ::path/fixed-cost civil-variable ::path/variable-cost}
+                              (document/civil-cost-for-id instance (::path/civil-cost-id e))]
+
+                          ;; the path cost we're working out here is the 'truth'
+                          ;; as opposed to the linearised truth, so there will be a little error
                           (assoc e
                                  ::solution/length-factor length-factor
-                                 ::solution/included true
-                                 ::solution/diameter-mm (:diameter-mm solution-edge)
-                                 ::solution/capacity-kw (:capacity-kw solution-edge)
-                                 ::solution/diversity   (:diversity solution-edge)
-                                 ::solution/principal   (* length-factor (:principal solution-edge))
-                                 ::solution/losses-kwh  (* HOURS-PER-YEAR length-factor (:losses-kw solution-edge)))
+                                 ::solution/included      true
+                                 ::solution/diameter-mm   diameter-mm
+                                 ::solution/capacity-kw   (:capacity-kw solution-edge)
+                                 ::solution/diversity     (:diversity solution-edge)
+                                 ::solution/principal     (path/cost e
+                                                                     civil-fixed civil-variable civil-exponent
+                                                                     mechanical-fixed mechanical-variable mechanical-exponent
+                                                                     diameter-mm)
+                                 
+                                 ::solution/losses-kwh    (* HOURS-PER-YEAR length-factor (:losses-kw solution-edge)))
                           ))
         ]
     (if (= state :error)
@@ -389,7 +480,7 @@
         included-candidates (->> (::document/candidates instance)
                                  (vals)
                                  (filter candidate/is-included?)
-                                 ;; we also merge in the civil
+                                 ;; we also merge in the mechanical
                                  ;; engineering cost data for every
                                  ;; path, as that makes things easier.
                                  (map #(cond-> %
@@ -465,6 +556,8 @@
                   (merge-solution net-graph output-json)
                   (mark-unreachable net-graph))
               ]
+          (spit (io/file working-directory "stdout.txt") (:out output))
+          (spit (io/file working-directory "stderr.txt") (:err output))
           (spit (io/file working-directory "instance.edn") solved-instance)
           solved-instance)))
     
