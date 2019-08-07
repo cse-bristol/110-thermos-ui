@@ -2,13 +2,18 @@
   (:require [thermos-specs.candidate :as candidate]
             [thermos-specs.demand :as demand]
             [thermos-specs.tariff :as tariff]
+            [thermos-specs.measure :as measure]
+            
             [thermos-specs.path :as path]
+            [thermos-specs.supply :as supply]
             [thermos-specs.document :as document]
             [thermos-frontend.popover :as popover]
             [thermos-frontend.editor-state :as state]
             [thermos-frontend.inputs :as inputs]
             [thermos-frontend.format :as format]
-            [reagent.core :as reagent]))
+            
+            [reagent.core :as reagent]
+            [clojure.set :as set]))
 
 ;; TODO: something to help clear overrides of global parameters
 ;; applied in here
@@ -23,7 +28,7 @@
 (def nil-value-label {::candidate/name "None"
                       ::candidate/subtype "Unclassified"})
 
-(defn- demand-editor [tariffs state buildings]
+(defn- demand-editor [tariffs insulation alternatives state buildings]
   (reagent/with-let
     [group-by-key  (reagent/cursor state [:group-by])
      benchmarks    (reagent/cursor state [:benchmarks])
@@ -56,18 +61,19 @@
           [:th "Demand"]
           [:th "Peak"]
           [:th "Tariff"]
-          
-          (for [e candidate/emissions-types]
-            [:th {:key e} (name e)])
-          ]
+          [:th "Insulation"]
+          [:th "Alternatives"]
+          [:th "Counterfactual"]]
+         
          [:tr {:style {:font-size :small}}
           (when-not group-by-nothing [:th])
           [:th]
           [:th (if benchmarks "kWh/m2 yr" "MWh/yr")]
           [:th (if benchmarks "kW/m2" "kW")]
           [:th]
-          (for [e candidate/emissions-types]
-            [:th {:key e} "kg/kWh"])]]
+          [:th]
+          [:th]
+          [:th]]]
         
         [:tbody
          (doall
@@ -105,19 +111,42 @@
                                                                           (get tariff-frequencies id 0 )
                                                                           ")")])
                                  tariffs)]}]]
-             (doall
-              (for [e candidate/emissions-types]
-                [:th {:key e}
-                 [inputs/check-number
-                  {:step 0.1
-                   :style {:max-width :5em}
-                   :max 1000
-                   :min 0
-                   :value-atom
-                   (reagent/cursor values [group-by-key k e :value])
-                   :check-atom
-                   (reagent/cursor values [group-by-key k e :check])
-                   }]]))
+
+             [:td
+              (doall
+               (for [[id measure] insulation]
+                 [:div {:key id}
+                  [inputs/check
+                   {:value (get-in @values [group-by-key k :insulation id])
+                    :on-change #(swap! values
+                                       assoc-in
+                                       [group-by-key k :insulation id]
+                                       %)
+                    :label (::measure/name measure)}]]
+                 ))]
+
+             [:td
+              (doall
+               (for [[id alternative] alternatives]
+                 [:div {:key id}
+                  [inputs/check
+                   {:value (get-in @values [group-by-key k :alternatives id])
+                    :on-change #(swap! values
+                                       assoc-in
+                                       [group-by-key k :alternatives id]
+                                       %)
+                    :label (::supply/name alternative)}]]
+                 ))
+              ]
+             [:td
+              [inputs/select
+               {:values `[[:unset "Unchanged"]
+                          ~@(for [[i {n ::supply/name}] alternatives] [i n])]
+                :value (get-in @values [group-by-key k :counterfactual])
+                :on-change #(swap! values
+                                   assoc-in
+                                   [group-by-key k :counterfactual]
+                                   %)}]]
              ]))]
         ])]))
 
@@ -158,8 +187,6 @@
                                   [id (::path/civil-cost-name c)])]
                     }
                    ]]
-
-             
              ]))]
         ])]))
 
@@ -192,21 +219,35 @@
            (->> buildings
                 (group-by k)
                 (map (fn [[k v]]
-                       [k (merge
-                           {:demand {:value (mean (map ::demand/kwh v))}
-                            :tariff (unset? (map ::tariff/id v))
-                            :peak-demand {:value (mean (map ::demand/kwp v))}
-                            :demand-benchmark {:value 2}
-                            :peak-benchmark {:value 3}}
-                           (->> (for [e candidate/emissions-types]
-                                  [e {:value
-                                      (mean
-                                       (map
-                                        #(get-in % [::demand/emissions e])
-                                        v))
-                                      }])
-                                (into {}))
-                           )]))
+                       (let [n (count v)]
+                         [k (merge
+                             {:demand {:value (mean (map ::demand/kwh v))}
+                              :tariff (unset? (map ::tariff/id v))
+                              :peak-demand {:value (mean (map ::demand/kwp v))}
+                              :demand-benchmark {:value 2}
+                              :peak-benchmark {:value 3}
+                              :insulation
+                              (let [fs (frequencies
+                                        (mapcat (comp seq ::demand/insulation) v))
+                                    state
+                                    (for [[i c] fs :when (pos? c)]
+                                      [i
+                                       (if (= n c) :true :indeterminate)])]
+                                (into {} state))
+
+                              :alternatives
+                              (let [fs (frequencies
+                                        (mapcat (comp seq ::demand/alternatives) v))
+                                    state
+                                    (for [[i c] fs :when (pos? c)]
+                                      [i
+                                       (if (= n c) :true :indeterminate)])]
+                                (into {} state))
+
+                              :counterfactual (unset? (map ::demand/counterfactual v))
+                              
+                              })])))
+                
                 (into {}))])
         (into {}))})
 
@@ -253,26 +294,58 @@
 
              set-tariff (not= :unset tariff)
 
-             emissions-factors
-             (select-keys values candidate/emissions-types)
+             counterfactual (:counterfactual values)
 
-             emissions-factors
-             (->> (for [[e {c :check v :value}] emissions-factors
-                        :when c]
-                    [e v])
-                  (into {}))]
-         
+             set-counterfactual (not= :unset counterfactual)
+
+             remove-insulation
+             (->> (:insulation values)
+                  (filter #(not (second %)))
+                  (map first)
+                  (set))
+             
+             add-insulation
+             (->> (:insulation values)
+                  (filter #(= true (second %)))
+                  (map first)
+                  (set))
+
+             remove-alternatives
+             (->> (:alternatives values)
+                  (filter #(not (second %)))
+                  (map first)
+                  (set))
+             
+             add-alternatives
+             (->> (:alternatives values)
+                  (filter #(= true (second %)))
+                  (map first)
+                  (set))
+             ]
+
          (cond-> building
            set-demand              (assoc ::demand/kwh demand-value)
            set-peak                (assoc ::demand/kwp peak-value)
            set-tariff              (assoc ::tariff/id tariff)
-           (seq emissions-factors) (update ::demand/emissions merge emissions-factors)
+           set-counterfactual      (assoc ::demand/counterfactual counterfactual)
+           
+           (seq add-insulation)    (update ::demand/insulation set/union add-insulation)
+           (seq remove-insulation) (update ::demand/insulation set/difference remove-insulation)
+           (seq add-alternatives)    (update ::demand/alternatives set/union add-alternatives)
+           (seq remove-alternatives) (update ::demand/alternatives set/difference remove-alternatives)
+           
 
            ;; ensure we don't delete it since we edited it
            (or set-demand
                set-peak
                set-tariff
-               (seq emissions-factors)) (assoc ::candidate/modified true)
+               set-counterfactual
+               
+               (seq add-insulation)
+               (seq remove-insulation)
+               (seq add-alternatives)
+               (seq remove-alternatives))
+           (assoc ::candidate/modified true)
            )))
 
      building-ids)))
@@ -286,11 +359,18 @@
                      path-state   (reagent/atom (initial-path-state paths))
                      tariffs (sort-by first (::document/tariffs @document))
                      civils (sort-by first (::document/civil-costs @document))
+                     insulation (sort-by first (::document/insulation @document))
+                     alternatives (sort-by first (::document/alternatives @document))
                      ]
     
     [:div.popover-dialog
      (when (seq buildings)
-       [demand-editor tariffs demand-state buildings])
+       [demand-editor
+        tariffs
+        insulation
+        alternatives
+        
+        demand-state buildings])
      (when (seq paths)
        [:div
         (when (seq buildings) [:hr])

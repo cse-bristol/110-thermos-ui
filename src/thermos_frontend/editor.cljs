@@ -15,8 +15,11 @@
             [thermos-frontend.selection-info-panel :as selection-info-panel]
             [thermos-frontend.popover :as popover]
             [thermos-frontend.params.global :as global-parameters]
+            [thermos-frontend.params.objective :as objective]
             [thermos-frontend.params.tariffs :as tariff-parameters]
             [thermos-frontend.params.pipes :as pipe-parameters]
+            [thermos-frontend.params.insulation :as insulation]
+            [thermos-frontend.params.alternatives :as alternatives]
             [thermos-frontend.solution-view :as solution-view]
             [thermos-frontend.toaster :as toaster]
             [thermos-frontend.editor-keys :as keys]
@@ -172,11 +175,16 @@
                      {:on-click #(goto :candidates)}
                      "Map view"]]
                [:li [:button.button--link-style 
-                     {:on-click #(goto :parameters)} "General settings"]]
+                     {:on-click #(goto :parameters)} "Objective"]]
                [:li [:button.button--link-style 
                      {:on-click #(goto :tariffs)} "Tariffs"]]
                [:li [:button.button--link-style 
-                     {:on-click #(goto :pipe-costs)} "Pipe costs"]]]]
+                     {:on-click #(goto :pipe-costs)} "Pipe costs"]]
+               [:li [:button.button--link-style 
+                     {:on-click #(goto :insulation)} "Insulation"]]
+               [:li [:button.button--link-style 
+                     {:on-click #(goto :alternatives)} "Individual systems"]]
+               ]]
              
              (when @has-solution?
                [:div
@@ -184,6 +192,7 @@
                 [:ul
                  [:li [:button.button--link-style
                        {:on-click #(goto :solution)} "Solution summary"]]
+                 
                  (when @has-valid-solution?
                    [:li [:button.button--link-style
                          {:on-click #(goto :solution-buildings)} "Building connections"]])
@@ -192,7 +201,11 @@
                          {:on-click #(goto :solution-pipework)} "Pipework"]])
                  (when @has-valid-solution?
                    [:li [:button.button--link-style
-                         {:on-click #(goto :solution-supply)} "Supply"]])]])
+                         {:on-click #(goto :solution-supply)} "Supply"]])
+
+                 [:li [:button.button--link-style
+                       {:on-click #(goto :run-log)} "Run log"]]
+                 ]])
 
              [:div
               [:h1 "Help"]
@@ -228,7 +241,7 @@
           [map-page state/state]
 
           (= selected-tab :parameters)
-          [global-parameters/parameter-editor state/state]
+          [objective/objective-parameters state/state]
           
           (= selected-tab :tariffs)
           [tariff-parameters/tariff-parameters state/state]
@@ -249,6 +262,16 @@
           (= selected-tab :solution-supply)
           [:div.solution-component
            [solution-view/supply-list state/state]]
+
+          (= selected-tab :insulation)
+          [insulation/insulation-parameters state/state]
+
+          (= selected-tab :alternatives)
+          [alternatives/alternatives-parameters state/state]
+
+          
+          (= selected-tab :run-log)
+          [solution-view/run-log state/state]
 
           :else
           [:div "Unknown page!!! urgh!"])]

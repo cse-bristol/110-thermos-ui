@@ -26,7 +26,8 @@
             [thermos-util.pipes :as pipes]
             [clojure.walk :refer [postwalk]]
 
-            [thermos-specs.tariff :as tariff])
+            [thermos-specs.tariff :as tariff]
+            [thermos-specs.measure :as measure])
   
   (:import [java.io StringWriter]))
 
@@ -190,7 +191,9 @@
   They are needed separately to allow the optimiser to think about demand reduction measures."
   [instance candidate]
 
-  (let [kwh (float   (::demand/kwh candidate 0))
+  (let [ignore-revenues (= :system (::document/objective instance))
+
+        kwh (float   (::demand/kwh candidate 0))
         kwp (float   (::demand/kwp candidate (annual-kwh->kw (::demand/kwh candidate 0))))
 
         {standing-charge     ::tariff/standing-charge
@@ -200,6 +203,12 @@
          variable-connection ::tariff/variable-connection-cost}
         (document/tariff-for-id instance (::tariff/id candidate))
 
+        standing-charge (if ignore-revenues 0 (or standing-charge 0))
+        unit-charge     (if ignore-revenues 0 (or unit-charge 0))
+        capacity-charge (if ignore-revenues 0 (or capacity-charge 0))
+
+        fixed-connection (or fixed-connection 0)
+        variable-connection (or variable-connection 0)
         ]
     {:kwh        kwh
      :kwp        kwp
@@ -207,32 +216,88 @@
                                                     :heat-revenue
                                                     standing-charge)
                            (finance/objective-value instance
-                                                    :connection
+                                                    :connection-capex
                                                     fixed-connection)))
      
      "value/kwh" (float (finance/objective-value instance :heat-revenue unit-charge))
      "value/kwp" (float (+ (finance/objective-value instance :heat-revenue capacity-charge)
-                           (finance/objective-value instance :connection variable-connection)))}))
+                           (finance/objective-value instance :connection-capex variable-connection)))}))
+
+(defn- insulation-definitions [instance candidate]
+  {:insulation
+   (->> (when (::document/consider-insulation instance)
+          (for [insulation-id (::demand/insulation candidate)
+                :let [measure (get-in instance [::document/insulation insulation-id])
+                      area (get candidate
+                                (case (::measure/surface measure)
+
+                                  :roof  ::candidate/roof-area
+                                  :floor ::candidate/ground-area
+                                  
+                                  ::candidate/wall-area)
+                                0)
+                      maximum-kwh-saved (* (::measure/maximum-effect measure 0)
+                                           (::demand/kwh candidate 0))]
+                :when (and measure
+                           (pos? area)
+                           (pos? maximum-kwh-saved))]
+            (let [cost-per-m2 (::measure/cost-per-m2 measure 0)
+                  maximum-cost (* area cost-per-m2)
+                  cost-per-kwh (/ maximum-cost maximum-kwh-saved)]
+              {:id insulation-id
+               :cost      (finance/objective-value instance
+                                                   :insulation-capex
+                                                   (::measure/fixed-cost measure 0))
+               "cost/kwh" (finance/objective-value instance
+                                                   :insulation-capex
+                                                   cost-per-kwh)
+               :maximum   maximum-kwh-saved})))
+        (filter identity))})
+
+(defn- alternative-definitions [instance candidate]
+   {:alternatives
+    (let [counterfactual (::demand/counterfactual candidate)
+          ids (set
+               (conj
+                (when (::document/consider-alternatives instance)
+                  (::demand/alternatives candidate))
+                counterfactual))
+
+          network-only (= :network (::document/objective instance :network))]
+      (->>
+       (for [id ids]
+         (when-let [alternative (get-in instance [::document/alternatives id])]
+           {:id id
+            :cost      (if (or network-only (= counterfactual id))
+                         0
+                         (finance/objective-value instance :alternative-capex
+                                                  (::supply/fixed-cost alternative 0)))
+
+            ;; we pay for fuel for the counterfactual
+            "cost/kwh" (if network-only 0
+                           (finance/objective-value instance :alternative-opex
+                                                    (::supply/cost-per-kwh alternative 0)))
+            
+            "cost/kwp"
+            ;; we pay opex for the CF unless in network-only mode.
+            (if network-only
+              0
+              (finance/objective-value instance :alternative-opex
+                                       (::supply/opex-per-kwp alternative 0)))
+            
+            :emissions
+            (into {}
+                  (for [e candidate/emissions-types]
+                    [e (float (get-in alternative [::supply/emissions e] 0))]))}))
+       (filter identity)))})
 
 (defn demand-terms [instance candidate]
   (merge
    {:required  (boolean (candidate/required? candidate))
     :count     (int     (::demand/connection-count candidate 1))}
-
-   ;; this gives cost and demand
    (demand-value-terms instance candidate)
-   ;; TODO emissions for candidate
-   ;; to be superseded later
-   {:emissions
-    (into {} (for [e candidate/emissions-types
-                   :let [em (get (::demand/emissions candidate) e 0)]
-                   :when (pos? em)]
-               [e (float em)]))
-    }
-   
-   ;; TODO demand reduction technologies
-   ;; TODO individual supply technologies
-   ))
+   (insulation-definitions instance candidate)
+   (alternative-definitions instance candidate)))
 
 (defn- supply-terms [instance candidate]
   (let [fixed-cost

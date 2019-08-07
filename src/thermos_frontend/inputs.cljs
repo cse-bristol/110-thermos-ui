@@ -48,21 +48,26 @@
                :on-change
                #(let [val (target-value %)
                       val (/ (parse val) scale)]
-                  (println "changed to" (target-value %))
                   (on-change val))})])))
 
-(defn select [{value-atom :value-atom values :values}]
+(defn select [{value-atom :value-atom values :values
+               value :value on-change :on-change 
+               }]
   (let [index->key (into {} (map-indexed #(vector (str %1) %2) (map first values)))
         key->index (map-invert index->key)]
     [:select
-     {:value (key->index @value-atom)
+     {:value (key->index (cond value-atom @value-atom
+                               value value))
       :on-change
-      (when value-atom #(reset! value-atom (index->key (.. % -target -value))))}
+      (cond value-atom
+            #(reset! value-atom (index->key (.. % -target -value)))
+            on-change
+            #(on-change (index->key (.. % -target -value))))
+      }
      
-     (let [val @value-atom]
-       (for [[k v] values]
-         (let [k (key->index k)]
-           [:option {:value (str k) :key k} v])))]))
+     (for [[k v] values]
+       (let [k (key->index k)]
+         [:option {:value (str k) :key k} v]))]))
 
 (defn check-number [{check-atom :check-atom :as ks}]
   [:div {:style {:display :flex}}
@@ -75,3 +80,43 @@
                (dissoc :check-atom)
                (assoc :disabled (not (and check-atom @check-atom))))]])
 
+(def group-ids (atom 0))
+
+(defn radio-group [{options   :options
+                    value     :value
+                    on-change :on-change}]
+  ;; we kind of want a unique name
+  (reagent/with-let [group-name (swap! group-ids inc)]
+    [:div
+     (for [{label :label key :key} options]
+       [:label {:key key}
+        [:input {:type :radio :value group-name
+                 :checked (= value key)
+                 :on-change #(on-change key)}]
+        label])]))
+
+
+(defn check [{key :key label :label value :value on-change :on-change}]
+  (let [chk (atom nil)
+        paint
+        (fn [value]
+
+          (set! (.-checked @chk)
+                (and value (not= :indeterminate value)))
+          (set! (.-indeterminate @chk)
+                (= :indeterminate value)))
+        ]
+    (reagent/create-class
+     {:reagent-render
+      (fn [{key :key label :label value :value on-change :on-change}]
+        [:label {:key key}
+         [:input.input {:type :checkbox
+                        :ref #(reset! chk %)
+                        :on-change #(on-change (.. % -target -checked))}
+          ] label]
+        )
+      :component-did-mount
+      (fn [_ ] (paint value))
+      :component-will-update
+      (fn [_ [_ {value :value}]] (paint value))
+      })))

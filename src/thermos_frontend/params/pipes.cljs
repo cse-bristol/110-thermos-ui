@@ -14,12 +14,39 @@
 ;; it'd be nice to have some little graphs
 
 (defn pipe-parameters [document]
-  (reagent/with-let [mechanical-exponent (reagent/cursor document [::document/mechanical-cost-exponent])
-                     mechanical-fixed (reagent/cursor document [::document/mechanical-cost-per-m])
-                     mechanical-variable (reagent/cursor document [::document/mechanical-cost-per-m2])
-                     civil-exponent (reagent/cursor document [::document/civil-cost-exponent])
-                     civil-costs (reagent/cursor document [::document/civil-costs])]
+  (reagent/with-let
+    [mechanical-exponent (reagent/cursor document [::document/mechanical-cost-exponent])
+     mechanical-fixed (reagent/cursor document [::document/mechanical-cost-per-m])
+     mechanical-variable (reagent/cursor document [::document/mechanical-cost-per-m2])
+     civil-exponent (reagent/cursor document [::document/civil-cost-exponent])
+     civil-costs (reagent/cursor document [::document/civil-costs])
+
+     max-pipe-kwp (reagent/cursor document [::document/maximum-pipe-kwp])
+     flow-temperature (reagent/cursor document [::document/flow-temperature])
+     return-temperature (reagent/cursor document [::document/return-temperature])
+     ground-temperature (reagent/cursor document [::document/ground-temperature])
+     ]
     [:div
+     [:div.card
+      [:b "Temperatures and limits"]
+      [:p "These parameters affect pipe heat losses and the relationship between diameter and power delivered."]
+
+      [:p "Use a flow temperature of "
+       [inputs/number {:value-atom flow-temperature :min 0 :max 100 :step 1}]
+       "°C, "
+       "a return temperature of "
+       [inputs/number {:value-atom return-temperature :min 0 :max 100 :step 1}]
+       "°C, and "
+       "an average ground temperature of "
+       [inputs/number {:value-atom ground-temperature :min 0 :max 20 :step 1}]
+       "°C."
+       " Limit pipe capacity to at most "
+       [inputs/number {:value-atom max-pipe-kwp :min 0 :max 500 :step 1 :scale (/ 1 1000.0)}]
+       " MWp"
+       ]
+      
+      ]
+     
      [:div.card
       [:b "Mechanical engineering costs"]
       [:p "These parameters apply to every pipe, and cover the cost of buying the flow and return pipes, welding etc."]

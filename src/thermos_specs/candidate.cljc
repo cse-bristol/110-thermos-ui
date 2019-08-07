@@ -19,7 +19,14 @@
 (s/def ::building
   (s/and
    #(= (::type % :building))
-   (s/keys :req [::connections ]
+   (s/keys :req [::connections
+                 ::wall-area
+                 ;; ::floor-area
+
+                 ::ground-area
+                 ::roof-area
+                 ;; ::height
+                 ]
            :opt [::tariff/id])
    
    (s/or :has-demand ::demand/demand ;; TODO this is not quite right
@@ -34,6 +41,13 @@
 (s/def ::inclusion #{:required :optional :forbidden})
 (s/def ::connections (s/* ::id))
 (s/def ::modified boolean?) ;; a modified candidate is one the user has changed
+
+(s/def ::wall-area number?)
+(s/def ::roof-area number?)
+
+;; this is distinct from floor area; it's relevant for insulation
+;; practically it will likely be the same as roof area since we don't do pitch.
+(s/def ::ground-area number?)
 
 (defn is-included? [candidate] (not= :forbidden (::inclusion candidate)))
 (defn is-path? [candidate] (= (::type candidate) :path))

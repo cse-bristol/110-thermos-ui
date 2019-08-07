@@ -328,13 +328,21 @@
         :name (or (:name b) "")
         :type (or (:subtype  b) "")
         :geometry (.toText (::geoio/geometry b))
-        ;; insert array type here??
+
         :connection-id (str/join "," (::spatial/connects-to-node b))
         :demand-kwh-per-year (or (:annual-demand b) 0)
         :demand-kwp (or (:peak-demand b) 0)
         :connection-count (or (:connection-count b) 1)
         :demand-source (name (:demand-source b))
-        :peak-source (name (:peak-source b))})
+        :peak-source (name (:peak-source b))
+
+        ;; TODO maybe people should be able to put these in?
+        :wall-area   (::lidar/wall-area b 0)
+        :floor-area  (::lidar/floor-area b 0)
+        :ground-area (::lidar/footprint b 0)
+        :roof-area   (::lidar/footprint b 0) ;; TODO roof tilt?
+        :height      (::lidar/height b 0)
+        })
      
      :paths
      (for [b (::geoio/features roads)]

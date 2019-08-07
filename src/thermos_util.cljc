@@ -80,3 +80,9 @@
 
      :cljs
      (.toFixed num digits)))
+
+(defn next-integer-key
+  "Given a map which contains keys that are numeric, return the next
+  unused key."
+  [map]
+  (inc (reduce max -1 (keys map))))

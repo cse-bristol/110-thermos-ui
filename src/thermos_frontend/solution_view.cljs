@@ -395,3 +395,15 @@
     (if (solution/valid-state? state)
       [solution-summary* document]
       [invalid-solution state document])))
+
+(defn run-log [document]
+  [:pre {:style {:text-wrap :pre-wrap}}
+   (::solution/log @document)
+   ]
+  ;; [:div {:style {:font-family "Monospace"}}
+  ;;  (map-indexed
+  ;;   (fn [i l] [:pre {:style {:margin 0 :padding 0}
+  ;;                    :key i} l])
+  ;;   (s/split (::solution/log @document) #"\n"))]
+  )
+

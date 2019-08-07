@@ -9,6 +9,14 @@
                 ::fixed-cost
                 ::emissions]))
 
+(s/def ::alternative
+  (s/keys :req [::id ::name
+                ::cost-per-kwh
+                ::capex-per-kwp
+                ::opex-per-kwp
+                ::fixed-cost
+                ::emissions]))
+
 (defn principal [candidate capacity-kw]
   (+ (::fixed-cost candidate 0)
      (* (or capacity-kw 0)

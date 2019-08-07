@@ -123,6 +123,9 @@
       
       :building
       (assoc basics
+             ::candidate/wall-area     (o/get properties "wall-area" 0)
+             ::candidate/ground-area   (o/get properties "ground-area" 0)
+             ::candidate/roof-area     (o/get properties "ground-area" 0)
              ::demand/kwh              (o/get properties "demand-kwh-per-year" nil)
              ::demand/kwp              (o/get properties "demand-kwp" nil)
              ::demand/connection-count (o/get properties "connection-count" 1)

@@ -100,7 +100,7 @@
   (reagent/with-let
     [*tariffs (reagent/cursor doc [::document/tariffs])]
     [:div
-     [:div.card {:style {:display :flex :flex-direction :row}}
+     [:div.card.flex-cols
       [:span "Each building can have an associated tariff, which determines:"
        [:ul
         [:li "The annual revenue the network will receive if the building is connected."]
@@ -110,7 +110,7 @@
        
        ]
       
-      [:div {:style {:margin-left :auto}}
+      [:div.flush-right
        [:button.button
         {:on-click #(swap! *tariffs
                            (fn [t]

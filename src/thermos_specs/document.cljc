@@ -5,6 +5,7 @@
             [thermos-specs.path :as path]
             [thermos-specs.solution :as solution]
             [thermos-specs.view :as view]
+            [thermos-specs.measure :as measure]
             [thermos-specs.supply :as supply]
             [thermos-specs.tariff :as tariff]
             [clojure.string :as str]
@@ -42,6 +43,9 @@
                 ::tariffs
 
                 ::civil-costs
+
+                ::insulation
+                ::alternatives
                 ]
           :opt [::solution/summary
                 ::deletions]))
@@ -195,10 +199,13 @@
 (defn civil-cost-for-id [doc cost-id]
   (let [costs (::civil-costs doc)]
     (or (get costs cost-id)
-        (get costs (reduce min (keys costs))))))
+        (when-let [cost-keys (seq (keys costs))]
+          (get costs (reduce min cost-keys))))))
 
 (defn civil-cost-name [doc cost-id]
-  (or (::path/civil-cost-name (civil-cost-for-id doc cost-id))
+  (or (::path/civil-cost-name
+       (civil-cost-for-id doc cost-id)
+       (str "Civil cost " cost-id))
       "None"))
 
 (defn path-cost [path document]
@@ -259,3 +266,14 @@
          (if (= cost-id (::path/civil-cost-id c))
            (dissoc c ::path/civil-cost-id)
            c)))))
+
+(s/def ::insulation
+  (s/and
+   (redundant-key ::measure/id)
+   (s/map-of ::measure/id ::measure/insulation)))
+
+(s/def ::alternatives
+  (s/and
+   (redundant-key ::supply/id)
+   (s/map-of ::supply/id ::supply/alternative)))
+  
