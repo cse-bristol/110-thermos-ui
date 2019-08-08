@@ -277,3 +277,8 @@
    (redundant-key ::supply/id)
    (s/map-of ::supply/id ::supply/alternative)))
   
+(defn alternative-for-id [doc alternative-id]
+  (get (::alternatives doc) alternative-id))
+
+(defn insulation-for-id [doc insulation-id]
+  (get (::insulation doc) insulation-id))

@@ -22,11 +22,16 @@
                         :step 0.1
                         :disabled (not (:annualize @params))}]]
    [:td
-    (format/si-number (finance/objective-capex-value (assoc @doc
-                                                            ::document/npv-rate 0)
-                                                     @params 100))]
+    (->> 100
+         (finance/objective-capex-value (assoc @doc ::document/npv-rate 0) @params)
+         (:present)
+         (format/si-number))]
    [:td
-    (format/si-number (finance/objective-capex-value @doc @params 100))]])
+    (->> 100
+         (finance/objective-capex-value @doc @params)
+         (:present)
+         (format/si-number))]])
+
 
 (defn objective-parameters [document]
   (reagent/with-let
@@ -149,7 +154,7 @@
                                   :disabled (not @(emissions-check e))
                                   :min 0
                                   :max 10000
-                                  :scale 1000
+                                  :scale 0.001
                                   :step 1}]]
              
              ]))]]]]

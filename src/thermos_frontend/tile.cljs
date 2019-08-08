@@ -87,6 +87,7 @@
         supply-in-solution (candidate/supply-in-solution? candidate)
         
         included (candidate/is-included? candidate)
+        connected (candidate/is-connected? candidate)
         forbidden (not included)
         filtered (:filtered candidate)
         ]
@@ -105,6 +106,7 @@
                  (not in-solution)
                  (= inclusion :optional)) theme/cyan
             (= inclusion :required) theme/red
+            (not connected) theme/orange
             (= inclusion :optional) theme/blue
 
             :otherwise theme/white))

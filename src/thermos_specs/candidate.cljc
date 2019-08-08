@@ -63,6 +63,10 @@
   (= (::inclusion candidate) :required))
 
 (defn in-solution? [candidate] (::solution/included candidate))
+(defn is-connected? [candidate]
+  (or (and (is-path? candidate)
+           (in-solution? candidate))
+      (::solution/connected candidate)))
 
 (defn supply-in-solution? [candidate]
   (and (is-building? candidate)

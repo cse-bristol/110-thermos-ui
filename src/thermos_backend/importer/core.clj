@@ -325,8 +325,8 @@
      (for [b (::geoio/features buildings)]
        {:geoid (::geoio/id b)
         :orig-id (or (:identity b) "unknown")
-        :name (or (:name b) "")
-        :type (or (:subtype  b) "")
+        :name (str (or (:name b) ""))
+        :type (str (or (:subtype  b) ""))
         :geometry (.toText (::geoio/geometry b))
 
         :connection-id (str/join "," (::spatial/connects-to-node b))
@@ -348,8 +348,8 @@
      (for [b (::geoio/features roads)]
        {:geoid (::geoio/id b)
         :orig-id (or (:identity b) "unknown")
-        :name (or (:name b) "")
-        :type (or (:subtype b) "")
+        :name (str (or (:name b) ""))
+        :type (str (or (:subtype b) ""))
         :geometry (.toText (::geoio/geometry b))
         :start-id (::geoio/id (::topo/start-node b))
         :end-id   (::geoio/id (::topo/end-node b))

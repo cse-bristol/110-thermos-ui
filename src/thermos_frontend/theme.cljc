@@ -47,6 +47,7 @@
 (def dark-grey "#555555")
 (def cyan "#ffd700")
 (def magenta "#ff00ff")
+(def orange "#ff8c00")
 
 #?(:cljs
    (def white-light-grey-stripes

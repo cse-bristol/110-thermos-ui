@@ -46,43 +46,66 @@
         payments
         (if should-recur
           (take npv-term (cycle payments))
-          payments)]
-    (pv npv-rate payments)))
+          payments)
 
-(defn objective-value
+        total-value (reduce + payments)
+        ]
+    {:present (pv npv-rate payments)
+     :total total-value
+     :annual (/ total-value period)
+     :principal value}))
+
+(defn objective-opex-value [doc value]
+  (let [payments (repeat (::document/npv-term doc 1) value)
+        total (reduce + payments)]
+    {:present (pv (::document/npv-rate doc 0) payments)
+     :total total
+     :annual value}))
+
+(defn adjusted-value
   "Determine the objective function contribution for a type of cost.
   This is affected by settings in the document."
   [doc type value]
-  (case type
-    :connection-capex
-    (objective-capex-value doc
-                           (get-in doc [::document/capital-costs :connection])
-                           value)
-    
-    :supply-capex
-    (objective-capex-value doc
-                           (get-in doc [::document/capital-costs :supply])
-                           value)
-    
-    :pipe-capex
-    (objective-capex-value doc
-                           (get-in doc [::document/capital-costs :pipework])
-                           value)
-    
-    :insulation-capex
-    (objective-capex-value doc
-                           (get-in doc [::document/capital-costs :insulation])
-                           value)
-    
-    :alternative-capex
-    (objective-capex-value doc
-                           (get-in doc [::document/capital-costs :alternative])
-                           value)
+  (-> (case type
+        :connection-capex
+        (objective-capex-value doc
+                               (get-in doc [::document/capital-costs :connection])
+                               value)
+        
+        :supply-capex
+        (objective-capex-value doc
+                               (get-in doc [::document/capital-costs :supply])
+                               value)
+        
+        :pipe-capex
+        (objective-capex-value doc
+                               (get-in doc [::document/capital-costs :pipework])
+                               value)
+        
+        :insulation-capex
+        (objective-capex-value doc
+                               (get-in doc [::document/capital-costs :insulation])
+                               value)
+        
+        :alternative-capex
+        (objective-capex-value doc
+                               (get-in doc [::document/capital-costs :alternative])
+                               value)
 
-    
-    (:supply-opex :emissions-cost :heat-revenue :alternative-opex)
+        
+        (:supply-heat :supply-opex :emissions-cost :heat-revenue :alternative-opex)
 
-    ;; these things are not capexes so we account for them the other way
-    (pv (::document/npv-rate doc 0)
-        (repeat (::document/npv-term doc 1) value))))
+        ;; these things are not capexes so we account for them the other way
+        (objective-opex-value doc value))
+      (assoc :type type)
+      ))
 
+(defn objective-value [doc type value]
+  (:present (adjusted-value doc type value)))
+
+(defn emissions-value [doc em kg]
+  (let [kg (or kg 0)
+        price (get (::document/emissions-cost doc) em 0)]
+    (assoc (adjusted-value doc :emissions-cost (* price kg))
+           :type em
+           :kg kg)))

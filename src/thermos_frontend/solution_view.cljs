@@ -142,37 +142,12 @@
 
 (defn- solution-summary* [document]
   (reagent/with-let [candidates (reagent/cursor document [::document/candidates])
-                     finance-parameters (reagent/cursor document [::solution/finance-parameters])
                      solution-members (reagent/track #(filter candidate/in-solution? (vals @candidates)))
                      solution-state (reagent/cursor document [::solution/state])
                      runtime (reagent/cursor document [::solution/runtime])
                      objective-value (reagent/cursor document [::solution/objective])]
     [:div {:style {:flex-grow 1 :margin-top :1em}}
-     (let [{loan-term ::document/loan-term
-            loan-rate ::document/loan-rate
-            npv-term ::document/npv-term
-            npv-rate ::document/npv-rate} @finance-parameters
-           
-           annualize
-           (if (zero? loan-rate)
-             (fn [principal] (repeat loan-term
-                                     (/ principal loan-term)))
-             (fn [principal]
-               (let [repayment (/ (* principal loan-rate)
-                                  (- 1 (/ 1 (Math/pow (+ 1 loan-rate)
-                                                      loan-term))))]
-                 (repeat loan-term repayment))))
-
-           pv
-           (if (zero? npv-rate)
-             (fn [vals] (reduce + vals))
-             (fn [vals] (reduce + (map-indexed (fn [i v] (/ v (Math/pow (+ 1 npv-rate) i))) vals))))
-           
-           opex-pv (fn [annual] (pv (repeat npv-term annual)))
-
-           capex-pv (fn [principal] (pv (annualize principal)))
-
-           solution-members @solution-members
+     (let [solution-members @solution-members
            
            {paths :path buildings :building}
            (group-by ::candidate/type solution-members)
@@ -183,8 +158,12 @@
            number-of-demands (count (filter ::solution/heat-revenue buildings))
 
            total-demand (reduce + (map #(if (::solution/heat-revenue %)
-                                          (::demand/kwh % 0)
+                                          (::solution/kwh % 0)
                                           0) buildings))
+
+           total-insulation (reduce + (map :kwh (mapcat
+                                                 ::solution/insulation
+                                                 buildings)))
 
            total-peak (reduce + (map #(if (::solution/heat-revenue %)
                                         (::demand/kwp % 0)
@@ -198,72 +177,42 @@
            total-supply-capacity (reduce + (map #(::solution/capacity-kw % 0) buildings))
            total-supply-output (reduce + (map #(::solution/output-kwh % 0) buildings))
            
-           network-principal (reduce + (map #(::solution/principal % 0) paths))
-           network-finance   (- (reduce + (annualize network-principal)) network-principal)
-           network-npv       (capex-pv network-principal)
+           all-costs
+           (concat
+            (map ::solution/pipe-capex solution-members)
+            (map ::solution/supply-capex solution-members)
+            (map ::solution/supply-opex solution-members)
+            (map ::solution/heat-cost solution-members)
+            (map ::solution/connection-capex solution-members)
+            (map ::solution/heat-revenue solution-members)
 
-           supply-principal (reduce + (map #(::solution/principal % 0) buildings))
-           supply-finance   (- (reduce + (annualize supply-principal)) supply-principal)
-           supply-npv       (capex-pv supply-principal)
+            (map (comp :capex ::solution/alternative) solution-members)
+            (map (comp :opex ::solution/alternative) solution-members)
+            (map (comp :heat-cost ::solution/alternative) solution-members)
 
-           connection-cost-principal (reduce + (map #(::solution/connection-cost % 0) buildings))
-           connection-cost-finance   (- (reduce + (annualize connection-cost-principal)) supply-principal)
-           connection-cost-npv       (capex-pv connection-cost-principal)
+            (mapcat ::solution/insulation solution-members)
+            (mapcat (comp vals ::solution/emissions) solution-members))
 
-           capacity-cost-annual (reduce + (map #(::solution/opex % 0) buildings))
-           capacity-cost-total  (* npv-term capacity-cost-annual)
-           capacity-cost-npv    (opex-pv capacity-cost-annual)
-
-           heat-cost-annual (reduce + (map #(::solution/heat-cost % 0) buildings))
-           heat-cost-total  (* npv-term heat-cost-annual)
-           heat-cost-npv    (opex-pv heat-cost-annual)
-
-           emissions-annual-cost (into {}
-                                       (for [e candidate/emissions-types]
-                                         [e (reduce +
-                                                    (map
-                                                     #(- (-> (::solution/emissions %)
-                                                             (get e)
-                                                             (:cost 0))
-                                                         (-> (::solution/avoided-emissions %)
-                                                             (get e)
-                                                             (:cost 0)))
-                                                     buildings))]))
+           all-costs (filter identity all-costs)
            
-           emissions-total-cost (into {} (for [[e a] emissions-annual-cost]
-                                           [e (* a npv-term)]))
-           
-           emissions-npv (into {} (for [[e a] emissions-annual-cost]
-                                    [e (opex-pv a)]))
+           all-costs
+           (group-by :type all-costs)
 
-           heat-revenue-annual (reduce + (map #(::solution/heat-revenue % 0) buildings))
-           heat-revenue-total  (* npv-term heat-revenue-annual)
-           heat-revenue-npv    (opex-pv heat-revenue-annual)
+           all-costs
+           (for [[type costs] all-costs]
+             (let [sum (apply merge-with +
+                              (for [cost costs]
+                                (dissoc cost :type)))]
+               [type sum]))
 
-
-           costs-total (+ heat-cost-total
-                          capacity-cost-total
-                          network-principal
-                          network-finance
-                          supply-principal
-                          supply-finance
-                          connection-cost-principal
-                          connection-cost-finance
-                          (reduce + (map second emissions-total-cost)))
-           
-
-           costs-npv-total (+ supply-npv network-npv
-                              heat-cost-npv
-                              capacity-cost-npv
-                              connection-cost-npv
-                              (reduce + (map second emissions-npv)))
+           all-costs (into {} all-costs)
            
            rev  (fn [a]
                   (if (zero? a)
                     [:td]
                     [(if (pos? a) :td :td.cost) (format/si-number (Math/abs a))]))
-           cost (fn [a] (rev (- a)))
-           ]
+           cost (fn [a] (rev (- a)))]
+       
        [:div {:style {:display :flex :flex-direction :row :flex-wrap :wrap}}
         [:div {:style {:flex 1 :margin-left :1em}}
          [:h1 "Financial model"]
@@ -276,78 +225,101 @@
             [:th.has-tt {:title "The NPV of the loan repayments for the capital cost"} "NPV"]]
            ]
           [:tbody
-           [:tr [:th.has-tt {:title "Costs incurred for buying pipework."}
-                 "Network"]
-            (cost network-principal)
-            (cost network-finance)
-            (cost network-npv)]
-           
-           [:tr [:th.has-tt {:title "Capital costs incurred for connecting to supply locations."} "Supply"]
-            (cost supply-principal)
-            (cost supply-finance)
-            (cost supply-npv)]
-
-           [:tr [:th.has-tt {:title "Capital costs incurred by connecting demands to the network."} "Connection"]
-            (cost connection-cost-principal)
-            (cost connection-cost-finance)
-            (cost connection-cost-npv)]
-           
-           [:tr [:th "Total"]
-            (cost (+ network-principal supply-principal connection-cost-principal))
-            (cost (+ network-finance supply-finance connection-cost-finance))
-            (cost (+ network-npv supply-npv connection-cost-npv))
-            ]]
+           (let [items
+                 (select-keys
+                  all-costs
+                  [:pipe-capex :supply-capex :connection-capex
+                   :insulation-capex :alternative-capex])
+                 total
+                 (apply merge-with + (vals items))]
+             (list
+              (for [[item val] items]
+                [:tr {:key item}
+                 [:th (name item)]
+                 (cost (:principal val 0))
+                 (cost (- (:total val 0)
+                          (:principal val 0)))
+                 (cost (:present val 0))])
+              [:tr {:key :total}
+               [:th "Total"]
+               (cost (:principal total 0))
+               (cost (- (:total total 0)
+                        (:principal total 0)))
+               (cost (:present total 0))]))]
           
           [:thead
            [:tr [:th "Operating costs"] [:th "Annual"] [:th "Total"] [:th "NPV"] ]]
 
           [:tbody
-           [:tr [:th.has-tt {:title "Annual costs related to supply capacity (plant size)."} "Capacity"]
-            (cost capacity-cost-annual)
-            (cost capacity-cost-total)
-            (cost capacity-cost-npv)
-            ]
-           [:tr [:th.has-tt {:title "Annual cost related to the production of heat (inc. losses)."} "Heat"]
-            (cost heat-cost-annual)
-            (cost heat-cost-total)
-            (cost heat-cost-npv)
-            ]
-           [:tr [:th "Total"]
-            (cost (+ heat-cost-annual capacity-cost-annual))
-            (cost (+ heat-cost-total capacity-cost-total))
-            (cost (+ heat-cost-npv capacity-cost-npv))
-            ]
-           ]
+           (let [items
+                 (select-keys
+                  all-costs
+                  [:supply-opex
+                   :supply-heat
+                   :alternative-opex])
 
+                 total (apply merge-with + (vals items))]
+             (list
+              (for [[item val] items]
+                [:tr {:key item}
+                 [:th (name item)]
+                 (cost (:annual val 0))
+                 (cost (:total val 0))
+                 (cost (:present val 0))])
+              [:tr {:key :total}
+               [:th "Total"]
+               (cost (:annual total 0))
+               (cost (:total total 0))
+               (cost (:present total 0))])
+             )
+           
+           ]
+          
           [:thead [:tr [:th "Emissions"] [:th "Annual"] [:th "Total"] [:th "NPV"]]]
           [:tbody
-           (for [e candidate/emissions-types]
-             [:tr {:key e}
-              [:th (name e)]
-              (cost (emissions-annual-cost e))
-              (cost (emissions-total-cost e))
-              (cost (emissions-npv e))])
-           [:tr [:th "Total"]
-            (cost (reduce + (map second emissions-annual-cost)))
-            (cost (reduce + (map second emissions-total-cost)))
-            (cost (reduce + (map second emissions-npv)))
-            ]
-           ]
+           (let [items
+                 (select-keys
+                  all-costs
+                  candidate/emissions-types)
+
+                 total (apply merge-with + (vals items))]
+             (list
+              (for [[item val] items]
+                [:tr {:key item}
+                 [:th (name item)]
+                 (cost (:annual val 0))
+                 (cost (:total val 0))
+                 (cost (:present val 0))])
+              [:tr {:key :total}
+               [:th "Total"]
+               (cost (:annual total 0))
+               (cost (:total total 0))
+               (cost (:present total 0))])
+             )]
+
 
           [:thead [:tr [:th "Revenue"] [:th "Annual"] [:th "Total"] [:th "NPV"]]]
-          [:tbody
-           [:tr [:th "Heat sold"]
-            (rev heat-revenue-annual)
-            (rev heat-revenue-total)
-            (rev heat-revenue-npv)
-            ]
-           [:tr {:style {:text-decoration :underline}}
-            [:th {:title (str "Objective: " (format/si-number @objective-value))} "Net of costs"]
-            [:td]
-            (rev (- heat-revenue-total costs-total))
-            (rev (- heat-revenue-npv costs-npv-total))
-            ]
-           ]]]
+          
+          (let [revenue (get all-costs :heat-revenue)
+                costs (apply merge-with + (vals
+                                           (dissoc all-costs
+                                                   :heat-revenue)))]
+            [:tbody
+             [:tr [:th "Heat sold"]
+              (rev (revenue :annual 0))
+              (rev (revenue :total 0))
+              (rev (revenue :present 0))]
+             
+             [:tr {:style {:text-decoration :underline}}
+              [:th {:title (str "Objective: " (format/si-number @objective-value))} "Net of costs"]
+              [:td]
+              (rev (- (revenue :total 0)
+                      (costs :total 0)))
+              (rev (- (revenue :present 0)
+                      (costs :present 0)))
+              ]
+             ])]]
+
         [:div {:style {:flex 1 :margin-left :1em}}
          [:h1 "Key quantities"]
          [:table
@@ -359,6 +331,8 @@
            [:tr [:th "Supply output"] [:td (format/si-number (* 1000 total-supply-output)) "Wh/yr"]]
            [:tr [:th "Number of demands"] [:td number-of-demands]]
            [:tr [:th "Total demand"] [:td (format/si-number (* 1000 total-demand)) "Wh/yr"]]
+           [:tr [:th "Total demand reduction"]
+            [:td (format/si-number (* 1000 total-insulation)) "Wh/yr"]]
            [:tr
             [:th.has-tt
              {:title (str "This is the total un-diversified demand. "
