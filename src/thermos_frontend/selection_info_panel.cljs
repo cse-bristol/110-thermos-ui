@@ -133,8 +133,10 @@
         (for [[row-name class contents]
               [["In solution" sc-class
                 (cat #(cond
-                        (candidate/in-solution? %) "yes"
+                        (candidate/is-connected? %) "network"
+                        (candidate/got-alternative? %) "individual"
                         (candidate/unreachable? %) "impossible")
+                     
                      "no"
                      :add-classes "solution")
                 ]
@@ -151,17 +153,22 @@
                 (num ::solution/diameter-mm rmax "m" 0.001)
                 ]
                [[:span.has-tt
-                 {:title "For buildings with both supply and demand this can include both connection cost and supply cost."}
+                 {:title "This includes network supply, connection costs, insulation costs and individual system costs"}
                  "Principal"]
                 nil
-                (num #(let [p (::solution/principal %)
-                            cc (::solution/connection-cost %)]
-                        (when (or p cc)
-                          (+ (or p 0) (or cc) 0))) rsum "¤")
+                (num #(let [p  (:principal (::solution/pipe-capex %) 0)
+                            cc (:princpal  (::solution/connection-capex %) 0)
+                            sc (:princpal  (::solution/supply-capex %) 0)
+                            ac (:princpal  (::solution/alternative %) 0)
+                            ic (reduce + 0 (keep :principal (::solution/insulation %)))
+                            t (+ p cc sc ac ic)
+                            ]
+                        (when-not (zero? t) t))
+                     rsum "¤")
                 ]
                ["Revenue"
                 nil
-                (num ::solution/heat-revenue rsum "¤/yr")
+                (num (comp :annual ::solution/heat-revenue) rsum "¤/yr")
                 ]
                ["Losses"
                 nil

@@ -8,10 +8,6 @@ div.solution-component {
 
    h1, h2 { display: block; }
 
-   td { padding-left: 1em; padding-right: 1em; }
-
-   tr {th {padding-left: 1em; }}
-
    h1 {
       font-size:2em;
    }
@@ -22,35 +18,30 @@ div.solution-component {
        margin-bottom:1em;
        font-size:1.2em;
        border-collapse:collapse;
+       white-space: nowrap;
    }
 
    th {
-      color:black;
-      text-align:left;
+       color:black;
    }
 
+   td, th {
+       text-align:right;
+   }
+   
    td.cost {
       color:#f33;
    }
 
    thead {
-      border-bottom:1px #555 solid;
-      th {
-      }
+      border-bottom:1px #888 solid;
    }
 
-   tbody {
-      th {
-        text-align:right;
-        padding-right:1em;
-      }
-   }
-
-   div.supply-card {
-      margin:1em;
-      padding:1em;
-      box-shadow:rgba(0, 0, 0, 0.15) 0px 0px 2px 2px;
-      border-radius: 6px;
-      display:inline-block;
+   table {
+       caption {
+           font-size:1.25em;
+           background: antiquewhite;
+           color:black;
+       }
    }
 }

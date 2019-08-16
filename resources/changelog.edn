@@ -1,4 +1,13 @@
 [
+ {:title "16th August 2019"
+  :changes
+  [
+   {:title "Whole-system optimisation"
+    :summary
+    [:div
+     "The model can now optimise for whole-system impacts, by considering alternative heating systems and demand reduction measures."
+     ]}]}
+  
  {:title "4th July 2019"
   :changes
   [{:title "Categorised civil engineering costs"

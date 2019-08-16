@@ -74,7 +74,7 @@
        (::solution/included candidate)
        (::solution/capacity-kw candidate)))
 
-(def emissions-types #{:co2 :pm25 :nox})
+(def emissions-types [:co2 :pm25 :nox])
 
 (defn unreachable? [candidate] (::solution/unreachable candidate))
 
@@ -90,3 +90,8 @@
   (dissoc candidate
           ::demand/emissions
           ::demand/price))
+
+(defn got-alternative? [candidate]
+  (and (::solution/alternative candidate)
+       (not (:counterfactual (::solution/alternative candidate)))))
+

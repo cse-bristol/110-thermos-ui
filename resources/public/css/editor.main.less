@@ -50,8 +50,10 @@ div.map {
     display:flex;
 }
 
-.has-tt {
-    text-decoration:underline;
-    text-decoration-color:purple;
-    text-decoration-style:wavy;
+.has-tt::after {
+    content: "ℹ";
+    color:blue;
+    vertical-align:super;
+    font-size:0.5em;
+    margin-right:-0.5em;
 }

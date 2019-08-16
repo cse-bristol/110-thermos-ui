@@ -88,6 +88,8 @@
         
         included (candidate/is-included? candidate)
         connected (candidate/is-connected? candidate)
+        alternative (candidate/got-alternative? candidate)
+        
         forbidden (not included)
         filtered (:filtered candidate)
         ]
@@ -103,11 +105,16 @@
           (cond
             unreachable theme/magenta
             (and solution
-                 (not in-solution)
+                 (not connected)
+                 (not alternative)
                  (= inclusion :optional)) theme/cyan
+
             (= inclusion :required) theme/red
-            (not connected) theme/orange
-            (= inclusion :optional) theme/blue
+
+            (and solution alternative) theme/green
+
+            (or connected
+                (= inclusion :optional)) theme/blue
 
             :otherwise theme/white))
 

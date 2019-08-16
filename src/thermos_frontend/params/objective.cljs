@@ -128,7 +128,7 @@
           [:th "Cost/t"]]]
         [:tbody
          (for [e candidate/emissions-types]
-           [:tr
+           [:tr {:key e}
             [:td (name e)]
             [:td [inputs/number {:value-atom (emissions-cost e)
                                  :min 0
@@ -146,7 +146,7 @@
         [:tbody
          (doall
           (for [e candidate/emissions-types]
-            [:tr
+            [:tr {:key e}
              [:td (name e)]
              [:td [inputs/check {:value @(emissions-check e)
                                  :on-change #(reset! (emissions-check e) %)}]]

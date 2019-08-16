@@ -442,31 +442,63 @@
           :proportion proportion-done}
          (finance/adjusted-value instance :insulation-capex cost))))))
 
-(defn- output-alternative [candidate instance alternative]
-  (let [kwh (::solution/kwh candidate)
-        kwp (::demand/kwp candidate)
-        
-        fixed-cost (::supply/fixed-cost alternative 0)
-        cost-per-kwh (::supply/cost-per-kwh alternative 0)
-        opex-per-kwp (::supply/opex-per-kwp alternative 0)
-        cost-per-kwp (::supply/cost-per-kwp alternative 0)
+(defn- output-counterfactual [candidate instance]
+  (assoc candidate
+         ::solution/counterfactual
+         (if-let [alternative (document/alternative-for-id instance (::demand/counterfactual candidate))]
+           (let [cost-per-kwh (::supply/cost-per-kwh alternative 0)
+                 opex-per-kwp (::supply/opex-per-kwp alternative 0)
+                 kwp (::demand/kwp candidate)
+                 kwh (::demand/kwh candidate)
+                 opex (* opex-per-kwp kwp)
+                 fuel (* cost-per-kwh kwh)]
+             {:opex (finance/adjusted-value instance :alternative-opex opex)
+              :heat-cost (finance/adjusted-value instance :alternative-opex fuel)
+              :emissions
+              (into {}
+                    (for [e candidate/emissions-types]
+                      [e (finance/emissions-value
+                          instance e
+                          (* kwh (get-in alternative [::supply/emissions e] 0)))]))
+              ::supply/id (::supply/id alternative)
+              ::supply/name (::supply/name alternative)}))))
 
-        capex (+ fixed-cost (* cost-per-kwp kwp))
-        opex (* cost-per-kwp kwp)
-        fuel (* cost-per-kwh kwh)]
-    
-    (assoc
-     candidate
-     ::solution/alternative
-     {:capex (finance/adjusted-value instance :alternative-capex capex)
-      :opex (finance/adjusted-value instance :alternative-opex opex)
-      :heat-cost (finance/adjusted-value instance :alternative-opex fuel)
-      ::supply/id (::supply/id alternative)
-      ::supply/name (::supply/name alternative)})))
+(defn- output-alternative [candidate instance alternative]
+  (assoc candidate
+         ::solution/alternative
+         (if (= (::demand/counterfactual candidate)
+                (::supply/id alternative))
+           (assoc (::solution/counterfactual candidate)
+                  :counterfactual true)
+           (let [kwh (::solution/kwh candidate)
+                 kwp (::demand/kwp candidate)
+                 
+                 fixed-cost (::supply/fixed-cost alternative 0)
+                 cost-per-kwp (::supply/cost-per-kwp alternative 0)
+                 
+                 opex-per-kwh (::supply/cost-per-kwh alternative 0)
+                 opex-per-kwp (::supply/opex-per-kwp alternative 0)
+                 
+                 capex (+ fixed-cost (* cost-per-kwp kwp))
+                 opex (* opex-per-kwp kwp)
+                 fuel (* opex-per-kwh kwh)]
+             {:capex (finance/adjusted-value instance :alternative-capex capex)
+              :opex (finance/adjusted-value instance :alternative-opex opex)
+              :heat-cost (finance/adjusted-value instance :alternative-opex fuel)
+              :counterfactual false
+              :emissions
+              (into {}
+                    (for [e candidate/emissions-types]
+                      (let [alternative-factor (get (::supply/emissions alternative) e 0)
+                            emissions (* alternative-factor kwh)]
+                        [e (finance/emissions-value instance e emissions)])))
+              ::supply/id (::supply/id alternative)
+              ::supply/name (::supply/name alternative)}))))
+
 
 (defn- merge-solution [instance net-graph result-json]
   (let [state (keyword (:state result-json))
-
+        
         solution-vertices (into {}
                                 (for [v (:vertices result-json)]
                                   [(:id v) v]))
@@ -511,18 +543,6 @@
                   effective-demand
                   (::demand/kwp v)))
 
-                supply-output      (:output-kwh solution-vertex 0)
-                
-                emissions
-                (into {}
-                      (for [e candidate/emissions-types]
-                        (let [supply-factor      (get (::supply/emissions v) e 0) ;; kg/kwh
-
-                              alternative-factor (get (::supply/emissions alternative) e 0)
-                              emissions (+ (* supply-factor supply-output)
-                                           (* alternative-factor effective-demand))]
-                          [e (finance/emissions-value instance e emissions)])))
-
                 [supply-capex
                  supply-opex
                  supply-heat-cost]
@@ -545,8 +565,11 @@
                 ]
             (-> v
                 (assoc ::solution/included true
-                       ::solution/emissions emissions
                        ::solution/kwh effective-demand)
+
+                ;; add on the counterfactual info
+                (output-counterfactual instance)
+                
                 (cond-> 
                     ;; measures and alt systems
                   alternative
@@ -569,7 +592,13 @@
                          ::solution/output-kwh    (:output-kwh solution-vertex)
                          ::solution/supply-capex  supply-capex 
                          ::solution/supply-opex   supply-opex
-                         ::solution/heat-cost     supply-heat-cost)
+                         ::solution/heat-cost     supply-heat-cost
+                         ::solution/supply-emissions
+                         (into {}
+                               (for [e candidate/emissions-types]
+                                 (let [supply-factor      (get (::supply/emissions v) e 0) ;; kg/kwh
+                                       emissions (* supply-factor (:output-kwh solution-vertex))]
+                                   [e (finance/emissions-value instance e emissions)]))))
                   ))))
 
         ;; in kw -> diameter
@@ -618,7 +647,16 @@
       (-> instance
           (document/map-candidates update-vertex (keys solution-vertices))
           (document/map-candidates update-edge (keys solution-edges))
-          (assoc ::solution/objective (:objective result-json))))))
+          (assoc ::solution/objective (:objective result-json)
+                 ::solution/bounds
+                 (-> result-json :solver :bounds)
+                 ::solution/iterations
+                 (-> result-json :solver :iterations)
+                 ::solution/gap
+                 (-> result-json :solver :gap)
+                 ::solution/objectives
+                 (-> result-json :solver :objectives)
+                 )))))
 
 (defn- mark-unreachable [instance net-graph]
   (let [ids-in-net-graph

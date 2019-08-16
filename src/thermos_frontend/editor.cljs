@@ -105,47 +105,14 @@
           menu-timer (atom nil)
 
           selected-tab (or @*selected-tab :candidates)]
-      [:div.editor__container
-       {:on-click (fn [e] (close-popover e) (close-table-filter e))
-        :on-context-menu close-popover
-        :ref popover/set-focus-element!}
-       
-       [main-nav/component
-        {:on-save (partial do-save false)
-         :on-run (partial do-save true)
-
-         :hamburger
-         [:button.hamburger
-          {:on-click #(swap! *show-menu not)
-           :class (when (state/is-running?) "spin-around")
-           :style {:background :none
-                   :border :none}}
-          theme/icon]
-         
-         :name (preload/get-value :name)
-         :unsaved? (state/needs-save?)}]
-
-       (cond
-         (state/is-running?)
-         [:div
-          {:style {:position :absolute
-                   :z-index 1000000
-                   :width :100%
-                   :height :100%
-                   :display :flex
-                   :background "rgba(0,0,0,0.75)"}}
-          [:b {:style {:color :white
-                       :margin :auto
-                       :font-size :3em}}
-           (let [position (state/queue-position)]
-             (if (zero? position)
-               [:span "Running"]
-               [:span "Number " position " in queue"]))
-           ]])
-
-       [:div {:style {:overflow-y :auto :flex 1 :height 1}}
-        (when
-            @*show-menu
+      
+      [:div {:style {:height :100% :width :100%
+                     :display :flex
+                     :flex-direction :column}
+             :on-click (fn [e] (close-popover e) (close-table-filter e))
+             :on-context-menu close-popover
+             :ref popover/set-focus-element!}
+       (when @*show-menu
           (let [goto #(reset! *selected-tab %)]
             [:div.main-menu.slide-left.shadow.right
              {:style {:position :absolute
@@ -153,10 +120,10 @@
                       :width :20em
                       :left :-20em
                       :flex-grow 1
-                      :height "calc(100% - 50px)" ;; urgh urgh urgh yuck
+                      :height "100%"
                       :display :flex
                       :flex-direction :column
-                      :background "rgba(255,255,255,0.9)"}
+                      :background "rgba(255,255,255,0.95)"}
               
               :on-mouse-enter
               #(js/clearTimeout @menu-timer)
@@ -192,17 +159,6 @@
                 [:ul
                  [:li [:button.button--link-style
                        {:on-click #(goto :solution)} "Solution summary"]]
-                 
-                 (when @has-valid-solution?
-                   [:li [:button.button--link-style
-                         {:on-click #(goto :solution-buildings)} "Building connections"]])
-                 (when @has-valid-solution?
-                   [:li [:button.button--link-style
-                         {:on-click #(goto :solution-pipework)} "Pipework"]])
-                 (when @has-valid-solution?
-                   [:li [:button.button--link-style
-                         {:on-click #(goto :solution-supply)} "Supply"]])
-
                  [:li [:button.button--link-style
                        {:on-click #(goto :run-log)} "Run log"]]
                  ]])
@@ -235,6 +191,44 @@
               ]
              
              ]))
+       
+       [main-nav/component
+        {:on-save (partial do-save false)
+         :on-run (partial do-save true)
+
+         :hamburger
+         [:button.hamburger
+          {:on-click #(swap! *show-menu not)
+           :class (when (state/is-running?) "spin-around")
+           :style {:background :none
+                   :border :none}}
+          theme/icon]
+         
+         :name (preload/get-value :name)
+         :unsaved? (state/needs-save?)}]
+
+       (cond
+         (state/is-running?)
+         [:div
+          {:style {:position :absolute
+                   :z-index 1000000
+                   :width :100%
+                   :height :100%
+                   :display :flex
+                   :background "rgba(0,0,0,0.75)"}}
+          [:b {:style {:color :white
+                       :margin :auto
+                       :font-size :3em}}
+           (let [position (state/queue-position)]
+             (if (zero? position)
+               [:span "Running"]
+               [:span "Number " position " in queue"]))
+           ]])
+
+       [:div {:style {:height 1 :flex-grow 1
+                      :overflow :auto
+                      :display :flex
+                      :flex-direction :column}}
         
         (cond 
           (= selected-tab :candidates)
@@ -248,34 +242,22 @@
 
           (= selected-tab :pipe-costs)
           [pipe-parameters/pipe-parameters state/state]
-          
-          (= selected-tab :solution)
-          [:div.solution-component
-           [solution-view/solution-summary state/state]]
-
-          (= selected-tab :solution-buildings)
-          [solution-view/demands-list state/state]
-
-          (= selected-tab :solution-pipework)
-          [solution-view/network-list state/state]
-
-          (= selected-tab :solution-supply)
-          [:div.solution-component
-           [solution-view/supply-list state/state]]
 
           (= selected-tab :insulation)
           [insulation/insulation-parameters state/state]
 
           (= selected-tab :alternatives)
           [alternatives/alternatives-parameters state/state]
-
           
+          
+          (= selected-tab :solution)
+          [solution-view/solution-summary state/state]
+
           (= selected-tab :run-log)
           [solution-view/run-log state/state]
 
           :else
           [:div "Unknown page!!! urgh!"])]
-       
        
        [popover/component state/state]
        [toaster/component]]
