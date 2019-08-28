@@ -54,6 +54,9 @@
 
      consider-insulation (reagent/cursor document [::document/consider-insulation])
      consider-alternatives (reagent/cursor document [::document/consider-alternatives])
+
+     mip-gap (reagent/cursor document [::document/mip-gap])
+     runtime (reagent/cursor document [::document/maximum-runtime])
      ]
     [:div.parameters-component
      [:div.card
@@ -157,7 +160,17 @@
                                   :scale 0.001
                                   :step 1}]]
              
-             ]))]]]]
-     
-     ]))
+             ]))]]]
+
+      [:div.card {:style {:flex-grow 1}}
+       [:h1 "Computing resources"]
+
+       [:p
+        "Stop if solution is known to be at least this close to the optimum "
+        [inputs/number {:value-atom mip-gap :min 0 :max 100 :scale 100}] "%"]
+       [:p
+        "Maximum runtime "
+        [inputs/number {:value-atom runtime :min 0 :max 50 :step 0.1}] "h"]
+       ]]]))
+
 
