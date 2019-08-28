@@ -232,9 +232,10 @@
 
 (defn tariff-for-id [doc tariff-id]
   (let [tariffs (::tariffs doc)]
-    (or (get tariffs tariff-id)
-        (get tariffs
-             (reduce min (keys tariffs))))))
+    (when tariffs
+      (or (get tariffs tariff-id)
+          (get tariffs
+               (reduce min (keys tariffs)))))))
 
 (defn tariff-name [doc tariff-id]
   (or (::tariff/name (tariff-for-id doc tariff-id)) "None"))
