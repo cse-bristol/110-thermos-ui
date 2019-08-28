@@ -18,12 +18,12 @@
                 :variable-connection-cost 0}})
 
 (def default-civil-costs
-  {1 #::paths {:civil-cost-id 1
+  {1 #::path {:civil-cost-id 1
                :civil-cost-name "Soft"
                :fixed-cost 200
                :variable-cost 200}
    
-   2 #::paths {:civil-cost-id 2
+   2 #::path {:civil-cost-id 2
                :civil-cost-name "Hard"
                :fixed-cost 500
                :variable-cost 750}})
