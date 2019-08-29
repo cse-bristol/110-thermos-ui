@@ -212,7 +212,7 @@
         ]
     {:kwh        kwh
      :kwp        kwp
-     :value      (float (+ (finance/objective-value instance
+     :value      (float (- (finance/objective-value instance
                                                     :heat-revenue
                                                     standing-charge)
                            (finance/objective-value instance
@@ -220,7 +220,7 @@
                                                     fixed-connection)))
      
      "value/kwh" (float (finance/objective-value instance :heat-revenue unit-charge))
-     "value/kwp" (float (+ (finance/objective-value instance :heat-revenue capacity-charge)
+     "value/kwp" (float (- (finance/objective-value instance :heat-revenue capacity-charge)
                            (finance/objective-value instance :connection-capex variable-connection)))}))
 
 (defn- insulation-max-area [measure candidate]
