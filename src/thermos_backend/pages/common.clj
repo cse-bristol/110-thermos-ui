@@ -49,14 +49,13 @@
      [:body.flex-rows
       [:header.flex-cols
        {:style (style :flex-shrink 0 :flex-grow 0
-                      :height "50px" :padding 0)}
+                      :align-items :center
+                      :padding-left :0.5em
+                      :padding-right :0.5em
+                      :height "50px")}
        [:a {:href "/"}
         theme/icon]
        [:span {:style (style :margin-left :auto)}
-        [:a {:style (style :margin-left :1em) :href "/"}
-         [:img {:style {:vertical-align :middle}
-                :src "/favicon.ico" :width "16"}]
-         "Home"]
         [:a {:style (style :margin-left :1em)
              :href "/settings"} "Settings"]
         [:a {:style (style :margin-left :1em)
