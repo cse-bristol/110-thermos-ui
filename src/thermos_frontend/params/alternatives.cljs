@@ -20,7 +20,7 @@
             :fixed-cost 0
             :emissions {}})))
 
-(defn- alternative-row [id alternative *alternatives]
+(defn- alternative-row [*doc id alternative *alternatives]
   [:div.card.flex-rows
    [:div.flex-cols
     "Name: "[inputs/text
@@ -81,7 +81,11 @@
                  :on-change #(swap! *alternatives
                                     assoc-in
                                     [id ::supply/emissions e]
-                                    %)}]]])]]]]])
+                                    %)}]]])]]]]
+   [:button.button
+    {:on-click #(swap! *doc document/remove-alternative id)}
+    symbols/dustbin]
+   ])
 
 (defn alternatives-parameters [doc]
   (reagent/with-let [*alternatives
@@ -99,6 +103,6 @@
 
      (for [[id alternative] @*alternatives]
        [:div {:key id}
-        [alternative-row id alternative *alternatives]])]))
+        [alternative-row doc id alternative *alternatives]])]))
 
 

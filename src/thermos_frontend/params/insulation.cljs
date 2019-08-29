@@ -8,17 +8,19 @@
             [thermos-util :refer [next-integer-key]]
             [thermos-frontend.util :refer [target-value]]))
 
-(defn- insulation-row [{id :key} measure *insulation]
+(defn- insulation-row [{id :key} *doc measure *insulation]
   [:div.card {:key id :style {:flex 1}}
+   
    [:label "Name: " [inputs/text
                      :on-change #(swap! *insulation assoc-in [id ::measure/name] (target-value %))
                      :value (::measure/name measure)]]
 
-   [inputs/radio-group {:options [{:key :roof :label "Roof"}
-                                  {:key :floor :label "Floor"}
-                                  {:key :wall :label "Wall"}]
-                        :value (::measure/surface measure)
-                        :on-change #(swap! *insulation assoc-in [id ::measure/surface] %)}]
+   [inputs/radio-group
+    {:options [{:key :roof :label "Roof"}
+               {:key :floor :label "Floor"}
+               {:key :wall :label "Wall"}]
+     :value (::measure/surface measure)
+     :on-change #(swap! *insulation assoc-in [id ::measure/surface] %)}]
    
    [:div
     [:div
@@ -44,7 +46,11 @@
        {:scale 100
         :min 0 :max 100
         :value (::measure/maximum-area measure)
-        :on-change #(swap! *insulation assoc-in [id ::measure/maximum-area] %)}]]]]])
+        :on-change #(swap! *insulation assoc-in [id ::measure/maximum-area] %)}]]]]
+   [:button.button
+    {:on-click #(swap! *doc document/remove-insulation id)}
+    symbols/dustbin]
+   ])
 
 (defn- create-new-measure [insulation]
   (let [id (next-integer-key insulation)]
@@ -81,4 +87,4 @@
 
      [:div.flex-cols {:style {:flex-wrap :wrap}}
       (for [[id measure] (sort-by first @*insulation)]
-        [insulation-row {:key id} measure *insulation])]]))
+        [insulation-row {:key id} doc measure *insulation])]]))

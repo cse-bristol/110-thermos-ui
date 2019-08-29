@@ -283,3 +283,22 @@
 
 (defn insulation-for-id [doc insulation-id]
   (get (::insulation doc) insulation-id))
+
+(defn remove-alternative [doc alt-id]
+  (-> doc
+      (update ::alternatives dissoc alt-id)
+      (map-candidates
+       (fn [c]
+         (-> c
+             (update ::demand/alternatives disj alt-id)
+             (cond-> 
+                 (= alt-id (::demand/counterfactual c))
+               (dissoc ::demand/counterfactual)))))))
+
+(defn remove-insulation [doc ins-id]
+  (-> doc
+      (update ::insulation dissoc ins-id)
+      (map-candidates
+       (fn [c]
+         (update c ::demand/insulation disj ins-id)))))
+

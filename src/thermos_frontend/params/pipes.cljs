@@ -113,8 +113,8 @@
                                    :minimum 0
                                    :maximum 5000
                                    }]]
-              [:db [:button.button
-                    {:on-click #(swap! civil-costs dissoc id)}
+              [:td [:button.button
+                    {:on-click #(swap! document document/remove-civils id)}
                     symbols/dustbin]]
               ])
            ]
