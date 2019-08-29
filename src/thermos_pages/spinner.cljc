@@ -4,8 +4,11 @@
 (defn spinner
   ([] (spinner {}))
   ([{:keys [size]}]
-   [:div.spin-around 
-    (merge (when size {:width (str size "px") :height (str size "px")})
-           {:style {:display :inline-block}})
-    icon]))
+   [:div.spin-around
+    {:style (merge {:display :inline-block}
+                   (when size {:width (str size "px") :height (str size "px")}))}
+    (cond-> icon
+      size (update 1 assoc :width size :height size))]))
+
+
 
