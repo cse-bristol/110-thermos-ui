@@ -191,7 +191,7 @@
   They are needed separately to allow the optimiser to think about demand reduction measures."
   [instance candidate]
 
-  (let [ignore-revenues (= :system (::document/objective instance))
+  (let [ignore-revenues (= :system (::document/objective instance :network))
 
         kwh (float   (::demand/kwh candidate 0))
         kwp (float   (::demand/kwp candidate (annual-kwh->kw (::demand/kwh candidate 0))))
@@ -275,7 +275,7 @@
        (for [id ids]
          (when-let [alternative (get-in instance [::document/alternatives id])]
            {:id id
-            :cost      (if (or network-only (= counterfactual id))
+            :cost      (if (= counterfactual id)
                          0
                          (finance/objective-value instance :alternative-capex
                                                   (::supply/fixed-cost alternative 0)))

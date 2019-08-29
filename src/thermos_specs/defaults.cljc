@@ -68,6 +68,9 @@
    ::document/return-temperature 60.0
    ::document/ground-temperature 8.0
 
+   ::document/consider-insulation false
+   ::document/consider-alternatives false
+   ::document/objective :network
 
    ::document/tariffs default-tariffs
    ::document/civil-costs default-civil-costs

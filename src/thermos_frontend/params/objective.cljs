@@ -80,17 +80,28 @@
          {:value @objective
           :on-change #(reset! objective %)
           :options
-          [{:key :network :label "Include heat sale revenues"}
-           {:key :system :label "Include fuel costs for other heating systems"}]}]]
+          [{:key :network :label [:span.has-tt
+                                  {:title
+                                   (str "This only considers the costs and revenues of the network."
+                                        "It includes emissions costs, and if allowed below the capital costs of other systems or insulation."
+                                        "It does not include the operating costs of other systems.")}
+                                  "Maximize network NPV"]}
+           {:key :system :label [:span.has-tt
+                                 {:title
+                                  "This includes the costs for heating buildings not on the network, and excludes any revenue for the network."}
+                                 "Maximize whole-system NPV"]}]}]]
        [:div {:style {:display :flex}}
         [:p {:style {:margin-right :1em}}
          [inputs/check {:value @consider-insulation
                         :on-change #(reset! consider-insulation %)
                         :label "Offer insulation measures"}]]
-        [:p
+        [:p {:style {:flex 1}}
          [inputs/check {:value @consider-alternatives
                         :on-change #(reset! consider-alternatives %)
-                        :label "Offer other heating systems"}]]]
+                        :label [:span.has-tt
+                                {:title
+                                 "If this is not checked, buildings must either connect to the network or use their counterfactual system (if set)."}
+                                "Offer other heating systems"]}]]]
        ]]
      
      [:div {:style {:display :flex :flex-wrap :wrap}}
