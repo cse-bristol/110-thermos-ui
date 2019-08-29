@@ -277,7 +277,8 @@
         (topo/node-paths (::geoio/features roads))
         
         [buildings roads]
-        (topo/add-connections crs (::geoio/features buildings) roads)
+        (topo/add-connections crs (::geoio/features buildings) roads
+                              :connect-to-connectors false)
         ]
     (-> state
         (assoc-in [:roads     ::geoio/features] roads)

@@ -1,4 +1,13 @@
 [
+ {:title "29th August 2019"
+  :changes
+  [{:title "Better connectors"
+    :summary
+    [:div
+     "When creating a new map, connectors will be preferred if they "
+     "connect to the middle of a building, and if they connect to existing road "
+     "(rather than to another connector)."]}]}
+ 
  {:title "16th August 2019"
   :changes
   [
