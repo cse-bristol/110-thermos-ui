@@ -762,7 +762,7 @@
                    ::solution/message (:message output-json)
                    ::solution/runtime (/ (- end-time start-time) 1000.0))
                   (merge-solution net-graph output-json)
-                  (mark-unreachable net-graph))
+                  (mark-unreachable net-graph included-candidates))
               ]
           (spit (io/file working-directory "stdout.txt") (:out output))
           (spit (io/file working-directory "stderr.txt") (:err output))
