@@ -49,7 +49,7 @@
 ;; practically it will likely be the same as roof area since we don't do pitch.
 (s/def ::ground-area number?)
 
-(defn is-included? [candidate] (not= :forbidden (::inclusion candidate)))
+(defn is-included? [candidate] (not= :forbidden (::inclusion candidate :forbidden)))
 (defn is-path? [candidate] (= (::type candidate) :path))
 (defn is-building? [candidate] (= (::type candidate) :building))
 (defn has-demand? [candidate]

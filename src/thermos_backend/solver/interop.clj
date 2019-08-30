@@ -364,9 +364,6 @@
 (defn- instance->json [instance net-graph]
   (let [candidates     (::document/candidates instance)
 
-        demand-ids (map ::candidate/id (filter candidate/has-demand? (vals candidates)))
-        supply-ids (map ::candidate/id (filter candidate/has-supply? (vals candidates)))
-
         edge-bounds (do
                       (log/info "Computing flow bounds...")
                       (bounds/edge-bounds
@@ -658,7 +655,7 @@
                  (-> result-json :solver :objectives)
                  )))))
 
-(defn- mark-unreachable [instance net-graph]
+(defn- mark-unreachable [instance net-graph included-candidates]
   (let [ids-in-net-graph
         (->> (graph/nodes net-graph)
              (filter #(attr/attr net-graph % :real-vertex))
@@ -667,7 +664,8 @@
                    (mapcat #(attr/attr net-graph % :ids))))
              (set))
 
-        ids-in-instance (set (keys (::document/candidates instance)))]
+        ids-in-instance
+        (set (map ::candidate/id included-candidates))]
     
     (document/map-candidates
      instance
@@ -731,7 +729,7 @@
                  ::solution/state :empty-problem
                  ::solution/message "Empty problem"
                  ::solution/runtime 0)
-          (mark-unreachable net-graph))
+          (mark-unreachable net-graph included-candidates))
       
       :else
       (let [input-json (postwalk identity (instance->json instance net-graph))]
