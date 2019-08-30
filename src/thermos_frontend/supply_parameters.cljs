@@ -62,8 +62,9 @@
        (for [e candidate/emissions-types]
         [:tr {:key e}
          [:td (name e)]
-         [:td [inputs/number {:value-atom (emissions-atoms e) :min 0 :max 1000 :step 0.1}]]
-         [:td "kg/kWh"]])
+         [:td [inputs/number {:value-atom (emissions-atoms e) :min 0 :max 1000 :step 1
+                              :scale 1000}]]
+         [:td "g/kWh"]])
        ]
       ]
      [:div

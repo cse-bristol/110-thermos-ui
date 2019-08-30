@@ -70,13 +70,14 @@
       [:thead
        [:tr
         [:th "Type"]
-        [:th "kg/kWh"]]]
+        [:th "g/kWh"]]]
       [:tbody
        (for [e candidate/emissions-types]
          [:tr {:key e}
           [:td (name e)]
           [:td [inputs/number
-                {:min 0 :max 1000 :step 0.1
+                {:min 0 :max 1000 :step 1
+                 :scale 1000
                  :value (get-in alternative [::supply/emissions e] 0)
                  :on-change #(swap! *alternatives
                                     assoc-in
