@@ -337,12 +337,16 @@
         :demand-source (name (:demand-source b))
         :peak-source (name (:peak-source b))
 
-        ;; TODO maybe people should be able to put these in?
-        :wall-area   (::lidar/wall-area b 0)
+        :wall-area   (::lidar/external-wall-area
+                      b
+                      (* (- (::lidar/perimeter b 0)
+                            (::lidar/shared-perimeter b 0))
+                         lidar/*storey-height*))
+        
         :floor-area  (::lidar/floor-area b 0)
         :ground-area (::lidar/footprint b 0)
         :roof-area   (::lidar/footprint b 0) ;; TODO roof tilt?
-        :height      (::lidar/height b 0)
+        :height      (::lidar/height b lidar/*storey-height*)
         })
      
      :paths
