@@ -398,7 +398,7 @@
                                    :emissions-cost
                                    (get-in instance [::document/emissions-cost e] 0)))}
                        (when     (get-in instance [::document/emissions-limit :enabled e])
-                         {:limit (float (get-in instance [::document/emissions-limit :value e]))}))]))
+                         {:limit (float (get-in instance [::document/emissions-limit :value e] 0))}))]))
 
      :vertices
      (for [vertex (graph/nodes net-graph)
