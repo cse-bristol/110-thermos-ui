@@ -5,7 +5,13 @@
             [thermos-importer.geoio :as geoio]
             [thermos-specs.document :as document]
             [thermos-specs.defaults :as defaults]
-            )
+
+            [thermos-specs.path :as path]
+            [thermos-specs.measure :as measure]
+            [thermos-specs.candidate :as candidate]
+            [thermos-specs.demand :as demand]
+            [thermos-specs.supply :as supply]
+            [thermos-specs.tariff :as tariff])
   (:gen-class))
 
 ;; THERMOS CLI tools for Net Zero Analysis
@@ -42,20 +48,27 @@
    ]
   )
 
-(defn load-edns [files]
+(defn- load-edns [files]
   (apply merge
          (for [file files]
            (with-open [r (io/reader file)]
              (edn/read r)))))
 
-
-
+(defn- match
+  "Match ITEM, a map, against OPTIONS, a list of things with a :rule in them.
+  A :rule is a tuple going [field pattern], so when we (get field item) it matches pattern (a regex literal)"
+  [item options & {:keys [match] :or {match :rule}}]
+  
+  (and item
+       (filter
+        (fn matches? [option]
+          (let [[field pattern] (get match option)
+                field-value (get item field)]
+            (and field field-value pattern
+                 (re-find pattern (str field-value)))))
+        options)))
 
 (defn- node-connect [geodata]
-  
-  )
-
-(defn- add-civils [paths civils]
   
   )
 
@@ -63,9 +76,43 @@
   
   )
 
-(defn- add-insulation [buildings insulation-rules])
-(defn- add-alternatives [buildings alternative-rules])
-(defn- add-tariffs [buildings tariff-rules])
+(defn- add-civils [paths civils]
+  (let [civils (vals civils)]
+    (for [path paths]
+      (let [civil (first (match path civils))]
+        (cond-> path
+          civil
+          (assoc path ::path/civil-cost-id (::path/civil-cost-id civil)))))))
+
+(defn- add-insulation [buildings insulation]
+  (let [insulation (vals insulation)]
+    (for [building buildings]
+      (let [insulation (match building insulation)
+            insulation (set (map ::measure/id insulation))]
+        (assoc building ::demand/insulation insulation)))))
+
+(defn- add-alternatives [buildings alternatives]
+  ;; need to find counterfactual match
+  (let [alternatives (vals alternatives)]
+    (for [building buildings]
+      (let [alts (match building alternatives)
+            counter (::supply/id (first (match building alternatives :match :counterfactual-rule)))
+            alts (set (map ::supply/id alts))
+            alts (cond-> alts counter (disj counter))
+            ]
+        (cond-> building
+          (seq alts)
+          (assoc ::demand/alternatives alts)
+
+          counter
+          (assoc ::demand/counterfactual counter))))))
+
+(defn- add-tariffs [buildings tariffs]
+  (let [tariffs (vals tariffs)]
+    (for [building buildings]
+      (let [tariff (::tariff/id (first (match building tariffs)))]
+        (cond-> building
+          tariff (assoc ::tariff/id tariff))))))
 
 (defn -main [& args]
   (let [{:keys [options arguments errors summary]} (parse-opts args options)
