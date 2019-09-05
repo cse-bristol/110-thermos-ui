@@ -22,8 +22,8 @@
      :tag "0.0.6"}
 
     ring/ring-devel               {:mvn/version "1.7.1"}
-    
-    org.clojure/tools.cli         {:mvn/version "0.4.1"}
+
+    org.clojure/tools.cli         {:mvn/version "0.4.2"}
     proto-repl                    {:mvn/version "0.3.1"}
     nrepl/nrepl                   {:mvn/version "0.6.0"}
     ;;org.clojure/tools.nrepl       {:mvn/version "0.2.13"}
@@ -75,7 +75,8 @@
 
   :server
   {:extra-deps
-   {clojure-term-colors {:mvn/version "0.1.0"}
+   {org.clojure/tools.cli         {:mvn/version "0.4.2"}
+    clojure-term-colors {:mvn/version "0.1.0"}
     compojure {:mvn/version "1.6.1"}
     ring/ring-core {:mvn/version "1.7.1"}
     ring/ring-defaults {:mvn/version "0.3.2"}

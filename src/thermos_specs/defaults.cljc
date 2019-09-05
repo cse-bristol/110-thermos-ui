@@ -43,9 +43,6 @@
   {::view/view-state
    {::view/map-layers {::view/basemap-layer :satellite ::view/candidates-layer true}}
 
-   ::demand/price 0.05
-   ::demand/emissions {:co2 (/ 0.216 0.8) :nox 0 :pm25 0}
-
    ::document/mip-gap 0.1
    ::document/maximum-runtime 0.5
 

@@ -3,6 +3,13 @@
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [thermos-importer.geoio :as geoio]
+            [thermos-importer.spatial :as spatial]
+            
+            [thermos-backend.importer.process :as importer]
+            [thermos-backend.solver.interop :as interop]
+            [thermos-util :refer [as-double as-boolean]]
+            [thermos-importer.lidar :as lidar]
+            
             [thermos-specs.document :as document]
             [thermos-specs.defaults :as defaults]
 
@@ -11,7 +18,9 @@
             [thermos-specs.candidate :as candidate]
             [thermos-specs.demand :as demand]
             [thermos-specs.supply :as supply]
-            [thermos-specs.tariff :as tariff])
+            [thermos-specs.tariff :as tariff]
+            [mount.core :as mount]
+            )
   (:gen-class))
 
 ;; THERMOS CLI tools for Net Zero Analysis
@@ -26,7 +35,13 @@
     :update-fn conj]
    [nil "--degree-days NUMBER" "Degree days"
     :parse-fn #(Double/parseDouble %)]
+   [nil "--connect-to-connectors" "Whether to allow connecting to connectors"]
+   [nil "--shortest-face LENGTH" "When finding face centers, shortest face length"
+    :default 3
+    :parse-fn #(Double/parseDouble %)]
+   [nil "--solver PATH" "Path to the solver program"]
    [nil "--height-field FIELD" "A height field"]
+   [nil "--resi-field FIELD" "A resi field"]
    [nil "--demand-field FIELD" "A kwh/yr field"]
    [nil "--peak-field FIELD" "A kwp field"]
    [nil "--insulation FILE"
@@ -49,89 +64,170 @@
   )
 
 (defn- load-edns [files]
-  (apply merge
-         (for [file files]
-           (with-open [r (io/reader file)]
-             (edn/read r)))))
+  (when files
+    (apply concat
+          (for [file files]
+            (with-open [r (io/reader file)]
+              (edn/read r))))))
 
 (defn- match
   "Match ITEM, a map, against OPTIONS, a list of things with a :rule in them.
   A :rule is a tuple going [field pattern], so when we (get field item) it matches pattern (a regex literal)"
-  [item options & {:keys [match] :or {match :rule}}]
+  [item options & {:keys [match] :or {match :thermos-cli/rule}}]
   
   (and item
        (filter
         (fn matches? [option]
-          (let [[field pattern] (get match option)
-                field-value (get item field)]
-            (and field field-value pattern
-                 (re-find pattern (str field-value)))))
+          (let [rule (get match option)]
+            (cond
+              (= true rule)
+              option
+
+              (vector? rule)
+              (let [[field pattern] rule
+                    field-value (get item field)]
+                (and field field-value pattern
+                     (re-find pattern (str field-value)))
+                ))))
         options)))
 
-(defn- node-connect [geodata]
-  
-  )
+(defn- node-connect
+  "Given a set of shapes, do the noding and connecting dance"
+  [{crs ::geoio/crs features ::geoio/features}
 
-(defn- generate-demands [buildings lidar height-fields peak-fields degree-days]
-  
-  )
+   connect-to-connectors
+   shortest-face-length]
+
+  (let [is-line (comp boolean #{:line-string :multi-line-string})
+
+        {lines true not-lines false}
+        (group-by is-line features)
+
+        lines (spatial/node-paths lines)
+
+        [buildings roads]
+        (spatial/add-connections
+         crs not-lines lines
+         :shortest-face-length shortest-face-length
+         :connect-to-connectors false)]
+
+    [buildings roads]))
+
+(defn- generate-demands [buildings 
+                         degree-days lidar
+
+                         resi-field
+                         height-field
+                         peak-field
+                         demand-field
+                         ]
+  (let [sqrt-degree-days (Math/sqrt degree-days)
+        lidar-index (->> lidar
+                         (map io/file)
+                         (mapcat file-seq)
+                         (filter #(and (.isFile %)
+                                       (let [name (.getName %)]
+                                         (or (.endsWith name ".tif")
+                                             (.endsWith name ".tiff")))))
+                         (lidar/rasters->index))
+
+        ;; do lidar smash
+        buildings (lidar/add-lidar-to-shapes buildings lidar-index)
+        ]
+    ;; run the model for each building
+    (for [b buildings]
+      (let [is-resi (as-boolean (or
+                                 (not resi-field)
+                                 (and resi-field
+                                      (get resi-field b))))
+            height (and height-field
+                        (as-double (get height-field b)))
+            peak (and peak-field
+                      (as-double (get peak-field b)))
+            demand (and demand-field
+                        (as-double (get demand-field b)))]
+        (-> b
+            (assoc :residential is-resi)
+            (cond->
+                height
+              (assoc :height height)
+
+              demand
+              (assoc :annual-demand demand))
+            (importer/produce-demand sqrt-degree-days)
+            (as-> x
+                (assoc x :peak-demand
+                       (or peak
+                           (importer/run-peak-model
+                            (:annual-demand x))))))))))
 
 (defn- add-civils [paths civils]
-  (let [civils (vals civils)]
-    (for [path paths]
-      (let [civil (first (match path civils))]
-        (cond-> path
-          civil
-          (assoc path ::path/civil-cost-id (::path/civil-cost-id civil)))))))
+  (for [path paths]
+    (let [civil (first (match path civils))]
+      (cond-> path
+        civil
+        (assoc path ::path/civil-cost-id (::path/civil-cost-id civil))))))
 
 (defn- add-insulation [buildings insulation]
-  (let [insulation (vals insulation)]
-    (for [building buildings]
-      (let [insulation (match building insulation)
-            insulation (set (map ::measure/id insulation))]
-        (assoc building ::demand/insulation insulation)))))
+  (for [building buildings]
+    (let [insulation (match building insulation)
+          insulation (set (map ::measure/id insulation))]
+      (assoc building ::demand/insulation insulation))))
 
 (defn- add-alternatives [buildings alternatives]
   ;; need to find counterfactual match
-  (let [alternatives (vals alternatives)]
-    (for [building buildings]
-      (let [alts (match building alternatives)
-            counter (::supply/id (first (match building alternatives :match :counterfactual-rule)))
-            alts (set (map ::supply/id alts))
-            alts (cond-> alts counter (disj counter))
-            ]
-        (cond-> building
-          (seq alts)
-          (assoc ::demand/alternatives alts)
+  (for [building buildings]
+    (let [alts (match building alternatives)
+          counter (::supply/id (first (match building alternatives :match :thermos-cli/counterfactual-rule)))
+          alts (set (map ::supply/id alts))
+          alts (cond-> alts counter (disj counter))
+          ]
+      (cond-> building
+        (seq alts)
+        (assoc ::demand/alternatives alts)
 
-          counter
-          (assoc ::demand/counterfactual counter))))))
+        counter
+        (assoc ::demand/counterfactual counter)))))
 
 (defn- add-tariffs [buildings tariffs]
-  (let [tariffs (vals tariffs)]
-    (for [building buildings]
-      (let [tariff (::tariff/id (first (match building tariffs)))]
-        (cond-> building
-          tariff (assoc ::tariff/id tariff))))))
+  (for [building buildings]
+    (let [tariff (::tariff/id (first (match building tariffs)))]
+      (cond-> building
+        tariff (assoc ::tariff/id tariff)))))
 
-(defn -main [& args]
-  (let [{:keys [options arguments errors summary]} (parse-opts args options)
+(defn- select-supply-location [instance supply]
+  ;; for now we find the largest demand
 
-        options (-> options
-                    (update :insulation   load-edns)
-                    (update :alternatives load-edns)
-                    (update :tariffs      load-edns))
+  (let [biggest-demand
+        (first (sort-by ::demand/kwp #(compare %2 %1)
+                        (vals (::document/candidates instance))))]
 
+    (update-in instance [::document/candidates (::candidate/id biggest-demand)]
+               (fn [candidate]
+                 (merge candidate supply)))))
+
+(defn --main [options]
+  (mount/start-with {#'thermos-backend.config/config
+                     {:solver-directory "."
+                      :solver-command (:solver options)}})
+  (let [
         geodata           (geoio/read-from-multiple (:map options))
-        [paths buildings] (node-connect geodata)
-
+        [paths buildings] (node-connect geodata
+                                        (:connect-to-connectors options)
+                                        (:shortest-face options))
+        
         paths             (add-civils paths (:civils options))
 
         buildings         (-> buildings
-                              (generate-demands    (:lidar options)
+                              (generate-demands    buildings
+                                                   (:degree-days options)
+
+                                                   (:lidar options)
+                                                   (:resi-field options)
                                                    (:height-field options)
                                                    (:peak-field options)
-                                                   (:degree-days options))
+                                                   (:demand-field options))
+                              
                               (add-insulation      (:insulation options))
                               (add-alternatives    (:alternatives options))
                               (add-tariffs         (:tariffs options)))
@@ -141,17 +237,42 @@
                             defaults/default-document)
 
         instance          (assoc instance
-                                 ::document/tariffs      (:tariffs options)
-                                 ::document/civil-costs  (:civils options)
-                                 ::document/insulation   (:insulation options)
-                                 ::document/alternatives (:alternatives options))
+                                 ::document/tariffs      (group-by ::tariff/id (:tariffs options))
+                                 ::document/civil-costs  (group-by ::path/civil-cost-id (:civils options))
+                                 ::document/insulation   (group-by ::measure/id (:insulation options))
+                                 ::document/alternatives (group-by ::supply/id (:alternatives options)))
 
-        ;; find supply location! 
-        ]
-    
+        ;; TODO find a supply location to consider
 
-    
-    
+        instance          (select-supply-location instance (:supply options))
+        solution          (interop/solve "job" instance)
+        ])
 
-    )
-  )
+  (mount/stop))
+
+(defn- generate-ids [things id]
+  (map-indexed things (fn [i t] (assoc t id i))))
+
+(defn -main [& args]
+  (let [{:keys [options arguments errors summary]} (parse-opts args options)
+
+        options (-> options
+                    (update :insulation   load-edns)
+                    (update :alternatives load-edns)
+                    (update :tariffs      load-edns)
+                    (update :civils       load-edns)
+                    (update :supply       load-edns)
+
+                    (update :insulation   generate-ids ::measure/id)
+                    (update :alternatives generate-ids ::supply/id)
+                    (update :tariffs      generate-ids ::tariff/id)
+                    (update :civils       generate-ids ::path/civil-cost-id)
+                    )]
+    (cond
+      (:help options)
+      (println summary)
+
+      :else
+      (--main options)
+      )
+    ))

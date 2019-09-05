@@ -19,6 +19,11 @@
                 {:debug-optimizations
                  (:debug (:options opts))}
                 ))
+
+      :cli-pkg (do (require 'build.pkg)
+                   ((resolve 'build.pkg/build-cli-tool)
+               
+                    ))
       :dev (do
              (require 'build.dev)
              ((resolve 'build.dev/start-dev)
