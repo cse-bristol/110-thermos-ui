@@ -323,37 +323,61 @@
         
         ]
 
-    (print "\nSUMMARY\n")
-    (println "Types:")
-    (pprint
-     (frequencies
-      (map ::candidate/type (vals (::document/candidates instance)))))
+    (let [{buildings :building
+           paths :path}
+          (group-by ::candidate/type (vals (::document/candidates instance)))]
 
-    (println "Counterfactuals:")
-    (pprint
-     (frequencies
-      (map ::demand/counterfactual (vals (::document/candidates instance)))))
+      (print "\nSUMMARY\n")
 
-    (println "Insulations:")
-    (pprint
-     (frequencies
-      (map ::demand/insulation (vals (::document/candidates instance)))))
+      (println (count buildings) "buildings," (count paths) "paths")
+      
+      (println "Counterfactuals:")
+      (pprint
+       (frequencies
+        (map (comp
+              ::supply/name
+              (::document/alternatives instance)
+              ::demand/counterfactual)
+             buildings)))
 
-    (println "Alts:")
-    (pprint
-     (frequencies
-      (map ::demand/alternatives (vals (::document/candidates instance)))))
+      (println "Insulations:")
+      (pprint
+       (frequencies
+        (map (comp
+              (partial
+               map
+               (comp ::measure/name
+                     (::document/insulation instance)))
+              ::demand/insulation) buildings)))
 
-    (println "Civils:")
-    (pprint
-     (frequencies
-      (map ::path/civil-cost-id (vals (::document/candidates instance)))))
+      (println "Alts:")
+      (pprint
+       (frequencies
+        (map (comp
+              (partial
+               map
+               (comp ::supply/name
+                     (::document/alternatives instance)))
+              
+              ::demand/alternatives) buildings)))
 
-    (println "Demand:")
-    (pprint
-     (frequencies
-      (map :demand-source (vals (::document/candidates instance)))))
+      (println "Civils:")
+      (pprint
+       (frequencies
+        (map (comp
+              ::path/civil-cost-name
+              (::document/civil-costs instance)
+              ::path/civil-cost-id)
+             paths)))
 
+      (println "Demand estimate:")
+      (pprint
+       (frequencies
+        (map :demand-source buildings)))
+
+      )
+    
+    
     (let [instance (cond-> instance (:solver options) (->> (interop/solve "job")))]
       (if (= output-path "-")
         (pprint instance)
