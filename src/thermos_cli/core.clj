@@ -320,7 +320,7 @@
                                  ::document/candidates   (make-candidates paths buildings (:preserve-field options)))
 
         instance          (select-supply-location instance (:supply options))
-        instance          (cond-> instance (:solver options) (->> (interop/solve "job")))
+        
         ]
 
     (print "\nSUMMARY\n")
@@ -353,12 +353,13 @@
     (pprint
      (frequencies
       (map :demand-source (vals (::document/candidates instance)))))
-    
-    (if (= output-path "-")
-      (pprint instance)
 
-      (with-open [w (io/writer (io/file output-path))]
-        (pprint instance w))))
+    (let [instance (cond-> instance (:solver options) (->> (interop/solve "job")))]
+      (if (= output-path "-")
+        (pprint instance)
+
+        (with-open [w (io/writer (io/file output-path))]
+          (pprint instance w)))))
     
   (mount/stop))
 
