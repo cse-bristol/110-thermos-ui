@@ -375,8 +375,7 @@
                        :size (comp #(::connection-count % 1) candidates)))
 
         _ (log/info "Computed flow bounds")
-        
-        global-factors (::demand/emissions instance)]
+        ]
     
     {:time-limit  (float (::document/maximum-runtime instance 1.0))
      :mip-gap     (float (::document/mip-gap instance 0.05))

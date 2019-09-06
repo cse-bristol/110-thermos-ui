@@ -506,15 +506,6 @@
                          candidate/forbid-supply!
                          candidate-ids))
           (popover/close!))
-        
-
-        reset-defaults!
-        (fn []
-          (state/edit! document
-                       #(document/map-candidates %
-                         candidate/reset-defaults!
-                         buildings))
-          (popover/close!))
         ]
     [popover-menu/component
      (remove
@@ -564,9 +555,7 @@
              {:value "Edit buildings (e)"
               :key "edit-demands"
               :on-select #(candidate-editor/show-editor! document buildings)}
-             {:value "Set defaults"
-              :key "set-defaults"
-              :on-select reset-defaults!}
+             
              {:value [:div.popover-menu__divider] :key "divider-2"}))
         
         ~@(list

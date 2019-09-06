@@ -185,7 +185,8 @@
                 (transient %) ids))))))
 
 (let [solution-ns (namespace ::solution/included)
-      is-solution-keyword #(= (namespace %) solution-ns)]
+      is-solution-keyword #(and (keyword? %)
+                                (= (namespace %) solution-ns))]
   (defn remove-solution
     "Remove everything to do with a solution from this document"
     [doc]

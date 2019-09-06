@@ -39,6 +39,17 @@
   "If v is not false, assoc it to m under k, otherwise m"
   [m k v] (if v (assoc m k v) m))
 
+(defn as-integer
+  "Try and turn v into an int. Nil if we can't."
+  [v]
+  (cond
+    (string? v)
+    #?(:cljs (let [x (js/parseInt v)]
+               (and x (js/isFinite x) x))
+       :clj (try (Integer/parseInt v)
+                 (catch NumberFormatException e)))
+    (number? v) (int v)))
+
 (defn as-double
   "Try and turn v into a double. Nil if we can't."
   [v]

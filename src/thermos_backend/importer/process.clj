@@ -548,6 +548,18 @@
                   (with-open [r (io/reader file)]
                     (first (csv/read-csv r :separator \tab))))})))))
 
+(defn add-areas [building]
+  (assoc building
+         :wall-area   (::lidar/external-wall-area
+                       building
+                       (* (- (::lidar/perimeter building 0)
+                             (::lidar/shared-perimeter building 0))
+                          lidar/*storey-height*))
+         :floor-area  (::lidar/floor-area building 0)
+         :ground-area (::lidar/footprint building 0)
+         :roof-area   (::lidar/footprint building 0)
+         :height      (::lidar/height building lidar/*storey-height*)))
+
 (defn run-import
   "Run an import job enqueued by `queue-import`"
   [map-id map-name parameters progress]
@@ -611,6 +623,8 @@
               (progress* 50 "Noding paths and adding connectors")
               (topo)
               (progress* 80 "Adding map to database")
+
+              (update :buildings :geoio/update-features :add-areas add-areas)
               )
           (catch Exception e
             (println "Error during import: " (.getMessage e))

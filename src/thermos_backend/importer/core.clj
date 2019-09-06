@@ -94,16 +94,12 @@
         :demand-source (name (:demand-source b))
         :peak-source (name (:peak-source b))
 
-        :wall-area   (::lidar/external-wall-area
-                      b
-                      (* (- (::lidar/perimeter b 0)
-                            (::lidar/shared-perimeter b 0))
-                         lidar/*storey-height*))
+        :wall-area   (:wall-area b)
         
-        :floor-area  (::lidar/floor-area b 0)
-        :ground-area (::lidar/footprint b 0)
-        :roof-area   (::lidar/footprint b 0) ;; TODO roof tilt?
-        :height      (::lidar/height b lidar/*storey-height*)
+        :floor-area  (:floor-area b)
+        :ground-area (:ground-area b)
+        :roof-area   (:roof-area b)
+        :height      (:height b)
         })
      
      :paths
