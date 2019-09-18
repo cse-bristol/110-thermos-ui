@@ -455,16 +455,19 @@
            [:b ".shx"] ", " [:b ".prj"] " and "
            [:b ".cpg"] " files!"]]
          [:p "The feature geometry must be " (case category
-                                               :buildings [:b "POLYGON"]
+                                               :buildings [:span
+                                                           [:b "POLYGON"]
+                                                           " or "
+                                                           [:b "MULTIPOLYGON"]]
                                                :roads [:span [:b "LINESTRING"] " or " [:b "MULTILINESTRING"]])
           " type geometry. "
-          (when (= :buildings category) [:span"At the moment " [:b "MULTIPOLYGON"] " geometry is not supported."])]
+          ]
          [:p "You can also upload " [:b "csv"] " and " [:b "tsv"] " files to relate to your GIS data."]
          
          (file-uploader {:legal-geometries
                          (case category
                            :buildings #{:polygon :point :multi-polygon}
-                           :roads #{:line-string}
+                           :roads #{:line-string :multi-line-string}
                            #{})}
 
                         *data-files)
