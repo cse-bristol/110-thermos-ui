@@ -4,10 +4,12 @@
             [clojure.java.io :as io]
             [thermos-importer.geoio :as geoio]
             [thermos-importer.spatial :as spatial]
+            [clojure.data.json :as json]
             
             [thermos-backend.importer.process :as importer]
             [thermos-backend.solver.interop :as interop]
             [thermos-util :refer [as-double as-boolean as-integer assoc-by]]
+            [thermos-util.converter :as converter]
             [thermos-importer.lidar :as lidar]
             
             [thermos-specs.document :as document]
@@ -19,6 +21,7 @@
             [thermos-specs.demand :as demand]
             [thermos-specs.supply :as supply]
             [thermos-specs.tariff :as tariff]
+            [thermos-specs.solution :as solution]
             [mount.core :as mount]
             [clojure.pprint :refer [pprint]]
             )
@@ -31,7 +34,8 @@
 
 (def options
   [["-i" "--base FILE" "The base problem to merge stuff into"]
-   ["-o" "--output FILE" "Where to put result" :default "-"]
+   ["-o" "--output FILE" "Where to put result"]
+   ["-j" "--json-output FILE" "Where to put result as geojson"]
    ["-m" "--map FILE*"
     "Geodata files containing roads or buildings"
     :assoc-fn conj-arg]
@@ -66,6 +70,10 @@
    [nil "--tariffs FILE*"
     "A file containing tariff definitions"
     :assoc-fn conj-arg]
+   [nil "--top-n-supplies N" "Number of supplies to introduce into the map by taking the top N demands"
+    :default 1
+    :parse-fn #(Integer/parseInt %)]
+   
    ["-h" "--help" "me Obi-Wan Kenobi - You're my only hope."]])
 
 (defn read-edn [file]
@@ -222,16 +230,19 @@
       (cond-> building
         tariff (assoc ::tariff/id tariff)))))
 
-(defn- select-supply-location [instance supply]
-  ;; for now we find the largest demand
-
-  (let [biggest-demand
-        (first (sort-by ::demand/kwp #(compare %2 %1)
-                        (vals (::document/candidates instance))))]
+(defn- select-supply-location [instance supply top-n]
+  ;; for now we find the N largest annual demands
+  ;; we could do a spatial rule as well / instead?
+  (let [biggest-demands
+        (take top-n
+              (sort-by ::demand/kwh #(compare %2 %1)
+                       (vals (::document/candidates instance))))]
+    (println "Adding " (count biggest-demands) " supply locations")
     (cond-> instance
-      (and biggest-demand supply)
-      (update-in [::document/candidates (::candidate/id biggest-demand)]
-                 merge supply))))
+      (and (seq biggest-demands) supply)
+      (document/map-candidates
+       #(merge supply %)
+       (map ::candidate/id biggest-demands)))))
 
 (defn- make-candidates [paths buildings preserve-fields]
   (let [paths (for [path paths]
@@ -262,6 +273,8 @@
                                 ::candidate/roof-area     (:roof-area building)
                                 ::candidate/ground-area   (:ground-area building)
                                 ::candidate/connections   (::spatial/connects-to-node building)
+                                ::candidate/geometry      (::geoio/geometry building)
+                                
                                 ::demand/kwh              (:annual-demand building)
                                 ::demand/kwp              (:peak-demand building)
                                 ::demand/connection-count (:connection-count building)
@@ -276,7 +289,8 @@
   (mount/start-with {#'thermos-backend.config/config
                      {:solver-directory "."
                       :solver-command (:solver options)}})
-  (let [output-path (:output options)
+  (let [output-path       (:output options)
+        json-path         (:json-output options)
         
         geodata           (geoio/read-from-multiple (:map options)
                                                     :key-transform identity)
@@ -287,6 +301,12 @@
         
         paths             (add-civils paths (:civils options))
 
+        ;; TODO rearrange this so that we can run it in parts:
+        ;; 1. Geospatial / estimating operations
+        ;;    Seems like these will always have to remove whatever geometry already exists
+        ;; 2. Adding controllable parts (supply locations, technologies)
+        ;; 3. Running the model on the problem
+        
         buildings         (-> {::geoio/features buildings
                                ::geoio/crs (::geoio/crs geodata)}
 
@@ -319,72 +339,107 @@
                                  ::document/alternatives (assoc-by (:alternatives options) ::supply/id)
                                  ::document/candidates   (make-candidates paths buildings (:preserve-field options)))
 
-        instance          (select-supply-location instance (:supply options))
+        instance          (select-supply-location instance
+                                                  (:supply options)
+                                                  (:top-n-supplies options))
+        
         
         ]
 
-    (let [{buildings :building
-           paths :path}
-          (group-by ::candidate/type (vals (::document/candidates instance)))]
-
-      (print "\nSUMMARY\n")
-
-      (println (count buildings) "buildings," (count paths) "paths")
-      
-      (println "Counterfactuals:")
-      (pprint
-       (frequencies
-        (map (comp
-              ::supply/name
-              (::document/alternatives instance)
-              ::demand/counterfactual)
-             buildings)))
-
-      (println "Insulations:")
-      (pprint
-       (frequencies
-        (map (comp
-              (partial
-               map
-               (comp ::measure/name
-                     (::document/insulation instance)))
-              ::demand/insulation) buildings)))
-
-      (println "Alts:")
-      (pprint
-       (frequencies
-        (map (comp
-              (partial
-               map
-               (comp ::supply/name
-                     (::document/alternatives instance)))
-              
-              ::demand/alternatives) buildings)))
-
-      (println "Civils:")
-      (pprint
-       (frequencies
-        (map (comp
-              ::path/civil-cost-name
-              (::document/civil-costs instance)
-              ::path/civil-cost-id)
-             paths)))
-
-      (println "Demand estimate:")
-      (pprint
-       (frequencies
-        (map :demand-source buildings)))
-
-      )
     
     
     (let [instance (cond-> instance (:solver options) (->> (interop/solve "job")))]
-      (if (= output-path "-")
-        (pprint instance)
+      (when json-path
+        (with-open [w (io/writer (io/file json-path))]
+          (-> instance
+              (converter/network-problem->geojson)
+              (json/write w))))
+      
+      (when output-path
+        (if (= output-path "-")
+         (pprint instance)
 
-        (with-open [w (io/writer (io/file output-path))]
-          (pprint instance w)))))
-    
+         (with-open [w (io/writer (io/file output-path))]
+           (pprint instance w))))
+
+
+      (let [{buildings :building
+             paths :path}
+            (group-by ::candidate/type (vals (::document/candidates instance)))]
+
+        (print "\nSUMMARY\n")
+
+        (println (count buildings) "buildings," (count paths) "paths")
+        
+        (println "Counterfactuals:")
+        (pprint
+         (frequencies
+          (map (comp
+                ::supply/name
+                (::document/alternatives instance)
+                ::demand/counterfactual)
+               buildings)))
+
+        (println "Insulations:")
+        (pprint
+         (frequencies
+          (map (comp
+                (partial
+                 map
+                 (comp ::measure/name
+                       (::document/insulation instance)))
+                ::demand/insulation) buildings)))
+
+        (println "Alts:")
+        (pprint
+         (frequencies
+          (map (comp
+                (partial
+                 map
+                 (comp ::supply/name
+                       (::document/alternatives instance)))
+                
+                ::demand/alternatives) buildings)))
+
+        (println "Civils:")
+        (pprint
+         (frequencies
+          (map (comp
+                ::path/civil-cost-name
+                (::document/civil-costs instance)
+                ::path/civil-cost-id)
+               paths)))
+
+        (println "Demand estimate:")
+        (pprint
+         (frequencies
+          (map :demand-source buildings)))
+
+        (println "Buildings connected:")
+        (pprint
+         (frequencies
+          (map candidate/is-connected? buildings)))
+
+        (println "Supplies:")
+        (pprint
+         (frequencies
+          (map candidate/supply-in-solution? buildings)))
+
+        (println "Individual systems:")
+        (pprint
+         (frequencies
+          (map
+           (comp ::supply/name
+                 ::solution/alternative)
+            buildings)))
+        
+        (println "Paths connected:")
+        (pprint
+         (frequencies
+          (map candidate/is-connected? paths)))
+
+        )))
+  
   (mount/stop))
 
 (defn- generate-ids [things id]
