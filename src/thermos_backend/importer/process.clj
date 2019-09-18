@@ -510,10 +510,14 @@
                basis
                (jts/create-multipolygon geoms))
 
-        (:sum-demands basis)
+        (not= :given (:demand-source basis))
         (assoc :annual-demand (reduce + (map :annual-demand polygons)))
 
-        (:sum-peaks basis)
+        ;; if the peak-source is given, we shouldn't sum them,
+        ;; but also if the demand-source is given, since for a given
+        ;; demand the first one has the right peak also.
+        (not (or (= :given (:peak-source basis))
+                 (= :given (:demand-source basis))))
         (assoc :peak-demand (reduce + (map :peak-demand polygons)))))))
 
 (defn merge-multi-polygons
