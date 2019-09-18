@@ -44,7 +44,7 @@
 (defn add-to-database [state job]
   (geoio/write-to
    (:buildings state)
-   (io/file (:work-directory job) "buildings-out.json"))
+   (io/file (:work-directory state) "buildings-out.json"))
 
   (println "Demand models used:"
            (frequencies (map :demand-source
@@ -52,7 +52,7 @@
   
   (geoio/write-to
    (:roads state)
-   (io/file (:work-directory job) "roads-out.json"))
+   (io/file (:work-directory state) "roads-out.json"))
 
   ;; these should already be in 4326???
   (let [buildings (geoio/reproject (:buildings state) "EPSG:4326")
@@ -121,10 +121,34 @@
   
   (let [{map-name :name parameters :parameters} (db/get-map map-id)]
     (-> (run-import map-id map-name parameters progress)
-        (add-to-database (assoc parameters
-                                :work-directory work-directory
-                                :map-id map-id)))))
+        (add-to-database (assoc parameters :map-id map-id)))))
 
-(queue/consume :imports 1 run-import)
+
+
+(defn get-file-info [file-or-directory]
+  (let [file (-> file-or-directory io/file primary-file)]
+    (when file
+      ;; try and open the file and get info on it!!!
+      (let [extension (file-extension file)]
+        (cond
+          (geoio/can-read? file)
+          ;; get geospatial info
+          (let [{features ::geoio/features} (geoio/read-from file :key-transform identity) 
+                all-keys (into #{} (mapcat keys features))
+                geometry-types (into #{} (map ::geoio/type features))]
+            {:keys (set (filter string? all-keys))
+             :geometry-types geometry-types})
+          
+          (= "csv" extension)
+          {:keys (set
+                  (with-open [r (io/reader file)]
+                    (first (csv/read-csv r))))}
+          
+          (#{"tsv" "tab"} extension)
+          {:keys (set
+                  (with-open [r (io/reader file)]
+                    (first (csv/read-csv r :separator \tab))))})))))
+
+(queue/consume :imports 1 run-import-and-store)
 
 

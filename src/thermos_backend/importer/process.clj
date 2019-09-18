@@ -30,25 +30,6 @@
             GeometryFactory
             PrecisionModel]))
 
-(defn- primary-file
-  "Since some GIS formats have several parts, we have to put them in a directory.
-  This function turns a file or directory into the important file therein"
-  [file-or-directory]
-  
-  (let [file-or-directory (io/file file-or-directory)]
-    (cond
-      (.isDirectory file-or-directory)
-      (let [contents (.listFiles file-or-directory)
-            n (count contents)]
-        (cond
-          (zero? n) nil
-          (= 1 n) (first contents)
-          :else (first
-                 (filter
-                  #(has-extension % "shp")
-                  contents))))
-      (.isFile file-or-directory) file-or-directory)))
-
 (defn- keyword-upcase-uscore [s]
   (keyword (str/replace s "_" "-")))
 
@@ -349,6 +330,25 @@
            (fn [x]
              (merge x (get table (get x gis-column)))))))
 
+(defn primary-file
+  "Since some GIS formats have several parts, we have to put them in a directory.
+  This function turns a file or directory into the important file therein"
+  [file-or-directory]
+  
+  (let [file-or-directory (io/file file-or-directory)]
+    (cond
+      (.isDirectory file-or-directory)
+      (let [contents (.listFiles file-or-directory)
+            n (count contents)]
+        (cond
+          (zero? n) nil
+          (= 1 n) (first contents)
+          :else (first
+                 (filter
+                  #(has-extension % "shp")
+                  contents))))
+      (.isFile file-or-directory) file-or-directory)))
+
 (defn- load-and-join [{files :files
                        joins :joins
                        mappings :mapping}]
@@ -528,30 +528,6 @@
        (map second)
        (map merge-multi-polygon)))
 
-(defn get-file-info [file-or-directory]
-  (let [file (-> file-or-directory io/file primary-file)]
-    (when file
-      ;; try and open the file and get info on it!!!
-      (let [extension (file-extension file)]
-        (cond
-          (geoio/can-read? file)
-          ;; get geospatial info
-          (let [{features ::geoio/features} (geoio/read-from file :key-transform identity) 
-                all-keys (into #{} (mapcat keys features))
-                geometry-types (into #{} (map ::geoio/type features))]
-            {:keys (set (filter string? all-keys))
-             :geometry-types geometry-types})
-          
-          (= "csv" extension)
-          {:keys (set
-                  (with-open [r (io/reader file)]
-                    (first (csv/read-csv r))))}
-          
-          (#{"tsv" "tab"} extension)
-          {:keys (set
-                  (with-open [r (io/reader file)]
-                    (first (csv/read-csv r :separator \tab))))})))))
-
 (defn add-areas [building]
   (assoc building
          :wall-area   (::lidar/external-wall-area
@@ -587,7 +563,7 @@
         (pprint parameters)
         
         (try
-          (-> (cond-> {}
+          (-> (cond-> {:work-directory work-directory}
                 ;; 1. Load any GIS files
                 (not osm-buildings)
                 (assoc :buildings (load-and-join (:buildings parameters)))
