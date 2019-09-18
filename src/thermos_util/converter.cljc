@@ -3,11 +3,14 @@
             [thermos-specs.candidate :as candidate]
             [clojure.string :as string]
             [clojure.test :as test]
+            [cljts.core :as jts]
             
-            #?@(:clj [[clojure.data.json :as json]])))
+            #?@(:clj [[clojure.data.json :as json]]))
+  #?(:clj
+     (:import [org.locationtech.jts.geom Geometry])))
 
 (defn- process-key
-  {:test #(do (test/is (= "candidate-id" (process-key ::candidate/id)))
+  {:test #(do (test/is (= "candidate/id" (process-key ::candidate/id)))
               (test/is (= "thing" (process-key :thing))))}
   [key]
   (cond
@@ -17,42 +20,61 @@
           key-ns   (namespace key)]
       (str
        (if key-ns
-         (str (last (string/split key-ns #"\.")) "-")
+         (str (last (string/split key-ns #"\.")) "/")
          "")
        key-name))
     :else key))
 
 (defn- process-value [value]
-  (if (or (string? value)
-          (boolean? value)
-          (nil? value)
-          (and (number? value)
-               #?(:clj (Double/isFinite value)
-                  :cljs (js/isFinite value))))
+  (cond
+    (or (string? value)
+        (boolean? value)
+        (nil? value)
+        (and (number? value)
+             #?(:clj (Double/isFinite value)
+                :cljs (js/isFinite value))))
     value
-    (str value)))
+
+    (or (seq? value)
+        (set? value)
+        (vector? value))
+    (vec (doall (map process-value value)))
+    
+    :else (str value)))
 
 (defn- process-properties
   "Recursively flatten map of properties and simplify column names"
   {:test #(do (assert (= (process-properties {:this/that 1}) {"this-that" 1}))
-              (assert (= (process-properties {:x {:y 1}}) {"x-y" 1})))}  
+              (assert (= (process-properties {:x {:y 1}}) {"x:y" 1})))}  
   ([properties] (process-properties properties ""))
   ([properties prefix]
    (reduce-kv
     (fn [a k v]
       (let [k (str prefix (process-key k))]
         (if (map? v)
-          (merge a (process-properties v (str k "-")))
-          (assoc a k (process-value v)))))
+          (merge a (process-properties v (str k ":")))
+          (assoc a k (process-value v)))
+        ))
     {} properties)))
 
+;; this is most horrible
 (defn network-candidate->geojson [candidate]
-  (let [geometry (#?(:clj json/read-str
-                     :cljs js/JSON.parse) (::candidate/geometry candidate))
+  (let [geometry #?(:clj
+                    (as-> (::candidate/geometry candidate) geom
+                      (cond-> geom
+                        (instance? Geometry geom)
+                        (jts/geom->json))
+                      (cond-> geom
+                        (string? geom)
+                        (json/read-str)))
+                    
+                    :cljs (js/JSON.parse (::candidate/geometry candidate)))
         other (dissoc candidate ::candidate/geometry)]
+    
     {:type :Feature
      :geometry geometry
-     :properties (process-properties other)}))
+     :properties (process-properties other)})
+  )
 
 (defn network-problem->geojson [document]
   (let [candidates (::document/candidates document)]
