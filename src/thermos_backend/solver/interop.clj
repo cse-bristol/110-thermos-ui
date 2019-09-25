@@ -21,7 +21,7 @@
             [thermos-specs.path :as path]
             [thermos-backend.solver.bounds :as bounds]
             [thermos-backend.config :refer [config]]
-            [thermos-util :refer [annual-kwh->kw]]
+            [thermos-util :refer [annual-kwh->kw format-seconds]]
             [thermos-util.finance :as finance]
             [thermos-util.pipes :as pipes]
             [clojure.walk :refer [postwalk]]
@@ -756,7 +756,10 @@
               
               end-time (System/currentTimeMillis)
 
-              _ (log/info "Solver ran in" (- end-time start-time) "ms")
+              _ (log/info "Solver ran in"
+                          (format-seconds
+                           (/ (- end-time start-time)
+                              1000.0)))
 
               output-json (try
                             (with-open [r (io/reader (io/file working-directory "solution.json"))]

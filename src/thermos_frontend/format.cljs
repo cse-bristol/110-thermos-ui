@@ -1,4 +1,5 @@
-(ns thermos-frontend.format)
+(ns thermos-frontend.format
+  (:require [thermos-util :as util]))
 
 (let [format (js/Intl.NumberFormat.)]
   (defn local-format [value] (.format format value)))
@@ -37,16 +38,6 @@
                (metric-prefix value 0.001 "m")
                (local-format value))))))
 
-(defn seconds [s]
-  (let [s (int s)
-        seconds-part (mod s 60)
-        minutes-part (int (/ s 60))
-        hours-part (int (/ minutes-part 60))
-        minutes-part (mod minutes-part 60)]
-    (str
-     (if (pos? hours-part)
-       (str hours-part "h, ") "")
-     (if (pos? minutes-part)
-       (str minutes-part "m, ") "")
-     seconds-part "s")))
+(def seconds util/format-seconds)
+
 

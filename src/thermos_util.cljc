@@ -97,3 +97,16 @@
   unused key."
   [map]
   (inc (reduce max -1 (keys map))))
+
+(defn format-seconds [s]
+  (let [s (int s)
+        seconds-part (mod s 60)
+        minutes-part (int (/ s 60))
+        hours-part (int (/ minutes-part 60))
+        minutes-part (mod minutes-part 60)]
+    (str
+     (if (pos? hours-part)
+       (str hours-part "h, ") "")
+     (if (pos? minutes-part)
+       (str minutes-part "m, ") "")
+     seconds-part "s")))
