@@ -390,14 +390,15 @@ If the scenario definition refers to some fields, you mention them here or they 
         summary-output-path (:summary-output options)
         json-path         (:json-output options)
         
-        geodata           (geoio/read-from-multiple (:map options)
-                                                    :key-transform identity)
+        geodata           (when (seq (:map options))
+                            (geoio/read-from-multiple (:map options)
+                                                      :key-transform identity))
 
         [paths buildings] (node-connect geodata
                                         (:connect-to-connectors options)
                                         (:shortest-face options))
         
-        buildings         (when buildings
+        buildings         (when (seq buildings)
                             (-> {::geoio/features buildings
                                  ::geoio/crs (::geoio/crs geodata)}
 
