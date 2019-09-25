@@ -9,9 +9,9 @@
   #?(:clj
      (:import [org.locationtech.jts.geom Geometry])))
 
-(defn- process-key
-  {:test #(do (test/is (= "candidate/id" (process-key ::candidate/id)))
-              (test/is (= "thing" (process-key :thing))))}
+(defn- process-key*
+  {:test #(do (test/is (= "candidate/id" (process-key* ::candidate/id)))
+              (test/is (= "thing" (process-key* :thing))))}
   [key]
   (cond
     (string? key) key
@@ -24,6 +24,8 @@
          "")
        key-name))
     :else key))
+
+(def process-key (memoize process-key*))
 
 (defn- process-value [value]
   (cond
@@ -57,16 +59,19 @@
         ))
     {} properties)))
 
-;; this is most horrible
+;; this is a terrible thing which I do here
+;; it would be preferable to convert the geometry straight into json in the writer.
 (defn network-candidate->geojson [candidate]
   (let [geometry #?(:clj
-                    (as-> (::candidate/geometry candidate) geom
-                      (cond-> geom
-                        (instance? Geometry geom)
-                        (jts/geom->json))
-                      (cond-> geom
+                    (let [geom (::candidate/geometry candidate)]
+                      (cond
                         (string? geom)
-                        (json/read-str)))
+                        (json/read-str geom)
+
+                        (instance? Geometry geom)
+                        (jts/geom->map geom)
+
+                        :else geom))
                     
                     :cljs (js/JSON.parse (::candidate/geometry candidate)))
         other (dissoc candidate ::candidate/geometry)]
