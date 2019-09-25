@@ -421,13 +421,14 @@
   [feature sqrt-degree-days]
   (let [given-demand (as-double (:annual-demand feature))
         given-height (as-double (:height feature))
+        given-fallback-height (as-double (:fallback-height feature))
         given-floor-area (as-double (:floor-area feature))
         benchmark-m  (as-double (:benchmark-m feature))
         benchmark-c  (or (as-double (:benchmark-c feature))
                          (when benchmark-m 0))
 
         storey-height lidar/*storey-height*
-        height     (or given-height (::lidar/height feature))
+        height     (or given-height (::lidar/height feature) given-fallback-height)
         floor-area (or given-floor-area
                        (* (Math/ceil
                            (/ (or height storey-height)
