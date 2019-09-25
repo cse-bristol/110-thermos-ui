@@ -189,6 +189,14 @@
                   (assoc! cands id (f (get cands id))))
                 (transient %) ids))))))
 
+(defn map-buildings [doc f]
+  (map-candidates
+   doc f (map ::candidate/id (filter candidate/is-building? (vals (::candidates doc))))))
+
+(defn map-paths [doc f]
+  (map-candidates
+   doc f (map ::candidate/id (filter candidate/is-path? (vals (::candidates doc))))))
+
 (let [solution-ns (namespace ::solution/included)
       is-solution-keyword #(and (keyword? %)
                                 (= (namespace %) solution-ns))]
