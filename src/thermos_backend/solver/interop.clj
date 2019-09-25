@@ -369,8 +369,9 @@
     
     {:time-limit  (float (::document/maximum-runtime instance 1.0))
      :mip-gap     (float (::document/mip-gap instance 0.05))
-     :supply-limit (when-let [l (::document/maximum-supply-sites instance)]
-                     (int l))
+     :supply-limit
+     (when-let [l (::document/maximum-supply-sites instance)]
+       (int l))
      :pipe-losses
      (let [losses (pipes/heat-loss-curve
                    power-curve

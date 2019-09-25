@@ -46,6 +46,9 @@
 
                 ::insulation
                 ::alternatives
+
+                ::maximum-supply-sites
+
                 ::maximum-pipe-diameter
                 ::minimum-pipe-diameter
                 ]
