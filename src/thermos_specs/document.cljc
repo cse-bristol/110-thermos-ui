@@ -46,6 +46,8 @@
 
                 ::insulation
                 ::alternatives
+                ::maximum-pipe-diameter
+                ::minimum-pipe-diameter
                 ]
           :opt [::solution/summary
                 ::deletions]))

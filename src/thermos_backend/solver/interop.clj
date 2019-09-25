@@ -337,23 +337,13 @@
                         (for [e candidate/emissions-types]
                           [e (float (get-in candidate [::supply/emissions e] 0))]))}))
 
-(defn- edge-terms [instance bounds net-graph edge]
+(defn- edge-terms [instance cost-function bounds net-graph edge]
   (let [{[lower upper] :mean} bounds
 
         [fixed-cost variable-cost]
-        (pipes/linear-cost-per-kw
-         (- (::document/flow-temperature instance)
-            (::document/return-temperature instance))
-         (apply max lower) (apply max upper) ;; forwards vs backwards - TODO should I think about zeroes specially here?
-
-         (::document/mechanical-cost-per-m instance 0.0)
-         (::document/mechanical-cost-per-m2 instance 0.0)
-         (::document/mechanical-cost-exponent instance 1.0)
-         
-         (or (attr/attr net-graph edge :fixed-cost) 0.0)
-         (or (attr/attr net-graph edge :variable-cost) 0.0)
-         (::document/civil-cost-exponent instance 1.0))
-        ]
+        (cost-function (apply max lower) (apply max upper)
+                       (or (attr/attr net-graph edge :fixed-cost) 0.0)
+                       (or (attr/attr net-graph edge :variable-cost) 0.0))]
     {:i (first edge) :j (second edge)
      :length    (float (or (attr/attr net-graph edge :length) 0))
      "cost/m"   (float (finance/objective-value instance :pipe-capex fixed-cost))
@@ -361,14 +351,14 @@
      :bounds bounds
      :required (boolean (attr/attr net-graph edge :required))}))
 
-(defn- instance->json [instance net-graph]
+(defn- instance->json [instance net-graph power-curve]
   (let [candidates     (::document/candidates instance)
-
+        
         edge-bounds (do
                       (log/info "Computing flow bounds...")
                       (bounds/edge-bounds
                        net-graph
-                       :max-kwp (::document/maximum-pipe-kwp instance)
+                       :max-kwp (first (last power-curve))
                        :capacity (comp #(::supply/capacity-kwp % 0) candidates)
                        :demand (comp annual-kwh->kw #(::demand/kwh % 0) candidates)
                        :peak-demand (comp #(::demand/kwp % 0) candidates)
@@ -383,6 +373,7 @@
                      (int l))
      :pipe-losses
      (let [losses (pipes/heat-loss-curve
+                   power-curve
                    (::document/flow-temperature instance)
                    (::document/return-temperature instance)
                    (::document/ground-temperature instance))]
@@ -414,10 +405,27 @@
          (assoc :supply (supply-terms instance candidate))))
      
      :edges
-     (for [edge (->> (graph/edges net-graph)
-                     (map (comp vec sort))
-                     (set))]
-       (edge-terms instance (get edge-bounds edge) net-graph edge))}))
+     (let [mech-A (::document/mechanical-cost-per-m instance 0.0)
+           mech-B (::document/mechanical-cost-per-m2 instance 0.0)
+           mech-C (::document/mechanical-cost-exponent instance 1.0)
+
+           civil-C (::document/civil-cost-exponent instance 1.0)
+
+           cost-function
+           (fn [kw-min kw-max civil-fixed civil-var]
+             (pipes/linear-cost-per-kw
+              power-curve
+              kw-min kw-max
+              ;; forwards vs backwards - TODO should I think about zeroes specially here?
+
+              mech-A mech-B mech-C
+              
+              civil-fixed civil-var civil-C))]
+       
+       (for [edge (->> (graph/edges net-graph)
+                       (map (comp vec sort))
+                       (set))]
+         (edge-terms instance cost-function (get edge-bounds edge) net-graph edge)))}))
 
 (defn- index-by [f vs]
   (reduce #(assoc %1 (f %2) %2) {} vs))
@@ -494,7 +502,7 @@
               ::supply/name (::supply/name alternative)}))))
 
 
-(defn- merge-solution [instance net-graph result-json]
+(defn- merge-solution [instance net-graph power-curve result-json]
   (let [state (keyword (:state result-json))
         
         solution-vertices (into {}
@@ -600,8 +608,6 @@
                   ))))
 
         ;; in kw -> diameter
-        power-curve   (pipes/power-curve (- (::document/flow-temperature instance)
-                                            (::document/return-temperature instance)))
         civil-exponent       (::document/civil-cost-exponent instance 1)
         mechanical-fixed     (::document/mechanical-cost-per-m instance 0)
         mechanical-variable  (::document/mechanical-cost-per-m2 instance 0)
@@ -733,8 +739,12 @@
           (mark-unreachable net-graph included-candidates))
       
       :else
-      (let [input-json (postwalk identity (instance->json instance net-graph))]
-        (log/info "Output scenario to" input-file)
+      (let [power-curve (pipes/power-curve (- (::document/flow-temperature instance)
+                                              (::document/return-temperature instance))
+                                           (::document/minimum-pipe-diameter instance 0.02)
+                                           (::document/maximum-pipe-diameter instance 1.0))
+            input-json (postwalk identity (instance->json instance net-graph power-curve))]
+        
         (with-open [writer (io/writer input-file)]
           (json/write input-json writer :escape-unicode false))
         
@@ -762,13 +772,11 @@
                    ::solution/state (:state output-json)
                    ::solution/message (:message output-json)
                    ::solution/runtime (/ (- end-time start-time) 1000.0))
-                  (merge-solution net-graph output-json)
+                  (merge-solution net-graph power-curve output-json)
                   (mark-unreachable net-graph included-candidates))
               ]
           (spit (io/file working-directory "stdout.txt") (:out output))
           (spit (io/file working-directory "stderr.txt") (:err output))
           (spit (io/file working-directory "instance.edn") solved-instance)
           solved-instance)))
-    
-    ;; write the scenario down
     ))

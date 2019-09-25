@@ -3,13 +3,10 @@
 
 (def density  975.0)
 (def heat-capacity 4.18)
-(def min-diameter 0.00)
-(def max-diameter 0.5)
-(def diameter-step 0.05)
-(def diameter-range (range min-diameter max-diameter diameter-step))
+(def diameter-step 0.01)
 
 (defn kw-per-m [^double diameter
-            ^double delta-t]
+                ^double delta-t]
   (let [area     (* Math/PI (Math/pow (* diameter 0.5) 2.0))
         velocity (- (* 4.7617 (Math/pow diameter 0.3701))
                     0.4834)
@@ -127,31 +124,41 @@
                          (+ k5 X2))))))
         ))))
 
-(def power-curve
+(def ^{:arglists '([delta-t min-dia max-dia])}
+  power-curve
+  
   (memoize
-   (fn [delta-t]
-     (vec (for [x diameter-range]
+   (fn [delta-t min-dia max-dia]
+     (vec (for [x (range
+                   (or min-dia 0.02)
+                   (or max-dia 1.0)
+                   diameter-step)]
             [(kw-per-m x delta-t) x])))))
 
 (defn linear-cost-per-kw*
   "Given some pipe parameters, linearly approximate the cost/kw function"
-  [delta-t min-kw max-kw cost-per-m]
+  [power-curve min-kw max-kw cost-per-m]
 
   (linear-approximate
-   (->> (power-curve delta-t)
+   (->> power-curve
         (map #(update % 1 cost-per-m))
         (vec))
    
    min-kw max-kw))
 
-(def linear-cost-per-kw
+(def ^{:arglists '([power-curve
+                    mechanical-fixed mechanical-var mechanical-expt
+                    civil-fixed civil-var civil-expt])}
+  
+  linear-cost-per-kw
+
   (memoize
-   (fn [delta-t min-kw max-kw
+   (fn [power-curve min-kw max-kw
         mechanical-fixed mechanical-var mechanical-expt
         civil-fixed civil-var civil-expt]
 
      (linear-cost-per-kw*
-      delta-t min-kw max-kw
+      power-curve min-kw max-kw
       (fn [dia-m]
         (+ civil-fixed mechanical-fixed
            (Math/pow (* mechanical-var dia-m) mechanical-expt)
@@ -165,9 +172,8 @@
   "Given flow, return and ground temperatures return
   a curve which relates kW of pipe peak capacity to W/m
   of heat losses in said pipe under average conditions."
-  [flow return ground]
-  (let [pc (power-curve (- flow return))
-        delta-t (- (/ (+ flow return) 2) ground)]
-    (for [[kw dia] pc]
+  [power-curve flow return ground]
+  (let [delta-t (- (/ (+ flow return) 2) ground)]
+    (for [[kw dia] power-curve]
       [kw (heat-loss-w-per-kwpm delta-t dia)])))
 

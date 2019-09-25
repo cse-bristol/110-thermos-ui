@@ -52,14 +52,14 @@
    ::document/npv-term 40
    ::document/npv-rate 0.03
 
-   ::document/maximum-pipe-kwp 20000
+   ::document/maximum-pipe-diameter 1.0
+   ::document/minimum-pipe-diameter 0.02
 
    ::document/civil-cost-exponent 1.1
    ::document/mechanical-cost-exponent 1.3
 
    ::document/mechanical-cost-per-m  50.0
    ::document/mechanical-cost-per-m2 700.0
-
 
    ::document/flow-temperature 90.0
    ::document/return-temperature 60.0
