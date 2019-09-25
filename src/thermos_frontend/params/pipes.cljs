@@ -21,7 +21,9 @@
      civil-exponent (reagent/cursor document [::document/civil-cost-exponent])
      civil-costs (reagent/cursor document [::document/civil-costs])
 
-     max-pipe-kwp (reagent/cursor document [::document/maximum-pipe-kwp])
+     max-pipe-dia (reagent/cursor document [::document/maximum-pipe-diameter])
+     min-pipe-dia (reagent/cursor document [::document/minimum-pipe-diameter])
+     
      flow-temperature (reagent/cursor document [::document/flow-temperature])
      return-temperature (reagent/cursor document [::document/return-temperature])
      ground-temperature (reagent/cursor document [::document/ground-temperature])
@@ -40,9 +42,13 @@
        "an average ground temperature of "
        [inputs/number {:value-atom ground-temperature :min 0 :max 20 :step 1}]
        "°C."
-       " Limit pipe capacity to at most "
-       [inputs/number {:value-atom max-pipe-kwp :min 0 :max 500 :step 1 :scale (/ 1 1000.0)}]
-       " MWp"
+       " Allow pipes between "
+       [inputs/number {:value-atom min-pipe-dia
+                       :min 0 :max 2000 :step 1 :scale 1000.0}] "mm and "
+
+       [inputs/number {:value-atom max-pipe-dia
+                       :min 0 :max 2000 :step 1 :scale 1000.0}] "mm."
+       
        ]
       
       ]

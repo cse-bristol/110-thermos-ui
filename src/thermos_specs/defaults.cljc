@@ -52,7 +52,7 @@
    ::document/npv-term 40
    ::document/npv-rate 0.03
 
-   ::document/maximum-pipe-diameter 1.0
+   ::document/maximum-pipe-diameter 2.0
    ::document/minimum-pipe-diameter 0.02
 
    ::document/civil-cost-exponent 1.1
