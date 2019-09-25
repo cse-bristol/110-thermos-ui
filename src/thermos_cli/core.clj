@@ -309,6 +309,14 @@ If the scenario definition refers to some fields, you mention them here or they 
      (concat paths buildings)
      ::candidate/id)))
 
+(defn- sum-costs [costs]
+  (merge-with
+   +
+   (for [c costs :when c]
+     {:present (:present c 0)
+      :total (:total c 0)
+      :annual (:annual c 0)
+      :principal (:principal c 0)})))
 
 (defn- problem-summary
   "Compute some useful summary stats about the given instance."
@@ -327,7 +335,7 @@ If the scenario definition refers to some fields, you mention them here or they 
         (filter candidate/is-connected? paths)
         ]
     {:number-of-buildings (count buildings)
-     :number-of-paths (count paths)
+     :number-of-paths     (count paths)
 
      :network
      {:number-of-demands (count network-buildings)
@@ -338,16 +346,41 @@ If the scenario definition refers to some fields, you mention them here or they 
       :supply-capacity   (reduce + (map #(::solution/capacity-kw % 0)
                                         network-buildings))
       :network-length    (reduce + (map ::path/length network-paths))
+
+      :supply-output-kwh (->> (map ::solution/output-kwh)
+                              (filter identity)
+                              (reduce +))
+
+      :supply-capex (sum-costs (map ::solution/supply-capex buildings))
+      :supply-heat-cost (sum-costs (map ::solution/heat-cost buildings))
+      :supply-opex (sum-costs (map ::solution/supply-opex buildings))
+      :path-capex (sum-costs (map ::solution/pipe-capex network-paths))
       }
 
      :insulation
-     nil
+     (->>
+      (for [[name installed]
+            (->> buildings
+                 (mapcat ::solution/insulation)
+                 (group-by ::measure/name))]
+        [name
+         {:kwh   (reduce + (map :kwh installed))
+          :area  (reduce + (map :kwh installed))
+          :capex (sum-costs installed)}])
+      (into {}))
+     
+     
      :alternatives
-     nil
-
-     })
-  )
-
+     (->>
+      (for [[name alts]
+            (group-by (comp ::supply/name ::solution/alternative)
+                      individual-buildings)]
+        [name
+         {:kwh (reduce + (map ::solution/kwh alts))
+          :kwp (reduce + (map ::demand/kwp alts))
+          :heat-cost (sum-costs (map (comp :heat-cost ::solution/alternative) alts))
+          :opex (sum-costs (map (comp :opex ::solution/alternative) alts))}])
+      (into {}))}))
 
 (defn --main [options]
   (mount/start-with {#'thermos-backend.config/config
