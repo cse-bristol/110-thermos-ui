@@ -442,9 +442,23 @@
                       (boolean (as-boolean (:residential feature)))
                       (contains? residential-subtypes (:subtype feature)))
 
+        use-annual-demand (:use-annual-demand feature :use)
+
+        model-output (delay
+                       (run-svm-models (assoc feature
+                                              :residential residential
+                                              ::lidar/height height)
+                                       sqrt-degree-days))
+        
         ;; produce demand
         feature (cond
-                  given-demand
+                  (and given-demand
+                       (or (= :use use-annual-demand)
+                           (and
+                            (= :max use-annual-demand)
+                            (>= given-demand (:annual-demand @model-output)))))
+
+                  ;; we only use the given deamnd if it exceeds the model output
                   (assoc feature
                          :annual-demand given-demand
                          :demand-source :given)
@@ -456,11 +470,8 @@
                          :demand-source :benchmark)
 
                   :else
-                  (merge feature
-                         (run-svm-models (assoc feature
-                                                :residential residential
-                                                ::lidar/height height)
-                                         sqrt-degree-days)))]
+                  (merge feature @model-output))]
+    
     feature))
 
 (defn- should-explode?
