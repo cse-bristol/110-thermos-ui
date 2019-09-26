@@ -337,7 +337,8 @@ If the scenario definition refers to some fields, you mention them here or they 
      :number-of-paths     (count paths)
 
      :network
-     {:number-of-demands (count network-buildings)
+     {:building-count    (count network-buildings)
+      :address-count     (reduce + (keep ::demand/connection-count network-buildings))
       :total-demand      (reduce + (keep ::solution/kwh network-buildings))
       :total-peak        (reduce + (keep ::demand/kwp network-buildings))
       :supply-capacity   (reduce + (keep ::solution/capacity-kw network-buildings))
@@ -374,6 +375,9 @@ If the scenario definition refers to some fields, you mention them here or they 
         [(or name "Nothing at all")
          {:kwh (reduce + (keep ::solution/kwh alts))
           :kwp (reduce + (keep ::demand/kwp alts))
+          :building-count (count alts)
+          :address-count  (reduce + (keep ::demand/connection-count alts))
+          :capex (sum-costs (keep (comp :capex ::solution/alternative) alts))
           :heat-cost (sum-costs (keep (comp :heat-cost ::solution/alternative) alts))
           :opex (sum-costs (keep (comp :opex ::solution/alternative) alts))}])
       (into {}))}))
