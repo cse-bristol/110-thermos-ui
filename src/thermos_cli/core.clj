@@ -310,13 +310,12 @@ If the scenario definition refers to some fields, you mention them here or they 
      ::candidate/id)))
 
 (defn- sum-costs [costs]
-  (merge-with
-   +
-   (for [c costs :when c]
-     {:present (:present c 0)
-      :total (:total c 0)
-      :annual (:annual c 0)
-      :principal (:principal c 0)})))
+  (apply merge-with +
+         (for [c costs :when c]
+           {:present (:present c 0)
+            :total (:total c 0)
+            :annual (:annual c 0)
+            :principal (:principal c 0)})))
 
 (defn- problem-summary
   "Compute some useful summary stats about the given instance."
@@ -339,22 +338,19 @@ If the scenario definition refers to some fields, you mention them here or they 
 
      :network
      {:number-of-demands (count network-buildings)
-      :total-demand      (reduce + (map #(::solution/kwh % 0)
-                                        network-buildings))
-      :total-peak        (reduce + (map #(::demand/kwp % 0)
-                                        network-buildings))
-      :supply-capacity   (reduce + (map #(::solution/capacity-kw % 0)
-                                        network-buildings))
-      :network-length    (reduce + (map ::path/length network-paths))
+      :total-demand      (reduce + (keep ::solution/kwh network-buildings))
+      :total-peak        (reduce + (keep ::demand/kwp network-buildings))
+      :supply-capacity   (reduce + (keep ::solution/capacity-kw network-buildings))
+      :network-length    (reduce + (keep ::path/length network-paths))
 
-      :supply-output-kwh (->> (map ::solution/output-kwh)
-                              (filter identity)
+      :supply-output-kwh (->> network-buildings
+                              (keep ::solution/output-kwh)
                               (reduce +))
 
-      :supply-capex (sum-costs (map ::solution/supply-capex buildings))
-      :supply-heat-cost (sum-costs (map ::solution/heat-cost buildings))
-      :supply-opex (sum-costs (map ::solution/supply-opex buildings))
-      :path-capex (sum-costs (map ::solution/pipe-capex network-paths))
+      :supply-capex (sum-costs (keep ::solution/supply-capex buildings))
+      :supply-heat-cost (sum-costs (keep ::solution/heat-cost buildings))
+      :supply-opex (sum-costs (keep ::solution/supply-opex buildings))
+      :path-capex (sum-costs (keep ::solution/pipe-capex network-paths))
       }
 
      :insulation
@@ -364,8 +360,8 @@ If the scenario definition refers to some fields, you mention them here or they 
                  (mapcat ::solution/insulation)
                  (group-by ::measure/name))]
         [name
-         {:kwh   (reduce + (map :kwh installed))
-          :area  (reduce + (map :kwh installed))
+         {:kwh   (reduce + (keep :kwh installed))
+          :area  (reduce + (keep :kwh installed))
           :capex (sum-costs installed)}])
       (into {}))
      
@@ -375,11 +371,11 @@ If the scenario definition refers to some fields, you mention them here or they 
       (for [[name alts]
             (group-by (comp ::supply/name ::solution/alternative)
                       individual-buildings)]
-        [name
-         {:kwh (reduce + (map ::solution/kwh alts))
-          :kwp (reduce + (map ::demand/kwp alts))
-          :heat-cost (sum-costs (map (comp :heat-cost ::solution/alternative) alts))
-          :opex (sum-costs (map (comp :opex ::solution/alternative) alts))}])
+        [(or name "Nothing at all")
+         {:kwh (reduce + (keep ::solution/kwh alts))
+          :kwp (reduce + (keep ::demand/kwp alts))
+          :heat-cost (sum-costs (keep (comp :heat-cost ::solution/alternative) alts))
+          :opex (sum-costs (keep (comp :opex ::solution/alternative) alts))}])
       (into {}))}))
 
 (defn --main [options]
@@ -474,11 +470,10 @@ If the scenario definition refers to some fields, you mention them here or they 
 
     (when summary-output-path
       (log/info "Saving summary to" summary-output-path)
-
-      (with-open [w (io/writer (io/file summary-output-path))]
-        (json/write
-         (problem-summary instance)
-         w))))
+      (let [summary (problem-summary instance)]
+        (pprint summary)
+        (with-open [w (io/writer (io/file summary-output-path))]
+          (json/write summary w)))))
   
   (mount/stop))
 
