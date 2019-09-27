@@ -163,24 +163,24 @@ If the scenario definition refers to some fields, you mention them here or they 
         (let [is-resi (as-boolean (or
                                    (not resi-field)
                                    (and resi-field
-                                        (get resi-field b))))
+                                        (get b resi-field))))
               height (and height-field
-                          (as-double (get height-field b)))
+                          (as-double (get b height-field)))
 
               fallback-height (and fallback-height-field
-                                   (as-double (get fallback-height-field b)))
+                                   (as-double (get b fallback-height-field)))
               
               peak (and peak-field
-                        (as-double (get peak-field b)))
+                        (as-double (get b peak-field)))
 
               demand (and demand-field
-                          (as-double (get demand-field b)))
+                          (as-double (get b demand-field)))
 
               confidence (and confidence-field
-                              (#{:use :max} (get confidence-field b)))
+                              (#{:use :max} (get b confidence-field)))
               
               count (or (and count-field
-                             (as-integer (get count-field b)))
+                             (as-integer (get b count-field)))
                         1)]
           
           (-> b
@@ -197,8 +197,8 @@ If the scenario definition refers to some fields, you mention them here or they 
                 (assoc :annual-demand demand)
 
                 (and confidence demand)
-                (assoc :use-annual-demand (keyword confidence))
-                )
+                (assoc :use-annual-demand (keyword confidence)))
+
               (importer/produce-demand sqrt-degree-days)
               (as-> x
                   (assoc x :peak-demand
