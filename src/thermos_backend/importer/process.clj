@@ -442,7 +442,7 @@
                       (boolean (as-boolean (:residential feature)))
                       (contains? residential-subtypes (:subtype feature)))
 
-        use-annual-demand (:use-annual-demand feature :use)
+        use-annual-demand (or (#{:use :estimate :max} (:use-annual-demand feature)) :use)
 
         model-output (delay
                        (run-svm-models (assoc feature
@@ -453,6 +453,7 @@
         ;; produce demand
         feature (cond
                   (and given-demand
+                       (not= :estimate use-annual-demand)
                        (or (= :use use-annual-demand)
                            (and
                             (= :max use-annual-demand)
