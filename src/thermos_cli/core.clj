@@ -31,6 +31,14 @@
 
 ;; THERMOS CLI tools for Net Zero Analysis
 
+(defn- output [thing]
+  (if (= thing "-")
+    (proxy [java.io.FilterWriter] [(io/writer System/out)]
+      (close []
+        (proxy-super flush)
+        ))
+    (io/writer (io/file thing))))
+
 (defn- conj-arg [m k v]
   (update m k conj v))
 
@@ -452,7 +460,7 @@ If the scenario definition refers to some fields, you mention them here or they 
         ]
     (when json-path
       (log/info "Saving geojson to" json-path)
-      (with-open [w (io/writer (io/file json-path))]
+      (with-open [w (output json-path)]
         (-> instance
             (converter/network-problem->geojson)
             (json/write w
@@ -466,18 +474,13 @@ If the scenario definition refers to some fields, you mention them here or they 
     
     (when output-path
       (log/info "Saving edn to" output-path)
-      (if (= output-path "-")
-        (pprint instance)
-
-        (with-open [w (io/writer (io/file output-path))]
-          (pprint instance w))))
+      (with-open [w (output output-path)]
+        (pprint instance w)))
 
     (when summary-output-path
       (log/info "Saving summary to" summary-output-path)
-      (let [summary (problem-summary instance)]
-        (pprint summary)
-        (with-open [w (io/writer (io/file summary-output-path))]
-          (json/write summary w)))))
+      (with-open [w (output summary-output-path)]
+        (json/write (problem-summary instance) w))))
   
   (mount/stop))
 

@@ -28,9 +28,7 @@
      (fn [a values]
        (let [vf (f values)]
          (if (contains? @seen vf)
-           (do
-             (println "Removing duplicate:" vf values)
-             a)
+           a
            (do (vswap! seen conj vf)
                (cons values a)))))
      nil values)))

@@ -509,7 +509,6 @@
                    (assoc :table-column (first (sort (:keys table-file)))))]
 
       (when (seq change)
-        (println "Fix bottom row" change)
         (swap! *bottom-row merge change)))
     
     [:div
@@ -706,7 +705,6 @@
     result))
 
 (defn- too-large [boundary]
-  (println "validate size of " boundary)
   (let [geo (or (get-in boundary ["geometry" "coordinates"])
                 (get-in boundary ["coordinates"]))
         ring (first geo)

@@ -46,10 +46,6 @@
    (:buildings state)
    (io/file (:work-directory state) "buildings-out.json"))
 
-  (println "Demand models used:"
-           (frequencies (map :demand-source
-                             (::geoio/features (:buildings state)))))
-  
   (geoio/write-to
    (:roads state)
    (io/file (:work-directory state) "roads-out.json"))

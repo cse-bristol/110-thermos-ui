@@ -86,8 +86,6 @@
                            (.getMaxY box)
                            (.getMaxX box)]))
 
-        _ (println "Query area:" query-area)
-        
         set-building-type  #(assoc % :subtype (remap-building-type %))
         set-road-type      #(assoc % :subtype (clean-tag (:highway %)))
         set-specials       #(cond-> %
@@ -620,7 +618,6 @@
               (update :buildings :geoio/update-features :add-areas add-areas)
               )
           (catch Exception e
-            (println "Error during import: " (.getMessage e))
-            (.printStackTrace e)
+            (log/error e "Error during import: ")
             (throw e) ;; so the job gets marked failed
             ))))))
