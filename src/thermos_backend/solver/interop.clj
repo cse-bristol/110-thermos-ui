@@ -719,16 +719,23 @@
         ;; at this point we should check for some more bad things:
 
         ;; * components not connected to any supply vertex
-        ccs (map set (graph-alg/connected-components net-graph))
-        supplies (map ::candidate/id (filter candidate/has-supply? included-candidates))
+        net-graph
 
-        invalid-ccs (filter (fn [cc] (not-any? cc supplies)) ccs)
+        (if (::document/consider-alternatives instance)
+          (do
+            (log/info "Not pruning un-suppliable components, as we are considering alternative systems")
+            net-graph)
 
-        _ (log/info "removing" (count invalid-ccs) "un-suppliable components"
-                    "containing" (reduce + 0 (map count invalid-ccs)) "vertices")
-        
-        net-graph (reduce (fn [g cc] (graph/remove-nodes* g cc))
-                          net-graph invalid-ccs)
+          (let [ccs (map set (graph-alg/connected-components net-graph))
+                supplies (map ::candidate/id (filter candidate/has-supply? included-candidates))
+
+                ;; if we are offering alternative systems we don't need to do this
+                
+                invalid-ccs (filter (fn [cc] (not-any? cc supplies)) ccs)]
+            (log/info "removing" (count invalid-ccs) "un-suppliable components"
+                      "containing" (reduce + 0 (map count invalid-ccs)) "vertices")
+            (reduce (fn [g cc] (graph/remove-nodes* g cc))
+                    net-graph invalid-ccs)))
                 
         ;; This is now the topology we want. Every edge may be several
         ;; input edges, and nodes can either be real ones or junctions
