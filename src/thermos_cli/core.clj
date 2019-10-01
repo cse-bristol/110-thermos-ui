@@ -413,7 +413,7 @@ If the scenario definition refers to some fields, you mention them here or they 
                  (group-by ::measure/name))]
         [name
          {:kwh   (reduce + (keep :kwh installed))
-          :area  (reduce + (keep :kwh installed))
+          :area  (reduce + (keep :area installed))
           :capex (sum-costs installed)}])
       (into {}))
      
