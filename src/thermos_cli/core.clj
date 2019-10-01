@@ -48,6 +48,8 @@ An efficient way to use the tool is to put back in a file produced by a previous
    ["-o" "--output FILE" "The problem & solution state will be written in here as EDN."]
    ["-s" "--summary-output FILE" "A file where some json summary stats about the problem will go."]
    ["-j" "--json-output FILE" "The geometry data from the final state will be put here as geojson."]
+   [nil  "--temp-dir DIR" "Where to put temporary files" :default "/tmp/thermos"]
+   [nil  "--preserve-temp" "If not set, temporary files will be removed after run"]
    ["-m" "--map FILE*"
     "Geodata files containing roads or buildings.
 These geometries will replace everything in the base scenario (NOT combine with).
@@ -393,7 +395,7 @@ If the scenario definition refers to some fields, you mention them here or they 
 
 (defn --main [options]
   (mount/start-with {#'thermos-backend.config/config
-                     {:solver-directory "."
+                     {:solver-directory (:temp-dir options)
                       :solver-command (:solver options)}})
   (let [output-path       (:output options)
         summary-output-path (:summary-output options)
@@ -457,7 +459,9 @@ If the scenario definition refers to some fields, you mention them here or they 
 
                             (:solver options)
                             (-> (saying "Solve")
-                                (->> (interop/solve "job-"))))
+                                (->> (interop/solve ""
+                                                    :remove-temporary-files
+                                                    (not (:preserve-temp options))))))
         ]
     (when json-path
       (log/info "Saving geojson to" json-path)
@@ -469,8 +473,8 @@ If the scenario definition refers to some fields, you mention them here or they 
                         (fn write-geojson-nicely [k v]
                           (if (instance? org.locationtech.jts.geom.Geometry v)
                             (jts/geom->json v)
-                            v)
-)
+                            v))
+                        
                         ))))
     
     (when output-path

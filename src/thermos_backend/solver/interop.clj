@@ -691,7 +691,7 @@
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
-  [label instance]
+  [label instance & {:keys [remove-temporary-files]}]
   
   (let [instance (document/remove-solution instance)
 
@@ -794,8 +794,13 @@
                   (merge-solution net-graph power-curve output-json)
                   (mark-unreachable net-graph included-candidates))
               ]
-          (spit (io/file working-directory "stdout.txt") (:out output))
-          (spit (io/file working-directory "stderr.txt") (:err output))
-          (spit (io/file working-directory "instance.edn") solved-instance)
+
+          (if remove-temporary-files
+            (util/remove-files! working-directory)
+            (do
+              (spit (io/file working-directory "stdout.txt") (:out output))
+              (spit (io/file working-directory "stderr.txt") (:err output))
+              (spit (io/file working-directory "instance.edn") solved-instance)))
+          
           solved-instance)))
     ))
