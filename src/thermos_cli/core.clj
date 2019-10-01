@@ -43,7 +43,8 @@
   (update m k conj v))
 
 (def options
-  [["-i" "--base FILE" "The problem to start with - this may contain geometry already.
+  [[nil "--name NAME" "A name to put in the summary output"]
+   ["-i" "--base FILE" "The problem to start with - this may contain geometry already.
 An efficient way to use the tool is to put back in a file produced by a previous -o output."]
    ["-o" "--output FILE" "The problem & solution state will be written in here as EDN."]
    ["-s" "--summary-output FILE" "A file where some json summary stats about the problem will go."]
@@ -272,48 +273,36 @@ If the scenario definition refers to some fields, you mention them here or they 
       tariff (assoc ::tariff/id tariff))))
 
 (defn- select-supply-location [instance supply top-n]
-  ;; Ideally I guess we want to find the largest demand within each
-  ;; connected component and use that? or the most central large demand?
-  (let [factors
+  (let [buildings
         (->> (::document/candidates instance)
              (vals)
-             (keep #(when (candidate/is-building? %)
-                      (let [centroid (.getCentroid (::candidate/geometry %))]
-                        {:id (::candidate/id %)
-                         :kwh (::demand/kwh %)
-                         :x (.getX centroid)
-                         :y (.getY centroid)}))))
+             (keep
+              (fn [candidate]
+                (when (candidate/is-building? candidate)
+                  {:id (::candidate/id candidate)
+                   :kwh (::demand/kwh candidate)
+                   :centroid (.getCentroid (::candidate/geometry candidate))}))))
 
-        max-kwh (reduce max (keep :kwh factors))
+        buildings
+        (for [{id :id here :centroid} buildings]
+          {:id id
+           :value
+           (double
+            (reduce
+             +
+             (for [{kwh :kwh there :centroid} buildings]
+               (/ kwh
+                  (+ 50.0  ;; might work?
+                     (jts/geodesic-distance
+                      (.getCoordinate here)
+                      (.getCoordinate there))
+                     )))))})
 
-        mean #(if (seq %)
-                (/ (double (reduce + %)) (double (count %)))
-                0)
-
-        mean-x (mean (map :x factors))
-        mean-y (mean (map :y factors))
-
-        radius (fn [{x :x y :y}]
-                 (Math/sqrt (+ (Math/pow (- mean-x x) 2.0)
-                               (Math/pow (- mean-y y) 2.0))))
-
-        factors (for [f factors]
-                  (assoc f :radius (radius f)))
-
-        max-radius (reduce max (keep :radius factors))
-
-        factors (for [f factors]
-                  (-> f
-                      (update :kwh / max-kwh)
-                      (update :radius / max-radius)))
-
-        factors
-        (sort-by
-         (fn [{kwh :kwh radius :radius}]
-           (+ radius (* 2.0 (- 1.0 kwh))))
-         factors)
-
-        winning-ids (keep :id (take top-n factors))
+        winning-ids
+        (->> buildings
+             (sort-by :value #(compare %2 %1))
+             (take top-n)
+             (keep :id))
         ]
     (log/info "Adding" (count winning-ids) "supply locations")
     (cond-> instance
@@ -369,7 +358,7 @@ If the scenario definition refers to some fields, you mention them here or they 
 
 (defn- problem-summary
   "Compute some useful summary stats about the given instance."
-  [instance]
+  [instance name]
 
   (let [{buildings :building paths :path}
         (group-by ::candidate/type
@@ -383,7 +372,8 @@ If the scenario definition refers to some fields, you mention them here or they 
         network-paths
         (filter candidate/is-connected? paths)
         ]
-    {:number-of-buildings (count buildings)
+    {:name name
+     :number-of-buildings (count buildings)
      :number-of-paths     (count paths)
 
      :network
@@ -398,11 +388,11 @@ If the scenario definition refers to some fields, you mention them here or they 
                               (keep ::solution/output-kwh)
                               (reduce +))
 
-      :supply-capex (sum-costs (keep ::solution/supply-capex network-buildings))
-      :supply-heat-cost (sum-costs (keep ::solution/heat-cost network-buildings))
-      :supply-opex (sum-costs (keep ::solution/supply-opex network-buildings))
+      :supply-capex (sum-costs (keep ::solution/supply-capex buildings))
+      :supply-heat-cost (sum-costs (keep ::solution/heat-cost buildings))
+      :supply-opex (sum-costs (keep ::solution/supply-opex buildings))
       :path-capex (sum-costs (keep ::solution/pipe-capex network-paths))
-      :connection-capex (sum-costs (keep ::solution/connection-capex network-buildings))
+      :connection-capex (sum-costs (keep ::solution/connection-capex buildings))
       }
 
      :insulation
@@ -527,7 +517,8 @@ If the scenario definition refers to some fields, you mention them here or they 
     (when summary-output-path
       (log/info "Saving summary to" summary-output-path)
       (with-open [w (output summary-output-path)]
-        (json/write (problem-summary instance) w))))
+        (json/write (problem-summary instance (:name options))
+                    w))))
   
   (mount/stop))
 
