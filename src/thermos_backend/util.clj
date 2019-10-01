@@ -1,5 +1,6 @@
 (ns thermos-backend.util
-  (:require [org.tobereplaced.nio.file :as nio]))
+  (:require [org.tobereplaced.nio.file :as nio]
+            [clojure.java.io :as io]))
 
 (defn create-temp-directory! [in-directory label]
   (let [wd (nio/path in-directory)]
