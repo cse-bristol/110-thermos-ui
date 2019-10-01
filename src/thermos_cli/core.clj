@@ -356,10 +356,11 @@ If the scenario definition refers to some fields, you mention them here or they 
                               (keep ::solution/output-kwh)
                               (reduce +))
 
-      :supply-capex (sum-costs (keep ::solution/supply-capex buildings))
-      :supply-heat-cost (sum-costs (keep ::solution/heat-cost buildings))
-      :supply-opex (sum-costs (keep ::solution/supply-opex buildings))
+      :supply-capex (sum-costs (keep ::solution/supply-capex network-buildings))
+      :supply-heat-cost (sum-costs (keep ::solution/heat-cost network-buildings))
+      :supply-opex (sum-costs (keep ::solution/supply-opex network-buildings))
       :path-capex (sum-costs (keep ::solution/pipe-capex network-paths))
+      :connection-capex (sum-costs (keep ::solution/connection-capex network-buildings))
       }
 
      :insulation
