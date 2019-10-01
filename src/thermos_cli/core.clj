@@ -329,6 +329,7 @@ If the scenario definition refers to some fields, you mention them here or they 
                     (select-keys preserve-fields)
                     (merge {::candidate/id        (::geoio/id path)
                             ::candidate/type      :path
+                            ::candidate/subtype   (:subtype path)
                             ::candidate/inclusion :optional
                             ::path/length         (or (::spatial/length path) 0)
                             ::path/start          (::geoio/id (::spatial/start-node path))
@@ -340,6 +341,7 @@ If the scenario definition refers to some fields, you mention them here or they 
                         (select-keys (concat [:demand-source] preserve-fields))
                         
                         (merge {::candidate/id            (::geoio/id building)
+                                ::candidate/subtype       (:subtype building)
                                 ::candidate/type          :building
                                 ::candidate/inclusion     :optional
                                 ::candidate/wall-area     (:wall-area building)
