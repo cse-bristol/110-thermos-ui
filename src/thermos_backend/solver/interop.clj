@@ -282,8 +282,11 @@
 
             ;; we pay for fuel for the counterfactual
             "cost/kwh" (if network-only 0
-                           (finance/objective-value instance :alternative-opex
-                                                    (::supply/cost-per-kwh alternative 0)))
+                           (+
+                            (finance/objective-value instance :alternative-capex
+                                                     (::supply/cost-per-mean-kw alternative 0))
+                            (finance/objective-value instance :alternative-opex
+                                                     (::supply/cost-per-kwh alternative 0))))
             
             "cost/kwp"
             ;; we pay opex for the CF unless in network-only mode.
@@ -481,12 +484,17 @@
                  kwp (::demand/kwp candidate)
                  
                  fixed-cost (::supply/fixed-cost alternative 0)
-                 cost-per-kwp (::supply/cost-per-kwp alternative 0)
+                 capex-per-kwp (::supply/capex-per-kwp alternative 0)
+                 capex-per-mean-kw (::supply/capex-per-mean-kw alternative 0)
                  
                  opex-per-kwh (::supply/cost-per-kwh alternative 0)
                  opex-per-kwp (::supply/opex-per-kwp alternative 0)
                  
-                 capex (+ fixed-cost (* cost-per-kwp kwp))
+                 capex (+ fixed-cost
+                          (* capex-per-kwp kwp)
+                          (* capex-per-mean-kw
+                             (annual-kwh->kw kwh)))
+                 
                  opex (* opex-per-kwp kwp)
                  fuel (* opex-per-kwh kwh)]
              {:capex (finance/adjusted-value instance :alternative-capex capex)

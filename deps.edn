@@ -135,5 +135,7 @@
   net.cgrand/macrovich {:mvn/version "0.2.1"}
   com.rpl/specter {:mvn/version "1.1.2"}
   rum {:mvn/version "0.11.3"}
-  cljs-ajax {:mvn/version "0.8.0"}}
+  cljs-ajax {:mvn/version "0.8.0"
+             :exclusions [commons-logging/commons-logging]}}
+ 
  }

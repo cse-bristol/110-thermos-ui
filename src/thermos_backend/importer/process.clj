@@ -86,8 +86,6 @@
                            (.getMaxY box)
                            (.getMaxX box)]))
 
-        _ (println "Query area:" query-area)
-        
         set-building-type  #(assoc % :subtype (remap-building-type %))
         set-road-type      #(assoc % :subtype (clean-tag (:highway %)))
         set-specials       #(cond-> %
@@ -442,7 +440,7 @@
                       (boolean (as-boolean (:residential feature)))
                       (contains? residential-subtypes (:subtype feature)))
 
-        use-annual-demand (:use-annual-demand feature :use)
+        use-annual-demand (or (#{:use :estimate :max} (:use-annual-demand feature)) :use)
 
         model-output (delay
                        (run-svm-models (assoc feature
@@ -453,6 +451,7 @@
         ;; produce demand
         feature (cond
                   (and given-demand
+                       (not= :estimate use-annual-demand)
                        (or (= :use use-annual-demand)
                            (and
                             (= :max use-annual-demand)
@@ -619,7 +618,6 @@
               (update :buildings :geoio/update-features :add-areas add-areas)
               )
           (catch Exception e
-            (println "Error during import: " (.getMessage e))
-            (.printStackTrace e)
+            (log/error e "Error during import: ")
             (throw e) ;; so the job gets marked failed
             ))))))
