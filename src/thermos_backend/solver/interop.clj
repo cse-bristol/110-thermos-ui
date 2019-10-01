@@ -484,15 +484,15 @@
                  kwp (::demand/kwp candidate)
                  
                  fixed-cost (::supply/fixed-cost alternative 0)
-                 cost-per-kwp (::supply/cost-per-kwp alternative 0)
-                 cost-per-mean-kw (::supply/cost-per-mean-kw alternative 0)
+                 capex-per-kwp (::supply/capex-per-kwp alternative 0)
+                 capex-per-mean-kw (::supply/capex-per-mean-kw alternative 0)
                  
                  opex-per-kwh (::supply/cost-per-kwh alternative 0)
                  opex-per-kwp (::supply/opex-per-kwp alternative 0)
                  
                  capex (+ fixed-cost
-                          (* cost-per-kwp kwp)
-                          (* cost-per-mean-kw
+                          (* capex-per-kwp kwp)
+                          (* capex-per-mean-kw
                              (annual-kwh->kw kwh)))
                  
                  opex (* opex-per-kwp kwp)
