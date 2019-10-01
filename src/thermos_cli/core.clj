@@ -272,18 +272,54 @@ If the scenario definition refers to some fields, you mention them here or they 
       tariff (assoc ::tariff/id tariff))))
 
 (defn- select-supply-location [instance supply top-n]
-  ;; for now we find the N largest annual demands
-  ;; we could do a spatial rule as well / instead?
-  (let [biggest-demands
-        (take top-n
-              (sort-by ::demand/kwh #(compare %2 %1)
-                       (vals (::document/candidates instance))))]
-    (log/info "Adding" (count biggest-demands) "supply locations")
+  ;; Ideally I guess we want to find the largest demand within each
+  ;; connected component and use that? or the most central large demand?
+  (let [factors
+        (->> (::document/candidates instance)
+             (vals)
+             (keep #(when (candidate/is-building? %)
+                      (let [centroid (.getCentroid (::candidate/geometry %))]
+                        {:id (::candidate/id %)
+                         :kwh (::demand/kwh %)
+                         :x (.getX centroid)
+                         :y (.getY centroid)}))))
+
+        max-kwh (reduce max (keep :kwh factors))
+
+        mean #(/ (double (sum %)) (double (count %)))
+
+        mean-x (mean (map :x factors))
+        mean-y (mean (map :y factors))
+
+        radius (fn [{x :x y :y}]
+                 (Math/sqrt (+ (Math/pow (- mean-x x) 2.0)
+                               (Math/pow (- mean-y y) 2.0))))
+
+        factors (for [f factors]
+                  (assoc f :radius (radius f)))
+
+        max-radius (reduce max (keep :radius factors))
+
+        factors (for [f factors]
+                  (-> f
+                      (update :kwh / max-kwh)
+                      (update :radius / max-radius)))
+
+        factors
+        (sort-by
+         (fn [{kwh :kwh radius :radius}]
+           (+ radius (* 2.0 (- 1.0 kwh))))
+         factors)
+
+        winning-ids (keep :id (take top-n factors))
+        ]
+    (log/info "Adding" (count winning-ids) "supply locations")
     (cond-> instance
-      (and (seq biggest-demands) supply)
+      (and (seq winning-ids) supply)
       (document/map-candidates
        #(merge supply %)
-       (map ::candidate/id biggest-demands)))))
+       winning-ids))
+    ))
 
 (defn- make-candidates [paths buildings preserve-fields]
   (let [paths (for [path paths]
