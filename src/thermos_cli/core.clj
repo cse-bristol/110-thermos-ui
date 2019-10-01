@@ -286,7 +286,9 @@ If the scenario definition refers to some fields, you mention them here or they 
 
         max-kwh (reduce max (keep :kwh factors))
 
-        mean #(/ (double (sum %)) (double (count %)))
+        mean #(if (seq %)
+                (/ (double (reduce + %)) (double (count %)))
+                0)
 
         mean-x (mean (map :x factors))
         mean-y (mean (map :y factors))
