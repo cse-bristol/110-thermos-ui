@@ -497,9 +497,11 @@ If the scenario definition refers to some fields, you mention them here or they 
 
                             (:solver options)
                             (-> (saying "Solve")
-                                (->> (interop/solve ""
-                                                    :remove-temporary-files
-                                                    (not (:preserve-temp options))))))
+                                (as-> instance
+                                    (interop/solve "" instance
+                                                   :remove-temporary-files
+                                                   (not (:preserve-temp options)))
+                                  )))
         ]
     (when json-path
       (log/info "Saving geojson to" json-path)
