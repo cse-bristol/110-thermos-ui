@@ -26,7 +26,9 @@
             [thermos-specs.solution :as solution]
             [mount.core :as mount]
             [clojure.pprint :refer [pprint]]
-            )
+
+            [loom.graph :as graph]
+            [loom.alg :as graph-alg])
   (:gen-class))
 
 ;; THERMOS CLI tools for Net Zero Analysis
@@ -43,11 +45,14 @@
   (update m k conj v))
 
 (def options
-  [["-i" "--base FILE" "The problem to start with - this may contain geometry already.
+  [[nil "--name NAME" "A name to put in the summary output"]
+   ["-i" "--base FILE" "The problem to start with - this may contain geometry already.
 An efficient way to use the tool is to put back in a file produced by a previous -o output."]
    ["-o" "--output FILE" "The problem & solution state will be written in here as EDN."]
    ["-s" "--summary-output FILE" "A file where some json summary stats about the problem will go."]
    ["-j" "--json-output FILE" "The geometry data from the final state will be put here as geojson."]
+   [nil  "--temp-dir DIR" "Where to put temporary files" :default "/tmp/thermos"]
+   [nil  "--preserve-temp" "If not set, temporary files will be removed after run"]
    ["-m" "--map FILE*"
     "Geodata files containing roads or buildings.
 These geometries will replace everything in the base scenario (NOT combine with).
@@ -270,18 +275,61 @@ If the scenario definition refers to some fields, you mention them here or they 
       tariff (assoc ::tariff/id tariff))))
 
 (defn- select-supply-location [instance supply top-n]
-  ;; for now we find the N largest annual demands
-  ;; we could do a spatial rule as well / instead?
-  (let [biggest-demands
-        (take top-n
-              (sort-by ::demand/kwh #(compare %2 %1)
-                       (vals (::document/candidates instance))))]
-    (log/info "Adding" (count biggest-demands) "supply locations")
+  (let [{buildings :building paths :path}
+        (document/candidates-by-type instance)
+
+        graph
+        (interop/create-graph buildings paths)
+
+        components
+        (graph-alg/connected-components graph)
+
+        candidates (::document/candidates instance)
+        
+        ranked-building-ids
+        (fn [building-ids]
+          (let [buildings
+                (keep
+                 (fn [id]
+                   (let [candidate (get candidates id)]
+                     (when (candidate/is-building? candidate)
+                       {:id (::candidate/id candidate)
+                        :kwh (::demand/kwh candidate)
+                        :centroid (.getCentroid (::candidate/geometry candidate))})))
+                 building-ids)
+
+                buildings
+                (for [{id :id here :centroid} buildings]
+                  {:id id
+                   :value
+                   (double
+                    (reduce
+                     +
+                     (for [{kwh :kwh there :centroid} buildings]
+                       (/ kwh
+                          (+ 50.0  ;; might work?
+                             (jts/geodesic-distance
+                              (.getCoordinate here)
+                              (.getCoordinate there))
+                             )))))})
+                ]
+
+            (->> buildings
+                 (sort-by :value #(compare %2 %1))
+                 (keep :id))))
+
+        winning-ids
+        (mapcat
+         #(take top-n (ranked-building-ids %))
+         components)
+        ]
+    (log/info "Adding" (count winning-ids) "supply locations to" (count components) "components")
     (cond-> instance
-      (and (seq biggest-demands) supply)
+      (and (seq winning-ids) supply)
       (document/map-candidates
        #(merge supply %)
-       (map ::candidate/id biggest-demands)))))
+       winning-ids))
+    ))
 
 (defn- make-candidates [paths buildings preserve-fields]
   (let [paths (for [path paths]
@@ -289,6 +337,7 @@ If the scenario definition refers to some fields, you mention them here or they 
                     (select-keys preserve-fields)
                     (merge {::candidate/id        (::geoio/id path)
                             ::candidate/type      :path
+                            ::candidate/subtype   (:subtype path)
                             ::candidate/inclusion :optional
                             ::path/length         (or (::spatial/length path) 0)
                             ::path/start          (::geoio/id (::spatial/start-node path))
@@ -300,6 +349,7 @@ If the scenario definition refers to some fields, you mention them here or they 
                         (select-keys (concat [:demand-source] preserve-fields))
                         
                         (merge {::candidate/id            (::geoio/id building)
+                                ::candidate/subtype       (:subtype building)
                                 ::candidate/type          :building
                                 ::candidate/inclusion     :optional
                                 ::candidate/wall-area     (:wall-area building)
@@ -327,7 +377,7 @@ If the scenario definition refers to some fields, you mention them here or they 
 
 (defn- problem-summary
   "Compute some useful summary stats about the given instance."
-  [instance]
+  [instance name]
 
   (let [{buildings :building paths :path}
         (group-by ::candidate/type
@@ -341,7 +391,8 @@ If the scenario definition refers to some fields, you mention them here or they 
         network-paths
         (filter candidate/is-connected? paths)
         ]
-    {:number-of-buildings (count buildings)
+    {:name name
+     :number-of-buildings (count buildings)
      :number-of-paths     (count paths)
 
      :network
@@ -356,11 +407,11 @@ If the scenario definition refers to some fields, you mention them here or they 
                               (keep ::solution/output-kwh)
                               (reduce +))
 
-      :supply-capex (sum-costs (keep ::solution/supply-capex network-buildings))
-      :supply-heat-cost (sum-costs (keep ::solution/heat-cost network-buildings))
-      :supply-opex (sum-costs (keep ::solution/supply-opex network-buildings))
+      :supply-capex (sum-costs (keep ::solution/supply-capex buildings))
+      :supply-heat-cost (sum-costs (keep ::solution/heat-cost buildings))
+      :supply-opex (sum-costs (keep ::solution/supply-opex buildings))
       :path-capex (sum-costs (keep ::solution/pipe-capex network-paths))
-      :connection-capex (sum-costs (keep ::solution/connection-capex network-buildings))
+      :connection-capex (sum-costs (keep ::solution/connection-capex buildings))
       }
 
      :insulation
@@ -371,7 +422,7 @@ If the scenario definition refers to some fields, you mention them here or they 
                  (group-by ::measure/name))]
         [name
          {:kwh   (reduce + (keep :kwh installed))
-          :area  (reduce + (keep :kwh installed))
+          :area  (reduce + (keep :area installed))
           :capex (sum-costs installed)}])
       (into {}))
      
@@ -393,7 +444,7 @@ If the scenario definition refers to some fields, you mention them here or they 
 
 (defn --main [options]
   (mount/start-with {#'thermos-backend.config/config
-                     {:solver-directory "."
+                     {:solver-directory (:temp-dir options)
                       :solver-command (:solver options)}})
   (let [output-path       (:output options)
         summary-output-path (:summary-output options)
@@ -457,7 +508,11 @@ If the scenario definition refers to some fields, you mention them here or they 
 
                             (:solver options)
                             (-> (saying "Solve")
-                                (->> (interop/solve "job-"))))
+                                (as-> instance
+                                    (interop/solve "" instance
+                                                   :remove-temporary-files
+                                                   (not (:preserve-temp options)))
+                                  )))
         ]
     (when json-path
       (log/info "Saving geojson to" json-path)
@@ -469,8 +524,8 @@ If the scenario definition refers to some fields, you mention them here or they 
                         (fn write-geojson-nicely [k v]
                           (if (instance? org.locationtech.jts.geom.Geometry v)
                             (jts/geom->json v)
-                            v)
-)
+                            v))
+                        
                         ))))
     
     (when output-path
@@ -481,7 +536,8 @@ If the scenario definition refers to some fields, you mention them here or they 
     (when summary-output-path
       (log/info "Saving summary to" summary-output-path)
       (with-open [w (output summary-output-path)]
-        (json/write (problem-summary instance) w))))
+        (json/write (problem-summary instance (:name options))
+                    w))))
   
   (mount/stop))
 

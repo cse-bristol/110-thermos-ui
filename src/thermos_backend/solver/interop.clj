@@ -33,6 +33,20 @@
 
 (def HOURS-PER-YEAR 8766)
 
+(defn create-graph [buildings paths]
+  (apply
+   graph/graph
+   (concat
+    (mapcat ::candidate/connections buildings)
+
+    (map ::path/start paths)
+    (map ::path/end paths)
+    
+    (map ::candidate/id buildings)
+
+    (map #(vector (::path/start %) (::path/end %)) paths)
+    (mapcat #(for [c (::candidate/connections %)] [c (::candidate/id %)]) buildings))))
+
 (defn- simplify-topology
   "For CANDIDATES, create a similar graph in which all vertices of degree two
   that don't represent demand or supply points have been collapsed.
@@ -47,18 +61,7 @@
   (let [{paths :path buildings :building}
         (group-by ::candidate/type candidates)
 
-        net-graph (apply
-                   graph/graph
-                   (concat
-                    (mapcat ::candidate/connections buildings)
-
-                    (map ::path/start paths)
-                    (map ::path/end paths)
-                    
-                    (map ::candidate/id buildings)
-
-                    (map #(vector (::path/start %) (::path/end %)) paths)
-                    (mapcat #(for [c (::candidate/connections %)] [c (::candidate/id %)]) buildings)))
+        net-graph (create-graph buildings paths)
 
         ;; tag all the real vertices
         net-graph (reduce (fn [g d]
@@ -691,7 +694,7 @@
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
-  [label instance]
+  [label instance & {:keys [remove-temporary-files]}]
   
   (let [instance (document/remove-solution instance)
 
@@ -719,16 +722,23 @@
         ;; at this point we should check for some more bad things:
 
         ;; * components not connected to any supply vertex
-        ccs (map set (graph-alg/connected-components net-graph))
-        supplies (map ::candidate/id (filter candidate/has-supply? included-candidates))
+        net-graph
 
-        invalid-ccs (filter (fn [cc] (not-any? cc supplies)) ccs)
+        (if (::document/consider-alternatives instance)
+          (do
+            (log/info "Not pruning un-suppliable components, as we are considering alternative systems")
+            net-graph)
 
-        _ (log/info "removing" (count invalid-ccs) "un-suppliable components"
-                    "containing" (reduce + 0 (map count invalid-ccs)) "vertices")
-        
-        net-graph (reduce (fn [g cc] (graph/remove-nodes* g cc))
-                          net-graph invalid-ccs)
+          (let [ccs (map set (graph-alg/connected-components net-graph))
+                supplies (map ::candidate/id (filter candidate/has-supply? included-candidates))
+
+                ;; if we are offering alternative systems we don't need to do this
+                
+                invalid-ccs (filter (fn [cc] (not-any? cc supplies)) ccs)]
+            (log/info "removing" (count invalid-ccs) "un-suppliable components"
+                      "containing" (reduce + 0 (map count invalid-ccs)) "vertices")
+            (reduce (fn [g cc] (graph/remove-nodes* g cc))
+                    net-graph invalid-ccs)))
                 
         ;; This is now the topology we want. Every edge may be several
         ;; input edges, and nodes can either be real ones or junctions
@@ -787,8 +797,13 @@
                   (merge-solution net-graph power-curve output-json)
                   (mark-unreachable net-graph included-candidates))
               ]
-          (spit (io/file working-directory "stdout.txt") (:out output))
-          (spit (io/file working-directory "stderr.txt") (:err output))
-          (spit (io/file working-directory "instance.edn") solved-instance)
+
+          (if remove-temporary-files
+            (util/remove-files! working-directory)
+            (do
+              (spit (io/file working-directory "stdout.txt") (:out output))
+              (spit (io/file working-directory "stderr.txt") (:err output))
+              (spit (io/file working-directory "instance.edn") solved-instance)))
+          
           solved-instance)))
     ))
