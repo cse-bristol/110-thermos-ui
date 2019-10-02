@@ -278,86 +278,91 @@
            
            "DELETE PROJECT " symbols/delete])
         [:a.button {:style {:margin-left :1em}
-                    :href "map/new"} "NEW MAP " symbols/plus]]]]
+                    :href "map/new"} "MAP " symbols/plus]]]]
 
      
      (if-let [maps (seq (:maps project))]
-       (for [m maps]
-         [:div.card {:key (:id m)}
-          [:div.flex-cols
-           [:h1 {:style {:flex-grow 1}}
-            [:img {:width :32px :height :32px :src (str "map/" (:id m) "/icon.png")
-                   :style {:margin-right :2em
-                           :vertical-align :middle}
-                   :alt (str "An image for the map " (:name m))}]
-            [:span
-             (:name m)]
-            ]
-           
-           [:div
+       [:div
+        {:style {:display :flex
+                 :flex-flow "row wrap"
+                 }}
+        (for [m maps]
+          [:div.card {:key (:id m)
+                      :style {:flex-basis :40em
+                              :flex-grow 1}}
+           [:div.flex-cols
+            [:h1 {:style {:flex-grow 1}}
+             [:img {:width :32px :height :32px :src (str "map/" (:id m) "/icon.png")
+                    :style {:margin-right :1em
+                            :vertical-align :middle}
+                    :alt (str "An image for the map " (:name m))}]
+             [:span (:name m)]]
             
-            [:a.button
-             {:style {:margin-left :1em}
-              :href (str "map/" (:id m) "/data.json")} "DOWNLOAD " symbols/download]
-            [:a.button
-             {:style {:margin-left :1em}
-              :on-click (fn-js [e]
-                          (show-delete-dialog!
-                           {:name (:name m)
-                            :message [:span "Are you sure you want to delete this map "
-                                      "and the " (count (:networks m))
-                                      " network problems associated with it?"]
-                            :on-delete
-                            ;; issue the relevant request - the map should disappear later.
-                            #(DELETE (str "map/" (:id m)))})
-                          (.preventDefault e))
-              
-              :href (str "map/" (:id m) "/delete")} "DELETE MAP " symbols/delete]
-            (if (:import-completed m)
-              [:a.button {:style {:margin-left :1em}
-                          :href (str "map/" (:id m) "/net/new")} "NEW NETWORK " symbols/plus])
-            ]]
-          
-          [:span (:description m)]
+            
+            [:div
+             
+             [:a.button
+              {:style {:margin-left :1em}
+               :href (str "map/" (:id m) "/data.json")} "DOWNLOAD " symbols/download]
+             [:a.button
+              {:style {:margin-left :1em}
+               :on-click (fn-js [e]
+                                (show-delete-dialog!
+                                 {:name (:name m)
+                                  :message [:span "Are you sure you want to delete this map "
+                                            "and the " (count (:networks m))
+                                            " network problems associated with it?"]
+                                  :on-delete
+                                  ;; issue the relevant request - the map should disappear later.
+                                  #(DELETE (str "map/" (:id m)))})
+                                (.preventDefault e))
+               
+               :href (str "map/" (:id m) "/delete")} "DELETE " symbols/delete]
+             (if (:import-completed m)
+               [:a.button {:style {:margin-left :1em}
+                           :href (str "map/" (:id m) "/net/new")} "NETWORK " symbols/plus])
+             ]]
+           
+           [:span (:description m)]
 
-          (if (:import-completed m)
-            (if-let [networks (seq (:networks m))]
-              ;; expando button needs a component
-              [:div.flex-grow
-               {:style {:margin :1em}}
-               [:b "Networks:"]
-               (network-table (:id m) networks)]
-              [:div
-               "This map has no network designs associated with it yet."])
+           (if (:import-completed m)
+             (if-let [networks (seq (:networks m))]
+               ;; expando button needs a component
+               [:div.flex-grow
+                {:style {:margin-top :1em}}
+                [:b "Networks:"]
+                (network-table (:id m) networks)]
+               [:div
+                "This map has no network designs associated with it yet."])
 
-            (case (keyword (:state m))
-              :ready
-              [:div (spinner)
-               "Map import is queued, and waiting to start"]
-              :running
-              [:div
-               (spinner)
-               (str (:message m)
-                    ", "
-                    (or (:progress m) 0)
-                    "% complete")]
-              :completed
-              [:div
-               "Map import is completed, but not ready for presentation"]
-              :failed
-              [:div "Map has failed to import, because of an error:"
-               [:div (:message m)]]
-              :cancel
-              [:div (spinner) "Map import cancel requested"]
-              :cancelling
-              [:div (spinner) "Map import cancelling"]
-              :cancelled
-              [:div "Map import cancelled"]
+             (case (keyword (:state m))
+               :ready
+               [:div (spinner)
+                "Map import is queued, and waiting to start"]
+               :running
+               [:div
+                (spinner)
+                (str (:message m)
+                     ", "
+                     (or (:progress m) 0)
+                     "% complete")]
+               :completed
+               [:div
+                "Map import is completed, but not ready for presentation"]
+               :failed
+               [:div "Map has failed to import, because of an error:"
+                [:div (:message m)]]
+               :cancel
+               [:div (spinner) "Map import cancel requested"]
+               :cancelling
+               [:div (spinner) "Map import cancelling"]
+               :cancelled
+               [:div "Map import cancelled"]
 
-              [:div "Map import status unknown!"
-               [:pre {:style {:white-space :pre-wrap}}
-                (str m)]
-               ]))])
+               [:div "Map import status unknown!"
+                [:pre {:style {:white-space :pre-wrap}}
+                 (str m)]
+                ]))])]
        [:div.card
         "This project has no maps in it yet. "
         "Get started by creating a new map above."])]))
