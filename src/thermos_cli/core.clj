@@ -26,7 +26,9 @@
             [thermos-specs.solution :as solution]
             [mount.core :as mount]
             [clojure.pprint :refer [pprint]]
-            )
+
+            [loom.graph :as graph]
+            [loom.alg :as graph-alg])
   (:gen-class))
 
 ;; THERMOS CLI tools for Net Zero Analysis
@@ -273,38 +275,55 @@ If the scenario definition refers to some fields, you mention them here or they 
       tariff (assoc ::tariff/id tariff))))
 
 (defn- select-supply-location [instance supply top-n]
-  (let [buildings
-        (->> (::document/candidates instance)
-             (vals)
-             (keep
-              (fn [candidate]
-                (when (candidate/is-building? candidate)
-                  {:id (::candidate/id candidate)
-                   :kwh (::demand/kwh candidate)
-                   :centroid (.getCentroid (::candidate/geometry candidate))}))))
+  (let [{buildings :building paths :path}
+        (document/candidates-by-type instance)
 
-        buildings
-        (for [{id :id here :centroid} buildings]
-          {:id id
-           :value
-           (double
-            (reduce
-             +
-             (for [{kwh :kwh there :centroid} buildings]
-               (/ kwh
-                  (+ 50.0  ;; might work?
-                     (jts/geodesic-distance
-                      (.getCoordinate here)
-                      (.getCoordinate there))
-                     )))))})
+        graph
+        (interop/create-graph buildings paths)
 
-        winning-ids
-        (->> buildings
-             (sort-by :value #(compare %2 %1))
-             (take top-n)
-             (keep :id))
+        components
+        (graph-alg/connected-components graph)
+
+        candidates (::document/candidates instance)
+        
+        ranked-building-ids
+        (fn [building-ids]
+          (let [buildings
+                (keep
+                 (fn [id]
+                   (let [building (get candidates id)]
+                     (when (candidate/is-building? candidate)
+                       {:id (::candidate/id candidate)
+                        :kwh (::demand/kwh candidate)
+                        :centroid (.getCentroid (::candidate/geometry candidate))})))
+                 building-ids)
+
+                buildings
+                (for [{id :id here :centroid} buildings]
+                  {:id id
+                   :value
+                   (double
+                    (reduce
+                     +
+                     (for [{kwh :kwh there :centroid} buildings]
+                       (/ kwh
+                          (+ 50.0  ;; might work?
+                             (jts/geodesic-distance
+                              (.getCoordinate here)
+                              (.getCoordinate there))
+                             )))))})
+                ]
+
+            (->> buildings
+                 (sort-by :value #(compare %2 %1))
+                 (keep :id))))
+
+        winners
+        (mapcat
+         #(take top-n (ranked-building-ids %))
+         components)
         ]
-    (log/info "Adding" (count winning-ids) "supply locations")
+    (log/info "Adding" (count winning-ids) "supply locations to" (count components) "components")
     (cond-> instance
       (and (seq winning-ids) supply)
       (document/map-candidates

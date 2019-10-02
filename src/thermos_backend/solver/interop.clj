@@ -33,6 +33,20 @@
 
 (def HOURS-PER-YEAR 8766)
 
+(defn create-graph [buildings paths]
+  (apply
+   graph/graph
+   (concat
+    (mapcat ::candidate/connections buildings)
+
+    (map ::path/start paths)
+    (map ::path/end paths)
+    
+    (map ::candidate/id buildings)
+
+    (map #(vector (::path/start %) (::path/end %)) paths)
+    (mapcat #(for [c (::candidate/connections %)] [c (::candidate/id %)]) buildings))))
+
 (defn- simplify-topology
   "For CANDIDATES, create a similar graph in which all vertices of degree two
   that don't represent demand or supply points have been collapsed.
@@ -47,18 +61,7 @@
   (let [{paths :path buildings :building}
         (group-by ::candidate/type candidates)
 
-        net-graph (apply
-                   graph/graph
-                   (concat
-                    (mapcat ::candidate/connections buildings)
-
-                    (map ::path/start paths)
-                    (map ::path/end paths)
-                    
-                    (map ::candidate/id buildings)
-
-                    (map #(vector (::path/start %) (::path/end %)) paths)
-                    (mapcat #(for [c (::candidate/connections %)] [c (::candidate/id %)]) buildings)))
+        net-graph (create-graph buildings paths)
 
         ;; tag all the real vertices
         net-graph (reduce (fn [g d]

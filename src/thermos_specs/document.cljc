@@ -197,6 +197,11 @@
   (map-candidates
    doc f (map ::candidate/id (filter candidate/is-path? (vals (::candidates doc))))))
 
+(defn candidates-by-type
+  "Return candidates from the given document, grouped by type"
+  [doc]
+  (group-by ::candidate/type (vals (::candidates doc))))
+
 (let [solution-ns (namespace ::solution/included)
       is-solution-keyword #(and (keyword? %)
                                 (= (namespace %) solution-ns))]
