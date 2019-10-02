@@ -291,7 +291,7 @@ If the scenario definition refers to some fields, you mention them here or they 
           (let [buildings
                 (keep
                  (fn [id]
-                   (let [building (get candidates id)]
+                   (let [candidate (get candidates id)]
                      (when (candidate/is-building? candidate)
                        {:id (::candidate/id candidate)
                         :kwh (::demand/kwh candidate)
@@ -318,7 +318,7 @@ If the scenario definition refers to some fields, you mention them here or they 
                  (sort-by :value #(compare %2 %1))
                  (keep :id))))
 
-        winners
+        winning-ids
         (mapcat
          #(take top-n (ranked-building-ids %))
          components)
