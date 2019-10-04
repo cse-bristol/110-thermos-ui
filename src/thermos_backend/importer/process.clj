@@ -615,8 +615,8 @@
               (topo)
               (progress* 80 "Adding map to database")
 
-              (update :buildings :geoio/update-features :add-areas add-areas)
-              )
+              (update :buildings geoio/update-features :add-areas add-areas))
+          
           (catch Exception e
             (log/error e "Error during import: ")
             (throw e) ;; so the job gets marked failed
