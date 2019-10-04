@@ -1,4 +1,15 @@
 [
+ {:title "4th October 2019"
+  :changes
+  [{:title "UI Improvements"
+    :summary [:div "A bunch of minor improvements to the user interface, following feedback."]
+    }
+   {:title "Pipe diameter limits"
+    :summary [:div "The pipe cost parameters page now lets you set the minimum and maximum pipe diameter the model will consider."]
+    }
+   ]
+  }
+ 
  {:title "29th August 2019"
   :changes
   [{:title "Better connectors"
