@@ -16,7 +16,7 @@
 
 (defn landing-page [user projects]
   (page
-   {:title (str "Welcome " (:name user))}
+   {:title (str "Welcome, " (:name user))}
    [:div
     (let [last-log (:changelog-seen user 0)
           max-log (count changelog)
@@ -45,7 +45,8 @@
     
     [:div.flex-cols.card
      (if (seq projects)
-       [:h1 "You are participating in " (count projects) " projects"]
+       (let [c (count projects)]
+         [:h1 "You are participating in " c " project" (when (> c 1) "s")])
        [:h1 "You have no projects"])
      [:a.button {:style {:margin-left "auto"}
                  :href "/project/new"} "New Project"]]

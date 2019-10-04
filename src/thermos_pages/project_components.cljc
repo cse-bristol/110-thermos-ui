@@ -292,15 +292,19 @@
                               :flex-grow 1}}
            [:div.flex-cols
             [:h1 {:style {:flex-grow 1}}
-             [:img {:width :32px :height :32px :src (str "map/" (:id m) "/icon.png")
-                    :style {:margin-right :1em
-                            :vertical-align :middle}
-                    :alt (str "An image for the map " (:name m))}]
+             (case (keyword (:state m))
+               (:ready :running)
+               [:div {:margin-right :1em} (spinner {:size 16})]
+               :completed
+               [:img {:width :32px :height :32px :src (str "map/" (:id m) "/icon.png")
+                      :style {:margin-right :1em
+                              :vertical-align :middle}
+                      :alt (str "An image for the map " (:name m))}]
+               "")
+             
              [:span (:name m)]]
             
-            
             [:div
-             
              [:a.button
               {:style {:margin-left :1em}
                :href (str "map/" (:id m) "/data.json")} "DOWNLOAD " symbols/download]
@@ -337,11 +341,10 @@
 
              (case (keyword (:state m))
                :ready
-               [:div (spinner)
+               [:div 
                 "Map import is queued, and waiting to start"]
                :running
                [:div
-                (spinner)
                 (str (:message m)
                      ", "
                      (or (:progress m) 0)
