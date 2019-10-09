@@ -392,27 +392,61 @@ If the scenario definition refers to some fields, you mention them here or they 
         (filter candidate/is-connected? paths)
         ]
     {:name name
-     :number-of-buildings (count buildings)
-     :number-of-paths     (count paths)
 
-     :network
-     {:building-count    (count network-buildings)
-      :address-count     (reduce + (keep ::demand/connection-count network-buildings))
-      :total-demand      (reduce + (keep ::solution/kwh network-buildings))
-      :total-peak        (reduce + (keep ::demand/kwp network-buildings))
-      :supply-capacity   (reduce + (keep ::solution/capacity-kw network-buildings))
-      :network-length    (reduce + (keep ::path/length network-paths))
+     :problem
+     {:building-count (count buildings)
+      :address-count  (reduce + (keep ::demand/connection-count buildings))
+      :path-count     (count paths)
+      :demand-kwh    (reduce + (keep ::demand/kwh buildings))
+      :peak-kw       (reduce + (keep ::demand/kwp buildings))
+      :path-length   (reduce + (keep ::path/length paths))
 
-      :supply-output-kwh (->> network-buildings
-                              (keep ::solution/output-kwh)
-                              (reduce +))
-
-      :supply-capex (sum-costs (keep ::solution/supply-capex buildings))
-      :supply-heat-cost (sum-costs (keep ::solution/heat-cost buildings))
-      :supply-opex (sum-costs (keep ::solution/supply-opex buildings))
-      :path-capex (sum-costs (keep ::solution/pipe-capex network-paths))
-      :connection-capex (sum-costs (keep ::solution/connection-capex buildings))
+      :components          (count (keep ::supply/capacity-kwp buildings))
       }
+
+     :solution
+     {:runtime             (::solution/runtime instance)
+      :gap                 (::solution/gap instance)
+      :objective           (::solution/objective instance) }
+     
+     :network
+     
+     (let [heat-output (reduce + (keep ::solution/kwh network-buildings))
+           heat-input  (->> network-buildings
+                            (keep ::solution/output-kwh)
+                            (reduce +))
+           ]
+
+       {:building-count    (count network-buildings)
+        :address-count     (reduce + (keep ::demand/connection-count network-buildings))
+
+        :total-peak        (reduce + (keep ::demand/kwp network-buildings))
+        :supply-capacity   (reduce + (keep ::solution/capacity-kw network-buildings))
+        :length            (reduce + (keep ::path/length network-paths))
+
+        :heat-output       heat-output
+        :heat-input heat-input
+        :heat-lost (- heat-input heat-output)
+
+        :supply-capex (sum-costs (keep ::solution/supply-capex buildings))
+        :heat-cost (sum-costs (keep ::solution/heat-cost buildings))
+        :supply-opex (sum-costs (keep ::solution/supply-opex buildings))
+        :path-capex (sum-costs (keep ::solution/pipe-capex network-paths))
+        :connection-capex (sum-costs (keep ::solution/connection-capex buildings))
+
+        :capex
+        (sum-costs (concat
+                    (keep ::solution/connection-capex buildings)
+                    (keep ::solution/supply-capex buildings)
+                    (keep ::solution/pipe-capex network-paths)))
+
+        :opex
+        (sum-costs
+         (concat
+          (keep ::solution/supply-opex buildings)
+          (keep ::solution/heat-cost buildings)))
+        
+        })
 
      :insulation
      (->>
@@ -433,8 +467,8 @@ If the scenario definition refers to some fields, you mention them here or they 
             (group-by (comp ::supply/name ::solution/alternative)
                       individual-buildings)]
         [(or name "Nothing at all")
-         {:kwh (reduce + (keep ::solution/kwh alts))
-          :kwp (reduce + (keep ::demand/kwp alts))
+         {:heat-output (reduce + (keep ::solution/kwh alts))
+          :total-peak (reduce + (keep ::demand/kwp alts))
           :building-count (count alts)
           :address-count  (reduce + (keep ::demand/connection-count alts))
           :capex (sum-costs (keep (comp :capex ::solution/alternative) alts))
