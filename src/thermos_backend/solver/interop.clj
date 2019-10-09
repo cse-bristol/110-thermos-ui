@@ -404,12 +404,16 @@
            :let [candidate (candidates vertex)]
            :when (or (candidate/has-demand? candidate)
                      (candidate/has-supply? candidate))]
-       (cond-> {:id vertex}
-         (candidate/has-demand? candidate)
-         (assoc :demand (demand-terms instance candidate))
+       (let [unreachable (attr/attr net-graph vertex :unreachable)]
+         (cond-> {:id vertex}
+           (candidate/has-demand? candidate)
+           (assoc :demand (demand-terms instance candidate))
 
-         (candidate/has-supply? candidate)
-         (assoc :supply (supply-terms instance candidate))))
+           unreachable
+           (assoc-in [:demand :required] false)
+
+           (candidate/has-supply? candidate)
+           (assoc :supply (supply-terms instance candidate)))))
      
      :edges
      (let [mech-A (::document/mechanical-cost-per-m instance 0.0)
@@ -729,19 +733,17 @@
               ;; if we are offering alternative systems we don't need to do this
               
               invalid-ccs (filter (fn [cc] (not-any? cc supplies)) ccs)]
-          
-
           (if (::document/consider-alternatives instance)
             (do (log/info "Removing unusable edges contained in disconnected components")
-                (reduce (fn [g cc] (graph/remove-edges*
-                                    g (graph/edges (graph/subgraph g cc))))
-                        
+                (reduce (fn [g cc]
+                          (-> g
+                              (graph/remove-edges* (graph/edges (graph/subgraph g cc)))
+                              (attr/add-attr-to-nodes :unreachable true cc)))
                         net-graph invalid-ccs))
 
             (do (log/info "Removing disconnected components")
                 (reduce (fn [g cc] (graph/remove-nodes* g cc))
                         net-graph invalid-ccs))))
-        
                 
         ;; This is now the topology we want. Every edge may be several
         ;; input edges, and nodes can either be real ones or junctions

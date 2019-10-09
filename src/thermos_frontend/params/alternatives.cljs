@@ -32,37 +32,49 @@
     {:style {:flex-wrap :wrap}}
     [:div
      [:b "Costs"]
-     [:div "Heat cost / kWh"
-      [inputs/number
-       {:min 0 :max 100 :scale 100
-        :step 0.1 :value (::supply/cost-per-kwh alternative 0)
-        :on-change #(swap! *alternatives assoc-in
-                           [id ::supply/cost-per-kwh] %)}]
-      "c/kWh"]
+     [:table
+      [:tbody
+       [:tr
+        [:th "Heat cost / kWh"]
+        [:td [inputs/number
+              {:min 0 :max 100 :scale 100
+               :step 0.1 :value (::supply/cost-per-kwh alternative 0)
+               :on-change #(swap! *alternatives assoc-in
+                                  [id ::supply/cost-per-kwh] %)}]]
+        [:td "c/kWh"]]
+       
+       [:tr
+        [:th "Fixed capital cost"]
+        [:td 
+         [inputs/number
+          {:min 0 :max 50000
+           :value (::supply/fixed-cost alternative 0)
+           :on-change #(swap! *alternatives assoc-in
+                              [id ::supply/fixed-cost] %)}]]
+        [:td
+         "¤"]]
 
-     [:div "Fixed capital cost"
-      [inputs/number
-       {:min 0 :max 50000
-        :value (::supply/fixed-cost alternative 0)
-        :on-change #(swap! *alternatives assoc-in
-                           [id ::supply/fixed-cost] %)}]
-      "¤"]
+       [:tr
+        [:th "Variable capital cost"]
+        [:td 
+         [inputs/number
+          {:min 0 :max 1000
+           :value (::supply/capex-per-kwp alternative 0)
+           :on-change #(swap! *alternatives assoc-in
+                              [id ::supply/capex-per-kwp] %)}]]
+        [:td
+         "¤/kWp"]]
 
-     [:div "Variable capital cost"
-      [inputs/number
-       {:min 0 :max 1000
-        :value (::supply/capex-per-kwp alternative 0)
-        :on-change #(swap! *alternatives assoc-in
-                           [id ::supply/capex-per-kwp] %)}]
-      "¤/kWp"]
-
-     [:div "Operating cost"
-      [inputs/number
-       {:min 0 :max 1000
-        :value (::supply/opex-per-kwp alternative 0)
-        :on-change #(swap! *alternatives assoc-in
-                           [id ::supply/opex-per-kwp] %)}]
-      "¤/kWp"]]
+       [:tr
+        [:th "Operating cost"]
+        [:td 
+         [inputs/number
+          {:min 0 :max 1000
+           :value (::supply/opex-per-kwp alternative 0)
+           :on-change #(swap! *alternatives assoc-in
+                              [id ::supply/opex-per-kwp] %)}]]
+        [:td
+         "¤/kWp"]]]]]
 
     [:div
      [:b "Emissions factors"]
@@ -83,9 +95,10 @@
                                     assoc-in
                                     [id ::supply/emissions e]
                                     %)}]]])]]]]
-   [:button.button
-    {:on-click #(swap! *doc document/remove-alternative id)}
-    symbols/dustbin]
+   [:div
+    [:button.button
+     {:on-click #(swap! *doc document/remove-alternative id)}
+     "DELETE " symbols/cross]]
    ])
 
 (defn alternatives-parameters [doc]
@@ -101,9 +114,9 @@
        [:button.button
         {:on-click #(swap! *alternatives create-new-alternative)}
         symbols/plus " Add"]]]
-
-     (for [[id alternative] @*alternatives]
-       [:div {:key id}
-        [alternative-row doc id alternative *alternatives]])]))
+     [:div.flex-cols {:style {:flex-wrap :wrap}}
+      (for [[id alternative] @*alternatives]
+        [:div {:key id}
+         [alternative-row doc id alternative *alternatives]])]]))
 
 
