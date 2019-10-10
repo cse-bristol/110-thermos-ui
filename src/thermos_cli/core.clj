@@ -48,6 +48,7 @@
   [[nil "--name NAME" "A name to put in the summary output"]
    ["-i" "--base FILE" "The problem to start with - this may contain geometry already.
 An efficient way to use the tool is to put back in a file produced by a previous -o output."]
+   
    ["-o" "--output FILE" "The problem & solution state will be written in here as EDN."]
    ["-s" "--summary-output FILE" "A file where some json summary stats about the problem will go."]
    ["-j" "--json-output FILE" "The geometry data from the final state will be put here as geojson."]
@@ -98,6 +99,14 @@ If the scenario definition refers to some fields, you mention them here or they 
    [nil "--top-n-supplies N" "Number of supplies to introduce into the map by taking the top N demands"
     :default 1
     :parse-fn #(Integer/parseInt %)]
+
+   [nil "--discount-rate" "Change the accounting discount rate for the objective.
+Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
+    :parse-fn #(/ (Double/parseDouble %) 100.0)]
+   
+   [nil "--discount-period" "Change the accounting period for the objective"
+    :parse-fn #(Integer/parseInt %)
+    ]
    
    ["-h" "--help" "me Obi-Wan Kenobi - You're my only hope."]])
 
@@ -542,6 +551,13 @@ If the scenario definition refers to some fields, you mention them here or they 
                                 (select-supply-location (:supply options)
                                                         (:top-n-supplies options)))
 
+
+                            (:discount-rate options)
+                            (assoc ::document/npv-rate (:discount-rate options))
+
+                            (:discount-period options)
+                            (assoc ::document/npv-term (:discount-period options))
+                            
                             (:solver options)
                             (-> (saying "Solve")
                                 (as-> instance
