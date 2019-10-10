@@ -388,6 +388,8 @@ If the scenario definition refers to some fields, you mention them here or they 
         (group-by (comp boolean candidate/is-connected?)
                   buildings)
 
+        supplies (filter ::solution/capacity-kw buildings)
+
         network-paths
         (filter candidate/is-connected? paths)
         ]
@@ -397,8 +399,8 @@ If the scenario definition refers to some fields, you mention them here or they 
      {:building-count (count buildings)
       :address-count  (reduce + (keep ::demand/connection-count buildings))
       :path-count     (count paths)
-      :demand-kwh    (reduce + (keep ::demand/kwh buildings))
-      :peak-kw       (reduce + (keep ::demand/kwp buildings))
+      :kwh            (reduce + (keep ::demand/kwh buildings))
+      :kwp            (reduce + (keep ::demand/kwp buildings))
       :path-length   (reduce + (keep ::path/length paths))
 
       :components          (count (keep ::supply/capacity-kwp buildings))
@@ -412,7 +414,7 @@ If the scenario definition refers to some fields, you mention them here or they 
      :network
      
      (let [heat-output (reduce + (keep ::solution/kwh network-buildings))
-           heat-input  (->> network-buildings
+           heat-input  (->> supplies
                             (keep ::solution/output-kwh)
                             (reduce +))
            ]
@@ -420,17 +422,17 @@ If the scenario definition refers to some fields, you mention them here or they 
        {:building-count    (count network-buildings)
         :address-count     (reduce + (keep ::demand/connection-count network-buildings))
 
-        :total-peak        (reduce + (keep ::demand/kwp network-buildings))
-        :supply-capacity   (reduce + (keep ::solution/capacity-kw network-buildings))
+        :undiverse-kwp     (reduce + (keep ::demand/kwp network-buildings))
+        :kwp               (reduce + (keep ::solution/capacity-kw supplies))
         :length            (reduce + (keep ::path/length network-paths))
 
-        :heat-output       heat-output
-        :heat-input heat-input
-        :heat-lost (- heat-input heat-output)
+        :kwh-output        heat-output
+        :kwh-input         heat-input
+        :kwh-lost          (- heat-input heat-output)
 
-        :supply-capex (sum-costs (keep ::solution/supply-capex buildings))
-        :heat-cost (sum-costs (keep ::solution/heat-cost buildings))
-        :supply-opex (sum-costs (keep ::solution/supply-opex buildings))
+        :supply-capex (sum-costs (keep ::solution/supply-capex supplies))
+        :heat-cost (sum-costs (keep ::solution/heat-cost supplies))
+        :supply-opex (sum-costs (keep ::solution/supply-opex supplies))
         :path-capex (sum-costs (keep ::solution/pipe-capex network-paths))
         :connection-capex (sum-costs (keep ::solution/connection-capex buildings))
 
@@ -455,9 +457,9 @@ If the scenario definition refers to some fields, you mention them here or they 
                  (mapcat ::solution/insulation)
                  (group-by ::measure/name))]
         [name
-         {:kwh   (reduce + (keep :kwh installed))
-          :area  (reduce + (keep :area installed))
-          :capex (sum-costs installed)}])
+         {:kwh-avoided   (reduce + (keep :kwh installed))
+          :area          (reduce + (keep :area installed))
+          :capex         (sum-costs installed)}])
       (into {}))
      
      
@@ -467,8 +469,8 @@ If the scenario definition refers to some fields, you mention them here or they 
             (group-by (comp ::supply/name ::solution/alternative)
                       individual-buildings)]
         [(or name "Nothing at all")
-         {:heat-output (reduce + (keep ::solution/kwh alts))
-          :total-peak (reduce + (keep ::demand/kwp alts))
+         {:kwh-output (reduce + (keep ::solution/kwh alts))
+          :kwp        (reduce + (keep ::demand/kwp alts))
           :building-count (count alts)
           :address-count  (reduce + (keep ::demand/connection-count alts))
           :capex (sum-costs (keep (comp :capex ::solution/alternative) alts))
