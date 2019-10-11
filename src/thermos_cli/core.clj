@@ -592,7 +592,7 @@ Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
           (for [b buildings]
             {:type :Feature
              :id (::geoio/id b)
-             :properties (dissoc ::geoio/geometry b)
+             :properties (dissoc b ::geoio/geometry)
              :geometry (::geoio/geometry b)})}
          w)))
     
