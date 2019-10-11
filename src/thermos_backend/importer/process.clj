@@ -446,6 +446,7 @@
 
         feature    (assoc feature
                           ::lidar/height height
+                          :height height
                           :residential residential)
         
         use-annual-demand (or (#{:use :estimate :max} (:use-annual-demand feature)) :use)
@@ -543,7 +544,9 @@
        (map merge-multi-polygon)))
 
 (defn add-areas [building]
-  (let [height (:height building (::lidar/height building lidar/*storey-height*))]
+  (let [height (or (:height building)
+                   (::lidar/height building)
+                   lidar/*storey-height*)]
     (assoc building
            :wall-area   (::lidar/external-wall-area
                          building
