@@ -195,9 +195,12 @@
 
         space-value (if use-space-svm space-svm-value space-lm-value)
         water-value (if use-water-svm water-svm-value water-lm-value)
-        ]
-    {:annual-demand
-     (+ (* space-value sqrt-degree-days) water-value)
+
+        space-value (* sqrt-degree-days space-value)]
+
+    {:space-demand space-value
+     :water-demand water-value
+     :annual-demand (+  water-value space-value)
      :demand-source
      
      (str type
@@ -427,6 +430,7 @@
 
         storey-height lidar/*storey-height*
         height     (or given-height (::lidar/height feature) given-fallback-height)
+
         floor-area (or given-floor-area
                        (* (Math/ceil
                            (/ (or height storey-height)
@@ -440,13 +444,13 @@
                       (boolean (as-boolean (:residential feature)))
                       (contains? residential-subtypes (:subtype feature)))
 
+        feature    (assoc feature
+                          ::lidar/height height
+                          :residential residential)
+        
         use-annual-demand (or (#{:use :estimate :max} (:use-annual-demand feature)) :use)
 
-        model-output (delay
-                       (run-svm-models (assoc feature
-                                              :residential residential
-                                              ::lidar/height height)
-                                       sqrt-degree-days))
+        model-output (delay (run-svm-models feature sqrt-degree-days))
         
         ;; produce demand
         feature (cond
@@ -470,7 +474,6 @@
 
                   :else
                   (merge feature @model-output))]
-    
     feature))
 
 (defn- should-explode?
@@ -540,16 +543,17 @@
        (map merge-multi-polygon)))
 
 (defn add-areas [building]
-  (assoc building
-         :wall-area   (::lidar/external-wall-area
-                       building
-                       (* (- (::lidar/perimeter building 0)
-                             (::lidar/shared-perimeter building 0))
-                          lidar/*storey-height*))
-         :floor-area  (::lidar/floor-area building 0)
-         :ground-area (::lidar/footprint building 0)
-         :roof-area   (::lidar/footprint building 0)
-         :height      (::lidar/height building lidar/*storey-height*)))
+  (let [height (:height building (::lidar/height building lidar/*storey-height*))]
+    (assoc building
+           :wall-area   (::lidar/external-wall-area
+                         building
+                         (* (- (::lidar/perimeter building 0)
+                               (::lidar/shared-perimeter building 0))
+                            height))
+           :floor-area  (::lidar/floor-area building 0)
+           :ground-area (::lidar/footprint building 0)
+           :roof-area   (::lidar/footprint building 0)
+           :height      height)))
 
 (defn run-import
   "Run an import job enqueued by `queue-import`"

@@ -82,6 +82,10 @@ If it says 'use', then the demand-field value will be used (unless it's not nume
    ["-f" "--preserve-field FIELD*" "A field to preserve from input data (e.g. TOID).
 If the scenario definition refers to some fields, you mention them here or they will be stripped out before the scenario is applied."
     :assoc-fn conj-arg]
+
+   [nil "--output-predictors FILE"
+    "Write out the things which went into the demand prediction method"]
+   
    [nil "--insulation FILE*"
     "A file containing insulation definitions"
     :assoc-fn conj-arg]
@@ -487,12 +491,25 @@ Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
           :opex (sum-costs (keep (comp :opex ::solution/alternative) alts))}])
       (into {}))}))
 
+(defn- write-geojson [data writer]
+  (json/write
+   data
+   writer
+   :value-fn
+   (fn write-geojson-nicely [k v]
+     (if (instance? org.locationtech.jts.geom.Geometry v)
+       (jts/geom->json v)
+       v))))
+
 (defn --main [options]
   (mount/start-with {#'thermos-backend.config/config
                      {:solver-directory (:temp-dir options)
                       :solver-command (:solver options)}})
   (let [output-path       (:output options)
         summary-output-path (:summary-output options)
+
+        output-predictors-path (:output-predictors options)
+        
         json-path         (:json-output options)
         
         geodata           (when (seq (:map options))
@@ -551,7 +568,6 @@ Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
                                 (select-supply-location (:supply options)
                                                         (:top-n-supplies options)))
 
-
                             (:discount-rate options)
                             (assoc ::document/npv-rate (:discount-rate options))
 
@@ -566,19 +582,26 @@ Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
                                                    (not (:preserve-temp options)))
                                   )))
         ]
+
+    (when output-predictors-path
+      (log/info "Saving predictors to" output-predictors-path)
+      (with-open [w (output output-predictors-path)]
+        (write-geojson
+         {:type :FeatureCollection
+          :features
+          (for [b buildings]
+            {:type :Feature
+             :id (::geoio/id b)
+             :properties (dissoc ::geoio/geometry b)
+             :geometry (::geoio/geometry b)})}
+         w)))
+    
     (when json-path
       (log/info "Saving geojson to" json-path)
       (with-open [w (output json-path)]
         (-> instance
             (converter/network-problem->geojson)
-            (json/write w
-                        :value-fn
-                        (fn write-geojson-nicely [k v]
-                          (if (instance? org.locationtech.jts.geom.Geometry v)
-                            (jts/geom->json v)
-                            v))
-                        
-                        ))))
+            (write-geojson w))))
     
     (when output-path
       (log/info "Saving edn to" output-path)
@@ -588,8 +611,7 @@ Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
     (when summary-output-path
       (log/info "Saving summary to" summary-output-path)
       (with-open [w (output summary-output-path)]
-        (json/write (problem-summary instance (:name options))
-                    w))))
+        (json/write (problem-summary instance (:name options)) w))))
   
   (mount/stop))
 
