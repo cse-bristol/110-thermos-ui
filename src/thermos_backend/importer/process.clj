@@ -176,7 +176,7 @@
 (defn- svm-or-lm [x space-result sqrt-degree-days
                   lm-space lm-water svm-water
                   type]
-  (let [space-svm-value (aget space-result 0)
+  (let [space-svm-value (* sqrt-degree-days (aget space-result 0))
         space-svm-f     (aget space-result 1)
         
         water-result    (svm-water x)
@@ -189,19 +189,26 @@
 
         ;; we only use the lm-value if it's more than 5000.0
         ;; and if one of the SVMs is out of range.
+        water-lm-value  (and bad-f-value (lm-water x))
+        space-lm-value  (and bad-f-value (* sqrt-degree-days (lm-space x)))
+        
         lm-value        (and
                          bad-f-value
-                         (let [water-lm-value (lm-water x)
-                               space-lm-value (* sqrt-degree-days (lm-space x))
-                               lm-value (+ water-lm-value space-lm-value)]
+                         (let [lm-value (+ water-lm-value space-lm-value)]
                            (when (>= lm-value 5000.0) lm-value)))
 
-        svm-value       (+ water-svm-value (* sqrt-degree-days space-svm-value))
+        svm-value       (+ water-svm-value space-svm-value)
         ]
 
     (if lm-value
-      {:annual-demand lm-value  :demand-source (str type "both-lm")}
-      {:annual-demand svm-value :demand-source (str type "both-svm")})))
+      {:annual-demand lm-value
+       :space-demand space-lm-value
+       :water-demand water-lm-value
+       :demand-source (str type "-both-lm")}
+      {:annual-demand svm-value
+       :space-demand space-svm-value
+       :water-demand water-svm-value
+       :demand-source (str type "-both-svm")})))
 
 (defn- run-svm-models [f sqrt-degree-days]
   (let [x (->> (for [[k v] f

@@ -359,7 +359,10 @@ Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
         buildings (for [building buildings]
                     (-> building
                         
-                        (select-keys (concat [:demand-source] preserve-fields))
+                        (select-keys (concat [:demand-source
+                                              :space-demand
+                                              :water-demand]
+                                             preserve-fields))
                         
                         (merge {::candidate/id            (::geoio/id building)
                                 ::candidate/subtype       (:subtype building)
