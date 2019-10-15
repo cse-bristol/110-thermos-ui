@@ -64,7 +64,7 @@ If there are buildings, they will have demand and peak demand computed, subject 
     :assoc-fn conj-arg]
    [nil "--degree-days NUMBER" "Annual heating degree days (relative to 17°) to use for running heat demand model."
     :parse-fn #(Double/parseDouble %)
-    :default 2501.0]
+    :default (* 0.813 2501.0)]
    [nil "--connect-to-connectors" "Allow connecting to connectors."]
    [nil "--shortest-face LENGTH" "When finding face centers, only faces longer than this will be considered."
     :default 3.0
