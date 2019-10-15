@@ -422,6 +422,9 @@
 (def ^:private sap-volume-factor
   (double-array [1.1 1.06 1.02 0.98 0.94 0.90 0.90 0.94 0.98 1.02 1.06 1.1]))
 
+(def ^:private sap-days
+  ;;             J  F  M  A  M  J  Jy A  S  O  N  D
+  (double-array [31 28 31 30 31 30 31 31 30 31 30 31]))
 
 (defn produce-demand
   "Make sure the feature has an :annual-demand"
@@ -500,6 +503,7 @@
                     (+ total
                        (* sap-liters-per-day
                           (aget sap-volume-factor month)
+                          (aget sap-days month)
                           4.18
                           (/ (aget sap-delta-t month)
                              3600.0))))]
