@@ -417,7 +417,7 @@
              :peak-source :regression))))
 
 (def ^:private sap-delta-t
-  (double-array [41.2 41.4 37.6 36.4 33.9 30.4 33.4 33.5 36.3 39.4 39.9])
+  (double-array [41.2 41.4 37.6 36.4 33.9 30.4 33.4 33.5 36.3 39.4 39.9]))
 
 (def ^:private sap-volume-factor
   (double-array [1.1 1.06 1.02 0.98 0.94 0.90 0.90 0.94 0.98 1.02 1.06 1.1]))
