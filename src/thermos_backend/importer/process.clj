@@ -200,8 +200,8 @@
         ]
 
     (if lm-value
-      {:annual-demand lm-value :type "both-lm"}
-      {:annual-demand svm-value :type "both-svm"})))
+      {:annual-demand lm-value  :demand-source (str type "both-lm")}
+      {:annual-demand svm-value :demand-source (str type "both-svm")})))
 
 (defn- run-svm-models [f sqrt-degree-days]
   (let [x (->> (for [[k v] f
@@ -454,10 +454,10 @@
                             (= :max use-annual-demand)
                             (>= given-demand (:annual-demand @model-output)))))
 
-                  ;; we only use the given deamnd if it exceeds the model output
+                  ;; we only use the given demand if it exceeds the model output
                   (assoc feature
                          :annual-demand given-demand
-                         :demand-source :given)
+                         :demand-source use-annual-demand)
 
                   benchmark-c
                   (assoc feature
