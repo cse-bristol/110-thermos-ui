@@ -1,4 +1,15 @@
 [
+ {:title "15th October 2019"
+  :changes
+  [{:title "Demand model fixes"
+    :summary [:div
+              "The demand model had a couple of things wrong with it:"
+              [:ul
+               [:li "The projection used to calculate the predictors caused demands to be overestimated, by making some buildings' areas too large"]
+               [:li "The fallback linear model used when the SVM prediction is out of bounds was not implemented properly"]
+               ]
+              "Both these issues are fixed; predictors are now calculated using the closest UTM zone, which should work alright, and the linear model implementation has had an error removed."]}]}
+
  {:title "4th October 2019"
   :changes
   [{:title "UI Improvements"
