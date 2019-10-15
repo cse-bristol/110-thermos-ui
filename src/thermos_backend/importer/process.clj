@@ -416,6 +416,13 @@
              :peak-demand (run-peak-model (:annual-demand feature))
              :peak-source :regression))))
 
+(def ^:private sap-delta-t
+  (double-array [41.2 41.4 37.6 36.4 33.9 30.4 33.4 33.5 36.3 39.4 39.9])
+
+(def ^:private sap-volume-factor
+  (double-array [1.1 1.06 1.02 0.98 0.94 0.90 0.90 0.94 0.98 1.02 1.06 1.1]))
+
+
 (defn produce-demand
   "Make sure the feature has an :annual-demand"
   [feature sqrt-degree-days]
@@ -473,8 +480,33 @@
                          :demand-source :benchmark)
 
                   :else
-                  (merge feature @model-output))]
-    feature))
+                  (merge feature @model-output))
+
+        sap-occupancy (if (> floor-area 13.9)
+                        (+ 1
+                           (* 1.76 (- 1 (Math/exp
+                                         (* -0.000349
+                                            (Math/pow (- floor-area 13.9) 2.0)))))
+                           
+                           (* 0.0013 (- floor-area 13.9)))
+                        1)
+        
+        sap-liters-per-day (+ (* 25 sap-occupancy) 36)
+
+        sap-energy (areduce
+                    sap-delta-t
+                    month total 0
+
+                    (+ total
+                       (* sap-liters-per-day
+                          (aget sap-volume-factor month)
+                          4.18
+                          (/ (aget sap-delta-t month)
+                             3600.0))))]
+    
+    (assoc feature
+           :sap-water-demand sap-energy
+           )))
 
 (defn- should-explode?
   "If a feature is going to end up with a summable prediction of demand,
