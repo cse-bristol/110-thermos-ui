@@ -192,6 +192,18 @@
         lm-value        (and
                          bad-f-value
                          (let [water-lm-value (lm-water x)
+                               space-lm-value (lm-space x)
+
+                               _ (when-not space-lm-value
+                                   (log/warn
+                                    "Something bad has happened"
+
+                                    x
+
+                                    (:predictors (meta lm-space))
+                                    )
+                                   )
+                               
                                space-lm-value (* sqrt-degree-days (lm-space x))
                                lm-value (+ water-lm-value space-lm-value)]
                            (when (>= lm-value 5000.0) lm-value)))
