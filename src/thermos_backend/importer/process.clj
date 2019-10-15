@@ -187,11 +187,14 @@
         water-lm-value (and (> water-svm-range 1.5)
                             (lm-water x))
 
-        use-space-svm (or (not space-lm-value)
-                          (not (pos? space-lm-value)))
+        use-space-svm  (not (and space-lm-value
+                                 (>= space-lm-value 5000.0)))
 
-        use-water-svm (or (not water-lm-value)
-                          (not (pos? water-lm-value)))
+        use-water-svm  (not (and water-lm-value
+                                 space-lm-value
+                                 ;; note that we select the water LM
+                                 ;; based on whether the space LM is in range.
+                                 (>= space-lm-value 5000.0)))
 
         space-value (if use-space-svm space-svm-value space-lm-value)
         water-value (if use-water-svm water-svm-value water-lm-value)
