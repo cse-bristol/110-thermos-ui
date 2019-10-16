@@ -13,6 +13,7 @@
             [thermos-importer.lm-predict :as lm]
             [thermos-importer.spatial :as topo]
             [thermos-importer.util :refer [has-extension file-extension]]
+            [thermos-backend.importer.sap :as sap]
 
             [clojure.data.json :as json]
             [clojure.string :as str]
@@ -165,50 +166,9 @@
 
 (def svm-space-3d (load-svm "thermos_backend/importer/space-svm-3d.json"))
 (def svm-space-2d (load-svm "thermos_backend/importer/space-svm-2d.json"))
-(def svm-water-3d (load-svm "thermos_backend/importer/water-svm-3d.json"))
-(def svm-water-2d (load-svm "thermos_backend/importer/water-svm-2d.json"))
 
 (def lm-space-3d (load-lm "thermos_backend/importer/space-lm-3d.json"))
 (def lm-space-2d (load-lm "thermos_backend/importer/space-lm-2d.json"))
-(def lm-water-3d (load-lm "thermos_backend/importer/water-lm-3d.json"))
-(def lm-water-2d (load-lm "thermos_backend/importer/water-lm-2d.json"))
-
-(defn- svm-or-lm [x space-result sqrt-degree-days
-                  lm-space lm-water svm-water
-                  type]
-  (let [space-svm-value (* sqrt-degree-days (aget space-result 0))
-        space-svm-f     (aget space-result 1)
-        
-        water-result    (svm-water x)
-
-        water-svm-value (aget water-result 0)
-        water-svm-f     (aget water-result 1)
-
-        bad-f-value     (or (> space-svm-f 1.5)
-                            (> water-svm-f 1.5))
-
-        ;; we only use the lm-value if it's more than 5000.0
-        ;; and if one of the SVMs is out of range.
-        water-lm-value  (and bad-f-value (lm-water x))
-        space-lm-value  (and bad-f-value (* sqrt-degree-days (lm-space x)))
-        
-        lm-value        (and
-                         bad-f-value
-                         (let [lm-value (+ water-lm-value space-lm-value)]
-                           (when (>= lm-value 5000.0) lm-value)))
-
-        svm-value       (+ water-svm-value space-svm-value)
-        ]
-
-    (if lm-value
-      {:annual-demand lm-value
-       :space-demand space-lm-value
-       :water-demand water-lm-value
-       :demand-source (str type "-both-lm")}
-      {:annual-demand svm-value
-       :space-demand space-svm-value
-       :water-demand water-svm-value
-       :demand-source (str type "-both-svm")})))
 
 (defn- run-svm-models [f sqrt-degree-days]
   (let [x (->> (for [[k v] f
@@ -219,21 +179,23 @@
                   (if (= :residential k) (boolean v) v)])
                (into {}))
 
-        space3 (svm-space-3d x)]
+        space-svm-3 (svm-space-3d x)
+        svm-result  (or space-svm-3 (svm-space-2d x))
+        sap-water (sap/hot-water (:floor-area x))]
     
-    (if space3
-      (svm-or-lm x space3 sqrt-degree-days
-                 lm-space-3d lm-water-3d svm-water-3d "3d")
-      (if-let [space2 (svm-space-2d x)]
-        (svm-or-lm x space2 sqrt-degree-days
-                   lm-space-2d lm-water-2d svm-water-2d "2d")
-        (do (log/warn x "doesn't have the features needed to run any models!"
-                      (set/difference
-                       (into #{} (:predictors (meta svm-space-2d)))
-                       (into #{} (keys x)))
-                      "missing")
-            {:annual-demand 0 :demand-source :invalid}))
-      )))
+    (or
+     (when (and svm-result
+                (> (aget svm-result 1) 1.5))
+      (let [lm-value ((if space-svm-3 lm-space-3d lm-space-2d) x)]
+        (when (lm-value (>= lm-value 7692.0))
+          {:annual-demand (/ lm-value 0.65)
+           :sap-water-demand sap-water
+           :demand-source (if space-svm-3 "3d-lm" "2d-lm")})))
+
+     (when svm-result
+       {:annual-demand (/ (aget svm-result 0) 0.65)
+        :sap-water-demand sap-water
+        :demand-source (if space-svm-3 "3d-svm" "2d-svm")}))))
 
 (def peak-constant 21.84)
 (def peak-gradient 0.0004963)
@@ -416,16 +378,6 @@
              :peak-demand (run-peak-model (:annual-demand feature))
              :peak-source :regression))))
 
-(def ^:private sap-delta-t
-  (double-array [41.2 41.4 37.6 36.4 33.9 30.4 33.4 33.5 36.3 39.4 39.9]))
-
-(def ^:private sap-volume-factor
-  (double-array [1.1 1.06 1.02 0.98 0.94 0.90 0.90 0.94 0.98 1.02 1.06 1.1]))
-
-(def ^:private sap-days
-  ;;             J  F  M  A  M  J  Jy A  S  O  N  D
-  (double-array [31 28 31 30 31 30 31 31 30 31 30 31]))
-
 (defn produce-demand
   "Make sure the feature has an :annual-demand"
   [feature sqrt-degree-days]
@@ -484,32 +436,10 @@
 
                   :else
                   (merge feature @model-output))
-
-        sap-occupancy (if (> floor-area 13.9)
-                        (+ 1
-                           (* 1.76 (- 1 (Math/exp
-                                         (* -0.000349
-                                            (Math/pow (- floor-area 13.9) 2.0)))))
-                           
-                           (* 0.0013 (- floor-area 13.9)))
-                        1)
-        
-        sap-liters-per-day (+ (* 25 sap-occupancy) 36)
-
-        sap-energy (areduce
-                    sap-delta-t
-                    month total 0
-
-                    (+ total
-                       (* sap-liters-per-day
-                          (aget sap-volume-factor month)
-                          (aget sap-days month)
-                          4.18
-                          (/ (aget sap-delta-t month)
-                             3600.0))))]
+        ]
     
     (assoc feature
-           :sap-water-demand sap-energy
+           :sap-water-demand (sap/hot-water floor-area)
            )))
 
 (defn- should-explode?
