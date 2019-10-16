@@ -187,7 +187,7 @@
      (when (and svm-result
                 (> (aget svm-result 1) 1.5))
       (let [lm-value ((if space-svm-3 lm-space-3d lm-space-2d) x)]
-        (when (lm-value (>= lm-value 7692.0))
+        (when (and lm-value (>= lm-value 7692.0))
           {:annual-demand (/ lm-value 0.65)
            :sap-water-demand sap-water
            :demand-source (if space-svm-3 "3d-lm" "2d-lm")})))
