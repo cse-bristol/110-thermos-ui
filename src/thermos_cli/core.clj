@@ -46,8 +46,9 @@
 
 (def options
   [[nil "--name NAME" "A name to put in the summary output"]
-   ["-i" "--base FILE" "The problem to start with - this may contain geometry already.
-An efficient way to use the tool is to put back in a file produced by a previous -o output."]
+   ["-i" "--base FILES" "The problem to start with - this may contain geometry already.
+An efficient way to use the tool is to put back in a file produced by a previous -o output."
+    :assoc-fn conj-arg]
    
    ["-o" "--output FILE" "The problem & solution state will be written in here as EDN."]
    ["-s" "--summary-output FILE" "A file where some json summary stats about the problem will go."]
@@ -530,9 +531,9 @@ Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
                                 ;; areas for measures to work on
                                 (->> (map importer/add-areas))))
         
-        instance          (if-let [base (:base options)]
-                            (read-edn base)
-                            defaults/default-document)
+        instance          (apply merge defaults/default-document
+                                 (when-let [base (:base options)]
+                                   (doall (map read-edn base))))
 
         required-fields   (:preserve-field options)
 
