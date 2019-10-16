@@ -188,13 +188,13 @@
                 (> (aget svm-result 1) 1.5))
        (let [lm-value ((if space-svm-3 lm-space-3d lm-space-2d) x)
              lm-value (and lm-value (* lm-value sqrt-degree-days))]
-        (when (and lm-value (>= lm-value 7692.0))
-          {:annual-demand (/ lm-value 0.65)
+        (when (and lm-value (>= lm-value 3250.0))
+          {:annual-demand (+ lm-value sap-water)
            :sap-water-demand sap-water
            :demand-source (if space-svm-3 "3d-lm" "2d-lm")})))
 
      (when svm-result
-       {:annual-demand (* sqrt-degree-days (/ (aget svm-result 0) 0.65))
+       {:annual-demand (+ (* sqrt-degree-days (aget svm-result 0)) sap-water)
         :sap-water-demand sap-water
         :demand-source (if space-svm-3 "3d-svm" "2d-svm")}))))
 
