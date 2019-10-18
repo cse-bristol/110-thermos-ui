@@ -261,6 +261,7 @@
                "cost/kwh" (finance/objective-value instance
                                                    :insulation-capex
                                                    cost-per-kwh)
+               :minimum   (if (::document/force-insulation instance) maximum-kwh-saved 0)
                :maximum   maximum-kwh-saved})))
         (filter identity))})
 
@@ -375,6 +376,8 @@
     
     {:time-limit  (float (::document/maximum-runtime instance 1.0))
      :mip-gap     (float (::document/mip-gap instance 0.05))
+     :iteration-limit (int (::document/maximum-iterations instance 1000))
+     
      :supply-limit
      (when-let [l (::document/maximum-supply-sites instance)]
        (int l))
