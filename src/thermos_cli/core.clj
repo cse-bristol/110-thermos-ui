@@ -532,7 +532,11 @@ Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
                                 (->> (map importer/add-areas))))
         
         instance          (apply merge defaults/default-document
-                                 (when-let [base (:base options)]
+                                 (when-let [base
+                                            (seq
+                                             (filter
+                                              #(.exists (io/file %))
+                                              (:base options)))]
                                    (doall (map read-edn base))))
 
         required-fields   (:preserve-field options)
@@ -608,7 +612,8 @@ Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
     (when output-path
       (log/info "Saving edn to" output-path)
       (with-open [w (output output-path)]
-        (pprint instance w)))
+        ;; (pprint instance w)
+        (binding [*out* w] (prn instance))))
 
     (when summary-output-path
       (log/info "Saving summary to" summary-output-path)
