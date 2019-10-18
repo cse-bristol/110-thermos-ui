@@ -535,7 +535,10 @@ Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
                                  (when-let [base
                                             (seq
                                              (filter
-                                              #(.exists (io/file %))
+                                              #(let [e (.exists (io/file %))]
+                                                 (when-not e
+                                                   (log/warn "--base" % "doesn't exist"))
+                                                 e)
                                               (:base options)))]
                                    (doall (map read-edn base))))
 
