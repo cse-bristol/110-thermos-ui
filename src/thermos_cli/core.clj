@@ -105,13 +105,15 @@ If the scenario definition refers to some fields, you mention them here or they 
     :default 1
     :parse-fn #(Integer/parseInt %)]
 
-   [nil "--discount-rate" "Change the accounting discount rate for the objective.
-Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
-    :parse-fn #(/ (Double/parseDouble %) 100.0)]
+   [nil "--max-runtime N" "Max runtime hours"
+    :parse-fn #(Double/parseDouble %)]
+   [nil "--mip-gap G" "Mip gap proportion"
+    :parse-fn #(Double/parseDouble %)]
    
-   [nil "--discount-period" "Change the accounting period for the objective"
-    :parse-fn #(Integer/parseInt %)
-    ]
+   [nil "--set '[A B C V]'"
+    "Set the value at path A B C to value V"
+    :parse-fn #(edn/read-string %)
+    :assoc-fn conj-arg]
    
    ["-h" "--help" "me Obi-Wan Kenobi - You're my only hope."]])
 
@@ -472,9 +474,10 @@ Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
                  (mapcat ::solution/insulation)
                  (group-by ::measure/name))]
         [name
-         {:kwh-avoided   (reduce + (keep :kwh installed))
-          :area          (reduce + (keep :area installed))
-          :capex         (sum-costs installed)}])
+         {:kwh-avoided    (reduce + (keep :kwh installed))
+          :building-count (count installed)
+          :area           (reduce + (keep :area installed))
+          :capex          (sum-costs installed)}])
       (into {}))
      
      
@@ -502,6 +505,19 @@ Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
      (if (instance? org.locationtech.jts.geom.Geometry v)
        (jts/geom->json v)
        v))))
+
+(defn- set-values [instance things-to-set]
+  (reduce
+   (fn [i s]
+     (let [path (take (dec (count s)) s)
+           value (last s)]
+       (log/info "change" path "from"
+                 (get-in i path)
+                 "to"
+                 value)
+       (assoc-in i path value)))
+   instance
+   things-to-set))
 
 (defn --main [options]
   (mount/start-with {#'thermos-backend.config/config
@@ -540,7 +556,7 @@ Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
                                                    (log/warn "--base" % "doesn't exist"))
                                                  e)
                                               (:base options)))]
-                                   (doall (map read-edn base))))
+                                   (doall (map read-edn (reverse base)))))
 
         required-fields   (:preserve-field options)
 
@@ -577,11 +593,16 @@ Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
                                 (select-supply-location (:supply options)
                                                         (:top-n-supplies options)))
 
-                            (:discount-rate options)
-                            (assoc ::document/npv-rate (:discount-rate options))
+                            (seq (:set options))
+                            (set-values (:set options))
 
-                            (:discount-period options)
-                            (assoc ::document/npv-term (:discount-period options))
+                            (:max-runtime options)
+                            (assoc :thermos-specs.document/maximum-runtime
+                                   (:max-runtime options))
+
+                            (:mip-gap options)
+                            (assoc :thermos-specs.document/mip-gap
+                                   (:mip-gap options))
                             
                             (:solver options)
                             (-> (saying "Solve")
@@ -615,8 +636,9 @@ Expressed as a percentage figure, so 3.5 is a 3.5% discount rate."
     (when output-path
       (log/info "Saving edn to" output-path)
       (with-open [w (output output-path)]
-        ;; (pprint instance w)
-        (binding [*out* w] (prn instance))))
+        (if (= output-path "-") 
+          (pprint instance w)
+          (binding [*out* w] (prn instance)))))
 
     (when summary-output-path
       (log/info "Saving summary to" summary-output-path)
