@@ -23,41 +23,58 @@
          (str (last (string/split key-ns #"\.")) "/")
          "")
        key-name))
-    :else key))
+    :else
+    (str key)))
 
 (def process-key (memoize process-key*))
 
-(defn- process-value [value]
-  (cond
-    (or (string? value)
-        (boolean? value)
-        (nil? value)
-        (and (number? value)
-             #?(:clj (Double/isFinite value)
-                :cljs (js/isFinite value))))
-    value
+;; (defn- process-value [value]
+;;   (cond
+;;     (or (string? value)
+;;         (boolean? value)
+;;         (nil? value)
+;;         (and (number? value)
+;;              #?(:clj (Double/isFinite value)
+;;                 :cljs (js/isFinite value))))
+;;     value
 
-    (or (seq? value)
-        (set? value)
-        (vector? value))
-    (vec (doall (map process-value value)))
+;;     (or (seq? value)
+;;         (set? value)
+;;         (vector? value))
+;;     (vec (doall (map process-value value)))
     
-    :else (str value)))
+;;     :else (str value)))
 
-(defn- process-properties
-  "Recursively flatten map of properties and simplify column names"
-  {:test #(do (assert (= (process-properties {:this/that 1}) {"this-that" 1}))
-              (assert (= (process-properties {:x {:y 1}}) {"x:y" 1})))}  
-  ([properties] (process-properties properties ""))
-  ([properties prefix]
-   (reduce-kv
-    (fn [a k v]
-      (let [k (str prefix (process-key k))]
-        (if (map? v)
-          (merge a (process-properties v (str k ":")))
-          (assoc a k (process-value v)))
-        ))
-    {} properties)))
+
+;; (defn- process-properties
+;;   "Recursively flatten map of properties and simplify column names"
+;;   {:test #(do (assert (= (process-properties {:this/that 1}) {"this-that" 1}))
+;;               (assert (= (process-properties {:x {:y 1}}) {"x:y" 1})))}  
+;;   ([properties] (process-properties properties ""))
+;;   ([properties prefix]
+;;    (reduce-kv
+;;     (fn [a k v]
+;;       (let [k (str prefix (process-key k))]
+;;         (if (map? v)
+;;           (merge a (process-properties v (str k ":")))
+;;           (assoc a k (process-value v)))
+;;         ))
+;;     {} properties)))
+
+
+(defn- to-indexed-seqs [coll]
+  (if (map? coll)
+    coll
+    (map vector (range) coll)))
+
+(defn- flatten-path [path step]
+  (if (coll? step)
+    (->> step
+         to-indexed-seqs
+         (map (fn [[k v]] (flatten-path (conj path k) v)))
+         (into {}))
+    [path step]))
+
 
 ;; this is a terrible thing which I do here
 ;; it would be preferable to convert the geometry straight into json in the writer.
@@ -74,11 +91,26 @@
                         :else geom))
                     
                     :cljs (js/JSON.parse (::candidate/geometry candidate)))
-        other (dissoc candidate ::candidate/geometry)]
+        other (dissoc candidate ::candidate/geometry)
+        kvs (flatten-path [] other)
+
+        json-value (fn [value]
+                     (if (or (string? value)
+                             (boolean? value)
+                             (nil? value)
+                             (and (number? value)
+                                  #?(:clj (Double/isFinite value)
+                                     :cljs (js/isFinite value))))
+                       value
+                       (str value)))]
     
     {:type :Feature
      :geometry geometry
-     :properties (process-properties other)})
+     :properties
+     (into {} (for [[p v] kvs]
+                [(string/join " " (map process-key p))
+                 (json-value v)]))})
+  
   )
 
 (defn network-problem->geojson [document]
