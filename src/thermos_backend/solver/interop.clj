@@ -21,7 +21,7 @@
             [thermos-specs.path :as path]
             [thermos-backend.solver.bounds :as bounds]
             [thermos-backend.config :refer [config]]
-            [thermos-util :refer [annual-kwh->kw format-seconds]]
+            [thermos-util :refer [kw->annual-kwh annual-kwh->kw format-seconds]]
             [thermos-util.finance :as finance]
             [thermos-util.pipes :as pipes]
             [clojure.walk :refer [postwalk]]
@@ -288,7 +288,8 @@
             "cost/kwh" (if network-only 0
                            (+
                             (finance/objective-value instance :alternative-capex
-                                                     (::supply/cost-per-mean-kw alternative 0))
+                                                     (annual-kwh->kw
+                                                      (::supply/capex-per-mean-kw alternative 0)))
                             (finance/objective-value instance :alternative-opex
                                                      (::supply/cost-per-kwh alternative 0))))
             
