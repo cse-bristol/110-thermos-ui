@@ -7,7 +7,13 @@ This document walks through the different bits of the interface, and then descri
 
 * Parts of the interface
 
-The editor is divided into several pages which you can switch between using the buttons at the top of the window.
+The editor is divided into several pages which are accessed through the THERMOS logo [[./img/network/logo.png]] in the top right hand corner.
+
+Clicking on the logo makes a panel appear which offers links to switch between the different pages, like this:
+
+[[./img/network/menu-sidebar.png]]
+
+From this sidebar you can also return to the project page and search the help.
 
 ** Map page
 
@@ -19,10 +25,9 @@ The map page shows the /candidates/ (bits of roads and buildings) which are avai
 
 The candidates layer of the map shows all of the buildings and roads that are available to put into a heat network.
 
-Several different drawing styles are used to show different kinds of information visually on the candidates layer
+Several different drawing styles are used to show different kinds of information visually on the candidates layer.
 
-
-- Colour :: the colour of each candidate is used to show information about whether the candidate will be used in a network.
+- Colour :: the colour of each candidate is used to show information about whether the candidate will be used in a network. These colours are also used in the selection info pane in the same way.
             #+ATTR_HTML: :style float:right;
             [[./img/network/map-colours.png]]
 
@@ -30,7 +35,8 @@ Several different drawing styles are used to show different kinds of information
   - *Blue* candidates are /optional/, which means they can be included in a network, but the optimiser can leave them out if they make things worse.
 
     If the optimiser has been run and there is a solution then blue candidates are those which /were included/ in the network.
-  - *Green* candidates are optional candidates which were /not/ included in the network, if there is a solution
+  - *Yellow* candidates are optional candidates which were /not/ included in the network, if there is a solution
+  - *Green* candidates are buildings which got an individual heating system.
   - *Red* candidates are /required/, which means that the optimiser /has/ to put them in the network.
   - *Magenta* candidates are /infeasible/, which means that they cannot be used in a solution, for example because
     - They are buildings or roads that cannot be reached from any supply point
@@ -103,6 +109,9 @@ From the top:
 - /Losses/ gives the summed heat losses associated with all selected paths that were used in the solution.
 
 *** Editing buildings
+:PROPERTIES:
+:CUSTOM_ID: editing-buildings
+:END:
 
 You can change most of the information the model uses about buildings within a network problem. 
 
@@ -120,27 +129,30 @@ To make editing a bit easier, the buildings are divided into groups according to
 Each different classification in the selection is shown as a row underneath, so in the example there are three classifications, ~Unclassified~, ~Residential~ and ~Place of worship~. The count column shows how many buildings belong to each class.
 
 The rest of the window allows you to change the important parameters for each row.
-To say you want to change a parameter, you must tick the checkbox next to it. 
-Then you can type a value in the corresponding box. This value will be applied to every building in that row.
+To change peak or average demand, you must tick the checkbox next to it and then type in a number.
+This value will be applied to every building in that row.
+
+To change the other parameters (tariff, insulation, alternatives, counterfactual), you either change the tick-boxes or select from the drop-down menus.
 
 If we made the following changes in the example and pressed OK, the effect would be:
 
-- To set the connection cost for 41 unclassified buildings to 8 currency / kWp
-- To set the demand for the 41 unclassified buildings to 20 MWh/yr
-- To set the CO2 factor for these buildings to 0.6 kg/kWh
-- To set the peak demand for 1 place of worship to 100 kW
-- To set the heat price there to 1 cent per kWh
+- For the 26 Apartments:
+  - Set the demand for 26 apartments to 100 MWh/yr
+  - Mark them buildings as eligible for 'wall insulation'
+  - Set their counterfactual (existing) heating technology to 'gas boiler'
+- For 50 houses
+  - Set their peak demand to 50 kW
+  - Set their counterfactual system to gas boiler
+- For the 1 train station
+  - Change the tariff to expensive heat
+  - Add 'Gas boiler' to the list of non-network options that could be allowed
 
 [[./img/network/edit-buildings-edited.png]]
 
-At the moment, there is a bit of subtlety around heat price, nox, pm25 and co2.
-The starting values are not stored in the map, but instead are configured in the ~Options~ page for the whole network.
-If you change a building's heat price or emissions factors, then the defaults in the ~Options~ page will no longer apply /to that building/.
-
-There is currently not an easy way to tell whether a building is using the default values or has special values of its own.
-You can remove any changes made to these parameters, clearing them so that the defaults are used, by right-clicking and choosing ~Set defaults~.
-
 *** Editing paths
+:PROPERTIES:
+:CUSTOM_ID: editing-paths
+:END:
 
 You can edit the cost parameters for paths in a similar way: select some paths, and right click on them or press *e* to open the editor window:
 
@@ -172,77 +184,166 @@ You can do some common operations with the keyboard using these shortcuts:
 | *e* | Edit the parameters for the selection                |
 | *i* | Show some debugging information                      |
 
-** Options page
-
+** Objective page
+:PROPERTIES:
+:CUSTOM_ID: objective-page
+:END:
 This page contains settings that apply to the whole network problem; their meanings are described in more detail [[file:parameters.org][in the parameters section]].
 
-- Finance and NPV :: Costs and revenues are combined to give an NPV, which is what the optimiser tries to maximise. Capital expenditure can also be annutized using a constant-repayment fixed-term loan. The loan repayments are then subject to NPV like other costs. 
+- Accounting period :: Costs and revenues are combined to give an NPV, which is what the optimiser tries to maximise. Future cost and revenue streams are discounted over the period you specify, at the desired discount rate.
+- Objective :: The objective is the optimiser's target - the program will try and find a solution which maximises this value.
+  There are two objectives currently offered
+  - Maximise network NPV :: In this setting, the objective is to maximise the net income for the network operator. The objective value is the sum of:
+    - Network costs
+      - Capital costs for pipework
+      - Capital costs for energy supply
+      - Capital costs for connecting buildings to the network
+      - Operating costs for energy supply (cost of heat and cost of equipment)
+    - Network revenues
+      - The annual income from each connected building
+    - Other system costs (when /offer other heating systems/ is checked)
+      - The capital cost of purchasing any new individual systems for other buildings. The running cost of individual systems *is excluded* from the total.
+    - Insulation costs (when /offer insulation measures/ is checked)
+      - The capital cost of purchasing insulation
+    - Emissions costs *for all systems*
 
-     If you do not want to include a loan for your capital costs, enter ~1~ for the financing period at ~0%~ interest.
+    The value of using these last two options in this setting is dubious, and they may be removed. The optimiser will never select any insulation or alternative systems unless there is a cost or limit for emissions, because this can never improve the network's economics.
+  - Maximise whole-system NPV :: In this setting, the objective is effectively to minimise the cost of supplying heat to the buildings being considered. The objective is similar to above except:
+    - Network revenues *are not included*
+    - Operating costs for individual systems *are included*
 
-- Emissions :: These parameters set the cost and optionally a limit for total /net/ emissions due to the network. The network's net emissions are the emissions due to the supply /minus/ the avoided emissions from connecting demands.
-               Supply emissions factors are set as part of the [[*Editing supply parameters][supply parameters]], and avoided emissions using either the default factors on the options page, or any [[*Editing buildings][building-specific factors]] you have set.
+    This represents the goal of selecting a combination of heating and insulation technologies that meets the demand for heat in the problem at a minimum overall cost.
+- Capital costs :: The model breaks capital costs down into the categories shown - these can all be treated differently. The controllable settings are:
+  - Annualize :: If this is set, the cost will be annualized using a constant repayment loan spanning the /period/ at the given interest /rate/. If the period and rate are equal to the accounting period and discount rate above, the contribution to the NPV will be the same as if you don't annualize the cost.
+  - Recur :: If this is set, the item is considered to need replacing every /period/ many years. 
+   For example, if you give a period of /20/ for /Other heating/ and set it to recur, and the accounting period is 40 years, the capital cost of any individual heating system selected will be incurred twice, once in the first year and once in the twentieth
 
-- Pipes :: These parameters affect the cost of pipes. 
-           You can set limit for pipe capacity; the model will never try and install a pipe that can carry more than this amount of heat.
-           The mechanical cost parameters are set here, because they are the same for every pipe.
-           For the civil cost parameters, you can change the exponent here, but not $A$ and $B$; these values are [[*Editing paths][set for each path]].
+  - Period :: Controls the time over which a loan must be repaid if annualize is ticked, and the re-purchasing frequency if recur is ticked
 
-- Temperatures :: These parameters control the [[file:calculations.org::#pipe-diameter-calc][pipe cost]] and [[file:calculations.org::#pipe-heat-losses][heat loss]] models.
+  - Rate :: Controls the interest rate of the loan if annualize is ticked.
+            
+  The effect of these controls is shown in the last two columns. *¤ 100* shows the total un-discounted cost a capital cost of 100 currency would contribute to the accounts. *PV(¤ 100)* shows the present value of that cost over the accounting period, using the discount rate at the top of the page. This value is what the optimiser works with.
 
-- Optimisation parameters :: These parameters limit the behaviour of the optimiser; increasing the /allowable distance from best possible answer/ will make the model run faster, but decreasing it may give a better solution. The /maximum runtime/ determines how long the model will spend trying to find a solution before it gives up. 
+- Emissions costs :: Each type of emission can have a unit cost. The total emissions include those from the network's energy center and from any individual systems in buildings not connected to the network.
 
-- Building defaults :: These parameters are applied to any buildings which you have not [[*Editing buildings][edited]], and control the revenue from connecting the building (via the price) and the effect on emissions (via the avoided emissions factors).
+               Network supply emissions factors are set as part of the [[*Editing supply parameters][supply parameters]], and individual system factors in the [[#individual-systems][individual systems page]]. These factors are on an annual basis, and so are multiplied with the cost to produce an annual cost that is then summed and discounted using the accounting period and discount rate parameters.
 
-** Result page
+- Emissions limits :: You can also set an upper limit for the annual emissions from the whole system (note annual rather than lifetime emissions).
 
-This page only appears after the model has been run, and contains information about the solution that was found (if any). The information is split into four subsections, which you can switch between using the buttons below the page header.
+- Computing resources :: These parameters control how much computing time is used. The optimisation will never be allowed to run for more than the maximum runtime - if this limit is reached, you will be shown the best answer that has been found in the time.
 
-*** Result summary
+     The other parameter, /stop if solution is at least this close to the optimum/ allows the optimiser to stop before the runtime is used up in the event that it finds a solution which it can prove has only a limited margin for improvement
+** Tariffs page
+:PROPERTIES:
+:CUSTOM_ID: tariffs
+:END:
+The tariffs page lets you create tariffs. 
 
-The result summary shows a high level breakdown of the network. On the left is a table explaining the financial model, and on the right some summary figures about the solution and its net emissions.
+A tariff combines information about network revenues from connecting a building, and the capital costs for installing the connection equipment (reasonably enough you might say that these things do not go together, but in THERMOS at the moment they do).
 
-*Financial model:*
+Once you've defined some tariffs you can control which buildings take which tariffs through the map page, using the steps described in [[#editing-buildings][editing buildings]].
+** Pipe costs page
+:PROPERTIES:
+:CUSTOM_ID: pipe-costs
+:END:
+This page controls the size and hence cost of pipes. 
+The detail of the calculation method is given [[file:calculations.org][here]], but in summary:
 
-- Capital costs :: This subsection shows the cost terms associated with all the capital costs
-  - Principal :: This column gives the up-front capital cost associated with its row. 
-  - Finance :: This column gives the total cost of finance, in addition to the capital cost. 
-               The total cost (without NPV) of the row is the principal plus the finance.
-  - NPV :: This is the NPV of the row's capital cost and its financing.
-- Operating costs :: This subsection shows the cost terms associated with the functioning of the network
-  - Annual :: This is the annual real figure for the row
-  - Total :: This is the annual figure summed over the accounting period
-  - NPV :: This is the NPV of the annual figure for the accounting period
-  - Capacity :: This is the yearly cost associated with supply /capacity/.
-                This value is controlled by annual cost in the [[*Editing supply parameters][supply parameters]].
-  - Heat :: This is the yearly cost associated with /heat production/.
-            This value is controlled by the supply cost in the [[*Editing supply parameters][supply parameters]].
-- Emissions :: This subsection shows the monetised costs (or benefits) of the system's net emissions.
-               These values are controlled by emissions factors in the [[*Editing supply parameters][supply parameters]], [[*Editing buildings][building parameters]], and [[*Options page][network options]].
-- Revenue :: This subsection shows the revenues from selling heat and the final net revenue for the system.
-             Heat sales prices and quantities are governed by [[*Editing buildings][building parameters]] and [[*Options page][network options]].
+Every pipe has two costs associated with it
+- A /mechanical engineering cost/, for the pipe itself, which is the same everywhere
+- A /civil engineering cost/, for making a hole in the ground, which can be different for different places on the map
 
-*Key quantities:*
+Both of these costs are a function of the pipe's diameter, which is determined by the power it has to deliver and hence the flow and return temperatures.
 
-- Model runtime :: The time taken by the optimiser to find this solution
-- Objective value :: The numerical value of the optimum; this should be similar to the net cost in the financial model
-- Number of supplies :: The number of supply points that were used in the network
-- Supply capacity :: The total capacity of all the supply points used in the network
-- Supply output :: The total annual heat put into the network by all supply points
-- Number of demands :: The number of demands connected to the network
-- Total demand :: The total annual heat delivered to demands by the network
-- Total peak :: The combined peak of all the demands met by the network, /without diversity/
-- Length of network :: The total length of all paths selected for heat pipes
-- Heat losses :: The total heat loss from pipes per year
-- Capacity of network :: The sum-product of pipe peak capacity with pipe length over all the pipes. 
-     This might not be a useful number to know...
+At the bottom of the page you can define different civil engineering costs. Once you've defined some costs, you can associate them with different paths through the map page, using the steps described in [[*Editing paths][editing paths]].
+** Insulation page
+:PROPERTIES:
+:CUSTOM_ID: insulation
+:END:
+Thermos has a very simple insulation model, which is described in more detail [[file:insulation.org][here]].
 
-*** Demand, supply and network information
+To model insulation you have to do three things:
 
-The demand information page lists all of the demands that were included in the network.
-The supply information page lists all of the supply locations that are supplying the network, and gives their size and cost.
-The network information page gives information about each segment of pipe that is included in the network.
+1. Define a type of insulation on the insulation page, by clicking the add button and filling in the parameters.
+2. Make this insulation available in some locations by [[#editing-buildings][editing buildings]].
+3. Configure the [[#objective-page][objective]] to allow offering insulation, and most likely to do a whole-system optimisation rather than a network NPV optimisation.
+** Individual systems page
+:PROPERTIES:
+:CUSTOM_ID: individual-systems
+:ID:       11298238-7018-4765-9364-7a6a9f61cbeb
+:END:
+Every optional building in a problem can get one of these outcomes in the solution:
 
+1. The building is connected to a heat network
+2. The building has its heat demand met by an existing /counterfactual/ individual heating system
+3. The building has its heat demand met by a /new/ individual heating system
+4. As a special case, if the building has not been given a counterfactual heating system or any potential individual systems, its heat demand will be ignored.
+
+Individual systems have similar parameters to network heat sources. 
+The individual systems page displays a box like this:
+
+[[./img/network/individual-system-parameters.png]]
+
+for each individual system type that has been defined.
+
+The [[#editing-buildings][building editor]] allows you to say that certain buildings then have a particular type of individual system as their counterfactual, or as options for a replacement system.
+
+The counterfactual is treated slightly differently to a new heating system: it is considered to have no capital costs, as it already exists.
+** Solution summary page
+If you have run the model successfully, you will be able to see the solution summary page.
+
+*** Display settings
+
+At the top of the solution summary are some buttons controlling what quantities are displayed in the rest of the page. 
+
+- Capital costs:
+  - Total :: This shows the total capital cost, which includes any loan interest and any replacement costs (see [[#objective-page][the objective page]] for more on this).
+  - Principal :: This shows just the principal for a single purchase, without replacement or any interest
+  - Present value :: This shows the discounted sum of capital purchases and any loan repayments. This value is what the optimiser is interested in
+- Other costs: these are things like operational costs, the cost of heat, or the value of monetised emissions.
+  - Total :: This shows the total cost over the accounting period, without discounting
+  - Annual :: This shows the yearly cost.
+  - Present value :: This shows the discounted sum of annual costs over the accounting period. This value is what the optimiser is interested in.
+
+On the rest of the page, when you select different values to display, the units will change to reflect what is being shown. You may see:
+
+- ¤ :: This is total cost
+- ¤_{0} :: This is principal
+- ¤_{PV} :: This is present value
+- ¤/yr :: This is annual cost
+
+*** Cost summary
+
+This box shows the headline information for all the parts of the solution. 
+Note that this box contains things like the whole system NPV, even if you have chosen to optimise for network NPV.
+
+*** Network
+
+This box breaks down the equipment that went into the network. 
+Pipework is totalled up by civil engineering cost category and required pipe diameter.
+Demands are totalled up by their classification.
+
+*** Emissions
+
+This box shows the amount and the monetised value of all emissions in the system.
+The counterfactual row gives the emissions due to the counterfactual heating systems specified before the run, and the net row the difference.
+
+*** Optimisation
+
+This box shows some information about the optimisation, which deserves a little explanation:
+
+- Objective value :: This is the value the optimiser sees for this solution, in NPV terms
+- Runtime :: The amount of time taken to find a solution
+- Iterations :: This is a technical detail; since some parameters can't be expressed within the optimisation, there is an iterative process of finding a solution and then updating the assumptions used to create that solution.
+- Iteration range :: This is the range of objective values that were observed when trying to find the proper values for diversity parameters
+- Gap :: This is a measure of the solution quality; if the value is zero, it means that from the optimiser's point of view the solution could not be improved
+- Bounds :: These are the upper and lower bounds for the solution before we fixed the parameters. The optimiser knows the value of the best possible solution is within this range.
+** Run log page
+:PROPERTIES:
+:CUSTOM_ID: run-log
+:END:
+
+This page shows some text that the model itself outputs when running - it is mostly useful for diagnostic purposes.
 * How to...
 ** Select things efficiently
 :PROPERTIES:

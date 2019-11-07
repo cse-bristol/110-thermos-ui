@@ -1,0 +1,56 @@
+#+TITLE: Insulation
+
+THERMOS has a very simple model of insulation: insulation comes in different /types/, which are user defined, and each building may be eligible for none, some or all of these types.
+
+When the objective is set to include insulation as a possibility, the optimiser will decide for each building how much of each type of insulation that the building is eligible for to put into the building.
+
+If a building is given some insulation, its annual total demand for heat will be reduced.
+Insulation is not taken to affect the peak heat demand at the moment, so it does not affect pipe sizing or plant capacity.
+
+* Insulatable surfaces
+
+For each building, THERMOS has an estimate of three different heat loss areas: floor area, roof area, and external wall area. When you define a type of insulation, you have to say which of these surfaces it goes onto.
+
+* Effect of insulation
+
+When you define some insulation you have to fill in a form a bit like this:
+
+[[./img/insulation/params.png]]
+
+Using the parameters in this picture, we can describe what the optimiser can do for an eligible building.
+
+Say we have a building whose annual heat demand is 25 MWh/yr which is marked as eligible for this insulation type. Let's say the building has an external wall area of 80 square metres.
+
+In this situation, the optimiser has a choice of installing any amount between 0 and 45% * 80 = 36 square metres of insulation.
+
+If it chooses to install none, there is no effect - the demand remains the same and there is no cost.
+
+Otherwise, if it chooses to install all 36 square metres, the consequences are:
+
+- A reduction in annual demand of 25%, 6.26 MWh/yr, giving a new annual demand of 18.75 MWh/yr
+- A capital cost of 36 * 10 + 500 = 860
+
+If instead it chose to install only 20 square metres, the consequences are:
+
+- A reduction in annual demand of (20 / 36) * 25%, 3.47 MWh/yr, giving a new annual demand of 21.5 MWh/yr
+- A capital cost of 20 * 10 + 500 = 700
+
+* Interaction with the objectives
+
+The model can be set to one of two objectives:
+
+1. Maximising network NPV
+
+   In this case, the model will only ever purchase insulation in the face of emissions costs or limits, or when a building is required to be on network but is loss-making per unit heat sold. It is unlikely that you will want to offer insulation in this mode.
+
+   This is because:
+
+   - If a building is connected to the network, and the network can make net profit on each unit of heat sold, there is no value to the network in shrinking the building's demand.
+
+     The other costs for the network are all determined by peak demands, which insulation does not (at the moment) affect.
+
+   - If a building is /not/ connected to the network, but instead has an individual heating system, although insulation will reduce its heat costs the network operator /does not care about these costs/ as they are borne by the building's owner.
+
+2. Maximising "whole system" NPV
+
+   In this case, the model /will/ purchase insulation if it reduces the total cost of supplying heat to all the buildings in the problem, as this is the goal. Since the whole system cost contains the cost of all sources of heat input, both to a network or to individual systems, a demand reduction for either may make sense.
