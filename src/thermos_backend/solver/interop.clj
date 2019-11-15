@@ -202,9 +202,12 @@
         {standing-charge     ::tariff/standing-charge
          unit-charge         ::tariff/unit-charge
          capacity-charge     ::tariff/capacity-charge
-         fixed-connection    ::tariff/fixed-connection-cost
-         variable-connection ::tariff/variable-connection-cost}
+         }
         (document/tariff-for-id instance (::tariff/id candidate))
+
+        {fixed-connection    ::tariff/fixed-connection-cost
+         variable-connection ::tariff/variable-connection-cost}
+        (document/connection-cost-for-id instance (::tariff/cc-id candidate))
 
         standing-charge (if ignore-revenues 0 (or standing-charge 0))
         unit-charge     (if ignore-revenues 0 (or unit-charge 0))
@@ -375,13 +378,11 @@
         _ (log/info "Computed flow bounds")
         ]
     
-    {:time-limit  (float (::document/maximum-runtime instance 1.0))
-     :mip-gap     (float (::document/mip-gap instance 0.05))
-     :iteration-limit (int (::document/maximum-iterations instance 1000))
+    {:time-limit      (float (::document/maximum-runtime instance 1.0))
+     :mip-gap         (float (::document/mip-gap instance 0.05))
+     :iteration-limit (int   (::document/maximum-iterations instance 1000))
+     :supply-limit    (when-let [l (::document/maximum-supply-sites instance)] (int l))
      
-     :supply-limit
-     (when-let [l (::document/maximum-supply-sites instance)]
-       (int l))
      :pipe-losses
      (let [losses (pipes/heat-loss-curve
                    power-curve
@@ -431,10 +432,7 @@
              (pipes/linear-cost-per-kw
               power-curve
               kw-min kw-max
-              ;; forwards vs backwards - TODO should I think about zeroes specially here?
-
               mech-A mech-B mech-C
-              
               civil-fixed civil-var civil-C))]
        
        (for [edge (->> (graph/edges net-graph)
@@ -493,21 +491,10 @@
                   :counterfactual true)
            (let [kwh (::solution/kwh candidate)
                  kwp (::demand/kwp candidate)
-                 
-                 fixed-cost (::supply/fixed-cost alternative 0)
-                 capex-per-kwp (::supply/capex-per-kwp alternative 0)
-                 capex-per-mean-kw (::supply/capex-per-mean-kw alternative 0)
-                 
-                 opex-per-kwh (::supply/cost-per-kwh alternative 0)
-                 opex-per-kwp (::supply/opex-per-kwp alternative 0)
-                 
-                 capex (+ fixed-cost
-                          (* capex-per-kwp kwp)
-                          (* capex-per-mean-kw
-                             (annual-kwh->kw kwh)))
-                 
-                 opex (* opex-per-kwp kwp)
-                 fuel (* opex-per-kwh kwh)]
+
+                 capex (supply/principal alternative kwp kwh)
+                 opex  (supply/opex alternative kwp)
+                 fuel  (supply/heat-cost alternative kwh)]
              {:capex (finance/adjusted-value instance :alternative-capex capex)
               :opex (finance/adjusted-value instance :alternative-opex opex)
               :heat-cost (finance/adjusted-value instance :alternative-opex fuel)
@@ -520,7 +507,6 @@
                         [e (finance/emissions-value instance e emissions)])))
               ::supply/id (::supply/id alternative)
               ::supply/name (::supply/name alternative)}))))
-
 
 (defn- merge-solution [instance net-graph power-curve result-json]
   (let [state (keyword (:state result-json))
@@ -540,6 +526,7 @@
         (fn [v]
           (let [solution-vertex (solution-vertices (::candidate/id v))
                 tariff          (document/tariff-for-id instance (::tariff/id v))
+                connection-cost (document/connection-cost-for-id instance (::tariff/cc-id v))
                 
                 insulation           (for [[id kwh] (:insulation solution-vertex)]
                                        (output-insulation instance v id kwh))
@@ -565,7 +552,7 @@
                  instance
                  :connection-capex
                  (tariff/connection-cost
-                  tariff
+                  connection-cost
                   effective-demand
                   (::demand/kwp v)))
 
@@ -576,7 +563,9 @@
                   [(finance/adjusted-value
                     instance
                     :supply-capex
-                    (supply/principal v (:capacity-kw solution-vertex)))
+                    (supply/principal v
+                                      (:capacity-kw solution-vertex)
+                                      (:output-kwh solution-vertex)))
 
                    (finance/adjusted-value
                     instance
@@ -777,17 +766,12 @@
           (json/write input-json writer :escape-unicode false))
         
         (log/info "Starting solver")
-        ;; invoke the solver
+        
         (let [start-time (System/currentTimeMillis)
               output (sh solver-command "problem.json" "solution.json"
                          :dir working-directory)
               
               end-time (System/currentTimeMillis)
-
-              _ (log/info "Solver ran in"
-                          (format-seconds
-                           (/ (- end-time start-time)
-                              1000.0)))
 
               output-json (try
                             (with-open [r (io/reader (io/file working-directory "solution.json"))]
@@ -816,3 +800,4 @@
           
           solved-instance)))
     ))
+

@@ -28,7 +28,7 @@
 (def nil-value-label {::candidate/name "None"
                       ::candidate/subtype "Unclassified"})
 
-(defn- demand-editor [tariffs insulation alternatives state buildings]
+(defn- demand-editor [tariffs connection-costs insulation alternatives state buildings]
   (reagent/with-let
     [group-by-key  (reagent/cursor state [:group-by])
      benchmarks    (reagent/cursor state [:benchmarks])
@@ -61,6 +61,7 @@
           [:th "Demand"]
           [:th "Peak"]
           [:th "Tariff"]
+          [:th "Con. cost"]
           [:th "Insulation"]
           [:th "Alternatives"]
           [:th "Counterfactual"]]
@@ -111,6 +112,12 @@
                                                                           (get tariff-frequencies id 0 )
                                                                           ")")])
                                  tariffs)]}]]
+             [:td [inputs/select
+                   {:value-atom (reagent/cursor values [group-by-key k :connection-cost])
+                    :values `[[:unset "Unchanged"]
+                              ~@(map
+                                 (fn [[id {name ::tariff/name}]] [id name ])
+                                 connection-costs)]}]]
 
              [:td
               (doall
@@ -223,6 +230,7 @@
                          [k (merge
                              {:demand {:value (mean (map ::demand/kwh v))}
                               :tariff (unset? (map ::tariff/id v))
+                              :connection-cost (unset? (map ::tariff/cc-id v))
                               :peak-demand {:value (mean (map ::demand/kwp v))}
                               :demand-benchmark {:value 2}
                               :peak-benchmark {:value 3}
@@ -294,6 +302,10 @@
 
              set-tariff (not= :unset tariff)
 
+             connection-cost (:connection-cost values)
+
+             set-connection-cost (not= :unset connection-cost)
+             
              counterfactual (:counterfactual values)
 
              set-counterfactual (not= :unset counterfactual)
@@ -327,6 +339,7 @@
            set-demand              (assoc ::demand/kwh demand-value)
            set-peak                (assoc ::demand/kwp peak-value)
            set-tariff              (assoc ::tariff/id tariff)
+           set-connection-cost     (assoc ::tariff/cc-id connection-cost)
            set-counterfactual      (assoc ::demand/counterfactual counterfactual)
            
            (seq add-insulation)    (update ::demand/insulation set/union add-insulation)
@@ -339,6 +352,7 @@
            (or set-demand
                set-peak
                set-tariff
+               set-connection-cost
                set-counterfactual
                
                (seq add-insulation)
@@ -358,6 +372,7 @@
                      demand-state (reagent/atom (initial-building-state buildings))
                      path-state   (reagent/atom (initial-path-state paths))
                      tariffs (sort-by first (::document/tariffs @document))
+                     connection-costs (sort-by first (::document/connection-costs @document))
                      civils (sort-by first (::document/civil-costs @document))
                      insulation (sort-by first (::document/insulation @document))
                      alternatives (sort-by first (::document/alternatives @document))
@@ -367,6 +382,7 @@
      (when (seq buildings)
        [demand-editor
         tariffs
+        connection-costs
         insulation
         alternatives
         
@@ -380,16 +396,17 @@
        {:on-click popover/close!
         :style {:margin-left :auto}}
        "Cancel"]
-      [:button.button {:on-click (fn []
-                            (state/edit! document
-                                         #(-> %
-                                              (apply-path-state @path-state
-                                                                (map ::candidate/id paths)
-                                                                )
-                                              (apply-building-state @demand-state
-                                                                    (map ::candidate/id buildings)
-                                                                    )))
-                            (popover/close!))}
+      [:button.button
+       {:on-click (fn []
+                    (state/edit! document
+                                 #(-> %
+                                      (apply-path-state @path-state
+                                                        (map ::candidate/id paths)
+                                                        )
+                                      (apply-building-state @demand-state
+                                                            (map ::candidate/id buildings)
+                                                            )))
+                    (popover/close!))}
        "OK"]]]
     ))
 

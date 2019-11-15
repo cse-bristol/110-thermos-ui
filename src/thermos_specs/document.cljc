@@ -278,6 +278,35 @@
            (dissoc c ::tariff/id)
            c)))))
 
+(defn connection-cost-for-id [doc connection-cost-id]
+  (let [connection-costs (::connection-costs doc)]
+    (when connection-costs
+      (or (get connection-costs connection-cost-id)
+          (get connection-costs
+               (reduce min (keys connection-costs)))))))
+
+(defn connection-cost-name [doc connection-cost-id]
+  (or (::tariff/name (connection-cost-for-id doc connection-cost-id)) "None"))
+
+(defn remove-connection-cost
+  {:test #(test/is
+           (= {::connection-costs {1 {}}
+               ::candidates {1 {::tariff/cc-id 1}
+                             2 {}}}
+              (remove-connection-cost
+               {::connection-costs {1 {} 2 {}}
+                ::candidates {1 {::tariff/cc-id 1}
+                              2 {::tariff/cc-id 2}}}
+               2)))}
+  [doc connection-cost-id]
+  (-> doc
+      (update ::connection-costs dissoc connection-cost-id)
+      (map-candidates
+       (fn [c]
+         (if (= connection-cost-id (::tariff/cc-id c))
+           (dissoc c ::tariff/cc-id)
+           c)))))
+
 (defn remove-civils [doc cost-id]
   (-> doc
       (update ::civil-costs dissoc cost-id)

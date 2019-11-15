@@ -1,5 +1,6 @@
 (ns thermos-specs.supply
-  (:require [clojure.spec.alpha :as s]))
+  (:require [clojure.spec.alpha :as s]
+            [thermos-util :as util]))
 
 (s/def ::supply
   (s/keys :req [::capacity-kwp
@@ -13,14 +14,17 @@
   (s/keys :req [::id ::name
                 ::cost-per-kwh
                 ::capex-per-kwp
+                ::capex-per-mean-kw
                 ::opex-per-kwp
                 ::fixed-cost
                 ::emissions]))
 
-(defn principal [candidate capacity-kw]
+(defn principal [candidate capacity-kw annual-kwh]
   (+ (::fixed-cost candidate 0)
      (* (or capacity-kw 0)
-        (::capex-per-kwp candidate 0))))
+        (::capex-per-kwp candidate 0))
+     (* (util/annual-kwh->kw (or annual-kwh 0))
+        (::capex-per-mean-kw candidate 0))))
 
 (defn opex [candidate capacity-kw]
   (* (or capacity-kw 0) (::opex-per-kwp candidate 0)))

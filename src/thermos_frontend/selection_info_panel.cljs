@@ -51,7 +51,7 @@
         base-cost #(case (::candidate/type %)
                      :path (document/path-cost % @document)
                      :building (tariff/connection-cost
-                                (document/tariff-for-id @document (::tariff/id %))
+                                (document/connection-cost-for-id @document (::tariff/cc-id %))
                                 (::demand/kwh %)
                                 (::demand/kwp %))
                      nil)
