@@ -18,7 +18,6 @@
      #(let [now (js/Date.now)]
         (swap! state
                (fn [{e :expires :as state}]
-                 (println now e)
                  (if (>= now e)
                    (assoc state :showing false)
                    state))))

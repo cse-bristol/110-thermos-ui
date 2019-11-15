@@ -1,11 +1,4 @@
 div.parameters-component {
-   height: calc(~"100% - 50px");
-   overflow-y: auto;
-   font-size:1.2em;
-   display:flex;
-   flex-flow: row wrap;
-   background:#fafafa;
-
    h1, h2 { display: block; }
 
    h1 {
@@ -14,69 +7,4 @@ div.parameters-component {
    }
 
    h2 { font-size:1.5em; }
-
-   div {
-       margin:0.5em;
-       flex:1;
-       min-width: 400px;
-   }
-
-   input[type=number] {
-       max-width: 5em;
-      padding:3px;
-      border:1px #ddd solid;
-      border-radius:3px;
-      background-color:rgba(255,255,255,0.5);
-      transition:background-color 0.1s ease;
-   }
-
-   input[type=number]:disabled {
-      padding:3px;
-      border:none;
-      border-radius:3px;
-      background-color:rgba(150,150,150,0.5);
-      transition:background-color 0.1s ease;
-   }
-
-   input[type=number]:focus {
-      background-color:white;
-      border:none;
-      outline:none;
-   }
-
-.tooltip {
-    position: relative;
-    display: inline-block;
-    border-bottom: 1px dotted black;
-}
-
-.tooltip .tooltiptext {
-    visibility: hidden;
-    width: 200px;
-    background-color: black;
-    color: #fff;
-    text-align: center;
-    border-radius: 6px;
-    padding: 5px 0;
-    position: absolute;
-    z-index: 1;
-    top: 150%;
-    left: 50%;
-    margin-left: -25px;
-}
-
-.tooltip .tooltiptext::after {
-    content: "";
-    position: absolute;
-    bottom: 100%;
-    left: 12.5%;
-    margin-left: -5px;
-    border-width: 5px;
-    border-style: solid;
-    border-color: transparent transparent black transparent;
-}
-
-.tooltip:hover .tooltiptext {
-    visibility: visible;
-}
 }

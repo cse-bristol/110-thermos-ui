@@ -10,7 +10,8 @@
             [honeysql-postgres.helpers :as p]
             [clojure.string :as string]
             [clojure.data.json :as json]
-            [thermos-backend.db.migration :as migration])
+            [thermos-backend.db.migration :as migration]
+            [clojure.term.colors :as tc])
   
   (:import [org.postgresql.util PGobject]))
 
@@ -36,7 +37,9 @@
     
     (try
       (with-open [conn (jdbc/connection datasource)]
-        (migration/migrate conn))
+        (migration/migrate conn)
+        ;;(migration/force conn) ; for when I broken it
+        )
       datasource
       (catch Exception e
         (and datasource (hikari/close-datasource datasource))
@@ -82,7 +85,24 @@
      (try
        (jdbc/execute conn query)
        (catch Exception e
-         (log/error e "Exception executing query: " (pr-str query))
+         
+         (let [message (.getMessage e)
+               position (second (re-find #"Position: (\d+)" message))
+               ]
+           (if position
+             (let [position (Integer/parseInt position)
+                   sql (first query)
+                   start (max 0 (- position 5))
+                   end (min (.length sql) (+ position 5))
+                   params (rest query)]
+               (log/error e "Exception executing query: "
+                          (str
+                           (.substring sql 0 start)
+                           (tc/on-white (tc/red (.substring sql start end)))
+                           (.substring sql end))
+                          (pr-str params)))
+             (log/error e "Exception executing query: " (pr-str query))))
+         
          (throw e))))))
 
 (defn fetch-one!

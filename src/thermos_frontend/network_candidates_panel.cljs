@@ -42,6 +42,7 @@
                                   ::document/mechanical-cost-per-m2
                                   ::document/mechanical-cost-exponent
                                   ::document/civil-cost-exponent
+                                  ::document/civil-costs
                                   ]))]
        (fn [path]
          (document/path-cost path @params)))

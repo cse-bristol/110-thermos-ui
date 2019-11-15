@@ -14,6 +14,7 @@ button {
   font-weight: bold;
   cursor: pointer;
   transition: background linear 0.2s;
+  display: inline-block;
   &:hover, &:active {
     background: @theme-darkest-blue;
   }
@@ -22,6 +23,8 @@ button {
 .button--link-style {
   background: transparent;
   color: @theme-darker-blue;
+  border: none;
+  cursor: pointer;
   &:hover, &:active {
     background: transparent;
     color: @theme-darkest-blue;

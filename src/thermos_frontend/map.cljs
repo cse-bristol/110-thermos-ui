@@ -108,13 +108,17 @@
         track! (fn [f & a]
                  (let [watch (apply reagent/track! f a)]
                    (swap! watches conj #(reagent/dispose! watch))))
-
+        
+        map-bounding-box (reagent/cursor document [::view/view-state ::view/bounding-box])
+        
         map (js/L.map map-node (clj->js {:preferCanvas true
                                          :fadeAnimation true
                                          :zoom 15
-                                         :center [51.553356 -0.109271]
-                                         }))
-
+                                         :center
+                                         (let [{n :north s :south
+                                                w :west e :east}
+                                               @map-bounding-box]
+                                           [(* 0.5 (+ w e)) (* 0.5 (+ n s))])}))
         
         ;; The tilesize of 256 is related to the x, y values when talking
         ;; to the server for tile data, so if the tilesize changes, effectively
@@ -211,7 +215,7 @@
                (when (get target-state k)
                  (.addLayer map v)))))
         
-        map-bounding-box (reagent/cursor document [::view/view-state ::view/bounding-box])
+
         
         show-bounding-box!
         #(let [{n :north s :south
@@ -227,8 +231,16 @@
             (Math/sqrt
              (+ (Math/pow (- (.-lat zz) (.-lat oo)) 2)
                 (Math/pow (- (.-lng zz) (.-lng oo)) 2)))
-            ))]
+            ))
 
+        ;; these next 3 are a bit of a hack which I could improve.
+        ;; poke-map-size! should get invoked when the splitters are moved
+        h-split-pos (reagent/cursor document [::view/view-state ::view/map-page-h-split])
+        v-split-pos (reagent/cursor document [::view/view-state ::view/map-page-v-split])
+        poke-map-size! #(let [_ @h-split-pos
+                              _ @v-split-pos]
+                          (.invalidateSize map))]
+    (track! poke-map-size!)
     (track! show-bounding-box!)
     (track! show-map-layers!)
     
@@ -494,15 +506,6 @@
                          candidate/forbid-supply!
                          candidate-ids))
           (popover/close!))
-        
-
-        reset-defaults!
-        (fn []
-          (state/edit! document
-                       #(document/map-candidates %
-                         candidate/reset-defaults!
-                         buildings))
-          (popover/close!))
         ]
     [popover-menu/component
      (remove
@@ -552,9 +555,7 @@
              {:value "Edit buildings (e)"
               :key "edit-demands"
               :on-select #(candidate-editor/show-editor! document buildings)}
-             {:value "Set defaults"
-              :key "set-defaults"
-              :on-select reset-defaults!}
+             
              {:value [:div.popover-menu__divider] :key "divider-2"}))
         
         ~@(list

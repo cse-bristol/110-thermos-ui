@@ -14,7 +14,10 @@
         parmeters (just-number-values parameters)]
     (document/map-candidates
      document
-     #(-> % (update ::supply/emissions merge emissions) (merge parameters))
+     #(-> %
+          (assoc ::candidate/modified true)
+          (update ::supply/emissions merge emissions)
+          (merge parameters))
      candidate-ids)))
 
 (defn- supply-parameters-form [document candidate-ids]
@@ -59,8 +62,9 @@
        (for [e candidate/emissions-types]
         [:tr {:key e}
          [:td (name e)]
-         [:td [inputs/number {:value-atom (emissions-atoms e) :min 0 :max 1000 :step 0.1}]]
-         [:td "kg/kWh"]])
+         [:td [inputs/number {:value-atom (emissions-atoms e) :min 0 :max 1000 :step 1
+                              :scale 1000}]]
+         [:td "g/kWh"]])
        ]
       ]
      [:div

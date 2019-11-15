@@ -153,7 +153,8 @@
         (reduce
          (fn [candidates new-candidate]
            (let [candidate-id (::candidate/id new-candidate)]
-             (if (get candidates candidate-id) ;; look up new candidate's ID
+             (if (get candidates candidate-id)
+               ;; look up new candidate's ID
                ;; in the existing candidates.
                candidates ;; If it already exists, don't change anything
                (assoc! candidates candidate-id new-candidate))))

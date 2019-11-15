@@ -5,17 +5,18 @@
             [thermos-specs.path :as path]
             [thermos-specs.solution :as solution]
             [thermos-specs.view :as view]
+            [thermos-specs.measure :as measure]
             [thermos-specs.supply :as supply]
+            [thermos-specs.tariff :as tariff]
             [clojure.string :as str]
             [clojure.walk :refer [prewalk]]
-            [com.rpl.specter :as sr :refer-macros [setval]]))
+            [com.rpl.specter :as sr :refer-macros [setval]]
+            [clojure.test :as test]))
 
 (s/def ::document
   (s/keys :req [::candidates
                 ::view/view-state
 
-                ;; default values for price & emissions at demands
-                ::demand/price
                 ::demand/emissions
 
                 ::npv-term
@@ -39,6 +40,17 @@
                 ::mechanical-cost-exponent
                 ::civil-cost-exponent
 
+                ::tariffs
+
+                ::civil-costs
+
+                ::insulation
+                ::alternatives
+
+                ::maximum-supply-sites
+
+                ::maximum-pipe-diameter
+                ::minimum-pipe-diameter
                 ]
           :opt [::solution/summary
                 ::deletions]))
@@ -57,6 +69,14 @@
 
 (s/def ::deletions (s/* ::candidate/id))
 
+(s/def ::tariffs
+  (s/and (redundant-key ::tariff/id)
+         (s/map-of ::tariff/id ::tariff/tariff)))
+
+(s/def ::civil-costs
+  (s/and (redundant-key ::path/civil-cost-id)
+         (s/map-of ::path/civil-cost-id ::path/civil-cost)))
+
 (s/def ::candidates
   (s/and
    (redundant-key ::candidate/id)
@@ -70,7 +90,7 @@
   "Given a document, remove any candidates which are not either ::candidate/modified,
   or having ::candidate/inclusion :optional or :required"
   [doc]
-  {:test #(assert
+  {:test #(test/is
            (= (set (keys (::candidates
                           (keep-interesting-candidates
                            {::candidates {"one" {::candidate/inclusion :optional}
@@ -92,11 +112,11 @@
 (defn- is-transient-key?
   "A key is transient if it's namespaced and not within thermos-specs."
   [x]
-  {:test #(assert (and (is-transient-key? :some.ns/kw)
-                       (not (is-transient-key? :some-kw))
-                       (not (is-transient-key? ::some-kw))
-                       (not (is-transient-key? 1))
-                       (not (is-transient-key? "str"))))}
+  {:test #(test/is (and (is-transient-key? :some.ns/kw)
+                        (not (is-transient-key? :some-kw))
+                        (not (is-transient-key? ::some-kw))
+                        (not (is-transient-key? 1))
+                        (not (is-transient-key? "str"))))}
   (and (keyword? x)
        (namespace x)
        (not (str/starts-with? (namespace x) "thermos-specs"))))
@@ -120,7 +140,7 @@
 
   This function removes all these keys"
   [doc]
-  {:test #(assert
+  {:test #(test/is
            (and
             (= (remove-transient-keys {}) {})
             (= (remove-transient-keys {::keep-this 1}) {::keep-this 1})
@@ -169,8 +189,22 @@
                   (assoc! cands id (f (get cands id))))
                 (transient %) ids))))))
 
+(defn map-buildings [doc f]
+  (map-candidates
+   doc f (map ::candidate/id (filter candidate/is-building? (vals (::candidates doc))))))
+
+(defn map-paths [doc f]
+  (map-candidates
+   doc f (map ::candidate/id (filter candidate/is-path? (vals (::candidates doc))))))
+
+(defn candidates-by-type
+  "Return candidates from the given document, grouped by type"
+  [doc]
+  (group-by ::candidate/type (vals (::candidates doc))))
+
 (let [solution-ns (namespace ::solution/included)
-      is-solution-keyword #(= (namespace %) solution-ns)]
+      is-solution-keyword #(and (keyword? %)
+                                (= (namespace %) solution-ns))]
   (defn remove-solution
     "Remove everything to do with a solution from this document"
     [doc]
@@ -181,22 +215,138 @@
 (defn has-solution? [document]
   (contains? document ::solution/state))
 
-(defn path-cost [path document]
-  (path/cost
-   path
-   (::civil-cost-exponent document)
-   (::mechanical-cost-per-m document)
-   (::mechanical-cost-per-m2 document)
-   (::mechanical-cost-exponent document)
-   10))
+(defn civil-cost-for-id [doc cost-id]
+  (let [costs (::civil-costs doc)]
+    (or (get costs cost-id)
+        (when-let [cost-keys (seq (keys costs))]
+          (get costs (reduce min cost-keys))))))
 
+(defn civil-cost-name [doc cost-id]
+  (or (::path/civil-cost-name
+       (civil-cost-for-id doc cost-id)
+       (str "Civil cost " cost-id))
+      "None"))
+
+(defn path-cost [path document]
+  (let [cost (civil-cost-for-id document (::path/civil-cost-id path))]
+    (path/cost
+     path
+     (::path/fixed-cost cost)
+     (::path/variable-cost cost)
+     (::civil-cost-exponent document)
+     
+     (::mechanical-cost-per-m document)
+     (::mechanical-cost-per-m2 document)
+     (::mechanical-cost-exponent document)
+     10)))
 
 (defn is-runnable?
   "Tells you if the document might be runnable.
-  At the moment checks for the presence of 
+  At the moment checks for the presence of a supply and some demands.
   "
   [document]
   (and (not (empty? (::candidates document)))
        (some (comp #{:building} ::candidate/type) (vals (::candidates document)))
        (some ::supply/capacity-kwp (vals (::candidates document)))))
+
+(defn tariff-for-id [doc tariff-id]
+  (let [tariffs (::tariffs doc)]
+    (when tariffs
+      (or (get tariffs tariff-id)
+          (get tariffs
+               (reduce min (keys tariffs)))))))
+
+(defn tariff-name [doc tariff-id]
+  (or (::tariff/name (tariff-for-id doc tariff-id)) "None"))
+
+(defn remove-tariff
+  {:test #(test/is
+           (= {::tariffs {1 {}}
+               ::candidates {1 {::tariff/id 1}
+                             2 {}}}
+              (remove-tariff
+               {::tariffs {1 {} 2 {}}
+                ::candidates {1 {::tariff/id 1}
+                              2 {::tariff/id 2}}}
+               2)))}
+  [doc tariff-id]
+  (-> doc
+      (update ::tariffs dissoc tariff-id)
+      (map-candidates
+       (fn [c]
+         (if (= tariff-id (::tariff/id c))
+           (dissoc c ::tariff/id)
+           c)))))
+
+(defn connection-cost-for-id [doc connection-cost-id]
+  (let [connection-costs (::connection-costs doc)]
+    (when connection-costs
+      (or (get connection-costs connection-cost-id)
+          (get connection-costs
+               (reduce min (keys connection-costs)))))))
+
+(defn connection-cost-name [doc connection-cost-id]
+  (or (::tariff/name (connection-cost-for-id doc connection-cost-id)) "None"))
+
+(defn remove-connection-cost
+  {:test #(test/is
+           (= {::connection-costs {1 {}}
+               ::candidates {1 {::tariff/cc-id 1}
+                             2 {}}}
+              (remove-connection-cost
+               {::connection-costs {1 {} 2 {}}
+                ::candidates {1 {::tariff/cc-id 1}
+                              2 {::tariff/cc-id 2}}}
+               2)))}
+  [doc connection-cost-id]
+  (-> doc
+      (update ::connection-costs dissoc connection-cost-id)
+      (map-candidates
+       (fn [c]
+         (if (= connection-cost-id (::tariff/cc-id c))
+           (dissoc c ::tariff/cc-id)
+           c)))))
+
+(defn remove-civils [doc cost-id]
+  (-> doc
+      (update ::civil-costs dissoc cost-id)
+      (map-candidates
+       (fn [c]
+         (if (= cost-id (::path/civil-cost-id c))
+           (dissoc c ::path/civil-cost-id)
+           c)))))
+
+(s/def ::insulation
+  (s/and
+   (redundant-key ::measure/id)
+   (s/map-of ::measure/id ::measure/insulation)))
+
+(s/def ::alternatives
+  (s/and
+   (redundant-key ::supply/id)
+   (s/map-of ::supply/id ::supply/alternative)))
+  
+(defn alternative-for-id [doc alternative-id]
+  (get (::alternatives doc) alternative-id))
+
+(defn insulation-for-id [doc insulation-id]
+  (get (::insulation doc) insulation-id))
+
+(defn remove-alternative [doc alt-id]
+  (-> doc
+      (update ::alternatives dissoc alt-id)
+      (map-candidates
+       (fn [c]
+         (-> c
+             (update ::demand/alternatives disj alt-id)
+             (cond-> 
+                 (= alt-id (::demand/counterfactual c))
+               (dissoc ::demand/counterfactual)))))))
+
+(defn remove-insulation [doc ins-id]
+  (-> doc
+      (update ::insulation dissoc ins-id)
+      (map-candidates
+       (fn [c]
+         (update c ::demand/insulation disj ins-id)))))
 

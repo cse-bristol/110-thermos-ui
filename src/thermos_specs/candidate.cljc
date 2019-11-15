@@ -3,6 +3,7 @@
             [thermos-specs.solution :as solution]
             [thermos-specs.supply :as supply]
             [thermos-specs.demand :as demand]
+            [thermos-specs.tariff :as tariff]
             [thermos-specs.path :as path]))
 
 (defn- nil-or-string? [x] (or (nil? x) (string? x)))
@@ -18,7 +19,16 @@
 (s/def ::building
   (s/and
    #(= (::type % :building))
-   (s/keys :req [::connections ])
+   (s/keys :req [::connections
+                 ::wall-area
+                 ;; ::floor-area
+
+                 ::ground-area
+                 ::roof-area
+                 ;; ::height
+                 ]
+           :opt [::tariff/id])
+   
    (s/or :has-demand ::demand/demand ;; TODO this is not quite right
          :has-supply ::supply/supply
          :has-nothing (constantly true))))
@@ -32,7 +42,14 @@
 (s/def ::connections (s/* ::id))
 (s/def ::modified boolean?) ;; a modified candidate is one the user has changed
 
-(defn is-included? [candidate] (not= :forbidden (::inclusion candidate)))
+(s/def ::wall-area number?)
+(s/def ::roof-area number?)
+
+;; this is distinct from floor area; it's relevant for insulation
+;; practically it will likely be the same as roof area since we don't do pitch.
+(s/def ::ground-area number?)
+
+(defn is-included? [candidate] (not= :forbidden (::inclusion candidate :forbidden)))
 (defn is-path? [candidate] (= (::type candidate) :path))
 (defn is-building? [candidate] (= (::type candidate) :building))
 (defn has-demand? [candidate]
@@ -46,6 +63,10 @@
   (= (::inclusion candidate) :required))
 
 (defn in-solution? [candidate] (::solution/included candidate))
+(defn is-connected? [candidate]
+  (or (and (is-path? candidate)
+           (in-solution? candidate))
+      (::solution/connected candidate)))
 
 (defn supply-in-solution? [candidate]
   (and (is-building? candidate)
@@ -53,19 +74,14 @@
        (::solution/included candidate)
        (::solution/capacity-kw candidate)))
 
-(def emissions-types #{:co2 :pm25 :nox})
+(def emissions-types [:co2 :pm25 :nox])
 
 (defn unreachable? [candidate] (::solution/unreachable candidate))
-
-(defn emissions [candidate e document]
-  (* (::demand/kwh candidate 0)
-     (or (get (::demand/emissions candidate) e)
-         (get (::demand/emissions document) e 0))))
 
 (defn forbid-supply! [candidate]
   (dissoc candidate ::supply/capacity-kwp))
 
-(defn reset-defaults! [candidate]
-  (dissoc candidate
-          ::demand/emissions
-          ::demand/price))
+(defn got-alternative? [candidate]
+  (and (::solution/alternative candidate)
+       (not (:counterfactual (::solution/alternative candidate)))))
+

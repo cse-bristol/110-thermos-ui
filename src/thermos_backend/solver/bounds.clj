@@ -173,55 +173,56 @@
 (defn edge-bounds [g & {:keys [capacity demand peak-demand size max-kwp]
                         :or {max-kwp 100000000}}]
   (->>
-   (for [[i j] (graph/edges g)]
-     (let [posmin (fn [c]
-                    (let [c (filter pos? c)]
-                      (if (empty? c) 0
-                          (reduce min c))))
+   (pmap (fn [[i j]]
+           (let [posmin (fn [c]
+                          (let [c (filter pos? c)]
+                            (if (empty? c) 0
+                                (reduce min c))))
 
-           bound (fn [a b] [(min a b max-kwp) (min b max-kwp)])
-           
-           g' (graph/remove-edges g [i j] [j i])
-           i* (set (alg/bf-traverse g' i))
-           j* (set (alg/bf-traverse g' j))
+                 bound (fn [a b] [(min a b max-kwp) (min b max-kwp)])
+                 
+                 g' (graph/remove-edges g [i j] [j i])
+                 i* (set (alg/bf-traverse g' i))
+                 j* (set (alg/bf-traverse g' j))
 
-           peak-i* (map peak-demand i*)
-           mean-i* (map demand i*)
-           cap-i* (map capacity i*)
-           count-i* (map size i*)
+                 peak-i* (map peak-demand i*)
+                 mean-i* (map demand i*)
+                 cap-i* (map capacity i*)
+                 count-i* (map size i*)
 
-           peak-j* (map peak-demand j*)
-           mean-j* (map demand j*)
-           cap-j* (map capacity j*)
-           count-j* (map size j*)
+                 peak-j* (map peak-demand j*)
+                 mean-j* (map demand j*)
+                 cap-j* (map capacity j*)
+                 count-j* (map size j*)
 
-           sum-peak-i* (reduce + peak-i*)
-           sum-mean-i* (reduce + mean-i*)
-           sum-cap-i* (reduce + cap-i*)
-           sum-count-i* (reduce + count-i*)
+                 sum-peak-i* (reduce + peak-i*)
+                 sum-mean-i* (reduce + mean-i*)
+                 sum-cap-i* (reduce + cap-i*)
+                 sum-count-i* (reduce + count-i*)
 
-           sum-peak-j* (reduce + peak-j*)
-           sum-mean-j* (reduce + mean-j*)
-           sum-cap-j* (reduce + cap-j*)
-           sum-count-j* (reduce + count-j*)
+                 sum-peak-j* (reduce + peak-j*)
+                 sum-mean-j* (reduce + mean-j*)
+                 sum-cap-j* (reduce + cap-j*)
+                 sum-count-j* (reduce + count-j*)
 
-           min-peak-i* (posmin peak-i*)
-           min-mean-i* (posmin mean-i*)
-           min-count-i* (posmin count-i*)
+                 min-peak-i* (posmin peak-i*)
+                 min-mean-i* (posmin mean-i*)
+                 min-count-i* (posmin count-i*)
 
-           min-peak-j* (posmin peak-j*)
-           min-mean-j* (posmin mean-j*)
-           min-count-j* (posmin count-j*)]
-       
-       [[i j]
-        {:count [[min-count-j* sum-count-j*]  ;; going forwards, we range from the smallest thing on j-side to the total on j-side
-                 [min-count-i* sum-count-i*]] ;; going backwards it's the inverse
-         :peak  [(bound min-peak-j* (min sum-cap-i* sum-peak-j*)) ;; going forwards, it's the smallest demand on the j side up to either flow from i or flow into j
-                 (bound min-peak-i* (min sum-cap-j* sum-peak-i*))]
-         :mean  [(bound min-mean-j* (min sum-cap-i* sum-mean-j*))
-                 (bound min-mean-i* (min sum-cap-j* sum-mean-i*))]
-         }
-        ]
-       ))
-   
+                 min-peak-j* (posmin peak-j*)
+                 min-mean-j* (posmin mean-j*)
+                 min-count-j* (posmin count-j*)]
+             
+             [[i j]
+              {:count [[min-count-j* sum-count-j*]  ;; going forwards, we range from the smallest thing on j-side to the total on j-side
+                       [min-count-i* sum-count-i*]] ;; going backwards it's the inverse
+               :peak  [(bound min-peak-j* (min sum-cap-i* sum-peak-j*)) ;; going forwards, it's the smallest demand on the j side up to either flow from i or flow into j
+                       (bound min-peak-i* (min sum-cap-j* sum-peak-i*))]
+               :mean  [(bound min-mean-j* (min sum-cap-i* sum-mean-j*))
+                       (bound min-mean-i* (min sum-cap-j* sum-mean-i*))]
+               }
+              ]
+             )
+           )
+         (graph/edges g))
    (into {})))

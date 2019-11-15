@@ -94,6 +94,8 @@ More specification work is need to include more detail about non-network technol
 *** Consider trigeneration?
 **** Are the pipe costs affected by sharing a trench?
 * Minor improvements & bugs
+** TODO Don't allow connectors to connect to connectors unless there's no alternative
+** TODO Should all the NPV / finance calculation be moved into clojure so there's only 1 of it?
 ** TODO Non-diversified load category
 ** TODO Scenario generation tools
 - Modulate demands by X% either way
@@ -104,10 +106,10 @@ More specification work is need to include more detail about non-network technol
 - Stepped pipe sizes
 ** TODO Count of supplies constraint / count of demands constraint
 ** TODO More detail in cost structure
-- Tariff: fixed cost, capacity cost, unit cost
-- Plant: ???
-- Connection cost: fixed, capacity
-- Repeating capital costs for plant
+- [X] Tariff: fixed cost, capacity cost, unit cost
+- [X] Connection cost: fixed, capacity
+- [ ] Repeating capital costs for plant
+  Can this be rolled into operating cost?
 ** TODO Rearrangement of storage for parameters
 - Defined sets of parameters for buildings & paths
 - Buildings should take tariff parameters, connection cost parameters, co2 parameters
@@ -115,13 +117,15 @@ More specification work is need to include more detail about non-network technol
 - Editor dialogs should assign buildings / paths to these parameters
 - Selection info should show which parameters are so assigned
 ** DONE Prevent connectors getting reintroduced
-** TODO Prevent loss of custom information when panning
+** DONE Prevent loss of custom information when panning
 ** TODO Weird bug: James' network doesn't appear when he opens it
 ** TODO map-form delete invalid joins when things removed
 ** TODO map-form tick-boxes for applying defaults in OSM? (also add some defaults)
 ** TODO Make project description editable
 ** DONE Use fallback linear model when at limits of SVM
-* TODO Check whether the R SVM maps bools to [0,1] or [-1,1]
+
+
+* DONE Check whether the R SVM maps bools to [0,1] or [-1,1]
 * DONE Items for launch on 19th
 - [X] Eurobranding
 - [X] Download rectangles of map centres
@@ -150,7 +154,7 @@ Maybe it would be better to have parameter sets with names which we tag building
 * TODO Show buildings' connection cost in the table viewer
 * DONE Show connection cost as principal in the info panel
 * TODO Running time display for running scenarios
-* TODO Home button in editor?
+* DONE Home button in editor?
 * DONE Read Marco's documents
 * DONE map-form make x button work on files
 * DONE map-form make delete button work in joins list

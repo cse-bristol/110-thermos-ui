@@ -14,7 +14,8 @@
             [clucie.store :as store]
 
             [net.cgrand.enlive-html :as en]
-            [clojure.tools.logging :as log])
+            [clojure.tools.logging :as log]
+            [thermos-backend.changelog :refer [changelog]])
   (:import [org.apache.lucene.search.highlight
             Formatter
             Fragmenter
@@ -152,6 +153,7 @@
      {:js         ["https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML"]
       :title (str "Help search for " query " - " nmatches " matches")
       :css        ["/css/help.css"]
+      :body-style {:overflow :auto}
       }
 
      [:form {}
@@ -198,4 +200,20 @@
             
             )
           ])))))
+
+(defn help-changelog []
+  (page
+   {:title "Recent changes"
+    :css   ["/css/help.css"]
+    :body-style {:margin 0 :padding 0 :display :flex :flex-direction :column}}
+   [:div#content {:style (style :overflow :auto :max-width :100%)}
+    (for [release changelog]
+      [:div
+       [:h2 (:title release)]
+       [:dl (apply concat
+                   (for [change (:changes release)]
+                     [[:dt (:title change)]
+                      [:dd (:summary change)]]))]]
+      
+      )]))
 

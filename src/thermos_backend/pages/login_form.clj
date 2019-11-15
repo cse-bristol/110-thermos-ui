@@ -64,7 +64,8 @@
        [:li "Telling you about changes or maintenance to THERMOS"]
        [:li "Asking you about how you are using the application or why you are interested in it"]]
       [:p "If you do not use your email address, that's fine, but you won't be able to recover your password."]
-      [:p "You can read more about " [:a {:href "/help/data-protection.html"} "how THERMOS uses your data here"] "."]
+      [:p "You can read more about how THERMOS uses your data and the terms under which this is offered "
+       [:a {:href "/help/data-protection.html"} "here"] "."]
       
       
       ]]]

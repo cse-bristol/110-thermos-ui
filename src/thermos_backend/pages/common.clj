@@ -6,7 +6,7 @@
             [ring.middleware.anti-forgery :refer [*anti-forgery-token*]]
             [thermos-backend.current-uri :refer [*current-uri*]]
             [thermos-pages.common :refer [style style*]]
-            [thermos-pages.menu :refer [menu]]
+            [thermos-frontend.theme :as theme]
             [clojure.data.json :as json]
             [clojure.string :as string]
             [rum.core :as rum]))
@@ -47,13 +47,16 @@
                    ~@css)
       ]
      [:body.flex-rows
-      [:header.flex-cols {:style (style :flex-shrink 0 :flex-grow 0)}
-       [:h1  "THERMOS - " ~title]
+      [:header.flex-cols
+       {:style (style :flex-shrink 0 :flex-grow 0
+                      :align-items :center
+                      :padding-left :0.5em
+                      :padding-right :0.5em
+                      :height "50px")}
+       [:a {:href "/"}
+        theme/icon]
+       [:h1 {:style (style :margin-left :1em)} ~title]
        [:span {:style (style :margin-left :auto)}
-        [:a {:style (style :margin-left :1em) :href "/"}
-         [:img {:style {:vertical-align :middle}
-                :src "/favicon.ico" :width "16"}]
-         "Home"]
         [:a {:style (style :margin-left :1em)
              :href "/settings"} "Settings"]
         [:a {:style (style :margin-left :1em)

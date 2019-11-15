@@ -273,13 +273,13 @@
                :response-format :transit
                :handler
                (fn [x]
-                 (let [geom-types (set (:geometry-types x))]
-                   (if (and (not (empty? geom-types))
-                            (not= geom-types legal-geometries))
+                 (let [geom-types (set (:geometry-types x))
+                       invalid-geom-types (set/difference geom-types legal-geometries)]
+                   (if (and (not-empty geom-types)
+                            (not-empty invalid-geom-types))
                      (swap! status assoc
                             :state :invalid
-                            :message (str "File contains unsupported geometry types: "
-                                          (set/difference geom-types legal-geometries)))
+                            :message (str "File contains supported geometry types: " invalid-geom-types))
                      (swap! status
                             merge
                             (assoc x :state :uploaded)))))
@@ -364,7 +364,7 @@
         [:div.flex-cols base-name (interpose ", " extensions)
          [:span {:style {:margin-left :auto}} " "
           (if (= :uploading state)
-            (spinner :size 16)
+            (spinner {:size 16})
             [:button
              {:style {:border-radius :16px}
               :on-click #(swap! files dissoc i)}
@@ -455,16 +455,19 @@
            [:b ".shx"] ", " [:b ".prj"] " and "
            [:b ".cpg"] " files!"]]
          [:p "The feature geometry must be " (case category
-                                               :buildings [:b "POLYGON"]
+                                               :buildings [:span
+                                                           [:b "POLYGON"]
+                                                           " or "
+                                                           [:b "MULTIPOLYGON"]]
                                                :roads [:span [:b "LINESTRING"] " or " [:b "MULTILINESTRING"]])
           " type geometry. "
-          (when (= :buildings category) [:span"At the moment " [:b "MULTIPOLYGON"] " geometry is not supported."])]
+          ]
          [:p "You can also upload " [:b "csv"] " and " [:b "tsv"] " files to relate to your GIS data."]
          
          (file-uploader {:legal-geometries
                          (case category
-                           :buildings #{:polygon}
-                           :roads #{:line-string}
+                           :buildings #{:polygon :point :multi-polygon}
+                           :roads #{:line-string :multi-line-string}
                            #{})}
 
                         *data-files)
@@ -506,7 +509,6 @@
                    (assoc :table-column (first (sort (:keys table-file)))))]
 
       (when (seq change)
-        (println "Fix bottom row" change)
         (swap! *bottom-row merge change)))
     
     [:div
@@ -703,7 +705,6 @@
     result))
 
 (defn- too-large [boundary]
-  (println "validate size of " boundary)
   (let [geo (or (get-in boundary ["geometry" "coordinates"])
                 (get-in boundary ["coordinates"]))
         ring (first geo)
@@ -772,55 +773,11 @@
                          :on-change #(swap! *form-state assoc :degree-days
                                             (as-int (.. % -target -value)))}] " °C × days"]
      [:p "The number of heating degree days per year in this location, relative to a 17° base temperature."]]
-    
-    [:div.card.flex-grow
-     [:h1 "Default connection cost"]
-     [:div.flex-cols [:input.flex-grow
-                      {:type :number
-                       :min 0 :max 10000
-                       :value (:default-connection-cost (rum/react *form-state))
-                       :on-change #(swap! *form-state
-                                          assoc :default-connection-cost
-                                          (as-int (.. % -target -value)))}] " ¤/kW"]
-     [:p "The default cost of connecting a building to the network. This is the cost of work within the building, separate from the cost of pipes."]]]
-   
-
-   [:div.card
-    [:h1 "Default pipe costs"]
-    
-    [:div
-     "The default civil engineering cost for pipework will be "
-     [:input
-      {:type :number
-       :min 0 :max 10000
-       :value (:default-fixed-civil-cost (rum/react *form-state))
-       :on-change #(swap! *form-state
-                          assoc :default-fixed-civil-cost
-                          (as-int (.. % -target -value)))}] "¤/m + "
-     [:input
-      {:type :number
-       :min 0 :max 10000
-       :value (:default-variable-civil-cost (rum/react *form-state))
-       :on-change #(swap! *form-state
-                          assoc :default-variable-civil-cost
-                          (as-int (.. % -target -value)))}] "¤/(m × m " [:sup "1.1"] "). "
-     "This is the value which will be used if your road data does not otherwise have a value."]
-    
-    [:p "The mechanical engineering cost is set in the network problem."]]])
+    ]
+   ])
 
 (def road-fields
-  [{:value :fixed-cost
-    :label "Fixed cost (¤/m)"
-    :doc [:span "Civil engineering costs for pipe are calculated as "
-          "length × (A + (b × ⌀)" [:sup "1.1"] ". This value is A."
-          ]}
-   
-   {:value :variable-cost
-    :label "Variable cost (¤/m2 ^ 1.1)"
-    :doc [:span "The variable civil engineering costs per metre of pipe. "
-          "This value is b in the cost equation (see fixed cost)."]}
-
-   {:value :identity :label "Identity (text)"
+  [{:value :identity :label "Identity (text)"
     :doc
     [:span "An identifier - these are stored on the roads in the database and visible in downloaded GIS files."]}
    
@@ -841,7 +798,7 @@
      "A value for annual demand will be used in preference to any other estimate. "
      "Otherwise, a benchmark estimate will be used if available, or the built-in regression model otherwise."]}
    
-   {:value :peak-demand :label "Peak demand (kWh)"
+   {:value :peak-demand :label "Peak demand (kW)"
     :doc
     [:span
      "A value for peak demand will be used in preference to any other estimate. "
@@ -878,10 +835,6 @@
    {:value :connection-count :label "Connection count"
     :doc
     [:span "The number of end-user connections the building contains. This affects only the application of diversity curves within the model."]}
-   
-   {:value :connection-cost :label "Connection cost (¤/kW)"
-    :doc
-    [:span "A fixed cost for connecting this building - this is separate to the cost for the connecting pipe."]}
    
    {:value :identity :label "Identity (text)"
     :doc
@@ -980,7 +933,6 @@
    :buildings {:source :osm :files {}}
    :roads {:source :osm :files {}}
    :degree-days 2000
-   :default-connection-cost 50.0
    :default-fixed-civil-cost 350.0
    :default-variable-civil-cost 700.0})
 

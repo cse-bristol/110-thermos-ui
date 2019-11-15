@@ -46,7 +46,7 @@ The easiest way to make a map is by using OpenStreetMap data. THERMOS will find 
 To make a map with OpenStreetMap data, follow these steps:
 
 1. Click the ~New map~ button on the project page
-2. Type in a name, optionally a description for your map
+2. Type in a name, and optionally a description for your map
 3. Search for a location in OpenStreetMap.
    Results that say /relation/ at the bottom will have a boundary.
    Click on the result you want, and the map will show the boundary.

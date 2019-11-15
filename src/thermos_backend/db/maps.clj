@@ -13,7 +13,7 @@
             [clojure.tools.logging :as log]
             [thermos-backend.maps.heat-density :as heat-density]
             [clojure.data.json :as json]
-            ))
+            [thermos-util :refer [distinct-by]]))
 
 (defmethod fmt/fn-handler "&&" [_ a b & more]
   (if (seq more)
@@ -65,11 +65,11 @@
   [:map-id :geoid :orig-id :name :type :geometry])
 
 (def buildings-keys
-  [:candidate-id :connection-id :demand-kwh-per-year :demand-kwp :connection-count :connection-cost
-   :demand-source :peak-source])
+  [:candidate-id :connection-id :demand-kwh-per-year :demand-kwp :connection-count :demand-source :peak-source
+   :floor-area :height :wall-area :roof-area :ground-area])
 
 (def paths-keys
-  [:candidate-id :start-id :end-id :length :fixed-cost :variable-cost])
+  [:candidate-id :start-id :end-id :length])
 
 (defn- data-values
   "A helper to create a vector to in a WITH statement for honeysql that creates a temporary VALUES table.
@@ -82,17 +82,19 @@
   (let [all-keys (sort (reduce into #{} (for [v values] (keys v))))
         all-values
         (fn [value]
-          `("(" ~@(interpose ", " (map
-                                   ;; unfortunately some of these values are strings
-                                   #(let [v (get value %)]
-                                      (if (string? v)
-                                        ;; if we return a string into the list of values,
-                                        ;; it will be interpolated as a raw string into the output
-                                        ;; so we do a horrible thing here to prevent this.
-                                        (sql/call :text v)
-                                        v)
-                                      )
-                                   all-keys)) ")"))]
+          `("(" ~@(interpose
+                   ", "
+                   (map
+                    ;; unfortunately some of these values are strings
+                    #(let [v (get value %)]
+                       (if (string? v)
+                         ;; if we return a string into the list of values,
+                         ;; it will be interpolated as a raw string into the output
+                         ;; so we do a horrible thing here to prevent this.
+                         (sql/call :text v)
+                         v)
+                       )
+                    all-keys)) ")"))]
     [(sql/raw
       `[~(sql/quote-identifier alias)
         "("
@@ -116,7 +118,9 @@
   {:pre [(integer? map-id)
          (= :wkt format)]}
   
-  (let [tag (str "map import " map-id ":")]
+  (let [tag (str "map import " map-id ":")
+        buildings (distinct-by buildings :geoid)
+        paths     (distinct-by paths :geoid)]
     (db/with-connection [conn]
       (let [deleted
             (-> (h/delete-from :candidates)
@@ -140,6 +144,7 @@
           ;; INSERT INTO other (select stuff from tablename join inserts)
           ;;
           ;; so we can get hold of the new FK from inserts for use in other
+          ;; TODO if two candidates have the same geoid then we get a pkey collision
           
           (-> (h/with
                (data-values :building-data
@@ -147,6 +152,7 @@
                               (-> c
                                   (select-keys (remove #{:candidate-id}
                                                        (concat candidates-keys buildings-keys)))
+                                  
                                   (update :connection-id
                                           #(sql-types/array
                                             (string/split % #",")))
@@ -236,8 +242,9 @@
 (defn get-polygon [map-id points]
   (let [query
         (-> (h/select :id :name :type :geometry :is_building
-                      :demand_kwh_per_year :demand_kwp :connection_count :connection_ids :connection_cost
-                      :start_id :end_id :length :fixed_cost :variable_cost)
+                      :demand_kwh_per_year :demand_kwp :connection_count :connection_ids
+                      :start_id :end_id :length
+                      :floor_area :height :wall_area :roof_area :ground_area)
             (h/from :joined_candidates) ;; this view is defined in the migration SQL
             (h/where [:and
                       [:= :map-id map-id]
@@ -403,7 +410,6 @@
                                 :demand-kwh-per-year
                                 :demand-kwp
                                 :connection-count
-                                :connection-cost
                                 [(sql/call :ST_AsGeoJson
                                            :geometry) :geometry])
                       (h/from :candidates)

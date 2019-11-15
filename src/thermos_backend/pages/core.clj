@@ -9,7 +9,7 @@
                                                     project-page
                                                     delete-project-page]]
             [thermos-backend.pages.maps :as map-pages]
-            [thermos-backend.pages.help :refer [help-page help-search]]
+            [thermos-backend.pages.help :refer [help-page help-search help-changelog]]
             [thermos-backend.pages.admin :as admin]
             [thermos-backend.pages.editor :refer [editor-page]]
             [ring.util.response :as response]
@@ -47,8 +47,10 @@
         (string/split text #"\n")))
 
 (defn- as-double [x]
-  (and x (try (Double/parseDouble x)
-              (catch NumberFormatException e))))
+  (cond
+    (number? x) (double x)
+    (string? x) (try (Double/parseDouble x)
+                     (catch NumberFormatException e))))
 
 (defn- streaming-map [map-id]
   (ring-io/piped-input-stream
@@ -121,6 +123,9 @@
 
   (GET "/help/search" [q]
     (help-search q))
+
+  (GET "/help/changelog" []
+    (help-changelog))
   
   (GET "/help/:section" [section]
     (help-page section))
@@ -154,13 +159,18 @@
     
   (auth/restricted
    {:logged-in true}
-   (GET "/" []
-     (-> (landing-page
-          (:name auth/*current-user*)
-          (projects/user-projects (:id auth/*current-user*)))
-         (response/response)
-         (response/content-type "text/html")
-         (cache-control/no-store)))
+    (GET "/" [changes]
+      (let [changes (as-int changes)]
+        (when changes
+          (users/seen-changes! (:id auth/*current-user*) changes))
+        
+        (-> (landing-page
+             (cond-> auth/*current-user*
+               changes (assoc :changelog-seen changes))
+             (projects/user-projects (:id auth/*current-user*)))
+            (response/response)
+            (response/content-type "text/html")
+            (cache-control/no-store))))
    
    (GET "/settings" []
      (-> (settings-page auth/*current-user*)

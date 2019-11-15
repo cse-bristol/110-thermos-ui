@@ -1,0 +1,112 @@
+[
+ {:title "15th October 2019"
+  :changes
+  [{:title "Demand model fixes"
+    :summary [:div
+              "The demand model had a couple of things wrong with it:"
+              [:ul
+               [:li "The projection used to calculate the predictors caused demands to be overestimated, by making some buildings' areas too large"]
+               [:li "The fallback linear model used when the SVM prediction is out of bounds was not implemented properly"]
+               ]
+              "Both these issues are fixed; predictors are now calculated using the closest UTM zone, which should work alright, and the linear model implementation has had an error removed."]}]}
+
+ {:title "4th October 2019"
+  :changes
+  [{:title "UI Improvements"
+    :summary [:div "A bunch of minor improvements to the user interface, following feedback."]
+    }
+   {:title "Pipe diameter limits"
+    :summary [:div "The pipe cost parameters page now lets you set the minimum and maximum pipe diameter the model will consider."]
+    }
+   ]
+  }
+ 
+ {:title "29th August 2019"
+  :changes
+  [{:title "Better connectors"
+    :summary
+    [:div
+     "When creating a new map, connectors will be preferred if they "
+     "connect to the middle of a building, and if they connect to existing road "
+     "(rather than to another connector)."]}]}
+ 
+ {:title "16th August 2019"
+  :changes
+  [
+   {:title "Whole-system optimisation"
+    :summary
+    [:div
+     "The model can now optimise for whole-system impacts, by considering alternative heating systems and demand reduction measures."
+     ]}]}
+  
+ {:title "4th July 2019"
+  :changes
+  [{:title "Categorised civil engineering costs"
+    :summary [:div
+              [:p "Similarly to tariffs, civil engineering costs are now defined for categories of path."]
+              [:p "You can select paths and assign them to categories as you wish."]]}
+   
+   {:title "Improved tariff structure"
+    :summary [:div
+              [:p "Tariffs can now include standing and capacity charges. Connection cost can now include a fixed component."]
+              [:p "Connection costs have been combined into the tariff. They are no longer stored within a map as part of a building, but are part of a network design."]
+              ]}
+
+   {:title "New menu"
+    :summary "The menu in the network editor has been moved."}
+
+   {:title "Multipolygon support"
+    :summary "The map creation tool now supports multipolygon geometry for buildings."}
+
+   {:title "Change messages"
+    :summary "The application now shows these change messages."
+    }
+   ]
+  }
+ {:title "7th June 2019"
+  :changes
+  [{:title "Better heat demand estimates"
+    :summary "Heat demand estimates now use a fallback linear model for buildings in which the support vector machine model produces a bad result"}
+   {:title "Fewer bugs"
+    :summary "A bug where importing a map would delete things from other maps in the same location has been removed."
+    }]
+  }
+ 
+ {:title "4th June 2019"
+  :changes
+  [{:title "Data usage statement"
+    :summary [:div "THERMOS now has a " [:a {:href "/help/data-protection.html"}
+                                         "statement about data protection"]
+              ". Also the EU is credited on the front page."]}
+   {:title "Better connectors"
+    :summary "Connectors are now created under an azimuthal equidistant projection instead of a Lambert conformal conic projection. This makes them more perpendicular."}
+
+   {:title "A connection drawing tool"
+    :summary "You can now add new connections between candidates on the map by drawing them."}
+   {:title "Better colours"
+    :summary "The colour for excluded candidates in the solution has been changed from light green to yellow, to make it easier to distinguish. Also, colour coding is showed in the selection info panel on the right."}]
+  
+  
+  }
+ 
+ {:title "17th May 2019"
+  :changes
+  [{:title "Improved documentation"
+    :summary
+    [:div
+     "The documentation has been extended to explain more about how the model works. "
+     "Some contextual help is now available within the application as tool-tips, indicated by a dotted underline."]}
+   
+   {:title "Reporting of connection costs"
+    :summary "Connection costs for buildings are now shown in the financial model summary on the results page."}]}
+ 
+ {:title "15th May 2019"
+  :changes
+  [{:title "Improved documentation"
+    :summary "The THERMOS manual is now available online, as part of the application."}
+   {:title "Zero demands"
+    :summary "The map creation wizard now allows buildings to have a heat demand of zero"}]}
+ 
+ 
+
+ ]

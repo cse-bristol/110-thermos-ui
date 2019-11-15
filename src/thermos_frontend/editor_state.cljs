@@ -118,16 +118,17 @@
       :path
       (assoc basics
              ::path/length        (o/get properties "length")
-             ::path/cost-per-m    (o/get properties "fixed-cost")
-             ::path/cost-per-m2   (o/get properties "variable-cost")
              ::path/start         (o/get properties "start-id")
              ::path/end           (o/get properties "end-id"))
+      
       :building
       (assoc basics
+             ::candidate/wall-area     (o/get properties "wall-area" 0)
+             ::candidate/ground-area   (o/get properties "ground-area" 0)
+             ::candidate/roof-area     (o/get properties "ground-area" 0)
              ::demand/kwh              (o/get properties "demand-kwh-per-year" nil)
              ::demand/kwp              (o/get properties "demand-kwp" nil)
              ::demand/connection-count (o/get properties "connection-count" 1)
-             ::demand/connection-cost  (o/get properties "connection-cost" 1)
              ::candidate/connections   (string/split (o/get properties "connection-ids") #",")))))
 
 (defn load-tile! [document x y z]

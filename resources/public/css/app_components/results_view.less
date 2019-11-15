@@ -1,5 +1,5 @@
 div.solution-component {
-   height: calc(~"100% - 50px");
+   height: 100%;
    background:#fafafa;
    overflow:auto;
    width: 100%;
@@ -7,10 +7,6 @@ div.solution-component {
    flex-direction: column;
 
    h1, h2 { display: block; }
-
-   td { padding-left: 1em; padding-right: 1em; }
-
-   tr {th {padding-left: 1em; }}
 
    h1 {
       font-size:2em;
@@ -22,61 +18,30 @@ div.solution-component {
        margin-bottom:1em;
        font-size:1.2em;
        border-collapse:collapse;
+       white-space: nowrap;
    }
 
    th {
-      color:black;
-      text-align:left;
+       color:black;
    }
 
+   td, th {
+       text-align:right;
+   }
+   
    td.cost {
       color:#f33;
    }
 
    thead {
-      border-bottom:1px #555 solid;
-      th {
-      }
+      border-bottom:1px #888 solid;
    }
 
-   tbody {
-      th {
-        text-align:right;
-        padding-right:1em;
-      }
-   }
-
-   div.tabs {
-      display:flex;
-      flex-shrink:0;
-      button {
-         color:#000;
-         border:none;
-         background:none;
-         flex:auto;
-         text-align:center;
-         padding: 0.25em;
-         margin:0;
-         font-size: 1.5em;
-         cursor:pointer;
-      }
-      button:hover {
-         background:#aaa;
-         transition: background linear 0.1s;
-      }
-      button.selected {
-         background:#555;
-         color:white;
-      }
-      box-shadow:rgba(0, 0, 0, 0.15) 0px 0px 2px 2px;
-      border-bottom:1px solid #888;
-   }
-
-   div.supply-card {
-      margin:1em;
-      padding:1em;
-      box-shadow:rgba(0, 0, 0, 0.15) 0px 0px 2px 2px;
-      border-radius: 6px;
-      display:inline-block;
+   table {
+       caption {
+           font-size:1.25em;
+           background: antiquewhite;
+           color:black;
+       }
    }
 }

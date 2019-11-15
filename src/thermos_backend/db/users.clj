@@ -102,30 +102,31 @@
          (and (string? email)
               (not (string/blank? email)))
          (string? name)]}
+  (let [email (string/lower-case email)]
     (db/or-connection [conn]
-    (jdbc/atomic
-     conn
-     (let [exists-already
-           (-> (h/select [(sql/call
-                           :exists
-                           (-> (h/select :id)
-                               (h/from :users)
-                               (h/where [:= :id email])))
-                          :exists])
-               (db/fetch! conn)
-               (first)
-               (:exists))]
-       (when-not exists-already
-         (let [token (or (not (nil? password))
-                         (str (java.util.UUID/randomUUID)))]
-           (-> (h/insert-into :users)
-               (h/values [{:id (string/lower-case email)
-                           :name name
-                           :reset-token (and (not password) token)
-                           :password (and password (hash/derive password))
-                           :auth (as-user-auth :normal)}])
-               (db/execute! conn))
-           token))))))
+      (jdbc/atomic
+          conn
+        (let [exists-already
+              (-> (h/select [(sql/call
+                              :exists
+                              (-> (h/select :id)
+                                  (h/from :users)
+                                  (h/where [:= :id email])))
+                             :exists])
+                  (db/fetch! conn)
+                  (first)
+                  (:exists))]
+          (when-not exists-already
+            (let [token (or (not (nil? password))
+                            (str (java.util.UUID/randomUUID)))]
+              (-> (h/insert-into :users)
+                  (h/values [{:id (string/lower-case email)
+                              :name name
+                              :reset-token (and (not password) token)
+                              :password (and password (hash/derive password))
+                              :auth (as-user-auth :normal)}])
+                  (db/execute! conn))
+              token)))))))
 
 (defn correct-password? [user-id password]
   {:pre [(string? user-id)
@@ -245,6 +246,16 @@
                 (not (nil? system-messages))
                 (assoc :system-messages system-messages)))
       
+      (h/where [:= :id user-id])
+      (db/execute!)))
+
+(defn seen-changes!
+  "State that a user has seen changes up to version in changelog.edn"
+  [user-id version]
+  {:pre [(int? version)
+         (string? user-id)]}
+  (-> (h/update :users)
+      (h/sset {:changelog-seen version})
       (h/where [:= :id user-id])
       (db/execute!)))
 

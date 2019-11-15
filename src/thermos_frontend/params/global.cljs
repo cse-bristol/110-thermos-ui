@@ -1,25 +1,13 @@
-(ns thermos-frontend.model-parameters
+(ns thermos-frontend.params.global
   (:require [reagent.core :as reagent]
             [thermos-specs.demand :as demand]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.document :as document]
             [thermos-frontend.inputs :as inputs]))
 
-;; page for editing the big top-level params
-
-;; we need to be able to set
-
-;; loan rate & term
-;; NPV rage & term
-;; emissions factor
-;; MIP gap
-;; heat sale price (should this be per connection anyway? do we want a global default?)
-;; actually let's make this / connection
-
 (defn parameter-editor [document]
   (reagent/with-let
-    [heat-price (reagent/cursor document [::demand/price])
-     emissions-factor (into {} (for [e candidate/emissions-types] [e (reagent/cursor document [::demand/emissions e])]))
+    [emissions-factor (into {} (for [e candidate/emissions-types] [e (reagent/cursor document [::demand/emissions e])]))
      emissions-cost (into {} (for [e candidate/emissions-types] [e (reagent/cursor document [::document/emissions-cost e])]))
      emissions-limit (into {} (for [e candidate/emissions-types] [e (reagent/cursor document [::document/emissions-limit :value e])]))
      emissions-check (into {} (for [e candidate/emissions-types] [e (reagent/cursor document [::document/emissions-limit :enabled e])]))
@@ -36,10 +24,7 @@
      max-pipe-kwp (reagent/cursor document [::document/maximum-pipe-kwp])
 
      civil-exponent (reagent/cursor document [::document/civil-cost-exponent])
-     mechanical-exponent (reagent/cursor document [::document/mechanical-cost-exponent])
-     mechanical-fixed (reagent/cursor document [::document/mechanical-cost-per-m])
-     mechanical-variable (reagent/cursor document [::document/mechanical-cost-per-m2])
-
+     
      flow-temperature (reagent/cursor document [::document/flow-temperature])
      return-temperature (reagent/cursor document [::document/return-temperature])
      ground-temperature (reagent/cursor document [::document/ground-temperature])
@@ -87,26 +72,10 @@
       ]
      [:div
       [:h1 "Pipe parameters"]
-      [:p "These parameters control costs and heat losses for pipes."]
+      [:p "These parameters control sizes and heat losses for pipes."]
       [:p "Limit pipe capacity to at most "
        [inputs/number {:value-atom max-pipe-kwp :min 0 :max 500 :step 1 :scale (/ 1 1000.0)}]
        " MWp"]
-      [:p "Calculate mechanical engineering costs as "
-       [inputs/number {:value-atom mechanical-fixed :min 0 :max 5000 :step 1}]
-       "¤/m + ("
-       [inputs/number {:value-atom mechanical-variable :min 0 :max 5000 :step 1}]
-       "× ⌀/m)"
-       [:sup [inputs/number {:value-atom mechanical-exponent :min 0 :max 3 :step 0.01}]]
-       "/m"
-       ]
-
-      [:p "Calculate civil engineering costs as "
-       [:em "A"]
-       "¤/m + ("
-       [:em "B"]
-       "× ⌀/m)"
-       [:sup [inputs/number {:value-atom civil-exponent :min 0 :max 3 :step 0.01}]]
-       "/m"]
 
       [:h2 "Temperatures"]
       [:p "Use a flow temperature of "
@@ -127,13 +96,6 @@
     [:div
       [:h1 "Building defaults"]
       [:p "These values will only be used for buildings where you have not set per-building values"]
-      [:h2 "Heat sale price"]
-      [inputs/number
-       {:value-atom heat-price
-        :min 0
-        :max 100
-        :scale 100
-        :step 0.1}] "c/kWh"
      [:h2 "Avoided emissions factors"]
      [:p "If a building is connected to the network, these factors will be used with its annual demand to quantify the emissions avoided by replacing its existing heating system."]
       [:table

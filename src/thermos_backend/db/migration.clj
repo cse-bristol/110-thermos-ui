@@ -25,9 +25,12 @@
                      {:sql (string/trim sql) :row row :file file}))))
        (sort-by (juxt :file :row))))
 
-(defn force [conn & {:keys [migration-table migration-files]
-                     :or {migration-table "migrations"
-                          migration-files (resauce/resource-dir "migrations")}}]
+(defn force
+  "For manual use only - tell the database that you have definitely
+  applied all the migrations and it is in a correct state."
+  [conn & {:keys [migration-table migration-files]
+           :or {migration-table "migrations"
+                migration-files (resauce/resource-dir "migrations")}}]
   (jdbc/atomic conn
     (jdbc/execute conn "DELETE FROM migrations")
     (-> (h/insert-into (keyword migration-table))
@@ -64,12 +67,18 @@
         (doseq [migration remaining]
           (log/info "Run migration: "
                     (update migration :sql #(first (.split % "\n"2))))
-          (try (jdbc/execute conn (:sql migration))
-               (catch Exception e
-                 (log/error "Migration failed!\n" (:sql migration) e)
-                 (throw
-                  (ex-info (str "Error running migration: " (.getMessage e))
-                           migration e)))))
+          (if (= \! (first (:sql migration)))
+            (let [migration-function (symbol (.substring (:sql migration) 1))]
+              (require (symbol (namespace migration-function)))
+              ((resolve migration-function) conn))
+            
+            (try (jdbc/execute conn (:sql migration))
+                 (catch Exception e
+                   (log/error "Migration failed!\n" (:sql migration) e)
+                   (throw
+                    (ex-info (str "Error running migration: " (.getMessage e))
+                             migration e)))))
+          )
         
         (when (seq remaining)
           (-> (h/insert-into (keyword migration-table))

@@ -57,7 +57,7 @@
                   
                   [debug-box/debug-box
                    (or (seq (operations/selected-candidates @state/state))
-                       @state/state)]
+                       (dissoc @state/state :thermos-specs.document/candidates))]
                   [:button
                    {:on-click popover/close!}
                    "OK"]]

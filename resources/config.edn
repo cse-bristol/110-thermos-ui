@@ -8,7 +8,7 @@
  :web-server-max-body 800
 
  :solver-directory "solver-work"
- :solver-command "/home/hinton/p/110-thermos/model/run-model"
+ :solver-command "/home/hinton/p/110-thermos/thermos-ui/deployment/model/run-model"
  :solver-count 4
 
  :import-directory "import-work"

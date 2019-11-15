@@ -17,3 +17,4 @@ node_modules
 package.json
 solver-work/
 import-work/
+.cpcache/*

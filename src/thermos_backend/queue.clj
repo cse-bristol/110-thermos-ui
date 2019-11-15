@@ -80,7 +80,6 @@
          (let [jobs-to-claim (db/fetch! {:union claim-query} conn)]
            ;; while we have the read lock let's update them to be in
            (when (seq jobs-to-claim)
-             (log/info "Claimed jobs" jobs-to-claim)
              (-> (update :jobs)
                  (sset {:state RUNNING_STATE})
                  (where [:in :id (map :id jobs-to-claim)])
@@ -158,10 +157,14 @@
                                     [:in :id ids-to-check]
                                     [:= :state CANCEL_REQUESTED_STATE]])
                             (returning :id)
-                            (db/fetch!)))]
+                            (db/fetch!)
+                            (->> (map :id))))]
     (doseq [id ids-to-cancel]
+      (log/info "Cancel" id jobs-by-id)
       (try (.interrupt ^Thread (jobs-by-id id))
-           (catch Exception e)))))
+           (catch Exception e
+             (log/error e "Error when cancelling" id)
+             )))))
 
 (defstate poll-thread
   :start
@@ -195,7 +198,7 @@
 
 (defn cancel [job-id]
   (-> (update :jobs)
-      (values [{:state CANCEL_REQUESTED_STATE}])
+      (sset {:state CANCEL_REQUESTED_STATE})
       (where [:and
               [:= :id job-id]
               [:in :state CANCELABLE_STATES]])

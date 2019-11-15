@@ -221,6 +221,17 @@
             (.write m o)))))
         
     (println "Writing" target)
-    (write-jar tmp (path target))))
+    (write-jar tmp (path target))
+    (println "Removing temporary files")
+
+    (let [delete-files
+          (fn delete-files [& fs]
+            (when-let [f (first fs)]
+              (if-let [cs (seq (.listFiles (io/file f)))]
+                (recur (concat cs fs))
+                (do (io/delete-file f)
+                    (recur (rest fs))))))]
+      (delete-files (.toFile tmp)))))
+
 
 

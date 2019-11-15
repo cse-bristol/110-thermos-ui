@@ -11,7 +11,6 @@
   (let [keyfn (if (seqable? key) #(get-in % key) #(get % key))
         filter-set (set (map keyfn items))
         selected-filters (operations/get-table-filters @document key)]
-    ;; (println selected-filters)
     (case type
       ;; Searchable text field filter
       ;; @TODO put these inline styles into CSS file

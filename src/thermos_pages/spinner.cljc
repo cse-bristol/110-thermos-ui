@@ -1,12 +1,14 @@
-(ns thermos-pages.spinner)
+(ns thermos-pages.spinner
+  (:require [thermos-frontend.theme :refer [icon]]))
 
-(defn spinner [& {:keys [size]}]
-  (if size
-    [:div {:style {:width (str size "px")
-                   :height (str size "px")
-                   :transform (str "scale(" (/ size 64.0) ")")}}
-     (spinner)]
-    [:div.spinner (repeat 12 [:div])]))
+(defn spinner
+  ([] (spinner {}))
+  ([{:keys [size]}]
+   [:div.spin-around
+    {:style (merge {:display :inline-block}
+                   (when size {:width (str size "px") :height (str size "px")}))}
+    (cond-> icon
+      size (update 1 assoc :width size :height size))]))
 
 
 

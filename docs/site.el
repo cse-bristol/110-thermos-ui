@@ -1,3 +1,14 @@
+(defun org-latex--skip-video (o link info)
+  (let* ((path (let ((raw-path (org-element-property :path link)))
+		 (if (not (file-name-absolute-p raw-path)) raw-path
+		   (expand-file-name raw-path))))
+         (filetype (file-name-extension path)))
+    (if (string= filetype "webm")
+        ""
+      (funcall o link info))))
+
+(advice-add 'org-latex--inline-image :around 'org-latex--skip-video)
+
 (defun org-html--format-video (orig source attributes info)
   (message (file-name-extension source))
   (if (string= "webm" (file-name-extension source))
@@ -73,5 +84,20 @@ attributes are not supported \(see `org-export-read-attribute')."
           :base-extension "png\\|webm\\|svg"
           :recursive t)
          ("docs" :components ("docs-org" "docs-img"))
+         )))
+  (org-publish-project "docs" t))
+
+(let ((org-export-with-date nil)
+      (org-latex-packages-alist
+       '(("" "fullpage" nil) ("" "parskip" nil))
+       )
+      ;; need to skip wemb files in pdfs
+      (org-publish-project-alist
+       `(("docs"
+          :time-stamp-file nil
+          :base-directory ,default-directory
+          :publishing-directory "/home/hinton/temp/thermos-pdfs"
+          :recursive t
+          :publishing-function org-latex-publish-to-pdf)
          )))
   (org-publish-project "docs" t))

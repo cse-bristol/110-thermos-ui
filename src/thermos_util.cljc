@@ -1,42 +1,52 @@
 (ns thermos-util
-  (:require [clojure.string :as string]))
+  (:require [clojure.string :as string]
+            [clojure.test :as test]))
 
 (defn assoc-by
   "Given a sequence `s` and a function `f`, returns a map from (f x) to
   x for each x in s. If there are multiple x in s with same (f x), the
   last one is what you find in the map"
   {:test
-   #(do (assert (= (assoc-by [1 2 3 4] even?) {false 3 true 4}))
-        (assert (= (assoc-by ["this" "is" "great"] first) {\t "this"
+   #(do (test/is (= (assoc-by [1 2 3 4] even?) {false 3 true 4}))
+        (test/is (= (assoc-by ["this" "is" "great"] first) {\t "this"
                                                            \i "is"
                                                            \g "great"})))}
   [s f]
   (reduce #(assoc %1 (f %2) %2)  {} s))
 
 (defn distinct-by
-  "Given a sequence `v` and a function `f`, returns a sequence
-  containing only the first x in v for a given value of (f x)
+  "Given a sequence `values` and a function `f`, returns a sequence
+  containing only the first x in values for a given value of (f x)
 
   Order of the input will be reversed."
   {:test
    #(do (assert (= (set (distinct-by [1 2 3 4] even?)) #{1 2})))}
   
-  [v f]
+  [values f]
   (let [seen (volatile! #{})]
     (reduce
-     (fn [a v]
-       (let [vf (f v)]
+     (fn [a values]
+       (let [vf (f values)]
          (if (contains? @seen vf)
-           (do
-             (println "Removing duplicate:" vf v)
-             a)
+           a
            (do (vswap! seen conj vf)
-               (cons v a)))))
-     nil v)))
+               (cons values a)))))
+     nil values)))
 
 (defn assoc-when
   "If v is not false, assoc it to m under k, otherwise m"
   [m k v] (if v (assoc m k v) m))
+
+(defn as-integer
+  "Try and turn v into an int. Nil if we can't."
+  [v]
+  (cond
+    (string? v)
+    #?(:cljs (let [x (js/parseInt v)]
+               (and x (js/isFinite x) x))
+       :clj (try (Integer/parseInt v)
+                 (catch NumberFormatException e)))
+    (number? v) (int v)))
 
 (defn as-double
   "Try and turn v into a double. Nil if we can't."
@@ -70,3 +80,31 @@
 
 (defn kw->annual-kwh [kwh]
   (* kwh HOURS-PER-YEAR))
+
+(defn to-fixed [num digits]
+  #?(:clj
+     (.format (java.text.DecimalFormat.
+               (apply str "0." (repeat digits "0")))
+              num)
+
+     :cljs
+     (.toFixed num digits)))
+
+(defn next-integer-key
+  "Given a map which contains keys that are numeric, return the next
+  unused key."
+  [map]
+  (inc (reduce max -1 (keys map))))
+
+(defn format-seconds [s]
+  (let [s (int s)
+        seconds-part (mod s 60)
+        minutes-part (int (/ s 60))
+        hours-part (int (/ minutes-part 60))
+        minutes-part (mod minutes-part 60)]
+    (str
+     (if (pos? hours-part)
+       (str hours-part "h, ") "")
+     (if (pos? minutes-part)
+       (str minutes-part "m, ") "")
+     seconds-part "s")))

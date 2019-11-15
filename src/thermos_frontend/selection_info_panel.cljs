@@ -3,8 +3,10 @@
             [thermos-specs.candidate :as candidate]
             [thermos-specs.document :as document]
             [thermos-specs.demand :as demand]
+            [thermos-specs.tariff :as tariff]
             [thermos-specs.path :as path]
             [thermos-specs.solution :as solution]
+            [thermos-specs.view :as view]
             [thermos-frontend.editor-state :as state]
             [thermos-frontend.operations :as operations]
             [thermos-frontend.tag :as tag]
@@ -48,20 +50,19 @@
 
         base-cost #(case (::candidate/type %)
                      :path (document/path-cost % @document)
-                     :building (when-let [cc (::demand/connection-cost %)]
-                                 (and (not (zero? cc))
-                                      (* cc (::demand/kwp % 0))))
+                     :building (tariff/connection-cost
+                                (document/connection-cost-for-id @document (::tariff/cc-id %))
+                                (::demand/kwh %)
+                                (::demand/kwp %))
                      nil)
         
         has-solution (document/has-solution? @document)
         selected-candidates (operations/selected-candidates @document)
-        selected-technologies (mapcat (comp ::solution/technologies ::solution/candidate)
-                                      selected-candidates)
+        
         sc-class "selection-table-cell--tag-container"
         cat (fn [k u & {:keys [add-classes]}]
               (category-row document #(or (k %) u) selected-candidates
-                            :add-classes add-classes
-                            ))
+                            :add-classes add-classes))
 
         num (fn [k agg unit & [scale]]
               (let [scale (or scale 1)
@@ -84,6 +85,32 @@
                                          :add-classes "constraint")]
              
              ["Name" sc-class (cat ::candidate/name "None")]
+             [[:span "Tariff " [:span
+                                {:on-click #(swap! document view/switch-to-tariffs)
+                                 :style {:cursor :pointer }
+                                 }
+                                "👁"]]
+              sc-class
+              (cat
+               (fn [x]
+                 (when (candidate/is-building? x)
+                   (document/tariff-name
+                    @document
+                    (::tariff/id x))))
+               nil)]
+
+             [[:span "Civils " [:span
+                                {:on-click #(swap! document view/switch-to-pipe-costs)
+                                 :style {:cursor :pointer}}
+                                "👁"]]
+              
+              sc-class (cat
+                        (fn [x]
+                          (when (candidate/is-path? x)
+                            (document/civil-cost-name
+                             @document
+                             (::path/civil-cost-id x))))
+                        nil)]
              
              ["Length" nil (num ::path/length  rsum "m")]
              [[:span.has-tt
@@ -106,8 +133,10 @@
         (for [[row-name class contents]
               [["In solution" sc-class
                 (cat #(cond
-                        (candidate/in-solution? %) "yes"
+                        (candidate/is-connected? %) "network"
+                        (candidate/got-alternative? %) "individual"
                         (candidate/unreachable? %) "impossible")
+                     
                      "no"
                      :add-classes "solution")
                 ]
@@ -124,17 +153,22 @@
                 (num ::solution/diameter-mm rmax "m" 0.001)
                 ]
                [[:span.has-tt
-                 {:title "For buildings with both supply and demand this can include both connection cost and supply cost."}
+                 {:title "This includes network supply, connection costs, insulation costs and individual system costs"}
                  "Principal"]
                 nil
-                (num #(let [p (::solution/principal %)
-                            cc (::solution/connection-cost %)]
-                        (when (or p cc)
-                          (+ (or p 0) (or cc) 0))) rsum "¤")
+                (num #(let [p  (:principal (::solution/pipe-capex %) 0)
+                            cc (:princpal  (::solution/connection-capex %) 0)
+                            sc (:princpal  (::solution/supply-capex %) 0)
+                            ac (:princpal  (::solution/alternative %) 0)
+                            ic (reduce + 0 (keep :principal (::solution/insulation %)))
+                            t (+ p cc sc ac ic)
+                            ]
+                        (when-not (zero? t) t))
+                     rsum "¤")
                 ]
                ["Revenue"
                 nil
-                (num ::solution/heat-revenue rsum "¤/yr")
+                (num (comp :annual ::solution/heat-revenue) rsum "¤/yr")
                 ]
                ["Losses"
                 nil
