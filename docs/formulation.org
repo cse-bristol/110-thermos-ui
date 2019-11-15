@@ -111,7 +111,7 @@ Finally we do a bit of tidying up to simplify the optimiser input, removing:
 3. Junctions in the road network which would have no effect on the result.
    This combines any paths which can be combined.
 
-* TODO Mixed-integer linear formulation
+* Mixed-integer linear formulation
 
 The result of the above process is a simplified problem description, containing the following information:
 
@@ -174,8 +174,8 @@ First we should introduce some symbols for the mathematical formulation:
 - The set of all vertices (junctions or end-points in a network), called $\mathit{VTX}$ and usually indexed by $i$, having subsets:
   - The set of demand vertices $\mathit{DVTX}$
   - The set of supply vertices $\mathit{SVTX}$,
-- The set of all arcs (directed pipes in a network), called $\mathit{ARC}$, which is $\mathit{VTX} \times \mathit{VTX}$, usually indexed by $e$ or $(i, j)$
-- The set of all edges, called $\mathit{EDGE}$, which is the undirected subset of $\mathit{ARC}$
+- The set of all arcs (directed pipes in a network), called $\mathit{ARC}$, which is $\mathit{VTX} \times \mathit{VTX}$, usually indexed by $a$ or $(i, j)$
+- The set of all edges, called $\mathit{EDGE}$, which is the undirected subset of $\mathit{ARC}$, often indexed by $e$.
 - The set of all individual system types, called $\mathit{ALT}$, usually indexed by $t$
 - The set of insulation types, called $\mathit{INS}$, usually indexed by $t$
 - Two types of 'time', usually indexed by $t$. 
@@ -197,9 +197,30 @@ Next we can consider the decision variables for the network part (we will cover 
 
 These variables produce contributions to objective in a fairly direct way:
 
-TODO
+- Revenues :: Since $\mathit{DVIN}_i$ is 1 if a building is connected to the network, the revenue from a building is
+              \[
+              \sum_i \mathit{DVIN}_i \times (\text{present value of connecting})
+              \]
+              
+              Ignoring insulation, the present value of connecting the building is a constant which we can work out outside the MILP. We will return to insulation later.
+- Connection costs :: Similarly to revenues, we can state the connection cost as 
+     \[
+     \sum_i \mathit{DVIN}_i \times \text{present cost of connecting}
+     \]
+- Heat cost :: The cost of heat input into the network is 
+               \[
+               \sum_{i \in \mathit{SVTX}} \mathit{SUPPLY}_{i, t_{mean}} \times \text{present cost per kwh}
+               \]
+- Plant cost :: The cost of plant is 
+                \[
+                \sum_{i \in \mathit{SVTX}} \mathit{SVIN}_{i}_{} \times \text{present fixed cost of supply at $i$} + \mathit{SUPPLYCAPACITY}_i \times \text{present variable cost of supply at $i$}
+                \]
+- Pipe cost :: The cost of pipes is quite similar to the cost of supplies: 
+               \[
+               \sum_a \mathit{AIN}_a \times \text{fixed cost of $a$} + \mathit{CAPACITY}_a \times \text{variable cost of $a$}
+               \]
 
-However we must also bind the optimiser to produce a sensible answer, using some constraints:
+However we must also bind the optimiser to produce a sensible answer using some constraints:
 
 - Flow balances :: The flow balance rule is what makes the model build a network at all.
                    For every point $i$ at each "time" $t$ (which includes all supply points, demand points, and junctions between paths), we define the /unmet demand/ at $i$ in $t$ as the difference between all the heat leaving $i$ and all the heat flowing into $i$.
@@ -210,7 +231,7 @@ However we must also bind the optimiser to produce a sensible answer, using some
                    u = (\mathit{demand} + \mathit{outflow} + \mathit{losses}_{}) - (\mathit{supply} + \mathit{inflow})
                    \]
 
-                   where
+                   where we use $\mathit{DVIN}$
 
                    \[
                    \mathit{demand} = \mathit{DVIN}_i \times \mathit{DEMAND}_{i, t} \text{, or zero if $i$ is not a demand location}
@@ -277,11 +298,102 @@ However we must also bind the optimiser to produce a sensible answer, using some
                   \mathit{AIN}_{i,j} + \mathit{AIN}_{j, i} \leq 1
                   \]
 
+- Supply capacity suffices :: To ensure we purchase enough supply capacity we say
 
+     \[
+     \forall i, t : \mathit{SUPPLYCAPACITY}_i \geq \mathit{DIVERSITY}_{i,t} \times \mathit{SUPPPLY}_{i,t}
+     \]
 
-** TODO Insulation
+     Again, diversity is a parameter whose computation is described later; here it is enough to presume that we already know the diversity, even though its value does depend on what the supply has been connected to.
+     
+- Supply requires plant :: To ensure we pay the fixed cost for a supply, we say:
 
-** TODO Alternatives
+     \[
+     \forall i, t : \mathit{SUPPLY}_{i,t} \leq \mathit{SVIN}_i \times M_{i, t}
+     \]
+
+     Where $M$ is another big-M constraint determined when computing the flow bounds; it is the maximum flow the supply could ever have to produce.
+
+** Insulation
+
+Each demand location may potentially have some amount of insulation installed.
+For the purposes of formulating the MILP, insulation is characterised by a few bits of information:
+
+- Fixed cost :: This is the present cost of doing any amount of the insulation
+- Variable cost :: This is the present cost per kWh of insulation done
+- Maximum kWh :: This is the maximum reduction in demand available
+
+Then to represent the use of insulation we need to introduce two decision variables
+
+- $\mathit{INSULATION}_{i, t}$, a binary variable to indicate whether insulation of type $t$ is being installed in demand $i$.
+- $\mathit{INSULATIONKWH}_{i, t}$, a continuous variable indicating how much of insulation $t$ is installed at demand $i$.
+
+These naturally produce an extra cost term for the objective:
+
+\[
+\sum_{i, t} \mathit{INSULATION}_{i,t} \times \text{fixed cost of $t$ at $i$} + \mathit{INSULATIONKWH}_{i, t} \times \text{cost/kwh of $t$ at $i$}
+\]
+
+As above, we also need a big-M constraint to ensure we pay the fixed cost:
+
+\[
+\forall i, t : \mathit{INSULATIONKWH}_{i,t} \leq \mathit{INSULATION}_{i,t} \times M
+\]
+
+Finally we need to make insulation affect the demand for heat. 
+Earlier, we said that the unmet demand at each vertex had to be zero; when considering insulation we instead say:
+
+\[
+0 \leq u_i \leq \sum_t \mathit{INSULATIONKWH}_{i,t}
+\]
+
+You may wonder why this is not expressed with less slack, as
+
+\[
+u_i = \sum_t \mathit{INSULATIONKWH}_{i,t}
+\]
+
+This is because this couples with the flow balance constraint and has the effect that insulation can only be installed if the building is also on the network. This could be fixed by including non-network systems in the flow balance equation, but that creates another problem, that heat from individual systems should not be able to be put /into/ a heat network.
+
+The slack here does create a possible odd outcome, where the model buys insulation but does not use it. For example, if insulation had a negative cost, installing it would create value, but not using it would preserve the associated revenue from selling heat. However, under normal combinations of parameters the optimiser will only want to buy insulation when it's going to use it, so this situation doesn't occur.
+
+** Individual systems
+
+Individual systems (called /alternatives/ in the code) are handled separately from the network model. The use of an individual system to heat a demand location is represented by a single binary decision variable $\mathit{ALTIN}_{i, t}$ (where $i \in \mathit{DVTX}$ and $t \in \mathit{ALT}$).
+
+This variable is constrained so that $\mathit{ALTIN}_{i, t}$ can only be 1 for demand location / individual system pairs that the user has marked as legal in the inputs.
+
+The only other constraint applied is then that
+
+\[
+  1 = \mathit{DVIN}_i + \sum_t \mathit{ALTIN}_{i,t}
+\]
+
+This constraint is relaxed for buildings that are not marked as required and have no allowed individual systems; this is arguably a quirk of the user interface, but it allows the user to express questions in which they are uninterested in considering the ins and outs of individual systems.
+
+The cost of individual systems is mostly similar to the cost of heat network supply; however, costs related to the heating system's annual output need to reflect the effect of insulation. Since the quantity of insulation is itself a decision variable, we cannot multiply it by $\mathit{ALTIN}$ without making a quadratic program, so the demand reduction effect is achieved by adding some constraints and another variable:
+
+We say that $\mathit{ALTAVOID}_{i,t}$ is the amount of alternative system $t$'s /output/ that we are going to /avoid/ using insulation at demand $i$. This has to be less than the amount of insulation installed there:
+
+\[
+\forall i, t:  \mathit{ALTAVOID}_{i, t} \leq \sum_{k \in \mathit{INS}} \mathit{INSULATIONKWH}_{i,k}
+\]
+
+and we also can't avoid demand in system $t$ unless we are actually using system $t$:
+
+\[
+\forall i, t:  \mathit{ALTAVOID}_{i, t} \leq \mathit{ALTIN}_{i,t} \times M
+\]
+
+Now we can phrase the cost of alternative systems as:
+
+\[
+\sum_{i, t} \mathit{ALTIN}_{i, t} \times \text{base present cost} - \mathit{ALTAVOID}_{i, t} \times \text{unit present cost} 
+\]
+
+where the base present cost reflects is the discounted sum of fixed capital cost, variable capital cost, and unit rate multiplied with the demand /before insulation/, which we know up-front.
+
+Like the slack in the unmet demand constraint, this does allow a situation in which the model purchases insulation but chooses not to use its effect, but again this should be ruled out by sensible sensible parameters (i.e. nonnegative financial costs).
 
 * Parameter updates
 
@@ -300,11 +412,52 @@ Instead of doing one of these, in THERMOS we try to iteratively approximate thes
 
 We stop this process if the solution stops changing, or if we find that we are in a cycle (so guess X gives solution A which leads to guess Y, which gives solution B, which leads back to guess X again).
 
-** TODO Finding diversity factors
+** Finding diversity factors
 
-** TODO Finding heat losses
+The diversity (or perhaps more properly coincidence) factor for a pipe in THERMOS is calculated using the rule:
 
-* TODO Solution re-evaluation
+\[
+f(n) = 0.62 + 0.38/n
+\]
+
+So if the pipe is meeting $n$ demands whose peaks sum to $d$ the pipe capacity required is taken to be $f(n) \times d$.
+
+Given a candidate solution, we work out a value of $n$ for each edge by traversing the proposed network from the supply location and counting up how many demands can reached through each edge.
+
+*** Preventing invalid configurations
+
+The diversity factor rule is slightly too simple, as it allows an incoherent outcome: consider a Y-shaped junction in a network, with the forks of the Y each feeding a single demand, and the stem being the pipe to/from the supply.
+
+If one of the two demands is much larger than the other, then the diversified capacity for the combined pipe will be /less/ than the peak capacity for the larger demand's pipe. This is an invalid result - a larger capacity pipe cannot usefully input into a smaller capacity one.
+
+To prevent this happening, we also determine for each pipe the maximum peak demand of any of the buildings reachable through it. If the simple diversity rule above would result in a capacity below this maximum, then the pipe is sized for the maximum instead.
+
+[[./img/formulation/bad-diversity.svg]]
+#+CAPTION: In this illustration, the diversified capacities for A and B are 100 and 5 kW respectively. Using the diversity rule naively, C would have a capacity of $105 \times f(2) = 85$, which is not sensible. To avoid this we say C has a capacity of 100 also.
+
+*** Initial diversity factors
+
+Since the choice of diversity factor depends on having a solution, we must choose some initial diversity values to parameterise the MILP before we have found any solution. We start with the most /optimistic/ diversity value, which is the maximum that could happen in any solution; this is to help the optimiser avoid ruling out the use of a pipe which would be a good choice when allowing for diversity.
+
+** Finding heat losses
+
+Like diversity, heat losses cannot be calculated within the optimisation and so are computed afterwards. The heat loss for each pipe is determined from the pipe's required capacity, indirectly from a model fitted between pipe diameter and heat loss rate.
+
+*** Initial heat losses
+
+The heat losses for each pipe are initialized to the lowest values implied by the lower bound on the power the pipe might deliver if it were used in the network. This is the most optimistic assumption.
+
+* Solution re-evaluation
+
+Once the iteration described earlier is finished, we take the best solution seen so far, fix its parameters to reflect proper diversity and heat loss values, and then re-solve it with all the binary decision variables constrained so that the solution does not change. This solution is the solution used as the result.
+
+This could be improved slightly by doing this to every solution considered, and taking the best under those circumstances.
+
+* TODO Choices of objective
+
+The application user interface displays two choices of objective, /network NPV/ and /whole-system NPV/.
+
+These two objectives are implemented in the same way as far as the optimisation is concerned, and changing the objective merely changes how the cost parameters for the optimisation are determined.
 
 * Footnotes
 [fn:1] See https://en.wikipedia.org/wiki/Linear_programming#Integer_unknowns
