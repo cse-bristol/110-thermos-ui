@@ -1,12 +1,30 @@
 .table {
   border-collapse: collapse;
   width: 100%;
-  td, th {
-    border-bottom: 1px solid #ccc;
-    padding: 0.6em 1em;
+  thead {
+    border-bottom: 1px solid #bbb;
+    border-bottom: 1px solid #999;
   }
-  tr:last-child td {
-    border-bottom: none;
+  th {
+    text-align: left;
+    height: 50px;
+    padding: 0 10px;
+    color: #777;
+    &.align-right {
+      text-align: right;
+    }
+  }
+  td {
+    height: 40px;
+    padding: 0 10px;
+    &.align-right {
+      text-align: right;
+    }
+  }
+}
+.table--alternating {
+  tbody tr:nth-child(odd) {
+    background: #f2f2f6;
   }
 }
 

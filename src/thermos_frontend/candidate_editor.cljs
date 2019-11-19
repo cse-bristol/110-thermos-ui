@@ -3,7 +3,7 @@
             [thermos-specs.demand :as demand]
             [thermos-specs.tariff :as tariff]
             [thermos-specs.measure :as measure]
-            
+
             [thermos-specs.path :as path]
             [thermos-specs.supply :as supply]
             [thermos-specs.document :as document]
@@ -11,7 +11,7 @@
             [thermos-frontend.editor-state :as state]
             [thermos-frontend.inputs :as inputs]
             [thermos-frontend.format :as format]
-            
+
             [reagent.core :as reagent]
             [clojure.set :as set]))
 
@@ -33,12 +33,12 @@
     [group-by-key  (reagent/cursor state [:group-by])
      benchmarks    (reagent/cursor state [:benchmarks])
      values        (reagent/cursor state [:values])]
-    
+
     [:div
      (when (seq (rest buildings))
        [:div
-        [:h2 [:b "Edit buildings by "]
-         [inputs/select 
+        [:div [:b "Edit buildings by "]
+         [inputs/select
           {:value-atom group-by-key
            :values group-by-options}]]])
 
@@ -52,38 +52,28 @@
 
            ;; this is a bit wrong still
            tariff-frequencies (frequencies (map ::tariff/id buildings))]
-       [:table {:style {:max-height :400px :overflow-y :auto}}
+       [:table.table.table--alternating {:style {:max-height :400px :overflow-y :auto :margin-top :1em}}
         [:thead
          [:tr
           (when-not group-by-nothing
             [:th (group-by-options group-by-key)])
-          [:th "Count"]
-          [:th "Demand"]
-          [:th "Peak"]
+          [:th.align-right "Count"]
+          [:th {:style {:min-width :140px}} "Demand " (if benchmarks [:small "(kWh/m2 yr)"] [:small "(MWh/yr)"])]
+          [:th "Peak " (if benchmarks [:small "(kW/m2)"] [:small "(kW)"])]
           [:th "Tariff"]
           [:th "Con. cost"]
           [:th "Insulation"]
           [:th "Alternatives"]
-          [:th "Counterfactual"]]
-         
-         [:tr {:style {:font-size :small}}
-          (when-not group-by-nothing [:th])
-          [:th]
-          [:th (if benchmarks "kWh/m2 yr" "MWh/yr")]
-          [:th (if benchmarks "kW/m2" "kW")]
-          [:th]
-          [:th]
-          [:th]
-          [:th]]]
-        
+          [:th "Counterfactual"]]]
+
         [:tbody
          (doall
           (for [[k cands] grouped]
             [:tr {:key (or k "nil")}
              (when-not group-by-nothing
                [:td (or k (nil-value-label group-by-key))])
-             [:td (count cands)]
-             
+             [:td.align-right (count cands)]
+
              [:td [inputs/check-number
                    {:max 1000
                     :style {:max-width :5em}
@@ -163,31 +153,31 @@
   (reagent/with-let
     [group-by-key (reagent/cursor state [:group-by])
      values       (reagent/cursor state [:values])]
-    [:div 
+    [:div
      (when (seq (rest paths))
        [:div
-        [:h2 [:b "Edit paths by "]
+        [:div [:b "Edit paths by "]
          [inputs/select
           {:value-atom group-by-key
            :values group-by-options}]]])
 
      (let [group-by-key @group-by-key
            grouped (group-by group-by-key paths)]
-       [:table {:style {:max-height :400px :overflow-y :auto}}
+       [:table.table.table--alternating {:style {:max-height :400px :overflow-y :auto}}
         [:thead
          [:tr
-          [:th (group-by-options group-by-key)]
-          [:th "Length (m)"]
+          [:th {:style {:width :100%}} (group-by-options group-by-key)]
+          [:th.align-right {:style {:min-width :120px :padding-right :25px}} "Length (m)"]
           [:th.has-tt
            {:title "You can set up civil engineering costs in the pipe costs page."}
            "Civil cost"]]]
-        
+
         [:tbody
          (doall
           (for [[k cands] grouped]
             [:tr {:key (or k "nil")}
              [:td (or k (nil-value-label group-by-key))]
-             [:td (format/si-number (apply + (map ::path/length cands)))]
+             [:td.align-right {:style {:padding-right :25px}} (format/si-number (apply + (map ::path/length cands)))]
              [:td [inputs/select
                    {:value-atom (reagent/cursor values [group-by-key k :civil-cost])
                     :values `[[:unset "Unchanged"]
@@ -254,9 +244,9 @@
                                 (into {} state))
 
                               :counterfactual (unset? (map ::demand/counterfactual v))
-                              
+
                               })])))
-                
+
                 (into {}))])
         (into {}))})
 
@@ -306,7 +296,7 @@
              connection-cost (:connection-cost values)
 
              set-connection-cost (not= :unset connection-cost)
-             
+
              counterfactual (:counterfactual values)
 
              set-counterfactual (not= :unset counterfactual)
@@ -316,7 +306,7 @@
                   (filter #(not (second %)))
                   (map first)
                   (set))
-             
+
              add-insulation
              (->> (:insulation values)
                   (filter #(= true (second %)))
@@ -328,7 +318,7 @@
                   (filter #(not (second %)))
                   (map first)
                   (set))
-             
+
              add-alternatives
              (->> (:alternatives values)
                   (filter #(= true (second %)))
@@ -342,12 +332,12 @@
            set-tariff              (assoc ::tariff/id tariff)
            set-connection-cost     (assoc ::tariff/cc-id connection-cost)
            set-counterfactual      (assoc ::demand/counterfactual counterfactual)
-           
+
            (seq add-insulation)    (update ::demand/insulation set/union add-insulation)
            (seq remove-insulation) (update ::demand/insulation set/difference remove-insulation)
            (seq add-alternatives)    (update ::demand/alternatives set/union add-alternatives)
            (seq remove-alternatives) (update ::demand/alternatives set/difference remove-alternatives)
-           
+
 
            ;; ensure we don't delete it since we edited it
            (or set-demand
@@ -355,7 +345,7 @@
                set-tariff
                set-connection-cost
                set-counterfactual
-               
+
                (seq add-insulation)
                (seq remove-insulation)
                (seq add-alternatives)
@@ -378,21 +368,41 @@
                      insulation (sort-by first (::document/insulation @document))
                      alternatives (sort-by first (::document/alternatives @document))
                      ]
-    
-    [:div.popover-dialog
-     (when (seq buildings)
-       [demand-editor
-        tariffs
-        connection-costs
-        insulation
-        alternatives
-        
-        demand-state buildings])
-     (when (seq paths)
-       [:div
-        (when (seq buildings) [:hr])
-        [path-editor civils path-state paths]])
-     [:div
+
+    [:div.popover-dialog.popover-dialog--wide
+     [:h2.popover-header "Edit Candidates"]
+     [:button.popover-close-button
+      {:on-click popover/close!}
+      "⨯"]
+
+     (cond
+       ;; When there are both buildings and paths, make some tabs to switch between them
+       (and (seq buildings) (seq paths))
+       (reagent/with-let [active-tab (reagent/atom :buildings)]
+         [:div
+          [:ul.tabs__tabs
+           [:li.tabs__tab
+            {:class (if (= @active-tab :buildings) "tabs__tab--active" "")
+             :on-click #(reset! active-tab :buildings)}
+            "Buildings"]
+           [:li.tabs__tab
+            {:class (if (= @active-tab :paths) "tabs__tab--active" "")
+             :on-click #(reset! active-tab :paths)}
+            "Paths"]]
+          [:ul.tabs__pages
+           [:li.tabs__page
+            {:class (if (= @active-tab :buildings) "tabs__page--active" "")}
+            [demand-editor
+             tariffs
+             connection-costs
+             insulation
+             alternatives
+             demand-state buildings]]
+           [:li.tabs__page
+            {:class (if (= @active-tab :paths) "tabs__page--active" "")}
+            [path-editor civils path-state paths]]]
+          ]))
+     [:div.align-right {:style {:margin-top "2em"}}
       [:button.button.button--danger
        {:on-click popover/close!
         :style {:margin-left :auto}}
