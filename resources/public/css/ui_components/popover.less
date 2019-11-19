@@ -8,8 +8,36 @@
 
 .popover-dialog {
     background:#fff;
-    padding: 1em;
+    padding: 2em;
     box-shadow: 0 0 6px 4px rgba(0,0,0,0.2);
+    max-height: calc(~"100% - 80px");
+    overflow-y: auto;
+
+    // So we can absolutely position the x button
+    position: relative;
+
+    // Fancy scrollbar
+    &::-webkit-scrollbar {
+  	width: 10px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background-color: #999;
+      &:hover, &:active {
+          background-color: #888;
+      }
+    }
+}
+
+.popover-dialog--wide {
+  width: 1200px;
+}
+
+.popover-header {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 1em;
+  font-size: 1.3em;
+  color: #777;
 }
 
 .popover-menu {
@@ -69,4 +97,20 @@
   margin: 10px -15px;
   background: #ccc;
   height: 1px;
+}
+
+.popover-close-button {
+  position: absolute;
+  top: 1em;
+  right: 1em;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-weight: bold;
+  font-size: 1.5em;
+  color: #777;
+  cursor: pointer;
+  &:hover {
+    color: #555;
+  }
 }

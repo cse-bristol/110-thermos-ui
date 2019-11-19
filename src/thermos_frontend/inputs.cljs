@@ -20,7 +20,7 @@
           step  (or step 1)
 
           digits (max 0 (- (Math/log10 step)))
-          
+
           s-value (.toFixed
                    (* scale (or (when value-atom @value-atom) (:value ks)))
                    digits)
@@ -34,16 +34,16 @@
        (merge {:type :number
                :placeholder "0"
                :default-value s-value}
-              
+
               (dissoc ks :value-atom :scale :value)
-              
+
               (when value-atom
                 {:on-blur
-                 
+
                  #(let [val @value-atom]
                     (set! (.. @element -value)
                           (* val scale)))})
-              
+
               {:ref #(reset! element %)
                :on-change
                #(let [val (target-value %)
@@ -51,11 +51,11 @@
                   (on-change val))})])))
 
 (defn select [{value-atom :value-atom values :values
-               value :value on-change :on-change 
+               value :value on-change :on-change
                }]
   (let [index->key (into {} (map-indexed #(vector (str %1) %2) (map first values)))
         key->index (map-invert index->key)]
-    [:select
+    [:select.select
      {:value (key->index (cond value-atom @value-atom
                                value value))
       :on-change
@@ -64,7 +64,7 @@
             on-change
             #(on-change (index->key (.. % -target -value))))
       }
-     
+
      (for [[k v] values]
        (let [k (key->index k)]
          [:option {:value (str k) :key k} v]))]))

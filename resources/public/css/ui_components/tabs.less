@@ -1,25 +1,61 @@
-div.tabs {
-    display:flex;
-    flex-shrink:0;
-    button {
-        color:#000;
-        border:none;
-        background:none;
-        flex:auto;
-        text-align:center;
-        padding: 0.25em;
-        margin:0;
-        font-size: 1.5em;
-        cursor:pointer;
+// div.tabs {
+//     display:flex;
+//     flex-shrink:0;
+//     button {
+//         color:#000;
+//         border:none;
+//         background:none;
+//         flex:auto;
+//         text-align:center;
+//         padding: 0.25em;
+//         margin:0;
+//         font-size: 1.5em;
+//         cursor:pointer;
+//     }
+//     button:hover {
+//         background:#aaa;
+//         transition: background linear 0.1s;
+//     }
+//     button.selected {
+//         background:#555;
+//         color:white;
+//     }
+//     box-shadow:rgba(0, 0, 0, 0.15) 0px 0px 2px 2px;
+//     border-bottom:1px solid #888;
+// }
+
+.tabs__tabs {
+    margin: 0;
+    padding: 0;
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 1em;
+}
+.tabs__tab {
+    display: inline-block;
+    padding: 15px 5px;
+    margin-right: 10px;
+    font-weight: bold;
+    color: #888;
+    cursor: pointer;
+    &:hover {
+        color: #777;
     }
-    button:hover {
-        background:#aaa;
-        transition: background linear 0.1s;
+}
+.tabs__tab--active {
+    color: @theme-darker-blue;
+    border-bottom: 2px solid @theme-darker-blue;
+    padding-bottom: 13px;
+    &:hover {
+        color: darken(@theme-darker-blue, 5%)
     }
-    button.selected {
-        background:#555;
-        color:white;
-    }
-    box-shadow:rgba(0, 0, 0, 0.15) 0px 0px 2px 2px;
-    border-bottom:1px solid #888;
+}
+.tabs__pages {
+    margin: 0;
+    padding: 0;
+}
+.tabs__page {
+    display: none;
+}
+.tabs__page--active {
+    display: block;
 }
