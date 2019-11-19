@@ -107,6 +107,7 @@
              [:td [inputs/select
                    {:value-atom (reagent/cursor values [group-by-key k :tariff])
                     :values `[[:unset "Unchanged"]
+                              [:market "Market"]
                               ~@(map
                                  (fn [[id {name ::tariff/name}]] [id (str name " ("
                                                                           (get tariff-frequencies id 0 )

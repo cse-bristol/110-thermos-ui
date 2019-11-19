@@ -99,12 +99,15 @@
             symbols/dustbin]]
      ]))
 
-
 (defn tariff-parameters
   [doc]
   (reagent/with-let
     [*tariffs          (reagent/cursor doc [::document/tariffs])
-     *connection-costs (reagent/cursor doc [::document/connection-costs])]
+     *connection-costs (reagent/cursor doc [::document/connection-costs])
+     *market-rate      (reagent/cursor doc [::tariff/market-discount-rate])
+     *market-term      (reagent/cursor doc [::tariff/market-term])
+     *market-stick     (reagent/cursor doc [::tariff/market-stickiness])
+     ]
     [:div.flex-cols {:style {:flex-wrap :wrap}} ;; TODO make this work
      [:div.card
       [:span "Each building can have an associated tariff, which determines the revenue to the network operator."
@@ -144,6 +147,49 @@
         (doall
          (for [id (sort (keys @*tariffs))]
            (tariff-row doc *tariffs id)))]]]
+
+     [:div.card
+      [:span "Buildings can also use the special " [:b "market"] " tariff. "]
+      [:span "With this setting, the unit rate is chosen to beat the building's best individual system."]
+      [:div
+       [:label
+        "Discount rate: "
+        [inputs/number
+         {:title "The discount rate used when evaluating market options"
+          :min 0
+          :max 10
+          :scale 100
+          :step 0.1
+          :value-atom *market-rate
+          }
+         ]
+        "%"]
+
+       [:label
+        "Period: "
+        [inputs/number
+         {:title "The time period used when evaluating market options"
+          :min 0
+          :max 50
+          :step 1
+          :value-atom *market-term
+          }
+         ]
+        "yr"]
+
+       [:label
+        "Stickiness: "
+        [inputs/number
+         {:title "The amount by which the heat network unit rate should try to beat the best individual system."
+          :min 0
+          :max 100
+          :scale 100
+          :step 0.5
+          :value-atom *market-stick}
+         ]
+        "%"]
+       ]
+      ]
      
      [:div.card
       [:span "Each building also has associated connection costs, which determine the capital costs of connecting the building to the network."]

@@ -250,14 +250,18 @@
        (some ::supply/capacity-kwp (vals (::candidates document)))))
 
 (defn tariff-for-id [doc tariff-id]
-  (let [tariffs (::tariffs doc)]
-    (when tariffs
-      (or (get tariffs tariff-id)
-          (get tariffs
-               (reduce min (keys tariffs)))))))
+  (if (= :market tariff-id)
+    tariff-id
+    (let [tariffs (::tariffs doc)]
+      (when tariffs
+        (or (get tariffs tariff-id)
+            (get tariffs
+                 (reduce min (keys tariffs))))))))
 
 (defn tariff-name [doc tariff-id]
-  (or (::tariff/name (tariff-for-id doc tariff-id)) "None"))
+  (if (= tariff-id :market)
+    "Market"
+    (or (::tariff/name (tariff-for-id doc tariff-id)) "None")))
 
 (defn remove-tariff
   {:test #(test/is
