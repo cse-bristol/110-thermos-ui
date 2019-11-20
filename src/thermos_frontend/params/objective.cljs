@@ -23,12 +23,12 @@
                         :disabled (not (:annualize @params))}]]
    [:td
     (->> 100
-         (finance/objective-capex-value (assoc @doc ::document/npv-rate 0) @params)
+         (finance/objective-capex-value (assoc @doc ::document/npv-rate 0) @params false)
          (:present)
          (format/si-number))]
    [:td
     (->> 100
-         (finance/objective-capex-value @doc @params)
+         (finance/objective-capex-value @doc @params false)
          (:present)
          (format/si-number))]])
 
@@ -60,18 +60,7 @@
      ]
     [:div.parameters-component
      [:div.card
-      [:h1 "Accounting period"]
-      [:p
-       "Sum costs and benefits over " [inputs/number {:value-atom npv-term
-                                                      :step 1
-                                                      :min 0
-                                                      :max 100}]
-       " years. "
-       "Discount future values at " [inputs/number {:value-atom npv-rate
-                                                    :scale 100
-                                                    :min 0
-                                                    :max 100
-                                                    :step 0.1}] "% per year."]
+      
 
       [:h1 "Objective"]
       [:div {:style {:margin-top :1em}}
@@ -118,24 +107,22 @@
                        "Offer other heating systems"]}]]]]
           ]
          ]
-        
-        ;; [inputs/radio-group
-        ;;  {:value @objective
-        ;;   :on-change #(reset! objective %)
-        ;;   :options
-        ;;   [{:key :network :label [:span.has-tt
-        ;;                           {:title
-        ;;                            (str "This only considers the costs and revenues of the network."
-        ;;                                 "It includes emissions costs, and if allowed below the capital costs of other systems or insulation."
-        ;;                                 "It does not include the operating costs of other systems.")}
-        ;;                           "Maximize network NPV"]}
-        ;;    {:key :system :label [:span.has-tt
-        ;;                          {:title
-        ;;                           "This includes the costs for heating buildings not on the network, and excludes any revenue for the network."}
-        ;;                          "Maximize whole-system NPV"]}]}]
         ]
        
-       ]]
+       ]
+      [:h1 "Accounting period"]
+      [:p
+       "Sum costs and benefits over " [inputs/number {:value-atom npv-term
+                                                      :step 1
+                                                      :min 0
+                                                      :max 100}]
+       " years. "
+       "Discount future values at " [inputs/number {:value-atom npv-rate
+                                                    :scale 100
+                                                    :min 0
+                                                    :max 100
+                                                    :step 0.1}] "% per year."]
+      ]
      
      [:div {:style {:display :flex :flex-wrap :wrap}}
       [:div.card {:style {:flex-grow 2}}
