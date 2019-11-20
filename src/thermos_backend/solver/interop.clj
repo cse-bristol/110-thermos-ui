@@ -278,32 +278,36 @@
                 (when (::document/consider-alternatives instance)
                   (::demand/alternatives candidate))
                 counterfactual))]
+      
       (->>
        (for [id ids]
          (when-let [alternative (get-in instance [::document/alternatives id])]
-           {:id id
-            :cost      (if (= counterfactual id)
-                         0
-                         (finance/objective-value instance :alternative-capex
-                                                  (::supply/fixed-cost alternative 0)))
+           
+           (let [capex-type (if (= counterfactual id)
+                             :counterfactual-capex
+                             :alternative-capex)]
+             {:id id
+              :cost      (finance/objective-value instance capex-type
+                                                  (::supply/fixed-cost alternative 0))
 
-            ;; we pay for fuel for the counterfactual
-            "cost/kwh" (+
-                        (finance/objective-value instance :alternative-capex
-                                                 (annual-kwh->kw
-                                                  (::supply/capex-per-mean-kw alternative 0)))
-                        (finance/objective-value instance :alternative-opex
-                                                 (::supply/cost-per-kwh alternative 0)))
-            
-            "cost/kwp"
-            ;; we pay opex for the CF unless in network-only mode.
-            (finance/objective-value instance :alternative-opex
-                                     (::supply/opex-per-kwp alternative 0))
-            
-            :emissions
-            (into {}
-                  (for [e candidate/emissions-types]
-                    [e (float (get-in alternative [::supply/emissions e] 0))]))}))
+
+              ;; we pay for fuel for the counterfactual
+              "cost/kwh" (+
+                          (finance/objective-value instance capex-type
+                                                   (annual-kwh->kw
+                                                    (::supply/capex-per-mean-kw alternative 0)))
+                          (finance/objective-value instance :alternative-opex
+                                                   (::supply/cost-per-kwh alternative 0)))
+              
+              "cost/kwp"
+              ;; we pay opex for the CF unless in network-only mode.
+              (finance/objective-value instance :alternative-opex
+                                       (::supply/opex-per-kwp alternative 0))
+              
+              :emissions
+              (into {}
+                    (for [e candidate/emissions-types]
+                      [e (float (get-in alternative [::supply/emissions e] 0))]))})))
        (filter identity)))})
 
 (defn demand-terms [instance candidate market]
@@ -484,30 +488,31 @@
               ::supply/name (::supply/name alternative)}))))
 
 (defn- output-alternative [candidate instance alternative]
-  (assoc candidate
-         ::solution/alternative
-         (if (= (::demand/counterfactual candidate)
-                (::supply/id alternative))
-           (assoc (::solution/counterfactual candidate)
-                  :counterfactual true)
-           (let [kwh (::solution/kwh candidate)
-                 kwp (::demand/kwp candidate)
+  (let [is-counterfactual (= (::demand/counterfactual candidate)
+                             (::supply/id alternative))]
+    (assoc candidate
+           ::solution/alternative
+           (if is-counterfactual
+             (assoc (::solution/counterfactual candidate)
+                    :counterfactual true)
+             (let [kwh (::solution/kwh candidate)
+                   kwp (::demand/kwp candidate)
 
-                 capex (supply/principal alternative kwp kwh)
-                 opex  (supply/opex alternative kwp)
-                 fuel  (supply/heat-cost alternative kwh)]
-             {:capex (finance/adjusted-value instance :alternative-capex capex)
-              :opex (finance/adjusted-value instance :alternative-opex opex)
-              :heat-cost (finance/adjusted-value instance :alternative-opex fuel)
-              :counterfactual false
-              :emissions
-              (into {}
-                    (for [e candidate/emissions-types]
-                      (let [alternative-factor (get (::supply/emissions alternative) e 0)
-                            emissions (* alternative-factor kwh)]
-                        [e (finance/emissions-value instance e emissions)])))
-              ::supply/id (::supply/id alternative)
-              ::supply/name (::supply/name alternative)}))))
+                   capex (supply/principal alternative kwp kwh)
+                   opex  (supply/opex alternative kwp)
+                   fuel  (supply/heat-cost alternative kwh)]
+               {:capex (finance/adjusted-value instance :alternative-capex capex)
+                :opex (finance/adjusted-value instance :alternative-opex opex)
+                :heat-cost (finance/adjusted-value instance :alternative-opex fuel)
+                :counterfactual false
+                :emissions
+                (into {}
+                      (for [e candidate/emissions-types]
+                        (let [alternative-factor (get (::supply/emissions alternative) e 0)
+                              emissions (* alternative-factor kwh)]
+                          [e (finance/emissions-value instance e emissions)])))
+                ::supply/id (::supply/id alternative)
+                ::supply/name (::supply/name alternative)})))))
 
 (defn- merge-solution [instance net-graph power-curve market result-json]
   (let [state (keyword (:state result-json))
@@ -728,6 +733,9 @@
              (cond-> (for [i (::demand/alternatives v)]
                        (get alternatives i))
 
+               ;; TODO we are not repeating the capex for this right
+               ;; nor for the other options, so it is not quite fair -
+               ;; the CF will mostly win, unless we turn down DR etc.
                counterfactual
                (conj
                 (assoc (get alternatives counterfactual)
