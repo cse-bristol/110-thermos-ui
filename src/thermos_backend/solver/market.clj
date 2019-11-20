@@ -121,10 +121,11 @@
         ;; k = offer / v.pv1
 
         offer-rate (/ our-offer pv-per-kwh)
+
+        ;; round to nearest 0.1p?
+        offer-rate (/ (Math/round (* 1000.0 offer-rate)) 1000.0)
         ]
     (assoc best-alternative
            ::unit-rate offer-rate
            ::tariff/unit-charge offer-rate
            )))
-
-

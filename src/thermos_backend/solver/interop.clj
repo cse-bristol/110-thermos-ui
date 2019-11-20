@@ -727,9 +727,14 @@
              alternatives
              (cond-> (for [i (::demand/alternatives v)]
                        (get alternatives i))
-               ;; TODO make this free
+
                counterfactual
-               (conj counterfactual))
+               (conj
+                (assoc (get alternatives counterfactual)
+                       ::supply/capex-per-kwp 0
+                       ::supply/capex-per-mean-kw 0
+                       ::supply/fixed-cost 0
+                       )))
              
              insulations
              (for [i (::demand/insulation v)]

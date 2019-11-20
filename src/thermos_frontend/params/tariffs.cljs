@@ -146,53 +146,62 @@
        [:tbody
         (doall
          (for [id (sort (keys @*tariffs))]
-           (tariff-row doc *tariffs id)))]]]
+           (tariff-row doc *tariffs id)))]]
 
-     [:div.card
-      [:span "Buildings can also use the special " [:b "market"] " tariff. "]
-      [:span "With this setting, the unit rate is chosen to beat the building's best individual system."]
-      [:div
-       [:label
-        "Discount rate: "
-        [inputs/number
-         {:title "The discount rate used when evaluating market options"
-          :min 0
-          :max 10
-          :scale 100
-          :step 0.1
-          :value-atom *market-rate
-          }
-         ]
-        "%"]
+      [:div {:style {:margin-top :1em}}
+       (reagent/with-let [more (reagent/atom false)]
+         [:div
+          [:span "For buildings on the "[:b "market"]" tariff, the unit rate is chosen to beat the building's best individual system. "]
+          [:button {:on-click #(swap! more not)} (if @more "less..." "more...")]
+          (when @more
+            [:p "To do this, the building's lowest present cost option is calculated, considering insulation, individual systems, or sticking with the counterfactual. The unit rate is then chosen to give a present cost to the building for connecting to the network which is " [:em "stickiness"] " % less."])
+          ]
+         )
+       [:div {:style {:margin-top :1em}}
+        [:label
+         "Discount rate: "
+         [inputs/number
+          {:title "The discount rate used when evaluating market options"
+           :min 0
+           :max 10
+           :scale 100
+           :step 0.1
+           :value-atom *market-rate
+           }
+          ]
+         "%"]
 
-       [:label
-        "Period: "
-        [inputs/number
-         {:title "The time period used when evaluating market options"
-          :min 0
-          :max 50
-          :step 1
-          :value-atom *market-term
-          }
-         ]
-        "yr"]
+        [:label
+         "Period: "
+         [inputs/number
+          {:title "The time period used when evaluating market options"
+           :min 0
+           :max 50
+           :step 1
+           :value-atom *market-term
+           }
+          ]
+         "yr"]
 
-       [:label
-        "Stickiness: "
-        [inputs/number
-         {:title "The amount by which the heat network unit rate should try to beat the best individual system."
-          :min 0
-          :max 100
-          :scale 100
-          :step 0.5
-          :value-atom *market-stick}
-         ]
-        "%"]
+        [:label
+         "Stickiness: "
+         [inputs/number
+          {:title "The amount by which the heat network unit rate should try to beat the best individual system."
+           :min 0
+           :max 100
+           :scale 100
+           :step 0.5
+           :value-atom *market-stick}
+          ]
+         "%"]
+        ]
        ]
       ]
+
+     
      
      [:div.card
-      [:span "Each building also has associated connection costs, which determine the capital costs of connecting the building to the network."]
+      [:span "Each building also has associated connection costs, which determine the capital costs of connecting the building to the network. These costs are borne by the network operator."]
 
       [:button.button
        {:on-click #(swap! *connection-costs
