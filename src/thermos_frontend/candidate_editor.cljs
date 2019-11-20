@@ -400,8 +400,18 @@
              demand-state buildings]]
            [:li.tabs__page
             {:class (if (= @active-tab :paths) "tabs__page--active" "")}
-            [path-editor civils path-state paths]]]
-          ]))
+            [path-editor civils path-state paths]]]])
+       ;; Just buildings
+       (seq buildings)
+       [demand-editor
+        tariffs
+        connection-costs
+        insulation
+        alternatives
+        demand-state buildings]
+       ;; Just paths
+       (seq paths)
+       [path-editor civils path-state paths])
      [:div.align-right {:style {:margin-top "2em"}}
       [:button.button.button--danger
        {:on-click popover/close!
