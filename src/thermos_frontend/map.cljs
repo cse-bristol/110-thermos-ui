@@ -402,7 +402,8 @@
         any-filters?
         (reagent/track #(not (empty? (operations/get-all-table-filters @doc))))
 
-        map-view (reagent/track #(-> @doc ::view/view-state ::view/map-view))
+        map-view (reagent/cursor doc [::view/view-state ::view/map-view])
+        show-diameters? (reagent/cursor doc [::view/view-state ::view/show-pipe-diameters])
 
         all-pipe-diameters
         (reagent/track
@@ -450,7 +451,7 @@
 
                (reagent/track!
                 (fn []
-                  (if @solution
+                  (if (and @solution @show-diameters?)
                     ;; If there is a solution, work out some representative pipe-diameters
                     (let [tile-pipe-diameters (select-keys @all-pipe-diameters @tile-candidates-ids)
                           min-diam (apply min (vals @all-pipe-diameters))
