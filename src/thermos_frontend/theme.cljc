@@ -6,14 +6,14 @@
            context (.getContext canvas "2d")
 
            side (int (* (Math/sqrt 2) (+ on off)))
-           
+
            line (fn [x y x1 y1]
                   (.beginPath context)
                   (.moveTo context x y)
                   (.lineTo context x1 y1)
                   (.stroke context))
            ]
-       
+
        (set! (.. canvas -width) side)
        (set! (.. canvas -height) side)
 
@@ -26,7 +26,7 @@
        (set! (.. context -lineWidth) on)
        (set! (.. context -strokeStyle) fg)
        (set! (.. context -lineCap) "square")
-       
+
        (line (- side) (- side)
              (* 2 side) (* 2 side))
 
@@ -36,7 +36,7 @@
 
        (line 0 (- side)
              (* 2 side) side)
-       
+
        canvas)))
 
 
@@ -47,8 +47,18 @@
 (def dark-grey "#555555")
 (def cyan "#ffd700")
 (def magenta "#ff00ff")
-(def orange "#ff8c00")
+(def in-solution-orange "#c84500")
+(def supply-orange "#dd6600")
 (def green "#32cd32")
+(def beige "#d7c8aa")
+
+(def blue-light "#bbeeff")
+(def red-light "#ffbbbb")
+(def cyan-light "#ffd700")
+(def magenta-light "#ffaaff")
+(def in-solution-orange-light "#ffccaa")
+(def green-light "#ddffdd")
+(def beige-light "#ffddcc")
 
 #?(:cljs
    (def white-light-grey-stripes
@@ -83,4 +93,3 @@
     {:d "M 0 0.5 l 1 0"
      :stroke :white
      :stroke-width 0.06}]])
-

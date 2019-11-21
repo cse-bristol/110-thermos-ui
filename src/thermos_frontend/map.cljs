@@ -21,9 +21,10 @@
             [thermos-frontend.candidate-editor :as candidate-editor]
             [thermos-frontend.connector-tool :as connector]
             [thermos-frontend.reactive-layer :as reactive-layer]
-            
+
             [thermos-specs.document :as document]
-            
+            [thermos-specs.solution :as soln]
+
             [thermos-specs.view :as view]
             [thermos-specs.candidate :as candidate]
 
@@ -73,7 +74,7 @@
     (clj->js {:subdomains "abcd"
               :minZoom 0
               :maxZoom 20}))
-   
+
    :satellite
    (js/L.tileLayer
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -108,9 +109,9 @@
         track! (fn [f & a]
                  (let [watch (apply reagent/track! f a)]
                    (swap! watches conj #(reagent/dispose! watch))))
-        
+
         map-bounding-box (reagent/cursor document [::view/view-state ::view/bounding-box])
-        
+
         map (js/L.map map-node (clj->js {:preferCanvas true
                                          :fadeAnimation true
                                          :zoom 15
@@ -119,7 +120,7 @@
                                                 w :west e :east}
                                                @map-bounding-box]
                                            [(* 0.5 (+ w e)) (* 0.5 (+ n s))])}))
-        
+
         ;; The tilesize of 256 is related to the x, y values when talking
         ;; to the server for tile data, so if the tilesize changes, effectively
         ;; the meaning of the zoom, or equivalently the x and y changes too.
@@ -132,7 +133,7 @@
         connector-layer (connector-layer {:tileSize 256
                                           :minZoom 15
                                           :maxZoom 20})
-        
+
         draw-control (draw-control {:position :topleft
                                     :draw {:polyline false
                                            :polygon true
@@ -143,19 +144,19 @@
 
         candidates-layer
         (js/L.layerGroup #js [candidates-layer connector-layer])
-        
+
         normal-layers {::view/candidates-layer candidates-layer
                        ::view/heat-density-layer heat-density-layer
                        ::view/labels-layer labels-layer
                        }
 
-        
+
         layers-control (layers-control
                         (into {}
                               (for [[k v] basemaps]
                                 [(or (basemap-names k)
                                      (name k)) v]))
-                        
+
                         {"Candidates" candidates-layer
                          "Heatmap" heat-density-layer
                          "Labels" labels-layer
@@ -190,7 +191,7 @@
                (merge
                 (into {} (for [[k _] normal-layers] [k false]))
                 target-state)
-               
+
                visible-state
                (merge
                 {::view/basemap-layer
@@ -199,7 +200,7 @@
                          basemaps))}
                 (into {} (for [[k v] normal-layers] [k (.hasLayer map v)])))
                ]
-           
+
            (when (not= target-state visible-state)
              (doseq [l (concat
                         (vals basemaps)
@@ -214,9 +215,9 @@
              (doseq [[k v] normal-layers]
                (when (get target-state k)
                  (.addLayer map v)))))
-        
 
-        
+
+
         show-bounding-box!
         #(let [{n :north s :south
                 w :west e :east} @map-bounding-box]
@@ -243,12 +244,12 @@
     (track! poke-map-size!)
     (track! show-bounding-box!)
     (track! show-map-layers!)
-    
+
     (.addControl map (search-control.
                       (clj->js {:position :topright})))
     (.addControl map layers-control)
     (.addControl map draw-control)
-    
+
     (.addControl map (map-controls.
                       (clj->js {:position :topleft})))
     (.addControl map (connector-control.
@@ -263,7 +264,7 @@
     ;; have finished, so we need to know if that's happened.
 
     ;; this still loses a click in some silly circumstance
-    
+
     (let [draw-state (atom nil)
           method (atom :replace)]
 
@@ -297,7 +298,7 @@
                  (if hover-candidate
                    (connector/mouse-moved-to-candidate! hover-candidate)
                    (connector/mouse-moved-to-point! (latlng->jsts-point latln)))))))
-      
+
       (.on map "click"
            (fn [e]
              (let [oe (o/get e "originalEvent")]
@@ -357,7 +358,7 @@
                                                          (io/get-outstanding-request-ids))]
                              (doseq [id requests-to-remove-ids] (io/abort-request id)))
                            ))
-    
+
     (let [watch-layers (fn [e]
                          (let [layer (o/get e "layer" nil)
                                layer-visible (.hasLayer map layer)
@@ -370,7 +371,7 @@
 
                              normal-key
                              (swap! map-layers assoc normal-key layer-visible))))]
-      
+
       (.on map "overlayadd" watch-layers)
       (.on map "overlayremove" watch-layers)
       (.on map "baselayerchange" watch-layers))
@@ -391,7 +392,7 @@
 
         solution
         (reagent/track #(document/has-solution? @doc))
-        
+
         filtered-candidates-ids
         (reagent/track #(set (map ::candidate/id (operations/get-filtered-candidates @doc))))
 
@@ -400,8 +401,17 @@
 
         any-filters?
         (reagent/track #(not (empty? (operations/get-all-table-filters @doc))))
+
+        map-view (reagent/track #(-> @doc ::view/view-state ::view/map-view))
+
+        all-pipe-diameters
+        (reagent/track
+         (fn [] (->> (::document/candidates @doc)
+                     (map (fn [[id cand]] [id (::soln/diameter-mm cand)]))
+                     (filter second)
+                     (into {}))))
         ]
-    
+
     (reactive-layer/create
      :internal-id "candidates-layer"
      :constructor-args args
@@ -440,23 +450,35 @@
 
                (reagent/track!
                 (fn []
-                  (tile/render-tile
-                   @solution @tile-contents canvas layer)
+                  (if @solution
+                    ;; If there is a solution, work out some representative pipe-diameters
+                    (let [tile-pipe-diameters (select-keys @all-pipe-diameters @tile-candidates-ids)
+                          min-diam (apply min (vals @all-pipe-diameters))
+                          max-diam (apply max (vals @all-pipe-diameters))
+                          ;; This puts the pipe diameters into [0,1]
+                          relative-pipe-diameters (into {} (for [[id diam] tile-pipe-diameters]
+                                                             [id (/ (- diam min-diam) (- max-diam min-diam))]))]
+                      (tile/render-tile
+                       @solution @tile-contents canvas layer @map-view relative-pipe-diameters))
+                    ;; If no solution, just render the tile as normal
+                    (tile/render-tile
+                     @solution @tile-contents canvas layer @map-view nil))
                   )))
          )))))
 
-(defn connector-layer [args]
-  (reactive-layer/create
-   :constructor-args args
-   :internal-id "connectors"
-   :paint-tile
-   (fn [canvas coords layer bbox]
-     ;; because there is not a lot to render in the connector layer,
-     ;; we don't need to do optimisations for it
-     (list
-      (reagent/track!
-       (fn []
-         (connector/render-tile! canvas coords layer)))))))
+(defn connector-layer [doc args]
+  (let [map-view (reagent/track #(-> @doc ::view/view-state ::view/map-view))]
+    (reactive-layer/create
+     :constructor-args args
+     :internal-id "connectors"
+     :paint-tile
+     (fn [canvas coords layer bbox]
+       ;; because there is not a lot to render in the connector layer,
+       ;; we don't need to do optimisations for it
+       (list
+        (reagent/track!
+         (fn []
+           (connector/render-tile! canvas coords layer))))))))
 
 (defn- layers-control [choices extras]
   "Create a leaflet control to choose which layers are displayed on the map.
@@ -487,11 +509,11 @@
         (group-by ::candidate/type selected-candidates)
 
         supplies (filter candidate/has-supply? selected-candidates)
-        
+
         paths (map ::candidate/id paths)
         buildings (map ::candidate/id buildings)
         supplies (map ::candidate/id supplies)
-        
+
         set-inclusion!
         (fn [candidates-ids inclusion-value]
           (state/edit!
@@ -521,11 +543,11 @@
               :sub-menu [{:value "Required"
                           :key "required"
                           :on-select #(set-inclusion! paths :required)}
-                         
+
                          {:value "Optional"
                           :key "optional"
                           :on-select #(set-inclusion! paths :optional)}
-                         
+
                          {:value "Forbidden"
                           :key "forbidden"
                           :on-select #(set-inclusion! paths :forbidden)}]}
@@ -555,9 +577,9 @@
              {:value "Edit buildings (e)"
               :key "edit-demands"
               :on-select #(candidate-editor/show-editor! document buildings)}
-             
+
              {:value [:div.popover-menu__divider] :key "divider-2"}))
-        
+
         ~@(list
            (when (seq buildings)
              {:key "supplies-header"
@@ -586,7 +608,7 @@
         click-range (latlng->jsts-shape
                      (o/get e "latlng")
                      (pixel-size))
-        
+
         clicked-candidates (spatial/find-intersecting-candidates-ids @document click-range)
 
         update-selection (if (empty? (set/intersection (set current-selection)

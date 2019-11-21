@@ -8,14 +8,15 @@
             [thermos-specs.path :as path]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.solution :as solution]
-            
+            [thermos-specs.view :as view]
+
             [thermos-frontend.spatial :as spatial]
 
             [thermos-frontend.theme :as theme]
 
             [goog.object :as o]))
 
-(declare render-candidate render-geometry render-linestring)
+(declare render-candidate render-candidate-shadow render-geometry render-linestring)
 
 (defn projection
   "Create a projection function"
@@ -43,11 +44,13 @@
 
 ;; most of the work is in here - how to paint an individual tile onto the map
 ;; if there is a solution we probably want to show the solution cleanly
-(defn render-tile [has-solution? contents tile layer]
+(defn render-tile [has-solution? contents tile layer map-view rel-pipe-diams]
   "Draw a tile.
   `document` should be a document layer (not an atom containing a document layer),
   `tile` a canvas element,
-  `layer` an instance of our layer component's layer class."
+  `layer` an instance of our layer component's layer class,
+  `map-view` is either ::view/constraints or ::view/solution,
+  `rel-pipe-diams` is a map path-id -> relative diameter (which is a number in [0,1])."
   (let [coords (.-coords tile)
         size (.getTileSize layer)
         ctx (.getContext tile "2d")
@@ -59,88 +62,177 @@
 
     (fix-size tile layer)
     (.clearRect ctx 0 0 width height)
-    
-    (let [paths (atom nil)]
-      (doseq [candidate contents]
-        (if (= :path (::candidate/type candidate))
-          (swap! paths conj candidate)
-          (render-candidate zoom has-solution? candidate ctx project geometry-key)))
-      (doseq [path @paths]
-        (render-candidate zoom has-solution? path ctx project geometry-key)))
+
+    ;; Render order: non-selected buildings, selected building shadows, selected buildings,
+    ;;               non-selected paths, selected path shadows, selected paths
+    (let [{buildings :building paths :path} (group-by ::candidate/type contents)
+          {selected-buildings true non-selected-buildings false} (group-by ::candidate/selected buildings)
+          {selected-paths true non-selected-paths false} (group-by ::candidate/selected paths)
+          pipe-diam-line-width (fn [path]
+                                 (if-let [rel-diam (get rel-pipe-diams (::candidate/id path))]
+                                                    (+ 1.5 (* 10 rel-diam))
+                                                    nil))]
+      ;; Non-selected buildings
+      (doseq [candidate non-selected-buildings]
+        (render-candidate zoom has-solution? candidate ctx project geometry-key map-view))
+      ;; Selected building shadows
+      (doseq [candidate selected-buildings]
+        (render-candidate-shadow zoom has-solution? candidate ctx project geometry-key map-view))
+      ;; Selected buildings
+      (doseq [candidate selected-buildings]
+        (render-candidate zoom has-solution? candidate ctx project geometry-key map-view))
+      ;; Non-selected paths
+      (doseq [path non-selected-paths]
+        (let [line-width (pipe-diam-line-width path)]
+          (render-candidate zoom has-solution? path ctx project geometry-key map-view line-width)))
+      ;; Selected path shadows
+      (doseq [path selected-paths]
+        (let [line-width (pipe-diam-line-width path)]
+          (render-candidate-shadow zoom has-solution? path ctx project geometry-key map-view line-width)))
+      ;; Selected paths
+      (doseq [path selected-paths]
+        (let [line-width (pipe-diam-line-width path)]
+          (render-candidate zoom has-solution? path ctx project geometry-key map-view line-width))))
     ))
 
 (defn render-candidate
   "Draw a shape for the candidate on a map.
   `candidate` is a candidate map,
-  `ctx` is a Canvas graphics context (2D)
-  `project` is a function to project from real space into the canvas pixel space"
-  [zoom solution candidate ctx project geometry-key]
+  `ctx` is a Canvas graphics context (2D),
+  `project` is a function to project from real space into the canvas pixel space,
+  `map-view` is either ::view/constraints or ::view/solution,
+  `line-width` is an optionally specified line width for when you want to represent the pipe diameter."
+  [zoom solution candidate ctx project geometry-key map-view line-width]
 
-  (let [selected (::candidate/selected candidate)
-        inclusion (::candidate/inclusion candidate)
+  (let [filtered (:filtered candidate)]
 
-        in-solution (candidate/in-solution? candidate)
+    (set! (.. ctx -lineCap) "round")
 
-        unreachable (candidate/unreachable? candidate)
+    (case map-view
+      ;; Colour by constraints
+      ::view/constraints
+      (let [selected (::candidate/selected candidate)
+            inclusion (::candidate/inclusion candidate)
+            is-supply (candidate/has-supply? candidate)
+            included (candidate/is-included? candidate)
+            forbidden (not included)]
 
-        is-supply (candidate/has-supply? candidate)
-        supply-in-solution (candidate/supply-in-solution? candidate)
-        
-        included (candidate/is-included? candidate)
-        connected (candidate/is-connected? candidate)
-        alternative (candidate/got-alternative? candidate)
-        
-        forbidden (not included)
-        filtered (:filtered candidate)
-        ]
-    (set! (.. ctx -lineWidth)
-          (+
-           (if (> zoom 17) 0.5 0)
-           (cond
-             selected 4
-             included 1.5
-             true 1)))
-    
-    (set! (.. ctx -strokeStyle)
+        ;; Line width
+        (set! (.. ctx -lineWidth)
+          (if (> zoom 17) 1.5 1))
+
+        ;; Line colour
+        (set! (.. ctx -strokeStyle)
+          (cond
+            (= inclusion :required) theme/red
+            (= inclusion :optional) theme/blue
+            :else theme/white))
+
+        ;; Fill
+        (set! (.. ctx -fillStyle)
+          (if is-supply
+            theme/supply-orange
+            (if selected theme/dark-grey theme/light-grey))))
+
+      ;; Colour by results of the optimisation
+      ::view/solution
+      (let [selected (::candidate/selected candidate)
+            inclusion (::candidate/inclusion candidate)
+            in-solution (candidate/in-solution? candidate)
+            unreachable (candidate/unreachable? candidate)
+            alternative (candidate/got-alternative? candidate)
+            connected (candidate/is-connected? candidate)
+            supply-in-solution (candidate/supply-in-solution? candidate)]
+
+        ;; Line width
+        (set! (.. ctx -lineWidth)
+          (+ (if (> zoom 17) 0.5 0)
+             (cond
+               line-width line-width
+               true 1)))
+
+        ;; Line colour
+        (set! (.. ctx -strokeStyle)
           (cond
             unreachable theme/magenta
-            (and solution
-                 (not connected)
-                 (not alternative)
-                 (= inclusion :optional)) theme/cyan
+            (and solution (not connected) (not alternative) (= inclusion :optional)) theme/beige
+            alternative theme/green
+            in-solution theme/in-solution-orange
+            :else theme/white))
 
-            (= inclusion :required) theme/red
-
-            (and solution alternative) theme/green
-
-            (or connected
-                (= inclusion :optional)) theme/blue
-
-            :otherwise theme/white))
-
-    (set! (.. ctx -fillStyle)
-          (if is-supply
-            (.createPattern ctx
-                            (cond
-                              (and selected supply-in-solution) theme/blue-dark-grey-stripes
-                              selected                          theme/white-dark-grey-stripes
-                              supply-in-solution                theme/blue-light-grey-stripes
-                              :else                             theme/white-light-grey-stripes)
-                            "repeat")
-            
-            (if selected theme/dark-grey theme/light-grey)))
+        ;; Fill
+        (set! (.. ctx -fillStyle)
+          (if supply-in-solution
+            theme/supply-orange
+            (if selected theme/dark-grey theme/light-grey)))))
 
     (set! (.. ctx -globalAlpha)
           (if filtered 0.25 1)))
-  
+
   (render-geometry (candidate geometry-key) ctx project
-                   true false))
+                   true false false))
+
+(defn render-candidate-shadow
+  "Draw some kind of ephemeral outline for selected candidate.
+  Arguments are the same as render-candidate."
+  [zoom solution candidate ctx project geometry-key map-view line-width]
+  (set! (.. ctx -lineCap) "round")
+  (set! (.. ctx -lineJoin) "round")
+  (case map-view
+    ;; Colour by constraints
+    ::view/constraints
+    (let [selected (::candidate/selected candidate)
+          inclusion (::candidate/inclusion candidate)
+          is-supply (candidate/has-supply? candidate)
+          included (candidate/is-included? candidate)
+          forbidden (not included)]
+
+      ;; Line width
+      (set! (.. ctx -lineWidth)
+        (+ (* 2 (- zoom 16)) 1))
+
+      ;; Line colour
+      (set! (.. ctx -strokeStyle)
+        (cond
+          (= inclusion :required) theme/red-light
+          (= inclusion :optional) theme/blue-light
+          :else theme/white)))
+
+    ;; Colour by results of the optimisation
+    ::view/solution
+    (let [selected (::candidate/selected candidate)
+          inclusion (::candidate/inclusion candidate)
+          in-solution (candidate/in-solution? candidate)
+          unreachable (candidate/unreachable? candidate)
+          alternative (candidate/got-alternative? candidate)
+          connected (candidate/is-connected? candidate)
+          supply-in-solution (candidate/supply-in-solution? candidate)]
+
+      ;; Line width
+      (set! (.. ctx -lineWidth)
+        (+ (* 2 (- zoom 16))
+           (cond
+             line-width line-width
+             true 1)))
+
+      ;; Line colour
+      (set! (.. ctx -strokeStyle)
+        (cond
+          unreachable theme/magenta-light
+          (and solution (not connected) (not alternative) (= inclusion :optional)) theme/beige-light
+          alternative theme/green-light
+          in-solution theme/in-solution-orange-light
+          :else theme/white))))
+
+  (set! (.. ctx -globalAlpha) 1)
+  (render-geometry (candidate geometry-key) ctx project
+                   true false true))
 
 (def point-radius
   "The screen-units radius for a Point geometry." 4.0)
 
 (defn render-geometry
-  [geom ctx project fill? close?]
+  [geom ctx project fill? close? shadow?]
 
   (case (.getGeometryType geom)
     "Polygon"
@@ -151,7 +243,15 @@
                (render-linestring (.getInteriorRingN geom n) ctx project true))
       ;; draw the outline
       (when fill? (.fill ctx))
-      (.stroke ctx))
+      (if shadow?
+        (.stroke ctx)
+        (do
+          (.save ctx)
+          (.clip ctx)
+          (set! (.. ctx -lineWidth)
+            (* 2 (.. ctx -lineWidth)))
+          (.stroke ctx)
+          (.restore ctx))))
 
     "Point"
     (do (.beginPath ctx)
@@ -161,7 +261,7 @@
                 point-radius 0 (* 2 Math/PI)))
         (when fill? (.fill ctx))
         (.stroke ctx))
-    
+
     "LineString"
     (do (.beginPath ctx)
       (render-linestring geom ctx project false)
@@ -195,4 +295,3 @@
         (let [pt;; [x y]
               (project (.-y coord) (.-x coord))]
           (.lineTo ctx (.-x pt) (.-y pt)))))))
-

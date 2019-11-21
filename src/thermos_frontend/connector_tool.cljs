@@ -310,13 +310,13 @@
           (tile/render-geometry
            (::spatial/jsts-geometry start)
            ctx project
-           false false))
-        
+           false false false))
+
         (when next-candidate
           (tile/render-geometry
            (::spatial/jsts-geometry next-candidate)
            ctx project
-           false false))
+           false false false))
 
         (.setLineDash ctx #js [5 3])
         (tile/render-coordinate-seq spline ctx project)
