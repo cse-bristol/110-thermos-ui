@@ -42,14 +42,18 @@ Because of this ongoing revenues and costs have to be summed up over the whole a
 
 In general, any cost or revenue is converted into a time-series of payments spanning the accounting period. These payments are then discounted and summed in the normal way to give a present value:
 
-*** TODO equation here
+\[
+\mathit{PV}(x, r) = \sum_i x_i / (1 + r)^i
+\]
 
 Capital costs are converted into a time-series in one of two ways, which can be combined:
 
 - By repetition on some interval
 - By annualizing the cost with a loan:
 
-  TODO equation here
+  $$
+  \frac{X×r}{1 - 1/((1+r)^t)}
+  $$
 
 There are four combinations possible here:
 
@@ -57,7 +61,6 @@ There are four combinations possible here:
 - Repetition without a loan
 - A loan without repetition
 - Both a loan and repetition
-*** TODO examples here
 
 Some costs depend on decisions made by the optimiser. 
 
@@ -88,9 +91,11 @@ However, the MILP works in terms of power, rather than diameter (it decides on t
 
 THERMOS does this using a relation between delivered power and diameter:
 
-* TODO relation here
+$$
+p(d) = (-0.4834 + 4.7617 × (d ^ {0.3701})) \times \delta_t \times \rho \times c
+$$
 
-This relation is itself an approximation, as the real hydraulic behaviour is complicated.
+where $d$ is the diameter, $\delta_t$ the temperature difference,  $\rho$ the density and $c$ the specific heat capacity. This relation is an approximation; the real hydraulic behaviour is complicated and not modelled in THERMOS.
 
 Anyhow, using this relation we are able to numerically generate a pipe cost function which relates kW of power to the pipe's cost per meter.
 
@@ -99,8 +104,6 @@ This function is non-linear, and also not monotonically increasing[fn:2], which 
 In THERMOS, we make a linear approximation to this function for each place where a pipe could go; the approximation's terms are chosen to minimise the square error resulting from using it. 
 
 Because we have flow bounds for every potential pipe, we are able to restrict the range we are approximating to the range of powers that the pipe may be required to deliver, which also helps to keep the error down.
-
-* TODO picture here showing approximations
 
 ** Tidying up
 
@@ -453,11 +456,49 @@ Once the iteration described earlier is finished, we take the best solution seen
 
 This could be improved slightly by doing this to every solution considered, and taking the best under those circumstances.
 
-* TODO Choices of objective
+* Choices of objective
 
 The application user interface displays two choices of objective, /network NPV/ and /whole-system NPV/.
 
 These two objectives are implemented in the same way as far as the optimisation is concerned, and changing the objective merely changes how the cost parameters for the optimisation are determined.
+
+In /network NPV/ mode, the objective is:
+
+- The sum of the present value of all connections, less
+- The present costs for capital and operating expenditures in the network, and
+- The present cost for emissions by the network supply
+
+In /whole-system NPV/ mode, the objective is:
+
+- The sum of the present costs for capital and operating expenditures within /and outside/ the network, and
+- The present cost for emissions by network supply /and individual systems/
+
+In whole-system mode, the revenues to the network operator are not considered, as these are internal to the system boundary.
+
+** Market tariff
+
+In network NPV mode, the astute reader may notice something unfair: if you set an emissions cost, the network has to pay it for anyone that it supplies.
+However the network may still be /better/ (e.g. lower carbon) than the alternatives, so it should be receiving some credit for the improvement, rather than just a cost.
+
+To handle this discrepancy the model has a special /market tariff/. If a building is put on this tariff, then the price it would pay for heat from the network is calculated to /beat/ the price it would pay otherwise. This price is determined by:
+
+- The options for individual systems and insulation for the building
+- Emissions prices
+- A discount rate, period, and a parameter we have called /stickiness/
+
+We work out the market rate by computing the minimum present cost non-networked option the building has (using the discount rate and period for the market tariff - this can differ from that for the optimisation, because it is modelling consumer behaviour rather than what we want to optimise). 
+
+Given this minimum present cost, we then reduce it by the stickiness (so for a 10% stickiness, we have 90% of the minimum present cost), and calculate a unit rate for heat in the building where the present cost to the building of that heat would equal this reduced value. If you want to see this as a formula it is something like
+
+\[
+C = \min_{a \in \text{alternatives}, i \in 2^\text{insulation}} \mathit{PC}(a, i)
+\]
+
+and then finding $u$ so that
+
+\[
+\mathit{PC}(\text{annual cost of $u \times $ demand)) = \text{stickiness} \times C
+\]
 
 * Footnotes
 [fn:1] See https://en.wikipedia.org/wiki/Linear_programming#Integer_unknowns
