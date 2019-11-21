@@ -51,7 +51,8 @@
         payments
         (if exists
           (concat (repeat period 0)
-                  (drop period payments)))
+                  (drop period payments))
+          payments)
         
         total-value (reduce + payments)
         ]
