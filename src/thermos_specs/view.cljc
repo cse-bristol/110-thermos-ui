@@ -18,7 +18,9 @@
 
 (s/def ::popover (s/keys :req [::popover-showing ::popover-content ::source-coords]))
 
-(s/def ::view-state (s/keys :req [::table-state ::bounding-box ::popover ::show-forbidden]))
+(s/def ::map-view #{::constraints ::solution})
+
+(s/def ::view-state (s/keys :req [::table-state ::bounding-box ::popover ::show-forbidden ::map-view]))
 
 (s/def ::show-forbidden boolean?)
 
@@ -33,3 +35,6 @@
 
 (defn switch-to-pipe-costs [document]
   (switch-to-tab document :pipe-costs))
+
+(defn set-map-view [document view]
+  (assoc-in document [::view-state ::map-view] view))

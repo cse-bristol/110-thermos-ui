@@ -66,3 +66,53 @@ input:checked + .hide-forbidden-control {
     }
   }
 }
+
+/**
+ * Thing to control whether you see the constraints or the solution on the map
+ */
+.view-control {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  z-index: 600;
+  height: 40px;
+  line-height: 40px;
+  padding-left: 10px;
+}
+.view-control__label {
+  color: #555;
+  font-weight: bold;
+  // text-shadow: 0 0 2px #333, 0 0 4px #333, 0 0 6px #333, 0 0 10px #333;
+  display: inline-block;
+  margin-right: 10px;
+  font-size: 0.9em;
+}
+.view-control__button {
+  background: #eee;
+  color: #666;
+  margin: 8px 5px;
+  height: 24px;
+  line-height: 24px;
+  border-radius: 12px;
+  border: none;
+  outline: none;
+  font-size: 0.9em;
+  font-weight: bold;
+  padding: 0 15px;
+  // box-shadow: @standard-shadow;
+  cursor: pointer;
+  &:hover {
+    // background: #e1e1e1;
+    color: #555;
+  }
+}
+.view-control__button--active {
+  background: @theme-blue;
+  color: #fff;
+  &:hover {
+    background: @theme-blue;
+    color: #fff;
+  }
+}

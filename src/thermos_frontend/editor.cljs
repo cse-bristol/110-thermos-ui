@@ -14,6 +14,7 @@
             [thermos-frontend.network-candidates-panel :as network-candidates-panel]
             [thermos-frontend.selection-info-panel :as selection-info-panel]
             [thermos-frontend.popover :as popover]
+            [thermos-frontend.view-control :as view-control]
             [thermos-frontend.params.global :as global-parameters]
             [thermos-frontend.params.objective :as objective]
             [thermos-frontend.params.tariffs :as tariff-parameters]
@@ -74,7 +75,7 @@
                :initial-split (or @h-split-pos 60)
                :on-split-change #(reset! h-split-pos %)
                :margin "0"
-               :panel-1 [map/component document]
+               :panel-1 [:div.map-container [map/component document] [view-control/component document]]
                :panel-2 [selection-info-panel/component document]]
      :panel-2 [:div
                {:style {:width :100%}}

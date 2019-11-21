@@ -41,7 +41,8 @@
 
 (def default-document
   {::view/view-state
-   {::view/map-layers {::view/basemap-layer :satellite ::view/candidates-layer true}}
+   {::view/map-layers {::view/basemap-layer :satellite ::view/candidates-layer true}
+    ::view/map-view ::view/constraints}
 
    ::document/mip-gap 0.1
    ::document/maximum-runtime 0.5
