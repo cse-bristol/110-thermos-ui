@@ -30,13 +30,13 @@
                                   ::supply/opex-per-kwp
                                   ::supply/fixed-cost
                                   ::supply/emissions]
-                     
+
                      initial-values
                      (into {} (for [k supply-keys] [k (first (map k candidates))]))
 
                      initial-values (assoc (just-number-values initial-values)
                                            ::supply/emissions (just-number-values (::supply/emissions initial-values)))
-                     
+
                      local-state (reagent/atom initial-values)
 
                      capacity-kwp (reagent/cursor local-state [::supply/capacity-kwp])
@@ -51,14 +51,14 @@
     [:div.popover-dialog
      [:div
       [:table
-       [:tr [:td {:colSpan 3} [:b "Cost and capacity"]] ]
+       [:tr [:td {:col-span 3} [:b "Cost and capacity"]] ]
        ;; TODO check these thresholds are sane
        [:tr [:td "Maximum capacity"] [:td [inputs/number {:value-atom capacity-kwp  :min 1 :max 1000  :scale (/ 1.0 1000)  :step 0.1}]] [:td "MW"]]
        [:tr [:td "Fixed cost"]       [:td [inputs/number {:value-atom fixed-cost    :min 0 :max 10000 :scale (/ 1.0 1000)  :step 0.1}]] [:td "k¤"]]
        [:tr [:td "Capacity cost"]    [:td [inputs/number {:value-atom capex-per-kwp :min 0 :max 10000  :step 0.1}]] [:td "¤/kW"]]
        [:tr [:td "Annual cost"]      [:td [inputs/number {:value-atom opex-per-kwp  :min 0 :max 1000                       :step 0.1}]] [:td "¤/kW"]]
        [:tr [:td "Supply cost"]      [:td [inputs/number {:value-atom cost-per-kwh  :min 0 :max 500   :scale 100           :step 0.1}]] [:td "c/kWh"]]
-       [:tr [:td {:colspan 3} [:b "Emissions factors"]] ]
+       [:tr [:td {:col-span 3} [:b "Emissions factors"]] ]
        (for [e candidate/emissions-types]
         [:tr {:key e}
          [:td (name e)]
@@ -82,4 +82,3 @@
   (when (seq candidate-ids)
     (popover/open! [supply-parameters-form document candidate-ids]
                    :middle)))
-
