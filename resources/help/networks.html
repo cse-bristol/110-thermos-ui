@@ -8,28 +8,6 @@
 <title>Using the heat network editor</title>
 <meta name="generator" content="Org mode" />
 <meta name="author" content="CSE" />
-<script type="text/x-mathjax-config">
-    MathJax.Hub.Config({
-        displayAlign: "center",
-        displayIndent: "0em",
-
-        "HTML-CSS": { scale: 100,
-                        linebreaks: { automatic: "false" },
-                        webFont: "TeX"
-                       },
-        SVG: {scale: 100,
-              linebreaks: { automatic: "false" },
-              font: "TeX"},
-        NativeMML: {scale: 100},
-        TeX: { equationNumbers: {autoNumber: "AMS"},
-               MultLineWidth: "85%",
-               TagSide: "right",
-               TagIndent: ".8em"
-             }
-});
-</script>
-<script type="text/javascript"
-        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML"></script>
 </head>
 <body>
 <div id="content">
@@ -46,19 +24,27 @@
 <li><a href="#org4a3e41d">1.1.2. Density layer</a></li>
 <li><a href="#orgab6ad89">1.1.3. Candidates list</a></li>
 <li><a href="#org430d11a">1.1.4. Selection panel</a></li>
-<li><a href="#org75e68f5">1.1.5. Editing buildings</a></li>
-<li><a href="#org3c70492">1.1.6. Editing paths</a></li>
+<li><a href="#editing-buildings">1.1.5. Editing buildings</a></li>
+<li><a href="#editing-paths">1.1.6. Editing paths</a></li>
 <li><a href="#org18a04cf">1.1.7. Editing supply parameters</a></li>
 <li><a href="#org3909586">1.1.8. Keyboard shortcuts</a></li>
 </ul>
 </li>
-<li><a href="#org0c5f112">1.2. Options page</a></li>
-<li><a href="#orgd69d2f9">1.3. Result page</a>
+<li><a href="#objective-page">1.2. Objective page</a></li>
+<li><a href="#tariffs">1.3. Tariffs page</a></li>
+<li><a href="#pipe-costs">1.4. Pipe costs page</a></li>
+<li><a href="#insulation">1.5. Insulation page</a></li>
+<li><a href="#individual-systems">1.6. Individual systems page</a></li>
+<li><a href="#orgeb4eb28">1.7. Solution summary page</a>
 <ul>
-<li><a href="#org7fe6f7f">1.3.1. Result summary</a></li>
-<li><a href="#org5448763">1.3.2. Demand, supply and network information</a></li>
+<li><a href="#orga2b6eff">1.7.1. Display settings</a></li>
+<li><a href="#org0b75b44">1.7.2. Cost summary</a></li>
+<li><a href="#orgd04e716">1.7.3. Network</a></li>
+<li><a href="#orgfe2848a">1.7.4. Emissions</a></li>
+<li><a href="#org84d6f92">1.7.5. Optimisation</a></li>
 </ul>
 </li>
+<li><a href="#run-log">1.8. Run log page</a></li>
 </ul>
 </li>
 <li><a href="#org67af78b">2. How to&#x2026;</a>
@@ -82,7 +68,21 @@ This document walks through the different bits of the interface, and then descri
 <h2 id="org110bd4d"><span class="section-number-2">1</span> Parts of the interface</h2>
 <div class="outline-text-2" id="text-1">
 <p>
-The editor is divided into several pages which you can switch between using the buttons at the top of the window.
+The editor is divided into several pages which are accessed through the THERMOS logo <img src="./img/network/logo.png" alt="logo.png" /> in the top right hand corner.
+</p>
+
+<p>
+Clicking on the logo makes a panel appear which offers links to switch between the different pages, like this:
+</p>
+
+
+<div class="figure">
+<p><img src="./img/network/menu-sidebar.png" alt="menu-sidebar.png" />
+</p>
+</div>
+
+<p>
+From this sidebar you can also return to the project page and search the help.
 </p>
 </div>
 
@@ -109,13 +109,12 @@ The candidates layer of the map shows all of the buildings and roads that are av
 </p>
 
 <p>
-Several different drawing styles are used to show different kinds of information visually on the candidates layer
+Several different drawing styles are used to show different kinds of information visually on the candidates layer.
 </p>
-
 
 <dl class="org-dl">
 <dt>Colour</dt><dd><p>
-the colour of each candidate is used to show information about whether the candidate will be used in a network.
+the colour of each candidate is used to show information about whether the candidate will be used in a network. These colours are also used in the selection info pane in the same way.
 </p>
 
 <div class="figure">
@@ -132,7 +131,8 @@ the colour of each candidate is used to show information about whether the candi
 <p>
 If the optimiser has been run and there is a solution then blue candidates are those which <i>were included</i> in the network.
 </p></li>
-<li><b>Green</b> candidates are optional candidates which were <i>not</i> included in the network, if there is a solution</li>
+<li><b>Yellow</b> candidates are optional candidates which were <i>not</i> included in the network, if there is a solution</li>
+<li><b>Green</b> candidates are buildings which got an individual heating system.</li>
 <li><b>Red</b> candidates are <i>required</i>, which means that the optimiser <i>has</i> to put them in the network.</li>
 <li><b>Magenta</b> candidates are <i>infeasible</i>, which means that they cannot be used in a solution, for example because
 <ul class="org-ul">
@@ -151,7 +151,7 @@ They are also shown with a tick mark in the candidate list, and summarised in th
 <div class="figure">
 <p><img src="./img/network/map-selection.png" alt="map-selection.png" />
 </p>
-<p><span class="figure-number">Figure 3: </span>A required and forbidden building and some forbidden roads are all selected</p>
+<p><span class="figure-number">Figure 4: </span>A required and forbidden building and some forbidden roads are all selected</p>
 </div></dd>
 
 <dt>Transparency</dt><dd>If the candidate list at the bottom has been <i>filtered</i>, the candidates which do not pass the filter will be made mostly transparent, to emphasise the things shown in the candidate list.</dd>
@@ -200,7 +200,7 @@ Together with the filtering controls you can use this to focus on particular can
 <div class="figure">
 <p><video src="./img/network/filter-table.webm" autoplay="true" loop="true" controls="true"><source /></video>
 </p>
-<p><span class="figure-number">Figure 4: </span>Filtering and selecting from the candidates list. When a column has been filtered, its filter button turns blue. Filtered candidates become transparent on the map. Checking the selection box selects the filtered candidates only.</p>
+<p><span class="figure-number">Figure 5: </span>Filtering and selecting from the candidates list. When a column has been filtered, its filter button turns blue. Filtered candidates become transparent on the map. Checking the selection box selects the filtered candidates only.</p>
 </div>
 </div>
 </div>
@@ -260,8 +260,8 @@ For buildings it is the building connection cost.</li>
 </div>
 
 <div id="outline-container-org75e68f5" class="outline-4">
-<h4 id="org75e68f5"><span class="section-number-4">1.1.5</span> Editing buildings</h4>
-<div class="outline-text-4" id="text-1-1-5">
+<h4 id="editing-buildings"><a id="org75e68f5"></a><span class="section-number-4">1.1.5</span> Editing buildings</h4>
+<div class="outline-text-4" id="text-editing-buildings">
 <p>
 You can change most of the information the model uses about buildings within a network problem. 
 </p>
@@ -295,8 +295,12 @@ Each different classification in the selection is shown as a row underneath, so 
 
 <p>
 The rest of the window allows you to change the important parameters for each row.
-To say you want to change a parameter, you must tick the checkbox next to it. 
-Then you can type a value in the corresponding box. This value will be applied to every building in that row.
+To change peak or average demand, you must tick the checkbox next to it and then type in a number.
+This value will be applied to every building in that row.
+</p>
+
+<p>
+To change the other parameters (tariff, insulation, alternatives, counterfactual), you either change the tick-boxes or select from the drop-down menus.
 </p>
 
 <p>
@@ -304,11 +308,22 @@ If we made the following changes in the example and pressed OK, the effect would
 </p>
 
 <ul class="org-ul">
-<li>To set the connection cost for 41 unclassified buildings to 8 currency / kWp</li>
-<li>To set the demand for the 41 unclassified buildings to 20 MWh/yr</li>
-<li>To set the CO2 factor for these buildings to 0.6 kg/kWh</li>
-<li>To set the peak demand for 1 place of worship to 100 kW</li>
-<li>To set the heat price there to 1 cent per kWh</li>
+<li>For the 26 Apartments:
+<ul class="org-ul">
+<li>Set the demand for 26 apartments to 100 MWh/yr</li>
+<li>Mark them buildings as eligible for 'wall insulation'</li>
+<li>Set their counterfactual (existing) heating technology to 'gas boiler'</li>
+</ul></li>
+<li>For 50 houses
+<ul class="org-ul">
+<li>Set their peak demand to 50 kW</li>
+<li>Set their counterfactual system to gas boiler</li>
+</ul></li>
+<li>For the 1 train station
+<ul class="org-ul">
+<li>Change the tariff to expensive heat</li>
+<li>Add 'Gas boiler' to the list of non-network options that could be allowed</li>
+</ul></li>
 </ul>
 
 
@@ -316,23 +331,12 @@ If we made the following changes in the example and pressed OK, the effect would
 <p><img src="./img/network/edit-buildings-edited.png" alt="edit-buildings-edited.png" />
 </p>
 </div>
-
-<p>
-At the moment, there is a bit of subtlety around heat price, nox, pm25 and co2.
-The starting values are not stored in the map, but instead are configured in the <code>Options</code> page for the whole network.
-If you change a building's heat price or emissions factors, then the defaults in the <code>Options</code> page will no longer apply <i>to that building</i>.
-</p>
-
-<p>
-There is currently not an easy way to tell whether a building is using the default values or has special values of its own.
-You can remove any changes made to these parameters, clearing them so that the defaults are used, by right-clicking and choosing <code>Set defaults</code>.
-</p>
 </div>
 </div>
 
 <div id="outline-container-org3c70492" class="outline-4">
-<h4 id="org3c70492"><span class="section-number-4">1.1.6</span> Editing paths</h4>
-<div class="outline-text-4" id="text-1-1-6">
+<h4 id="editing-paths"><a id="org3c70492"></a><span class="section-number-4">1.1.6</span> Editing paths</h4>
+<div class="outline-text-4" id="text-editing-paths">
 <p>
 You can edit the cost parameters for paths in a similar way: select some paths, and right click on them or press <b>e</b> to open the editor window:
 </p>
@@ -434,116 +438,294 @@ You can do some common operations with the keyboard using these shortcuts:
 </div>
 </div>
 
-<div id="outline-container-org0c5f112" class="outline-3">
-<h3 id="org0c5f112"><span class="section-number-3">1.2</span> Options page</h3>
-<div class="outline-text-3" id="text-1-2">
+<div id="outline-container-org71fd037" class="outline-3">
+<h3 id="objective-page"><a id="org71fd037"></a><span class="section-number-3">1.2</span> Objective page</h3>
+<div class="outline-text-3" id="text-objective-page">
 <p>
 This page contains settings that apply to the whole network problem; their meanings are described in more detail <a href="parameters.html">in the parameters section</a>.
 </p>
 
 <dl class="org-dl">
-<dt>Finance and NPV</dt><dd><p>
-Costs and revenues are combined to give an NPV, which is what the optimiser tries to maximise. Capital expenditure can also be annutized using a constant-repayment fixed-term loan. The loan repayments are then subject to NPV like other costs. 
+<dt>Accounting period</dt><dd>Costs and revenues are combined to give an NPV, which is what the optimiser tries to maximise. Future cost and revenue streams are discounted over the period you specify, at the desired discount rate.</dd>
+<dt>Objective</dt><dd>The objective is the optimiser's target - the program will try and find a solution which maximises this value.
+There are two objectives currently offered
+<dl class="org-dl">
+<dt>Maximise network NPV</dt><dd><p>
+In this setting, the objective is to maximise the net income for the network operator. The objective value is the sum of:
 </p>
+<ul class="org-ul">
+<li>Network costs
+<ul class="org-ul">
+<li>Capital costs for pipework</li>
+<li>Capital costs for energy supply</li>
+<li>Capital costs for connecting buildings to the network</li>
+<li>Operating costs for energy supply (cost of heat and cost of equipment)</li>
+</ul></li>
+<li>Network revenues
+<ul class="org-ul">
+<li>The annual income from each connected building</li>
+</ul></li>
+<li>Other system costs (when <i>offer other heating systems</i> is checked)
+<ul class="org-ul">
+<li>The capital cost of purchasing any new individual systems for other buildings. The running cost of individual systems <b>is excluded</b> from the total.</li>
+</ul></li>
+<li>Insulation costs (when <i>offer insulation measures</i> is checked)
+<ul class="org-ul">
+<li>The capital cost of purchasing insulation</li>
+</ul></li>
+<li>Emissions costs <b>for all systems</b></li>
+</ul>
 
 <p>
-If you do not want to include a loan for your capital costs, enter <code>1</code> for the financing period at <code>0%</code> interest.
+The value of using these last two options in this setting is dubious, and they may be removed. The optimiser will never select any insulation or alternative systems unless there is a cost or limit for emissions, because this can never improve the network's economics.
+</p></dd>
+<dt>Maximise whole-system NPV</dt><dd><p>
+In this setting, the objective is effectively to minimise the cost of supplying heat to the buildings being considered. The objective is similar to above except:
+</p>
+<ul class="org-ul">
+<li>Network revenues <b>are not included</b></li>
+<li>Operating costs for individual systems <b>are included</b></li>
+</ul>
+
+<p>
+This represents the goal of selecting a combination of heating and insulation technologies that meets the demand for heat in the problem at a minimum overall cost.
+</p></dd>
+</dl></dd>
+<dt>Capital costs</dt><dd><p>
+The model breaks capital costs down into the categories shown - these can all be treated differently. The controllable settings are:
+</p>
+<dl class="org-dl">
+<dt>Annualize</dt><dd>If this is set, the cost will be annualized using a constant repayment loan spanning the <i>period</i> at the given interest <i>rate</i>. If the period and rate are equal to the accounting period and discount rate above, the contribution to the NPV will be the same as if you don't annualize the cost.</dd>
+<dt>Recur</dt><dd>If this is set, the item is considered to need replacing every <i>period</i> many years. 
+For example, if you give a period of <i>20</i> for <i>Other heating</i> and set it to recur, and the accounting period is 40 years, the capital cost of any individual heating system selected will be incurred twice, once in the first year and once in the twentieth</dd>
+
+<dt>Period</dt><dd>Controls the time over which a loan must be repaid if annualize is ticked, and the re-purchasing frequency if recur is ticked</dd>
+
+<dt>Rate</dt><dd>Controls the interest rate of the loan if annualize is ticked.</dd>
+</dl>
+
+<p>
+The effect of these controls is shown in the last two columns. <b>¤ 100</b> shows the total un-discounted cost a capital cost of 100 currency would contribute to the accounts. <b>PV(¤ 100)</b> shows the present value of that cost over the accounting period, using the discount rate at the top of the page. This value is what the optimiser works with.
 </p></dd>
 
-<dt>Emissions</dt><dd>These parameters set the cost and optionally a limit for total <i>net</i> emissions due to the network. The network's net emissions are the emissions due to the supply <i>minus</i> the avoided emissions from connecting demands.
-Supply emissions factors are set as part of the <a href="#org18a04cf">supply parameters</a>, and avoided emissions using either the default factors on the options page, or any <a href="#org75e68f5">building-specific factors</a> you have set.</dd>
+<dt>Emissions costs</dt><dd><p>
+Each type of emission can have a unit cost. The total emissions include those from the network's energy center and from any individual systems in buildings not connected to the network.
+</p>
 
-<dt>Pipes</dt><dd>These parameters affect the cost of pipes. 
-You can set limit for pipe capacity; the model will never try and install a pipe that can carry more than this amount of heat.
-The mechanical cost parameters are set here, because they are the same for every pipe.
-For the civil cost parameters, you can change the exponent here, but not \(A\) and \(B\); these values are <a href="#org3c70492">set for each path</a>.</dd>
+<p>
+Network supply emissions factors are set as part of the <a href="#org18a04cf">supply parameters</a>, and individual system factors in the <a href="#individual-systems">individual systems page</a>. These factors are on an annual basis, and so are multiplied with the cost to produce an annual cost that is then summed and discounted using the accounting period and discount rate parameters.
+</p></dd>
 
-<dt>Temperatures</dt><dd>These parameters control the <a href="calculations.html#pipe-diameter-calc">pipe cost</a> and <a href="calculations.html#pipe-heat-losses">heat loss</a> models.</dd>
+<dt>Emissions limits</dt><dd>You can also set an upper limit for the annual emissions from the whole system (note annual rather than lifetime emissions).</dd>
 
-<dt>Optimisation parameters</dt><dd>These parameters limit the behaviour of the optimiser; increasing the <i>allowable distance from best possible answer</i> will make the model run faster, but decreasing it may give a better solution. The <i>maximum runtime</i> determines how long the model will spend trying to find a solution before it gives up.</dd>
+<dt>Computing resources</dt><dd><p>
+These parameters control how much computing time is used. The optimisation will never be allowed to run for more than the maximum runtime - if this limit is reached, you will be shown the best answer that has been found in the time.
+</p>
 
-<dt>Building defaults</dt><dd>These parameters are applied to any buildings which you have not <a href="#org75e68f5">edited</a>, and control the revenue from connecting the building (via the price) and the effect on emissions (via the avoided emissions factors).</dd>
+<p>
+The other parameter, <i>stop if solution is at least this close to the optimum</i> allows the optimiser to stop before the runtime is used up in the event that it finds a solution which it can prove has only a limited margin for improvement
+</p></dd>
+</dl>
+</div>
+</div>
+<div id="outline-container-orgeade870" class="outline-3">
+<h3 id="tariffs"><a id="orgeade870"></a><span class="section-number-3">1.3</span> Tariffs page</h3>
+<div class="outline-text-3" id="text-tariffs">
+<p>
+The tariffs page lets you create tariffs. 
+</p>
+
+<p>
+A tariff combines information about network revenues from connecting a building, and the capital costs for installing the connection equipment (reasonably enough you might say that these things do not go together, but in THERMOS at the moment they do).
+</p>
+
+<p>
+Once you've defined some tariffs you can control which buildings take which tariffs through the map page, using the steps described in <a href="#editing-buildings">editing buildings</a>.
+</p>
+</div>
+</div>
+<div id="outline-container-org8519286" class="outline-3">
+<h3 id="pipe-costs"><a id="org8519286"></a><span class="section-number-3">1.4</span> Pipe costs page</h3>
+<div class="outline-text-3" id="text-pipe-costs">
+<p>
+This page controls the size and hence cost of pipes. 
+The detail of the calculation method is given <a href="calculations.html">here</a>, but in summary:
+</p>
+
+<p>
+Every pipe has two costs associated with it
+</p>
+<ul class="org-ul">
+<li>A <i>mechanical engineering cost</i>, for the pipe itself, which is the same everywhere</li>
+<li>A <i>civil engineering cost</i>, for making a hole in the ground, which can be different for different places on the map</li>
+</ul>
+
+<p>
+Both of these costs are a function of the pipe's diameter, which is determined by the power it has to deliver and hence the flow and return temperatures.
+</p>
+
+<p>
+At the bottom of the page you can define different civil engineering costs. Once you've defined some costs, you can associate them with different paths through the map page, using the steps described in <a href="#editing-paths">editing paths</a>.
+</p>
+</div>
+</div>
+<div id="outline-container-org2fcc8dc" class="outline-3">
+<h3 id="insulation"><a id="org2fcc8dc"></a><span class="section-number-3">1.5</span> Insulation page</h3>
+<div class="outline-text-3" id="text-insulation">
+<p>
+Thermos has a very simple insulation model, which is described in more detail <a href="insulation.html">here</a>.
+</p>
+
+<p>
+To model insulation you have to do three things:
+</p>
+
+<ol class="org-ol">
+<li>Define a type of insulation on the insulation page, by clicking the add button and filling in the parameters.</li>
+<li>Make this insulation available in some locations by <a href="#editing-buildings">editing buildings</a>.</li>
+<li>Configure the <a href="#objective-page">objective</a> to allow offering insulation, and most likely to do a whole-system optimisation rather than a network NPV optimisation.</li>
+</ol>
+</div>
+</div>
+<div id="outline-container-org525d0fb" class="outline-3">
+<h3 id="individual-systems"><a id="org525d0fb"></a><a id="ID-11298238-7018-4765-9364-7a6a9f61cbeb"></a><span class="section-number-3">1.6</span> Individual systems page</h3>
+<div class="outline-text-3" id="text-individual-systems">
+<p>
+Every optional building in a problem can get one of these outcomes in the solution:
+</p>
+
+<ol class="org-ol">
+<li>The building is connected to a heat network</li>
+<li>The building has its heat demand met by an existing <i>counterfactual</i> individual heating system</li>
+<li>The building has its heat demand met by a <i>new</i> individual heating system</li>
+<li>As a special case, if the building has not been given a counterfactual heating system or any potential individual systems, its heat demand will be ignored.</li>
+</ol>
+
+<p>
+Individual systems have similar parameters to network heat sources. 
+The individual systems page displays a box like this:
+</p>
+
+
+<div class="figure">
+<p><img src="./img/network/individual-system-parameters.png" alt="individual-system-parameters.png" />
+</p>
+</div>
+
+<p>
+for each individual system type that has been defined.
+</p>
+
+<p>
+The <a href="#editing-buildings">building editor</a> allows you to say that certain buildings then have a particular type of individual system as their counterfactual, or as options for a replacement system.
+</p>
+
+<p>
+The counterfactual is treated slightly differently to a new heating system: it is considered to have no capital costs, as it already exists.
+</p>
+</div>
+</div>
+<div id="outline-container-orgeb4eb28" class="outline-3">
+<h3 id="orgeb4eb28"><span class="section-number-3">1.7</span> Solution summary page</h3>
+<div class="outline-text-3" id="text-1-7">
+<p>
+If you have run the model successfully, you will be able to see the solution summary page.
+</p>
+</div>
+
+<div id="outline-container-orga2b6eff" class="outline-4">
+<h4 id="orga2b6eff"><span class="section-number-4">1.7.1</span> Display settings</h4>
+<div class="outline-text-4" id="text-1-7-1">
+<p>
+At the top of the solution summary are some buttons controlling what quantities are displayed in the rest of the page. 
+</p>
+
+<ul class="org-ul">
+<li>Capital costs:
+<dl class="org-dl">
+<dt>Total</dt><dd>This shows the total capital cost, which includes any loan interest and any replacement costs (see <a href="#objective-page">the objective page</a> for more on this).</dd>
+<dt>Principal</dt><dd>This shows just the principal for a single purchase, without replacement or any interest</dd>
+<dt>Present value</dt><dd>This shows the discounted sum of capital purchases and any loan repayments. This value is what the optimiser is interested in</dd>
+</dl></li>
+<li>Other costs: these are things like operational costs, the cost of heat, or the value of monetised emissions.
+<dl class="org-dl">
+<dt>Total</dt><dd>This shows the total cost over the accounting period, without discounting</dd>
+<dt>Annual</dt><dd>This shows the yearly cost.</dd>
+<dt>Present value</dt><dd>This shows the discounted sum of annual costs over the accounting period. This value is what the optimiser is interested in.</dd>
+</dl></li>
+</ul>
+
+<p>
+On the rest of the page, when you select different values to display, the units will change to reflect what is being shown. You may see:
+</p>
+
+<dl class="org-dl">
+<dt>¤</dt><dd>This is total cost</dd>
+<dt>¤<sub>0</sub></dt><dd>This is principal</dd>
+<dt>¤<sub>PV</sub></dt><dd>This is present value</dd>
+<dt>¤/yr</dt><dd>This is annual cost</dd>
 </dl>
 </div>
 </div>
 
-<div id="outline-container-orgd69d2f9" class="outline-3">
-<h3 id="orgd69d2f9"><span class="section-number-3">1.3</span> Result page</h3>
-<div class="outline-text-3" id="text-1-3">
+<div id="outline-container-org0b75b44" class="outline-4">
+<h4 id="org0b75b44"><span class="section-number-4">1.7.2</span> Cost summary</h4>
+<div class="outline-text-4" id="text-1-7-2">
 <p>
-This page only appears after the model has been run, and contains information about the solution that was found (if any). The information is split into four subsections, which you can switch between using the buttons below the page header.
+This box shows the headline information for all the parts of the solution. 
+Note that this box contains things like the whole system NPV, even if you have chosen to optimise for network NPV.
 </p>
 </div>
+</div>
 
-<div id="outline-container-org7fe6f7f" class="outline-4">
-<h4 id="org7fe6f7f"><span class="section-number-4">1.3.1</span> Result summary</h4>
-<div class="outline-text-4" id="text-1-3-1">
+<div id="outline-container-orgd04e716" class="outline-4">
+<h4 id="orgd04e716"><span class="section-number-4">1.7.3</span> Network</h4>
+<div class="outline-text-4" id="text-1-7-3">
 <p>
-The result summary shows a high level breakdown of the network. On the left is a table explaining the financial model, and on the right some summary figures about the solution and its net emissions.
+This box breaks down the equipment that went into the network. 
+Pipework is totalled up by civil engineering cost category and required pipe diameter.
+Demands are totalled up by their classification.
 </p>
+</div>
+</div>
 
+<div id="outline-container-orgfe2848a" class="outline-4">
+<h4 id="orgfe2848a"><span class="section-number-4">1.7.4</span> Emissions</h4>
+<div class="outline-text-4" id="text-1-7-4">
 <p>
-<b>Financial model:</b>
+This box shows the amount and the monetised value of all emissions in the system.
+The counterfactual row gives the emissions due to the counterfactual heating systems specified before the run, and the net row the difference.
 </p>
+</div>
+</div>
 
-<dl class="org-dl">
-<dt>Capital costs</dt><dd>This subsection shows the cost terms associated with all the capital costs
-<dl class="org-dl">
-<dt>Principal</dt><dd>This column gives the up-front capital cost associated with its row.</dd>
-<dt>Finance</dt><dd>This column gives the total cost of finance, in addition to the capital cost. 
-The total cost (without NPV) of the row is the principal plus the finance.</dd>
-<dt>NPV</dt><dd>This is the NPV of the row's capital cost and its financing.</dd>
-</dl></dd>
-<dt>Operating costs</dt><dd>This subsection shows the cost terms associated with the functioning of the network
-<dl class="org-dl">
-<dt>Annual</dt><dd>This is the annual real figure for the row</dd>
-<dt>Total</dt><dd>This is the annual figure summed over the accounting period</dd>
-<dt>NPV</dt><dd>This is the NPV of the annual figure for the accounting period</dd>
-<dt>Capacity</dt><dd>This is the yearly cost associated with supply <i>capacity</i>.
-This value is controlled by annual cost in the <a href="#org18a04cf">supply parameters</a>.</dd>
-<dt>Heat</dt><dd>This is the yearly cost associated with <i>heat production</i>.
-This value is controlled by the supply cost in the <a href="#org18a04cf">supply parameters</a>.</dd>
-</dl></dd>
-<dt>Emissions</dt><dd>This subsection shows the monetised costs (or benefits) of the system's net emissions.
-These values are controlled by emissions factors in the <a href="#org18a04cf">supply parameters</a>, <a href="#org75e68f5">building parameters</a>, and <a href="#org0c5f112">network options</a>.</dd>
-<dt>Revenue</dt><dd>This subsection shows the revenues from selling heat and the final net revenue for the system.
-Heat sales prices and quantities are governed by <a href="#org75e68f5">building parameters</a> and <a href="#org0c5f112">network options</a>.</dd>
-</dl>
-
+<div id="outline-container-org84d6f92" class="outline-4">
+<h4 id="org84d6f92"><span class="section-number-4">1.7.5</span> Optimisation</h4>
+<div class="outline-text-4" id="text-1-7-5">
 <p>
-<b>Key quantities:</b>
+This box shows some information about the optimisation, which deserves a little explanation:
 </p>
 
 <dl class="org-dl">
-<dt>Model runtime</dt><dd>The time taken by the optimiser to find this solution</dd>
-<dt>Objective value</dt><dd>The numerical value of the optimum; this should be similar to the net cost in the financial model</dd>
-<dt>Number of supplies</dt><dd>The number of supply points that were used in the network</dd>
-<dt>Supply capacity</dt><dd>The total capacity of all the supply points used in the network</dd>
-<dt>Supply output</dt><dd>The total annual heat put into the network by all supply points</dd>
-<dt>Number of demands</dt><dd>The number of demands connected to the network</dd>
-<dt>Total demand</dt><dd>The total annual heat delivered to demands by the network</dd>
-<dt>Total peak</dt><dd>The combined peak of all the demands met by the network, <i>without diversity</i></dd>
-<dt>Length of network</dt><dd>The total length of all paths selected for heat pipes</dd>
-<dt>Heat losses</dt><dd>The total heat loss from pipes per year</dd>
-<dt>Capacity of network</dt><dd>The sum-product of pipe peak capacity with pipe length over all the pipes. 
-This might not be a useful number to know&#x2026;</dd>
+<dt>Objective value</dt><dd>This is the value the optimiser sees for this solution, in NPV terms</dd>
+<dt>Runtime</dt><dd>The amount of time taken to find a solution</dd>
+<dt>Iterations</dt><dd>This is a technical detail; since some parameters can't be expressed within the optimisation, there is an iterative process of finding a solution and then updating the assumptions used to create that solution.</dd>
+<dt>Iteration range</dt><dd>This is the range of objective values that were observed when trying to find the proper values for diversity parameters</dd>
+<dt>Gap</dt><dd>This is a measure of the solution quality; if the value is zero, it means that from the optimiser's point of view the solution could not be improved</dd>
+<dt>Bounds</dt><dd>These are the upper and lower bounds for the solution before we fixed the parameters. The optimiser knows the value of the best possible solution is within this range.</dd>
 </dl>
 </div>
 </div>
-
-<div id="outline-container-org5448763" class="outline-4">
-<h4 id="org5448763"><span class="section-number-4">1.3.2</span> Demand, supply and network information</h4>
-<div class="outline-text-4" id="text-1-3-2">
+</div>
+<div id="outline-container-org9a5d2de" class="outline-3">
+<h3 id="run-log"><a id="org9a5d2de"></a><span class="section-number-3">1.8</span> Run log page</h3>
+<div class="outline-text-3" id="text-run-log">
 <p>
-The demand information page lists all of the demands that were included in the network.
-The supply information page lists all of the supply locations that are supplying the network, and gives their size and cost.
-The network information page gives information about each segment of pipe that is included in the network.
+This page shows some text that the model itself outputs when running - it is mostly useful for diagnostic purposes.
 </p>
 </div>
 </div>
 </div>
-</div>
-
 <div id="outline-container-org67af78b" class="outline-2">
 <h2 id="org67af78b"><span class="section-number-2">2</span> How to&#x2026;</h2>
 <div class="outline-text-2" id="text-2">
@@ -560,28 +742,28 @@ There are many ways to select things by putting together the basic tools the pro
 <div class="figure">
 <p><video src="./img/network/selecting-1.webm" autoplay="true" loop="true" controls="true"><source /></video>
 </p>
-<p><span class="figure-number">Figure 10: </span>Selecting large demands in an area: (1) select everything in the area (2) change the constraint to optional, so they appear in the table (3) filter the table and (4) use the table selection checkbox to select what is in the table.</p>
+<p><span class="figure-number">Figure 12: </span>Selecting large demands in an area: (1) select everything in the area (2) change the constraint to optional, so they appear in the table (3) filter the table and (4) use the table selection checkbox to select what is in the table.</p>
 </div>
 
 
 <div class="figure">
 <p><video src="./img/network/selecting-2.webm" autoplay="true" loop="true" controls="true"><source /></video>
 </p>
-<p><span class="figure-number">Figure 11: </span>Selecting all the connectors in an area (paths added by THERMOS to join up buildings): (1) select everything in the area (2) click the <i>path</i> type to select only paths (3) click the <i>Connector</i> classification to select only connectors.</p>
+<p><span class="figure-number">Figure 13: </span>Selecting all the connectors in an area (paths added by THERMOS to join up buildings): (1) select everything in the area (2) click the <i>path</i> type to select only paths (3) click the <i>Connector</i> classification to select only connectors.</p>
 </div>
 
 
 <div class="figure">
 <p><video src="./img/network/selecting-3.webm" autoplay="true" loop="true" controls="true"><source /></video>
 </p>
-<p><span class="figure-number">Figure 12: </span>Select a whole street: (1) select everything (2) click the <i>path</i> type to narrow down the names list (3) click the street's name to select only paths with that name. Zoom button to zoom in to it.</p>
+<p><span class="figure-number">Figure 14: </span>Select a whole street: (1) select everything (2) click the <i>path</i> type to narrow down the names list (3) click the street's name to select only paths with that name. Zoom button to zoom in to it.</p>
 </div>
 
 
 <div class="figure">
 <p><video src="./img/network/selecting-4.webm" autoplay="true" loop="true" controls="true"><source /></video>
 </p>
-<p><span class="figure-number">Figure 13: </span>Select everything which the optimizer chose to use and make it required: (1) select everything in the table (2) click <i>yes</i> for in solution (3) change constraint status for these items</p>
+<p><span class="figure-number">Figure 15: </span>Select everything which the optimizer chose to use and make it required: (1) select everything in the table (2) click <i>yes</i> for in solution (3) change constraint status for these items</p>
 </div>
 </div>
 </div>
@@ -597,7 +779,7 @@ You can save a network as a GIS file - this feature is currently only visible fr
 <div class="figure">
 <p><video src="./img/network/gis-export-network.webm" autoplay="true" loop="true" controls="true"><source /></video>
 </p>
-<p><span class="figure-number">Figure 14: </span>Saving a network as a GIS file and opening it in <a href="https://www.qgis.org/">qgis</a>.</p>
+<p><span class="figure-number">Figure 16: </span>Saving a network as a GIS file and opening it in <a href="https://www.qgis.org/">qgis</a>.</p>
 </div>
 </div>
 </div>
