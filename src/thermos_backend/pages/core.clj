@@ -106,12 +106,14 @@
 
 (defn- get-project [id]
   (let [project (projects/get-project id)]
-    (assoc project :user-is-admin
-           (some #{:admin}
-                 (->> (:users project)
-                      (filter (comp #{(:id auth/*current-user*)} :id))
-                      (map :auth))
-                 ))))
+    (-> project
+        (assoc :user-is-admin
+               (some #{:admin}
+                     (->> (:users project)
+                          (filter (comp #{(:id auth/*current-user*)} :id))
+                          (map :auth))))
+        (assoc :user (:id auth/*current-user*))
+        )))
 
 (def deleted {:status 204})
 
@@ -219,6 +221,11 @@
            (projects/delete-project! project-id)
            deleted)
 
+         (POST "/leave" []
+           ;; leave the project
+           (projects/set-users! project-id (:id auth/*current-user*))
+           (response/redirect "."))
+         
          (GET "/delete" [wrong-name]
            (-> (delete-project-page (projects/get-project project-id) wrong-name)
                (response/response)
