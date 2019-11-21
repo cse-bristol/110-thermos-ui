@@ -12,6 +12,7 @@
             [thermos-frontend.tag :as tag]
             [thermos-frontend.format :refer [si-number local-format]]
             [thermos-util :refer [annual-kwh->kw]]
+            [thermos-frontend.format :as format]
             ))
 
 (declare component)
@@ -94,10 +95,15 @@
               (cat
                (fn [x]
                  (when (candidate/is-building? x)
-                   (document/tariff-name
-                    @document
-                    (::tariff/id x))))
+                   (document/tariff-name @document (::tariff/id x))))
                nil)]
+
+             [[:span.has-tt
+               {:title
+                "For buildings on the market tariff, this is the unit rate offered. For multiple selection, it is the mean value."}
+               "Market rate"] nil
+              (num ::solution/market-rate rmean "c/kWh" 100)
+              ]
 
              [[:span "Civils " [:span
                                 {:on-click #(swap! document view/switch-to-pipe-costs)

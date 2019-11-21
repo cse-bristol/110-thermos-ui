@@ -27,7 +27,8 @@
             [clojure.walk :refer [postwalk]]
 
             [thermos-specs.tariff :as tariff]
-            [thermos-specs.measure :as measure])
+            [thermos-specs.measure :as measure]
+            [thermos-backend.solver.market :as market])
   
   (:import [java.io StringWriter]))
 
@@ -192,7 +193,7 @@
 (defn- demand-value-terms
   "Given a vertex, calculate the value terms for it. These are value, value/kwh, and value/kwp.
   They are needed separately to allow the optimiser to think about demand reduction measures."
-  [instance candidate]
+  [instance candidate market]
 
   (let [ignore-revenues (= :system (::document/objective instance :network))
 
@@ -201,9 +202,10 @@
 
         {standing-charge     ::tariff/standing-charge
          unit-charge         ::tariff/unit-charge
-         capacity-charge     ::tariff/capacity-charge
-         }
-        (document/tariff-for-id instance (::tariff/id candidate))
+         capacity-charge     ::tariff/capacity-charge}
+        (if (= :market (::tariff/id candidate))
+          (market (::candidate/id candidate))
+          (document/tariff-for-id instance (::tariff/id candidate)))
 
         {fixed-connection    ::tariff/fixed-connection-cost
          variable-connection ::tariff/variable-connection-cost}
@@ -275,47 +277,50 @@
                (conj
                 (when (::document/consider-alternatives instance)
                   (::demand/alternatives candidate))
-                counterfactual))
-
-          network-only (= :network (::document/objective instance :network))]
+                counterfactual))]
+      
       (->>
        (for [id ids]
          (when-let [alternative (get-in instance [::document/alternatives id])]
-           {:id id
-            :cost      (if (= counterfactual id)
-                         0
-                         (finance/objective-value instance :alternative-capex
-                                                  (::supply/fixed-cost alternative 0)))
+           
+           (let [capex-type (if (= counterfactual id)
+                             :counterfactual-capex
+                             :alternative-capex)]
+             {:id id
+              :cost      (finance/objective-value instance capex-type
+                                                  (::supply/fixed-cost alternative 0))
 
-            ;; we pay for fuel for the counterfactual
-            "cost/kwh" (if network-only 0
-                           (+
-                            (finance/objective-value instance :alternative-capex
-                                                     (annual-kwh->kw
-                                                      (::supply/capex-per-mean-kw alternative 0)))
-                            (finance/objective-value instance :alternative-opex
-                                                     (::supply/cost-per-kwh alternative 0))))
-            
-            "cost/kwp"
-            ;; we pay opex for the CF unless in network-only mode.
-            (if network-only
-              0
+
+              ;; we pay for fuel for the counterfactual
+              "cost/kwh" (+
+                          (finance/objective-value instance capex-type
+                                                   (annual-kwh->kw
+                                                    (::supply/capex-per-mean-kw alternative 0)))
+                          (finance/objective-value instance :alternative-opex
+                                                   (::supply/cost-per-kwh alternative 0)))
+              
+              "cost/kwp"
+              ;; we pay opex for the CF unless in network-only mode.
               (finance/objective-value instance :alternative-opex
-                                       (::supply/opex-per-kwp alternative 0)))
-            
-            :emissions
-            (into {}
-                  (for [e candidate/emissions-types]
-                    [e (float (get-in alternative [::supply/emissions e] 0))]))}))
+                                       (::supply/opex-per-kwp alternative 0))
+              
+              :emissions
+              (into {}
+                    (for [e candidate/emissions-types]
+                      [e (float (get-in alternative [::supply/emissions e] 0))]))})))
        (filter identity)))})
 
-(defn demand-terms [instance candidate]
+(defn demand-terms [instance candidate market]
   (merge
    {:required  (boolean (candidate/required? candidate))
     :count     (int     (::demand/connection-count candidate 1))}
-   (demand-value-terms instance candidate)
-   (insulation-definitions instance candidate)
-   (alternative-definitions instance candidate)))
+   (demand-value-terms instance candidate market)
+
+   ;; we only offer insulation & alternatives to the optimiser in system mode.
+   (when (= :system (::document/objective instance :network))
+     (insulation-definitions instance candidate))
+   (when (= :system (::document/objective instance :network))
+     (alternative-definitions instance candidate))))
 
 (defn- supply-terms [instance candidate]
   (let [fixed-cost
@@ -362,7 +367,7 @@
      :bounds bounds
      :required (boolean (attr/attr net-graph edge :required))}))
 
-(defn- instance->json [instance net-graph power-curve]
+(defn- instance->json [instance net-graph power-curve market]
   (let [candidates     (::document/candidates instance)
         
         edge-bounds (do
@@ -412,7 +417,7 @@
        (let [unreachable (attr/attr net-graph vertex :unreachable)]
          (cond-> {:id vertex}
            (candidate/has-demand? candidate)
-           (assoc :demand (demand-terms instance candidate))
+           (assoc :demand (demand-terms instance candidate market))
 
            unreachable
            (assoc-in [:demand :required] false)
@@ -483,32 +488,33 @@
               ::supply/name (::supply/name alternative)}))))
 
 (defn- output-alternative [candidate instance alternative]
-  (assoc candidate
-         ::solution/alternative
-         (if (= (::demand/counterfactual candidate)
-                (::supply/id alternative))
-           (assoc (::solution/counterfactual candidate)
-                  :counterfactual true)
-           (let [kwh (::solution/kwh candidate)
-                 kwp (::demand/kwp candidate)
+  (let [is-counterfactual (= (::demand/counterfactual candidate)
+                             (::supply/id alternative))]
+    (assoc candidate
+           ::solution/alternative
+           (if is-counterfactual
+             (assoc (::solution/counterfactual candidate)
+                    :counterfactual true)
+             (let [kwh (::solution/kwh candidate)
+                   kwp (::demand/kwp candidate)
 
-                 capex (supply/principal alternative kwp kwh)
-                 opex  (supply/opex alternative kwp)
-                 fuel  (supply/heat-cost alternative kwh)]
-             {:capex (finance/adjusted-value instance :alternative-capex capex)
-              :opex (finance/adjusted-value instance :alternative-opex opex)
-              :heat-cost (finance/adjusted-value instance :alternative-opex fuel)
-              :counterfactual false
-              :emissions
-              (into {}
-                    (for [e candidate/emissions-types]
-                      (let [alternative-factor (get (::supply/emissions alternative) e 0)
-                            emissions (* alternative-factor kwh)]
-                        [e (finance/emissions-value instance e emissions)])))
-              ::supply/id (::supply/id alternative)
-              ::supply/name (::supply/name alternative)}))))
+                   capex (supply/principal alternative kwp kwh)
+                   opex  (supply/opex alternative kwp)
+                   fuel  (supply/heat-cost alternative kwh)]
+               {:capex (finance/adjusted-value instance :alternative-capex capex)
+                :opex (finance/adjusted-value instance :alternative-opex opex)
+                :heat-cost (finance/adjusted-value instance :alternative-opex fuel)
+                :counterfactual false
+                :emissions
+                (into {}
+                      (for [e candidate/emissions-types]
+                        (let [alternative-factor (get (::supply/emissions alternative) e 0)
+                              emissions (* alternative-factor kwh)]
+                          [e (finance/emissions-value instance e emissions)])))
+                ::supply/id (::supply/id alternative)
+                ::supply/name (::supply/name alternative)})))))
 
-(defn- merge-solution [instance net-graph power-curve result-json]
+(defn- merge-solution [instance net-graph power-curve market result-json]
   (let [state (keyword (:state result-json))
         
         solution-vertices (into {}
@@ -525,7 +531,11 @@
         update-vertex
         (fn [v]
           (let [solution-vertex (solution-vertices (::candidate/id v))
-                tariff          (document/tariff-for-id instance (::tariff/id v))
+                tariff-id       (::tariff/id v)
+                tariff          (if (= :market tariff-id)
+                                  (market (::candidate/id v))
+                                  (document/tariff-for-id instance tariff-id))
+
                 connection-cost (document/connection-cost-for-id instance (::tariff/cc-id v))
                 
                 insulation           (for [[id kwh] (:insulation solution-vertex)]
@@ -600,6 +610,11 @@
                          ::solution/heat-revenue heat-revenue
                          ::solution/connection-capex connection-cost)
 
+
+                  (= :market tariff-id)
+                  (assoc ::solution/market-rate
+                         (::tariff/unit-charge tariff))
+                  
                   ;; supply facts
                   (:capacity-kw solution-vertex)
                   (assoc ::solution/capacity-kw   (:capacity-kw solution-vertex)
@@ -688,6 +703,67 @@
      #(assoc % ::solution/unreachable true)
      (set/difference ids-in-instance ids-in-net-graph))))
 
+(defn- make-market-decisions
+  "Some people in INSTANCE may be on the special tariff called :market.
+  In this case we need to work out a few things:
+
+  - What unit rate we are going to offer them to connect to us
+  - What decisions we think they should make as their next best option.
+  "
+  [instance]
+
+  
+  (let [market-term       (max 1 (::tariff/market-term instance 1))
+        market-rate       (::tariff/market-discount-rate instance 0)
+        market-stickiness (::tariff/market-stickiness instance 0)
+        emissions-costs   (::document/emissions-cost instance)
+        alternatives      (::document/alternatives instance {})
+        insulations       (::document/insulation instance {})
+        ]
+    (->>
+     (for [[k v] (::document/candidates instance)
+           :when (= :market (::tariff/id v))]
+       (let [areas        {:roof  (::candidate/roof-area v 0)
+                           :wall  (::candidate/wall-area v 0)
+                           :floor (::candidate/ground-area v 0)}
+
+             counterfactual (::demand/counterfactual v)
+             
+             alternatives
+             (cond-> (for [i (::demand/alternatives v)]
+                       (get alternatives i))
+
+               ;; TODO we are not repeating the capex for this right
+               ;; nor for the other options, so it is not quite fair -
+               ;; the CF will mostly win, unless we turn down DR etc.
+               counterfactual
+               (conj
+                (assoc (get alternatives counterfactual)
+                       ::supply/capex-per-kwp 0
+                       ::supply/capex-per-mean-kw 0
+                       ::supply/fixed-cost 0
+                       )))
+             
+             insulations
+             (for [i (::demand/insulation v)]
+               (get insulations i))
+
+             market-decision
+             (market/evaluate market-term
+                              market-rate
+                              market-stickiness
+
+                              (::demand/kwp v 0)
+                              (::demand/kwh v 0)
+                              areas
+
+                              emissions-costs
+                              alternatives
+                              insulations)]
+
+         [k market-decision]))
+     (into {}))))
+
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
@@ -709,9 +785,11 @@
                                  ;; we also merge in the mechanical
                                  ;; engineering cost data for every
                                  ;; path, as that makes things easier.
+
                                  (map #(cond-> %
                                          (candidate/is-path? %)
-                                         (merge (document/civil-cost-for-id instance (::path/civil-cost-id %))))))
+                                         (merge (document/civil-cost-for-id instance (::path/civil-cost-id %)))
+                                         )))
         
         net-graph (simplify-topology included-candidates)
         net-graph (summarise-attributes net-graph included-candidates)
@@ -760,7 +838,11 @@
                                               (::document/return-temperature instance))
                                            (::document/minimum-pipe-diameter instance 0.02)
                                            (::document/maximum-pipe-diameter instance 1.0))
-            input-json (postwalk identity (instance->json instance net-graph power-curve))]
+
+            market (make-market-decisions instance)
+
+            
+            input-json (postwalk identity (instance->json instance net-graph power-curve market))]
         
         (with-open [writer (io/writer input-file)]
           (json/write input-json writer :escape-unicode false))
@@ -787,7 +869,7 @@
                    ::solution/state (:state output-json)
                    ::solution/message (:message output-json)
                    ::solution/runtime (/ (- end-time start-time) 1000.0))
-                  (merge-solution net-graph power-curve output-json)
+                  (merge-solution net-graph power-curve market output-json)
                   (mark-unreachable net-graph included-candidates))
               ]
 

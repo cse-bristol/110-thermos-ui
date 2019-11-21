@@ -21,7 +21,7 @@
                                            loan-term))))]
       (repeat loan-term repayment))))
 
-(defn objective-capex-value [doc opts value]
+(defn objective-capex-value [doc opts value exists]
   (let [{should-annualize :annualize
          should-recur :recur
          period :period
@@ -48,6 +48,12 @@
           (take npv-term (cycle payments))
           payments)
 
+        payments
+        (if exists
+          (concat (repeat period 0)
+                  (drop period payments))
+          payments)
+        
         total-value (reduce + payments)
         ]
     {:present (pv npv-rate payments)
@@ -70,29 +76,39 @@
         :connection-capex
         (objective-capex-value doc
                                (get-in doc [::document/capital-costs :connection])
-                               value)
+                               value
+                               false)
         
         :supply-capex
         (objective-capex-value doc
                                (get-in doc [::document/capital-costs :supply])
-                               value)
+                               value
+                               false)
         
         :pipe-capex
         (objective-capex-value doc
                                (get-in doc [::document/capital-costs :pipework])
-                               value)
+                               value
+                               false)
         
         :insulation-capex
         (objective-capex-value doc
                                (get-in doc [::document/capital-costs :insulation])
-                               value)
+                               value
+                               false)
         
         :alternative-capex
         (objective-capex-value doc
                                (get-in doc [::document/capital-costs :alternative])
-                               value)
+                               value
+                               false)
 
-        
+        :counterfactual-capex
+        (objective-capex-value doc
+                               (get-in doc [::document/capital-costs :alternative])
+                               value
+                               true)
+
         (:supply-heat :supply-opex :emissions-cost :heat-revenue :alternative-opex)
 
         ;; these things are not capexes so we account for them the other way

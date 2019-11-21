@@ -226,8 +226,15 @@
       })))
 
 (rum/defc project-page-body [project]
-  (let [am-admin (:user-is-admin project)]
+  (let [am-admin (:user-is-admin project)
+        me (:user project)
+        other-admins (filter
+                      #(and (= :admin (:auth %))
+                            (not= me (:id %)))
+                      (:users project))
+        ]
     [:div
+
      [:div.card {:style {:margin-bottom "2em"}}
       [:div.flex-cols
        [:div {:style {:flex-grow 1}}
@@ -236,24 +243,24 @@
             [:em "This project has no description"]
             [:span d]))]
        [:div
-        [:a.button {:style {:margin-left :1em}
-                    :on-click (fn-js [e]
-                         (let [user-state (atom (:users project))]
-                           (show-dialog!
-                            (project-user-list
-                             {:on-save
-                              #(do (POST "users" {:params {:users@user-state}})
-                                   (close-dialog!))
-                              :on-close close-dialog!}
-                             user-state))
-                           (.preventDefault e)))
-                    :href "users"}
+        [:button.button {:style {:margin-left :1em}
+                         :on-click (fn-js [e]
+                                     (let [user-state (atom (:users project))]
+                                       (show-dialog!
+                                        (project-user-list
+                                         {:on-save
+                                          #(do (POST "users" {:params {:users@user-state}})
+                                               (close-dialog!))
+                                          :on-close close-dialog!}
+                                         user-state))
+                                       (.preventDefault e)))
+                         :href "users"}
          (let [n (count (:users project))]
            (str n " USER" (when (> n 1) "S") " " symbols/person))
          ]
         
         (when am-admin
-          [:a.button
+          [:button.button
            {:style {:margin-left :1em}
             :href "delete"
             :on-click
@@ -276,7 +283,35 @@
               (.preventDefault e))
             }
            
-           "DELETE PROJECT " symbols/delete])
+           "DELETE " symbols/delete])
+
+        (when (> 1 (count (:users project)))
+          [:button.button
+           {:style {:margin-left :1em}
+            :on-click
+            (fn-js [e]
+              (show-dialog!
+               [:div
+                [:p "If you leave this project, you will need to ask another admin user to invite you back in to undo this."]
+
+                (when-not (seq other-admins)
+                  [:p "Because there are no other admins, all other users will be converted into admins if you leave."])
+                
+                [:div.flex-cols
+                 [:button.button {:style {:margin-left :auto} :on-click close-dialog!} "CANCEL"]
+                 [:button.button.button--danger
+                  {:on-click (fn [e]
+                               (POST "leave"
+                                   {:handler (fn [b] (js/window.location.replace "/"))}))}
+                  "LEAVE"]]
+                ]
+               )
+              (.preventDefault e)
+              )
+            }
+           "LEAVE 👋" 
+           ])
+        
         [:a.button {:style {:margin-left :1em}
                     :href "map/new"} "MAP " symbols/plus]]]]
 
@@ -311,15 +346,15 @@
              [:a.button
               {:style {:margin-left :1em}
                :on-click (fn-js [e]
-                                (show-delete-dialog!
-                                 {:name (:name m)
-                                  :message [:span "Are you sure you want to delete this map "
-                                            "and the " (count (:networks m))
-                                            " network problems associated with it?"]
-                                  :on-delete
-                                  ;; issue the relevant request - the map should disappear later.
-                                  #(DELETE (str "map/" (:id m)))})
-                                (.preventDefault e))
+                           (show-delete-dialog!
+                            {:name (:name m)
+                             :message [:span "Are you sure you want to delete this map "
+                                       "and the " (count (:networks m))
+                                       " network problems associated with it?"]
+                             :on-delete
+                             ;; issue the relevant request - the map should disappear later.
+                             #(DELETE (str "map/" (:id m)))})
+                           (.preventDefault e))
                
                :href (str "map/" (:id m) "/delete")} "DELETE " symbols/delete]
              (if (:import-completed m)

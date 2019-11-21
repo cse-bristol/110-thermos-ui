@@ -208,10 +208,11 @@
       (h/where [:= :id network-id])
       (db/execute!)))
 
-(defn delete-project! [project-id]
-  (-> (h/delete-from :projects)
-      (h/where [:= :id project-id])
-      (db/execute!)))
+(defn delete-project! [project-id & [conn]]
+  (db/or-connection [conn]
+    (-> (h/delete-from :projects)
+        (h/where [:= :id project-id])
+        (db/execute! conn))))
 
 (defn set-users!
   "Set the authority of the given users for the given project.
@@ -231,9 +232,9 @@
                             (h/from :users-projects)
                             (h/where [:= :project-id project-id])
                             (db/fetch! conn))
-
-          any-admins? (some #{:admin} (map :auth users))
-          existing-admins (filter (comp #{:admin} :auth) current-users)
+          
+          any-admins? (some #{"admin"} (map :auth users))
+          existing-admins (filter (comp #{"admin"} :auth) current-users)
           
           users (if any-admins?
                   users
@@ -254,6 +255,34 @@
        (users/invite! project-id current-user users-to-invite conn)
        (users/authorize! project-id users conn)))))
 
+(defn leave! [project-id user-id]
+  (db/with-connection [conn]
+    (jdbc/atomic conn
+      (let [current-users (-> (h/select :auth :%count.*)
+                              (h/from :users-projects)
+                              (h/where [:and
+                                        [:= :project-id project-id]
+                                        [:not [:= :user-id user-id]]])
+                              (h/group :auth)
+                              (db/fetch! conn))
+
+            current-users
+            (into {} (for [{auth :auth count :count} current-users]
+                       [auth count]))]
+        
+        (if (empty? current-users)
+          (delete-project! project-id conn)
+
+          (do (-> (h/delete-from :users-projects)
+                  (h/where [:and
+                            [:= :project-id project-id]
+                            [:= :user-id user-id]])
+                  (db/execute! conn))
+
+              (-> (h/update :users-projects)
+                  (h/sset {:auth :admin})
+                  (h/where [:= :project-id project-id])
+                  (db/execute! conn))))))))
 
 (defn delete-networks! [map-id network-name]
   (-> (h/delete-from :networks)

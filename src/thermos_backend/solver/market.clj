@@ -3,7 +3,8 @@
             [thermos-util.finance :refer [pv]]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.supply :as supply]
-            [thermos-specs.measure :as measure]))
+            [thermos-specs.measure :as measure]
+            [thermos-specs.tariff :as tariff]))
 
 (defn- evaluate-base-case [term discount-rate kwp kwh-per-year emissions-costs alternative]
   (let [;; basic costs
@@ -59,9 +60,9 @@
 
   We also know the pv for this so we can work out an equivalent unit rate."
   [term discount-rate ;; for householder's PV calculation
+   stickiness         ;; % network has to beat alternative by to win
    kwp kwh-per-year   ;; for working out the costs / benefits
    areas              ;; area type => area
-   stickiness         ;; % network has to beat alternative by to win
    emissions-costs
    alternatives       ;; list of alternatives
    insulations        ;; list of insulations; these need other parameters to work
@@ -69,6 +70,7 @@
 
   (let [insulated-alternatives
         ;; foreach alternative work out which insulation it should get
+        
         (for [a alternatives]
           (let [a0 (evaluate-base-case term discount-rate
                                        kwp kwh-per-year
@@ -119,9 +121,11 @@
         ;; k = offer / v.pv1
 
         offer-rate (/ our-offer pv-per-kwh)
+
+        ;; round to nearest 0.1p?
+        offer-rate (/ (Math/round (* 1000.0 offer-rate)) 1000.0)
         ]
     (assoc best-alternative
            ::unit-rate offer-rate
+           ::tariff/unit-charge offer-rate
            )))
-
-

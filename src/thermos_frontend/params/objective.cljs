@@ -23,12 +23,12 @@
                         :disabled (not (:annualize @params))}]]
    [:td
     (->> 100
-         (finance/objective-capex-value (assoc @doc ::document/npv-rate 0) @params)
+         (finance/objective-capex-value (assoc @doc ::document/npv-rate 0) @params false)
          (:present)
          (format/si-number))]
    [:td
     (->> 100
-         (finance/objective-capex-value @doc @params)
+         (finance/objective-capex-value @doc @params false)
          (:present)
          (format/si-number))]])
 
@@ -60,6 +60,56 @@
      ]
     [:div.parameters-component
      [:div.card
+      
+
+      [:h1 "Objective"]
+      [:div {:style {:margin-top :1em}}
+       [:div {:style {:margin-right :2em}}
+
+        [:div
+         [:div
+          [:label {:style {:font-size :1.5em}}
+           [:input {:type :radio
+                    :checked (= :network @objective)
+                    :on-change #(reset! objective :network)
+                    :value "objective-group"
+                    }] "Maximize network NPV"]
+          [:div {:style {:margin-left :2em}}
+           [:p
+            "In this mode, the goal is to choose which demands to connect to the network so as to maximize the NPV " [:em "for the network operator"]
+            ". This is the sum of the revenues from demands minus the sum of costs for the network."]
+           [:p
+            "The impact of non-network factors (individual systems, insulation, and emissions costs) can be accounted for using the " [:em "market"] " tariff, which chooses a price to beat the best non-network system."]]]
+         
+         [:div
+          [:label {:style {:font-size :1.5em}}
+           [:input {:type :radio
+                    :value "objective-group"
+                    :checked (= :system @objective)
+                    :on-change #(reset! objective :system)
+                    }]
+           "Maximize whole-system NPV"]
+          [:div {:style {:margin-left :2em}}
+           [:p "In this mode, the goal is to choose how to " [:em "supply heat"] " to the buildings in the problem (or abate demand) at the " [:em "minimum overall cost"] ". The internal transfer of money between buildings and network operator is not considered, so there are no network revenues and tariffs have no effect."]
+           
+           [:div {:style {:display :flex}}
+            [:p {:style {:margin-right :1em}}
+             [inputs/check {:value @consider-insulation
+                            :on-change #(reset! consider-insulation %)
+                            :label "Offer insulation measures"}]]
+            [:p {:style {:flex 1}}
+             [inputs/check
+              {:value @consider-alternatives
+               :on-change #(reset! consider-alternatives %)
+               :label [:span.has-tt
+                       {:title "If checked, buildings have a choice of network, individual systems or sticking with their counterfactual system. Otherwise, the choice is just between network and counterfactual."
+                        }
+                       "Offer other heating systems"]}]]]]
+          ]
+         ]
+        ]
+       
+       ]
       [:h1 "Accounting period"]
       [:p
        "Sum costs and benefits over " [inputs/number {:value-atom npv-term
@@ -72,37 +122,7 @@
                                                     :min 0
                                                     :max 100
                                                     :step 0.1}] "% per year."]
-
-      [:h1 "Objective"]
-      [:div {:style {:margin-top :1em}}
-       [:div {:style {:margin-right :2em}}
-        [inputs/radio-group
-         {:value @objective
-          :on-change #(reset! objective %)
-          :options
-          [{:key :network :label [:span.has-tt
-                                  {:title
-                                   (str "This only considers the costs and revenues of the network."
-                                        "It includes emissions costs, and if allowed below the capital costs of other systems or insulation."
-                                        "It does not include the operating costs of other systems.")}
-                                  "Maximize network NPV"]}
-           {:key :system :label [:span.has-tt
-                                 {:title
-                                  "This includes the costs for heating buildings not on the network, and excludes any revenue for the network."}
-                                 "Maximize whole-system NPV"]}]}]]
-       [:div {:style {:display :flex}}
-        [:p {:style {:margin-right :1em}}
-         [inputs/check {:value @consider-insulation
-                        :on-change #(reset! consider-insulation %)
-                        :label "Offer insulation measures"}]]
-        [:p {:style {:flex 1}}
-         [inputs/check {:value @consider-alternatives
-                        :on-change #(reset! consider-alternatives %)
-                        :label [:span.has-tt
-                                {:title
-                                 "If this is not checked, buildings must either connect to the network or use their counterfactual system (if set)."}
-                                "Offer other heating systems"]}]]]
-       ]]
+      ]
      
      [:div {:style {:display :flex :flex-wrap :wrap}}
       [:div.card {:style {:flex-grow 2}}

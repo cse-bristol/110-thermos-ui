@@ -23,7 +23,7 @@ Welcome to the help for THERMOS. You can search the help if you know what you ar
 * Help about model details
 - [[file:calculations.org][Network model calculations]] :: Explains what THERMOS is calculating when it evaluates a network.
 - [[file:demand-models.org][Heat demand estimation method]] :: Explains how heat demand estimates are made
-- Network optimisation formulation :: A technical description of how the network optimisation works
+- [[file:formulation.org][Network optimisation formulation]] :: A technical description of how the network optimisation works
 - [[file:insulation.org][Insulation]] :: Describes how insulation is modelled
 * Help about data
 - Data used to make THERMOS :: Explains what data we used to build the models in THERMOS

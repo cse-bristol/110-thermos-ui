@@ -13,9 +13,7 @@
                 :name "Standard"
                 :standing-charge 50
                 :unit-charge 0.05
-                :capacity-charge 0
-                :fixed-connection-cost 0
-                :variable-connection-cost 0}})
+                :capacity-charge 0}})
 
 (def default-civil-costs
   {1 #::path {:civil-cost-id 1
@@ -74,5 +72,9 @@
    ::document/civil-costs default-civil-costs
    ::document/insulation default-insulation
    ::document/alternatives default-alternatives
+
+   ::tariff/market-term 10
+   ::tariff/market-discount-rate 0.035
+   ::tariff/market-stickiness 0.1
    })
 
