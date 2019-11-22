@@ -402,14 +402,18 @@
         any-filters?
         (reagent/track #(not (empty? (operations/get-all-table-filters @doc))))
 
-        map-view (reagent/track #(-> @doc ::view/view-state ::view/map-view))
+        map-view (reagent/track #(or (-> @doc ::view/view-state ::view/map-view)
+                                     ::view/constraints))
 
-        all-pipe-diameters
+        min-max-diameters
         (reagent/track
-         (fn [] (->> (::document/candidates @doc)
-                     (map (fn [[id cand]] [id (::soln/diameter-mm cand)]))
-                     (filter second)
-                     (into {}))))
+         #(when @solution
+            (reduce
+             (fn [[l u] d]
+               [(or (and l (min d l)) d)
+                (or (and u (max d u)) d)])
+             []
+             (keep ::soln/diameter-mm (vals @just-candidates)))))
         ]
 
     (reactive-layer/create
@@ -450,19 +454,9 @@
 
                (reagent/track!
                 (fn []
-                  (if @solution
-                    ;; If there is a solution, work out some representative pipe-diameters
-                    (let [tile-pipe-diameters (select-keys @all-pipe-diameters @tile-candidates-ids)
-                          min-diam (apply min (vals @all-pipe-diameters))
-                          max-diam (apply max (vals @all-pipe-diameters))
-                          ;; This puts the pipe diameters into [0,1]
-                          relative-pipe-diameters (into {} (for [[id diam] tile-pipe-diameters]
-                                                             [id (/ (- diam min-diam) (- max-diam min-diam))]))]
-                      (tile/render-tile
-                       @solution @tile-contents canvas layer @map-view relative-pipe-diameters))
-                    ;; If no solution, just render the tile as normal
-                    (tile/render-tile
-                     @solution @tile-contents canvas layer @map-view nil))
+                  (tile/render-tile
+                       @solution @tile-contents canvas layer @map-view @min-max-diameters)
+                  
                   )))
          )))))
 

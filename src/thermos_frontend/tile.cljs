@@ -44,13 +44,13 @@
 
 ;; most of the work is in here - how to paint an individual tile onto the map
 ;; if there is a solution we probably want to show the solution cleanly
-(defn render-tile [has-solution? contents tile layer map-view rel-pipe-diams]
+(defn render-tile [has-solution? contents tile layer map-view [min-diameter max-diameter]]
   "Draw a tile.
   `document` should be a document layer (not an atom containing a document layer),
   `tile` a canvas element,
   `layer` an instance of our layer component's layer class,
   `map-view` is either ::view/constraints or ::view/solution,
-  `rel-pipe-diams` is a map path-id -> relative diameter (which is a number in [0,1])."
+  `min-diameter` and max are the min and max, used for a linear scaling"
   (let [coords (.-coords tile)
         size (.getTileSize layer)
         ctx (.getContext tile "2d")
@@ -62,16 +62,21 @@
 
     (fix-size tile layer)
     (.clearRect ctx 0 0 width height)
-
+    
+    
     ;; Render order: non-selected buildings, selected building shadows, selected buildings,
     ;;               non-selected paths, selected path shadows, selected paths
     (let [{buildings :building paths :path} (group-by ::candidate/type contents)
-          {selected-buildings true non-selected-buildings false} (group-by ::candidate/selected buildings)
-          {selected-paths true non-selected-paths false} (group-by ::candidate/selected paths)
-          pipe-diam-line-width (fn [path]
-                                 (if-let [rel-diam (get rel-pipe-diams (::candidate/id path))]
-                                                    (+ 1.5 (* 10 rel-diam))
-                                                    nil))]
+          {selected-buildings true non-selected-buildings false} (group-by (comp boolean ::candidate/selected) buildings)
+          {selected-paths true non-selected-paths false} (group-by (comp boolean ::candidate/selected) paths)
+          pipe-diam-line-width
+          (fn [path]
+            (if-let [diameter (::solution/diameter-mm path)]
+              (let [rel-diam (/ (- diameter min-diameter)
+                                (- max-diameter min-diameter))]
+                (+ 1.5 (* 10 rel-diam)))
+              nil))]
+
       ;; Non-selected buildings
       (doseq [candidate non-selected-buildings]
         (render-candidate zoom has-solution? candidate ctx project geometry-key map-view))
