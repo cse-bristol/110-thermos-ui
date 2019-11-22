@@ -66,21 +66,24 @@
                                      )
                ]
 
-    [rc/v-split
-     :style {:height :100%}
-     :initial-split (or @h-split-pos 75)
+    [rc/h-split
+     :initial-split (or @h-split-pos 60)
      :on-split-change #(reset! h-split-pos %)
      :margin "0"
-     :panel-1 [rc/h-split
-               :initial-split (or @h-split-pos 60)
-               :on-split-change #(reset! h-split-pos %)
+     :panel-1 [:div.map-container [map/component document] [view-control/component document]]
+     :panel-2
+     
+     [rc/v-split
+               :style {:height :100%}
+               :initial-split (or @v-split-pos 75)
+               :on-split-change #(reset! v-split-pos %)
                :margin "0"
-               :panel-1 [:div.map-container [map/component document] [view-control/component document]]
-               :panel-2 [selection-info-panel/component document]]
-     :panel-2 [:div
-               {:style {:width :100%}}
-               [network-candidates-panel/component document]]
-     ])
+               :panel-1 [selection-info-panel/component document]
+               :panel-2 [:div
+                         {:style {:width :100%}}
+                         [network-candidates-panel/component document]]
+               ]]
+    )
   
   )
 (defn main-page []
