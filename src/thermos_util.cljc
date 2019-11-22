@@ -60,6 +60,11 @@
     
     (number? v) (double v)))
 
+(defmacro safe-div [a b]
+  `(let [a# ~a]
+     (if (zero? a#) 0
+         (/ a# ~b))))
+
 (def truth-values #{"true" "TRUE" "yes" "YES" "1" 1 1.0 true})
 (def false-values #{"false" "FALSE" "no" "NO" "0" "-1" 0 0.0 -1 -1.0 false})
 

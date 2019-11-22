@@ -1,5 +1,8 @@
 (ns thermos-util.finance
-  (:require [thermos-specs.document :as document]))
+  (:require [thermos-specs.document :as document]
+            [thermos-util
+             :refer [safe-div]
+             :refer-macros [safe-div]]))
 
 (defn pv
   "Calculate the NPV of a series of values given a discount rate"
@@ -7,16 +10,17 @@
 
   (if (zero? npv-rate)
     (reduce + vals)
-    (reduce + (map-indexed (fn [i v] (/ v (Math/pow (+ 1 npv-rate) i))) vals))))
+    (reduce + (map-indexed
+               (fn [i v] (safe-div v (Math/pow (+ 1 npv-rate) i))) vals))))
 
 (defn annualize
   "Convert a capital cost right now into a series of repayments over time"
   [loan-rate loan-term principal]
 
   (if (zero? loan-rate)
-    (repeat loan-term (/ principal loan-term))
+    (repeat loan-term (safe-div principal loan-term))
     
-    (let [repayment (/ (* principal loan-rate)
+    (let [repayment (safe-div (* principal loan-rate)
                        (- 1 (/ 1 (Math/pow (+ 1 loan-rate)
                                            loan-term))))]
       (repeat loan-term repayment))))
@@ -58,7 +62,7 @@
         ]
     {:present (pv npv-rate payments)
      :total total-value
-     :annual (/ total-value period)
+     :annual (safe-div total-value period)
      :principal value}))
 
 (defn objective-opex-value [doc value]
