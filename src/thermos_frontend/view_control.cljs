@@ -25,7 +25,7 @@
           :id "display-pipe-diams"
           :checked (boolean @show-pipe-diameters?)
           :on-change (fn [] (state/edit! doc view/toggle-show-pipe-diameters))}]
-        "Display relative pipe diameters"])
+        "Show pipe sizes"])
      [:span.pull-right
       [:button.view-control__button
        {:class (when @legend-visible? "view-control__button--active")
