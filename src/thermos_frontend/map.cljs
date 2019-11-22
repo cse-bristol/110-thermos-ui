@@ -402,8 +402,8 @@
         any-filters?
         (reagent/track #(not (empty? (operations/get-all-table-filters @doc))))
 
-        map-view (reagent/track #(or (-> @doc ::view/view-state ::view/map-view)
-                                     ::view/constraints))
+        map-view (reagent/cursor doc [::view/view-state ::view/map-view])
+        show-diameters? (reagent/cursor doc [::view/view-state ::view/show-pipe-diameters])
 
         min-max-diameters
         (reagent/track
@@ -455,8 +455,7 @@
                (reagent/track!
                 (fn []
                   (tile/render-tile
-                       @solution @tile-contents canvas layer @map-view @min-max-diameters)
-                  
+                   @solution @tile-contents canvas layer @map-view (and @show-diameters? @min-max-diameters))
                   )))
          )))))
 

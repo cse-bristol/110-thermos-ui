@@ -116,3 +116,76 @@ input:checked + .hide-forbidden-control {
     color: #fff;
   }
 }
+
+.map-legend {
+  position: absolute;
+  bottom: 60px;
+  right: 10px;
+  background: #fff;
+  padding: 10px;
+  border-radius: 3px;
+  box-shadow: @standard-shadow;
+  dl {
+    margin: 0;
+  }
+  dt {
+    display: inline-block;
+    height: 20px;
+    width: 20px;
+    line-height: 20px;
+    vertical-align: middle;
+    margin-right: 10px;
+    margin-bottom: 2px;
+  }
+  dd {
+    display: inline-block;
+    margin: 0;
+    line-height: 20px;
+    vertical-align: middle;
+    color: #333;
+    font-size: 0.9em;
+  }
+  .key {
+    position: relative;
+    &:after {
+      content: "";
+      display: block;
+      height: 2px;
+      position: absolute;
+      left: 2px;
+      right: 2px;
+      top: 9px;
+    }
+  }
+  .required-key:after {
+    background: red;
+  }
+  .optional-key:after {
+    background: @theme-blue;
+  }
+  .forbidden-key {
+    background: #777;
+  }
+  .forbidden-key:after {
+    background: #fff;
+  }
+  .supply-key:after {
+    background: #dd6500;
+    height: 10px;
+    left: 5px;
+    right: 5px;
+    top: 5px;
+  }
+  .key.in-network-key:after {
+    background: #c84500;
+  }
+  .key.not-in-network-key:after {
+    background: #d7c8aa;
+  }
+  .key.unreachable-key:after {
+    background: #ff00ff;
+  }
+  .key.alternative-key:after {
+    background: #32cd32;
+  }
+}

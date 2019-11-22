@@ -20,7 +20,7 @@
                :civil-cost-name "Soft"
                :fixed-cost 200
                :variable-cost 200}
-   
+
    2 #::path {:civil-cost-id 2
                :civil-cost-name "Hard"
                :fixed-cost 500
@@ -40,7 +40,8 @@
 (def default-document
   {::view/view-state
    {::view/map-layers {::view/basemap-layer :satellite ::view/candidates-layer true}
-    ::view/map-view ::view/constraints}
+    ::view/map-view ::view/constraints
+    ::view/show-pipe-diameters false}
 
    ::document/mip-gap 0.1
    ::document/maximum-runtime 0.5
@@ -77,4 +78,3 @@
    ::tariff/market-discount-rate 0.035
    ::tariff/market-stickiness 0.1
    })
-

@@ -20,7 +20,10 @@
 
 (s/def ::map-view #{::constraints ::solution})
 
-(s/def ::view-state (s/keys :req [::table-state ::bounding-box ::popover ::show-forbidden ::map-view]))
+(s/def ::show-pipe-diameters boolean?)
+
+(s/def ::view-state (s/keys :req [::table-state ::bounding-box ::popover ::show-forbidden ::map-view
+                                  ::show-pipe-diameters]))
 
 (s/def ::show-forbidden boolean?)
 
@@ -38,3 +41,6 @@
 
 (defn set-map-view [document view]
   (assoc-in document [::view-state ::map-view] view))
+
+(defn toggle-show-pipe-diameters [document]
+  (update-in document [::view-state ::show-pipe-diameters] not))
