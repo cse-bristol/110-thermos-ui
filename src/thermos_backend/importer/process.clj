@@ -478,6 +478,15 @@
     (log/info "Exploded multipolygons from" count-before "to" count-after)
     features))
 
+(defn- explode-multi-lines [features]
+  (reduce
+   (fn [a f]
+     (if (= :multi-line-string (::geoio/type f))
+       (concat a (geoio/explode-multi f))
+       (conj a f)))
+   []
+   features))
+
 (defn- merge-multi-polygon
   "Used by `merge-multi-polygons` to combine a bunch of features that
   have the same ::id, and so came from the same input feature."
@@ -566,6 +575,7 @@
 
               ;; step 1: subdivide multi-features into bits
               (update-in [:buildings ::geoio/features] explode-multi-polygons)
+              (update-in [:roads ::geoio/features] explode-multi-lines)
               ;; now we have several of everything, potentially
               (progress* 20 "Checking for LIDAR coverage")
               (update :buildings lidar/add-lidar-to-shapes (load-lidar-index))
