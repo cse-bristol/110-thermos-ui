@@ -1,11 +1,90 @@
 #+TITLE: Demand modelling method
 
+*NOTE:* This document is not yet complete.
+
 * Annual demand model
 :PROPERTIES:
 :CUSTOM_ID: annual-demand-model
 :END:
 
+Annual demand is predicted using a combination of several models:
+
+- A support vector machine (SVM) trained on predictors that use the three-dimensional shape of a building
+- A linear model (LM) trained on predictors that use the three-dimensional shape of a building
+- A SVM trained on two-dimensional predictors only
+- A LM trained on two-dimensional predictors only
+- A separate hot water demand model
+
+** Algorithm
+
+If there is three-dimensional data available, then the 3D predictors are calculated and the 3D models are used, otherwise the 2D versions are used. The predictors are given later; following this the process is
+
+- Estimate space heat demand ::
+   1. Estimate normalized space heat demand with SVM; for most buildings this will produce a good result, but for buildings which are extreme cases with regard to one of the predictors the SVM kernel's smoothing behaviour will prevent extrapolation.
+
+   2. If the predictors are out of range for the SVM, use the LM instead
+
+   3. If the LM produces a bad result (/because/ it extrapolates), go back to the SVM.
+
+      A bad result is one where the space demand figure is clearly too low
+   4. De-normalize the demand; the SVM and LM both predict space heat demand /per square root heating degree day/, so we multiply the space heat demand result by the square root of the number of heating degree days in the location.
+
+      This is following the methodology in Ecoheatcool's work package 1[fn:1].
+- Estimate hot water demand ::
+   For this we use the methodology from SAP 2012[fn:2], equations (42)-(45). This method is essentially a nonlinear benchmark, as the demand is derived from the building's assumed floor area.
+
+** Model creation
+
+*NOTE:* This is incomplete.
+
+The model is based on measured heat demand data from buildings in Copenhagen; for these buildings we computed both the 3D and 2D predictors described below, and used an R machine learning toolkit to train and cross-validate SVM and LMs to predict space heat demand per square root degree-day using each set of predictors.
+
+To separate space heat demand from hot water demand in the training data, we applied a simple assumption that a constant proportion related space heat to hot water demand. It would perhaps have been more consistent to estimate hot water demand using the SAP equations, and subtract that value.
+
+** Model validation
+
+**NOTE:* This is incomplete.
+
+*** Cross-validation
+
+*** Validation on aggregate datasets
+
+** Predictors
+
+- Three-dimensional predictors ::
+  - /External/ wall area, computed by taking the length of all walls not shared with adjacent buildings and multiplying it by the building height
+  - Height, computed by sampling LIDAR points within the building's footprint polygon
+  - Perimeter, which is just the perimeter of the footprint polygon
+  - Surface per volume, which is the ratio of the building's overall surface area (including party area) to its volume
+  - Volume, which is the footprint area multiplied by height
+- Two-dimensional predictors :: 
+  - Footprint area
+  - Perimeter
+  - Perimeter divided by footprint
+  - Whether the building is residential or not
+  - Party perimeter, as a proportion
+  - Party perimeter, as an absolute value in metres
+- SAP predictors ::
+  - Floor area, estimated using building height and an assumed storey height to get a number of floors, or assuming a single floor if no height is known. 
+    This has some room for improvement; for example predicting floor area from the two dimensional predictors and other building attributes might be worthwhile.
+
+Other geometric predictors which might be worth considering would include functions of building orientation (e.g. south-facing area), and the number of corners or edges on the building, but we have not assessed these. We have also not explored any further categorical information about buildings, or information about their occupancy. Whilst these features might improve the predictive power, they are harder to come by and so reduce the number of places the model can be applied.
+
 * Peak demand model
 :PROPERTIES:
 :CUSTOM_ID: peak-demand-model
 :END:
+
+The peak demand in kW $p$ is derived as a function of the annual demand in kWh $a$, using the rule:
+
+\[
+p = 21.84 + 0.0004963 \times a
+\]
+
+This rule is derived from analysis of smart meter data in the UK, relating peak to annual gas usage, with some assumed efficiencies and weather correction.
+
+* Footnotes
+
+[fn:1] ECOHEATCOOL, Work Package 1; the European Heat Market (Final Report), by Euroheat & Power, 2005-2006.
+
+[fn:2] [[https://www.bre.co.uk/filelibrary/SAP/2012/SAP-2012_9-92.pdf][SAP 2012]], the Government's Standard Assessment Procedure for Energy Rating of Dwellings

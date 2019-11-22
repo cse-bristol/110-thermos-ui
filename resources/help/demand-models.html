@@ -8,6 +8,28 @@
 <title>Demand modelling method</title>
 <meta name="generator" content="Org mode" />
 <meta name="author" content="Tom Hinton" />
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        displayAlign: "center",
+        displayIndent: "0em",
+
+        "HTML-CSS": { scale: 100,
+                        linebreaks: { automatic: "false" },
+                        webFont: "TeX"
+                       },
+        SVG: {scale: 100,
+              linebreaks: { automatic: "false" },
+              font: "TeX"},
+        NativeMML: {scale: 100},
+        TeX: { equationNumbers: {autoNumber: "AMS"},
+               MultLineWidth: "85%",
+               TagSide: "right",
+               TagIndent: ".8em"
+             }
+});
+</script>
+<script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML"></script>
 </head>
 <body>
 <div id="content">
@@ -16,23 +38,174 @@
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#annual-demand-model">1. Annual demand model</a></li>
+<li><a href="#annual-demand-model">1. Annual demand model</a>
+<ul>
+<li><a href="#org2756d7c">1.1. Algorithm</a></li>
+<li><a href="#org95359a4">1.2. Model creation</a></li>
+<li><a href="#org041f1d6">1.3. Model validation</a>
+<ul>
+<li><a href="#org3c7892b">1.3.1. Cross-validation</a></li>
+<li><a href="#org0ce0d98">1.3.2. Validation on aggregate datasets</a></li>
+</ul>
+</li>
+<li><a href="#orga309da7">1.4. Predictors</a></li>
+</ul>
+</li>
 <li><a href="#peak-demand-model">2. Peak demand model</a></li>
 </ul>
 </div>
 </div>
+<p>
+<b>NOTE:</b> This document is not yet complete.
+</p>
 
 <div id="outline-container-org7330dfe" class="outline-2">
 <h2 id="annual-demand-model"><a id="org7330dfe"></a><span class="section-number-2">1</span> Annual demand model</h2>
 <div class="outline-text-2" id="text-annual-demand-model">
+<p>
+Annual demand is predicted using a combination of several models:
+</p>
+
+<ul class="org-ul">
+<li>A support vector machine (SVM) trained on predictors that use the three-dimensional shape of a building</li>
+<li>A linear model (LM) trained on predictors that use the three-dimensional shape of a building</li>
+<li>A SVM trained on two-dimensional predictors only</li>
+<li>A LM trained on two-dimensional predictors only</li>
+<li>A separate hot water demand model</li>
+</ul>
+</div>
+
+<div id="outline-container-org2756d7c" class="outline-3">
+<h3 id="org2756d7c"><span class="section-number-3">1.1</span> Algorithm</h3>
+<div class="outline-text-3" id="text-1-1">
+<p>
+If there is three-dimensional data available, then the 3D predictors are calculated and the 3D models are used, otherwise the 2D versions are used. The predictors are given later; following this the process is
+</p>
+
+<dl class="org-dl">
+<dt>Estimate space heat demand</dt><dd><ol class="org-ol">
+<li>Estimate normalized space heat demand with SVM; for most buildings this will produce a good result, but for buildings which are extreme cases with regard to one of the predictors the SVM kernel's smoothing behaviour will prevent extrapolation.</li>
+
+<li>If the predictors are out of range for the SVM, use the LM instead</li>
+
+<li><p>
+If the LM produces a bad result (<i>because</i> it extrapolates), go back to the SVM.
+</p>
+
+<p>
+A bad result is one where the space demand figure is clearly too low
+</p></li>
+<li><p>
+De-normalize the demand; the SVM and LM both predict space heat demand <i>per square root heating degree day</i>, so we multiply the space heat demand result by the square root of the number of heating degree days in the location.
+</p>
+
+<p>
+This is following the methodology in Ecoheatcool's work package 1<sup><a id="fnr.1" class="footref" href="#fn.1">1</a></sup>.
+</p></li>
+</ol></dd>
+<dt>Estimate hot water demand</dt><dd>For this we use the methodology from SAP 2012<sup><a id="fnr.2" class="footref" href="#fn.2">2</a></sup>, equations (42)-(45). This method is essentially a nonlinear benchmark, as the demand is derived from the building's assumed floor area.</dd>
+</dl>
+</div>
+</div>
+
+<div id="outline-container-org95359a4" class="outline-3">
+<h3 id="org95359a4"><span class="section-number-3">1.2</span> Model creation</h3>
+<div class="outline-text-3" id="text-1-2">
+<p>
+<b>NOTE:</b> This is incomplete.
+</p>
+
+<p>
+The model is based on measured heat demand data from buildings in Copenhagen; for these buildings we computed both the 3D and 2D predictors described below, and used an R machine learning toolkit to train and cross-validate SVM and LMs to predict space heat demand per square root degree-day using each set of predictors.
+</p>
+
+<p>
+To separate space heat demand from hot water demand in the training data, we applied a simple assumption that a constant proportion related space heat to hot water demand. It would perhaps have been more consistent to estimate hot water demand using the SAP equations, and subtract that value.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org041f1d6" class="outline-3">
+<h3 id="org041f1d6"><span class="section-number-3">1.3</span> Model validation</h3>
+<div class="outline-text-3" id="text-1-3">
+<p>
+<b>*NOTE:</b> This is incomplete.
+</p>
+</div>
+
+<div id="outline-container-org3c7892b" class="outline-4">
+<h4 id="org3c7892b"><span class="section-number-4">1.3.1</span> Cross-validation</h4>
+</div>
+
+<div id="outline-container-org0ce0d98" class="outline-4">
+<h4 id="org0ce0d98"><span class="section-number-4">1.3.2</span> Validation on aggregate datasets</h4>
+</div>
+</div>
+
+<div id="outline-container-orga309da7" class="outline-3">
+<h3 id="orga309da7"><span class="section-number-3">1.4</span> Predictors</h3>
+<div class="outline-text-3" id="text-1-4">
+<dl class="org-dl">
+<dt>Three-dimensional predictors</dt><dd><ul class="org-ul">
+<li><i>External</i> wall area, computed by taking the length of all walls not shared with adjacent buildings and multiplying it by the building height</li>
+<li>Height, computed by sampling LIDAR points within the building's footprint polygon</li>
+<li>Perimeter, which is just the perimeter of the footprint polygon</li>
+<li>Surface per volume, which is the ratio of the building's overall surface area (including party area) to its volume</li>
+<li>Volume, which is the footprint area multiplied by height</li>
+</ul></dd>
+<dt>Two-dimensional predictors</dt><dd><ul class="org-ul">
+<li>Footprint area</li>
+<li>Perimeter</li>
+<li>Perimeter divided by footprint</li>
+<li>Whether the building is residential or not</li>
+<li>Party perimeter, as a proportion</li>
+<li>Party perimeter, as an absolute value in metres</li>
+</ul></dd>
+<dt>SAP predictors</dt><dd><ul class="org-ul">
+<li>Floor area, estimated using building height and an assumed storey height to get a number of floors, or assuming a single floor if no height is known. 
+This has some room for improvement; for example predicting floor area from the two dimensional predictors and other building attributes might be worthwhile.</li>
+</ul></dd>
+</dl>
+
+<p>
+Other geometric predictors which might be worth considering would include functions of building orientation (e.g. south-facing area), and the number of corners or edges on the building, but we have not assessed these. We have also not explored any further categorical information about buildings, or information about their occupancy. Whilst these features might improve the predictive power, they are harder to come by and so reduce the number of places the model can be applied.
+</p>
+</div>
 </div>
 </div>
 
 <div id="outline-container-orgcf94625" class="outline-2">
 <h2 id="peak-demand-model"><a id="orgcf94625"></a><span class="section-number-2">2</span> Peak demand model</h2>
 <div class="outline-text-2" id="text-peak-demand-model">
+<p>
+The peak demand in kW \(p\) is derived as a function of the annual demand in kWh \(a\), using the rule:
+</p>
+
+<p>
+\[
+p = 21.84 + 0.0004963 \times a
+\]
+</p>
+
+<p>
+This rule is derived from analysis of smart meter data in the UK, relating peak to annual gas usage, with some assumed efficiencies and weather correction.
+</p>
 </div>
 </div>
+<div id="footnotes">
+<h2 class="footnotes">Footnotes: </h2>
+<div id="text-footnotes">
+
+<div class="footdef"><sup><a id="fn.1" class="footnum" href="#fnr.1">1</a></sup> <div class="footpara"><p class="footpara">
+ECOHEATCOOL, Work Package 1; the European Heat Market (Final Report), by Euroheat &amp; Power, 2005-2006.
+</p></div></div>
+
+<div class="footdef"><sup><a id="fn.2" class="footnum" href="#fnr.2">2</a></sup> <div class="footpara"><p class="footpara">
+<a href="https://www.bre.co.uk/filelibrary/SAP/2012/SAP-2012_9-92.pdf">SAP 2012</a>, the Government's Standard Assessment Procedure for Energy Rating of Dwellings
+</p></div></div>
+
+
 </div>
+</div></div>
 </body>
 </html>
