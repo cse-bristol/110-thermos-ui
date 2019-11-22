@@ -34,6 +34,11 @@
 
 (def HOURS-PER-YEAR 8766)
 
+(defmacro divide [a b]
+  `(let [a# ~a]
+     (if (zero? a#) 0
+         (/ a# ~b))))
+
 (defn create-graph [buildings paths]
   (apply
    graph/graph
@@ -258,7 +263,7 @@
                            (pos? maximum-kwh-saved))]
             (let [cost-per-m2 (::measure/cost-per-m2 measure 0)
                   maximum-cost (* area cost-per-m2)
-                  cost-per-kwh (/ maximum-cost maximum-kwh-saved)]
+                  cost-per-kwh (divide maximum-cost maximum-kwh-saved)]
               {:id insulation-id
                :cost      (finance/objective-value instance
                                                    :insulation-capex
@@ -455,7 +460,7 @@
             cost-per-m2 (::measure/cost-per-m2 insulation 0)
             max-area    (insulation-max-area insulation candidate)
             max-effect  (insulation-max-effect insulation candidate)
-            proportion-done (/ kwh max-effect)
+            proportion-done (divide kwh max-effect)
             area-done   (* proportion-done max-area)
             cost        (+ fixed-cost (* cost-per-m2 area-done))]
         (merge
@@ -642,7 +647,7 @@
           (let [solution-edge (solution-edges (::candidate/id e))
                 candidate-length (::path/length e)
                 input-length (or (attr/attr net-graph [(:i solution-edge) (:j solution-edge)] :length) candidate-length)
-                length-factor (if (zero? candidate-length) 0 (/ candidate-length input-length))
+                length-factor (divide candidate-length input-length)
                 diameter-mm (* (pipes/linear-evaluate power-curve (:capacity-kw solution-edge)) 1000.0)
 
                 {civil-fixed ::path/fixed-cost civil-variable ::path/variable-cost}
@@ -868,7 +873,7 @@
                    ::solution/log (str (:out output) "\n" (:err output))
                    ::solution/state (:state output-json)
                    ::solution/message (:message output-json)
-                   ::solution/runtime (/ (- end-time start-time) 1000.0))
+                   ::solution/runtime (divide (- end-time start-time) 1000.0))
                   (merge-solution net-graph power-curve market output-json)
                   (mark-unreachable net-graph included-candidates))
               ]
