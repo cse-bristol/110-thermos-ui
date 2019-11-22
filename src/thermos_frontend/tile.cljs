@@ -44,7 +44,7 @@
 
 ;; most of the work is in here - how to paint an individual tile onto the map
 ;; if there is a solution we probably want to show the solution cleanly
-(defn render-tile [has-solution? contents tile layer map-view [min-diameter max-diameter]]
+(defn render-tile [has-solution? contents tile layer map-view min-max-diameter]
   "Draw a tile.
   `document` should be a document layer (not an atom containing a document layer),
   `tile` a canvas element,
@@ -69,13 +69,23 @@
     (let [{buildings :building paths :path} (group-by ::candidate/type contents)
           {selected-buildings true non-selected-buildings false} (group-by (comp boolean ::candidate/selected) buildings)
           {selected-paths true non-selected-paths false} (group-by (comp boolean ::candidate/selected) paths)
+          
           pipe-diam-line-width
-          (fn [path]
-            (if-let [diameter (::solution/diameter-mm path)]
-              (let [rel-diam (/ (- diameter min-diameter)
-                                (- max-diameter min-diameter))]
-                (+ 1.5 (* 10 rel-diam)))
-              nil))]
+          (or
+           (and
+            min-max-diameter
+            (let [[min-diameter max-diameter] min-max-diameter]
+              (and min-diameter max-diameter
+                   (fn [path]
+                     (if-let [diameter (::solution/diameter-mm path)]
+                       (let [rel-diam (/ (- diameter min-diameter)
+                                         (- max-diameter min-diameter))]
+                         (+ 1.5 (* 10 rel-diam)))
+                       nil)))))
+           
+           (constantly nil))
+          
+          ]
 
       ;; Non-selected buildings
       (doseq [candidate non-selected-buildings]
