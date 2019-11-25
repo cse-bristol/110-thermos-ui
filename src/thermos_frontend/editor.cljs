@@ -138,38 +138,46 @@
                         300))
 
               }
-             
-             [:div
+
+             [:div.menu-block
               [:h1 "Problem"]
               [:ul
                [:li [:button.button--link-style
-                     {:on-click #(goto :candidates)}
+                     {:on-click #(goto :candidates)
+                      :class (when (= @*selected-tab :candidates) "selected")}
                      "Map view"]]
-               [:li [:button.button--link-style 
-                     {:on-click #(goto :parameters)} "Objective"]]
-               [:li [:button.button--link-style 
-                     {:on-click #(goto :tariffs)} "Tariffs"]]
-               [:li [:button.button--link-style 
-                     {:on-click #(goto :pipe-costs)} "Pipe costs"]]
-               [:li [:button.button--link-style 
-                     {:on-click #(goto :insulation)} "Insulation"]]
-               [:li [:button.button--link-style 
-                     {:on-click #(goto :alternatives)} "Individual systems"]]
+               [:li [:button.button--link-style
+                     {:on-click #(goto :parameters)
+                      :class (when (= @*selected-tab :parameters) "selected")} "Objective"]]
+               [:li [:button.button--link-style
+                     {:on-click #(goto :tariffs)
+                      :class (when (= @*selected-tab :tariffs) "selected")} "Tariffs"]]
+               [:li [:button.button--link-style
+                     {:on-click #(goto :pipe-costs)
+                      :class (when (= @*selected-tab :pipe-costs) "selected")} "Pipe costs"]]
+               [:li [:button.button--link-style
+                     {:on-click #(goto :insulation)
+                      :class (when (= @*selected-tab :insulation) "selected")} "Insulation"]]
+               [:li [:button.button--link-style
+                     {:on-click #(goto :alternatives)
+                      :class (when (= @*selected-tab :alternatives) "selected")} "Individual systems"]]
                ]]
-             
+
              (when @has-solution?
-               [:div
+               [:div.menu-block
                 [:h1 "Solution"]
                 [:ul
                  [:li [:button.button--link-style
-                       {:on-click #(goto :solution)} "Solution summary"]]
+                       {:on-click #(goto :solution)
+                        :class (when (= @*selected-tab :solution) "selected")} "Solution summary"]]
                  [:li [:button.button--link-style
-                       {:on-click #(goto :run-log)} "Run log"]]
+                       {:on-click #(goto :run-log)
+                        :class (when (= @*selected-tab :run-log) "selected")} "Run log"]]
                  ]])
 
-             [:div
+             [:div.menu-block
               [:h1 "Help"]
-              [:input
+              [:input.text-input
                {:placeholder "Search help..."
                 :type :search
                 :on-key-press
@@ -180,22 +188,22 @@
                           (js/window.open))))}
                ]
 
-              
+
               [:ul
                [:li [:a {:href "/help" :target "help"} "Help contents"]]
                [:li [:a {:href "/help/networks.html" :target "help"} "Network editor help"]]]
-              
+
               ]
-             [:div
+             [:div.menu-block
               [:h1 "Project"]
               [:ul
                [:li [:a {:href "../../../"} "Back to project"]]
                [:li [:a {:href "/"} "THERMOS home page"]]
                ]
               ]
-             
+
              ]))
-       
+
        [main-nav/component
         {:on-save (partial do-save false)
          :on-run (partial do-save true)
