@@ -68,64 +68,66 @@
    insulations        ;; list of insulations; these need other parameters to work
    ]
 
-  (let [insulated-alternatives
-        ;; foreach alternative work out which insulation it should get
-        
-        (for [a alternatives]
-          (let [a0 (evaluate-base-case term discount-rate
-                                       kwp kwh-per-year
-                                       emissions-costs
-                                       a)
-                
-                abatement-value (::abatement-value a0)
-                ]
-            (reduce
-             (fn [r i]
-               (let [{fixed-cost  ::measure/fixed-cost
-                      cost-per-m2 ::measure/cost-per-m2
-                      max-effect  ::measure/maximum-effect
-                      max-area    ::measure-maximum-area
-                      surface     ::measure/surface
-                      id          ::measure/id
-                      } i
+  (if (empty? alternatives)
+    0.0
+    (let [insulated-alternatives
+          ;; foreach alternative work out which insulation it should get
+          
+          (for [a alternatives]
+            (let [a0 (evaluate-base-case term discount-rate
+                                         kwp kwh-per-year
+                                         emissions-costs
+                                         a)
+                  
+                  abatement-value (::abatement-value a0)
+                  ]
+              (reduce
+               (fn [r i]
+                 (let [{fixed-cost  ::measure/fixed-cost
+                        cost-per-m2 ::measure/cost-per-m2
+                        max-effect  ::measure/maximum-effect
+                        max-area    ::measure-maximum-area
+                        surface     ::measure/surface
+                        id          ::measure/id
+                        } i
 
-                     area (get areas surface 0)
-                     max-cost (+ (or fixed-cost 0) (* (or cost-per-m2 0)
-                                                      (or max-area 0)))
-                     max-kwh  (* (or max-effect 0) kwh-per-year)
+                       area (get areas surface 0)
+                       max-cost (+ (or fixed-cost 0) (* (or cost-per-m2 0)
+                                                        (or max-area 0)))
+                       max-kwh  (* (or max-effect 0) kwh-per-year)
 
-                     ;; this is the present value of buying the insulation
-                     max-abatement-value (* abatement-value max-kwh)
-                     saving (- max-abatement-value max-cost)
-                     ]
+                       ;; this is the present value of buying the insulation
+                       max-abatement-value (* abatement-value max-kwh)
+                       saving (- max-abatement-value max-cost)
+                       ]
 
-                 (cond-> r
-                   (pos? saving) ;; it is worth it
-                   (-> (update ::measure/id conj id)
-                       (update ::present-cost - saving)))))
-             a0
-             insulations)))
+                   (cond-> r
+                     (pos? saving) ;; it is worth it
+                     (-> (update ::measure/id conj id)
+                         (update ::present-cost - saving)))))
+               a0
+               insulations)))
 
-        best-alternative
-        (apply min-key ::present-cost insulated-alternatives)
+          best-alternative
+          (apply min-key ::present-cost insulated-alternatives)
 
-        best-cost (::present-cost best-alternative)
-        our-offer (* best-cost (- 1.0 stickiness))
+          best-cost (::present-cost best-alternative)
+          our-offer (* best-cost (- 1.0 stickiness))
 
-        ;; this is a present cost, so our question is what unit rate gets us this cost.
-        ;; I'm not sure if there's an easy analytical solution or not
+          ;; this is a present cost, so our question is what unit rate gets us this cost.
+          ;; I'm not sure if there's an easy analytical solution or not
 
-        ;; we want offer = sum_i (k . v / (r ^ i)), solve for k; seems the PV is separable
-        pv-per-kwh (pv discount-rate (repeat term kwh-per-year))
-        ;; offer = k . v . pv1
-        ;; k = offer / v.pv1
+          ;; we want offer = sum_i (k . v / (r ^ i)), solve for k; seems the PV is separable
+          pv-per-kwh (pv discount-rate (repeat term kwh-per-year))
+          ;; offer = k . v . pv1
+          ;; k = offer / v.pv1
 
-        offer-rate (/ our-offer pv-per-kwh)
+          offer-rate (/ our-offer pv-per-kwh)
 
-        ;; round to nearest 0.1p?
-        offer-rate (/ (Math/round (* 1000.0 offer-rate)) 1000.0)
-        ]
-    (assoc best-alternative
-           ::unit-rate offer-rate
-           ::tariff/unit-charge offer-rate
-           )))
+          ;; round to nearest 0.1p?
+          offer-rate (/ (Math/round (* 1000.0 offer-rate)) 1000.0)
+          ]
+      (assoc best-alternative
+             ::unit-rate offer-rate
+             ::tariff/unit-charge offer-rate
+             ))))

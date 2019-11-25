@@ -39,7 +39,6 @@
 
               (when value-atom
                 {:on-blur
-
                  #(let [val @value-atom]
                     (set! (.. @element -value)
                           (* val scale)))})
@@ -47,8 +46,13 @@
               {:ref #(reset! element %)
                :on-change
                #(let [val (target-value %)
-                      val (/ (parse val) scale)]
-                  (on-change val))})])))
+                      val (parse val)]
+                  (if (js/isFinite val)
+                    (on-change (/ (parse val) scale))
+                    (let [val @value-atom]
+                      (set! (.. @element -value)
+                            (* val scale)))
+                    ))})])))
 
 (defn select [{value-atom :value-atom values :values
                value :value on-change :on-change
