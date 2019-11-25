@@ -8,7 +8,7 @@
             [thermos-specs.document :as document]
             [thermos-frontend.editor-state :as state]
             [thermos-frontend.preload :as preload]
-            
+
             [thermos-frontend.operations :as operations]
             [thermos-frontend.main-nav :as main-nav]
             [thermos-frontend.network-candidates-panel :as network-candidates-panel]
@@ -25,7 +25,7 @@
             [thermos-frontend.toaster :as toaster]
             [thermos-frontend.editor-keys :as keys]
             [thermos-frontend.theme :as theme]
-            
+
             [clojure.pprint :refer [pprint]]
             [clojure.string :as s]
             [goog.ui.SplitPane :refer [SplitPane Component]]
@@ -45,7 +45,7 @@
       (toaster/show!
        [:div.toaster.toaster--error
         "Cannot optimise until you have added some demands and supplies!"]))
-    
+
     (when-not (and invalid (not (state/needs-save?)))
       (state/save!
        name
@@ -55,44 +55,72 @@
           (toaster/show! [:div.toaster.toaster--success "Project saved"]))))))
 
 
-(defn map-page [document]
-  (r/with-let [h-split-pos (r/cursor document
+(defn map-page [doc]
+  (r/with-let [h-split-pos (r/cursor doc
                                      [::view/view-state
                                       ::view/map-page-h-split]
                                      )
-               v-split-pos (r/cursor document
+               v-split-pos (r/cursor doc
                                      [::view/view-state
                                       ::view/map-page-v-split]
                                      )
-               ]
+               v-splitter-element (atom nil)
+               v-splitter-dblclick-listener (atom nil)]
 
     [rc/h-split
      :initial-split (or @h-split-pos 60)
      :on-split-change #(reset! h-split-pos %)
      :margin "0"
-     :panel-1 [:div.map-container [map/component document] [view-control/component document]]
+     :panel-1 [:div.map-container [map/component doc] [view-control/component doc]]
      :panel-2
-     
-     [rc/v-split
-               :style {:height :100%}
-               :initial-split (or @v-split-pos 75)
-               :on-split-change #(reset! v-split-pos %)
-               :margin "0"
-               :panel-1 [selection-info-panel/component document]
-               :panel-2 [:div
-                         {:style {:width :100%}}
-                         [network-candidates-panel/component document]]
-               ]]
-    )
-  
-  )
+
+     [(r/create-class
+      {:reagent-render
+       (fn []
+         [rc/v-split
+          :style {:height :100%}
+          :initial-split (or @v-split-pos 75)
+          :on-split-change #(reset! v-split-pos %)
+          :margin "0"
+          :panel-1 [selection-info-panel/component doc]
+          :panel-2 [:div
+                    {:style {:width :100%}}
+                    [network-candidates-panel/component doc]]
+          ])
+       :component-did-mount
+       (fn [arg]
+         (let [vsplitter (.querySelector js/document ".re-v-split-splitter")
+               listener
+               (.addEventListener
+                vsplitter "dblclick"
+                (fn [e]
+                  (let [container (.querySelector js/document ".rc-v-split")
+                        container-height (.-offsetHeight container)
+                        new-bottom-pane-height (/ 4000 container-height) ;; 40px as % of container
+                        new-top-pane-height (- 100 new-bottom-pane-height)
+                        bottom-pane (.querySelector js/document ".re-v-split-bottom")
+                        top-pane (.querySelector js/document ".re-v-split-top")]
+                    (set! (.. top-pane -style -flex) (str new-top-pane-height " 1 0px"))
+                    (set! (.. bottom-pane -style -flex) (str new-bottom-pane-height " 1 0px"))
+                    (reset! v-split-pos new-top-pane-height))))]
+           ;; Set these atoms so we can grab them to remove the listener when the
+           ;; component is unmounted
+           (reset! v-splitter-element vsplitter)
+           (reset! v-splitter-dblclick-listener listener)))
+
+       :component-will-unmount
+       (fn []
+         ;; Remove the double click event listener
+         (.removeEventListener @v-splitter-element "dblclick" @v-splitter-dblclick-listener))
+       })]]))
+
 (defn main-page []
   (r/with-let [*selected-tab (r/cursor state/state [::view/view-state ::view/selected-tab])
                *show-menu (r/atom false)
                has-solution? (r/track #(document/has-solution? @state/state))
                has-valid-solution? (r/track #(solution/valid-state?
                                              (keyword (::solution/state @state/state))))]
-    
+
     (let [close-popover
           (fn [e]
             (let [popover-menu-node (js/document.querySelector ".popover-menu")
@@ -100,7 +128,7 @@
                                                 (not (.contains popover-menu-node e.target)))
                   ]
               (when click-is-outside-popover (popover/close!))))
-          
+
           close-table-filter
           (fn [e]
             (when (operations/table-filter-open? @state/state)
@@ -109,7 +137,7 @@
           menu-timer (atom nil)
 
           selected-tab (or @*selected-tab :candidates)]
-      
+
       [:div {:style {:height :100% :width :100%
                      :display :flex
                      :flex-direction :column}
@@ -128,7 +156,7 @@
                       :display :flex
                       :flex-direction :column
                       :background "rgba(255,255,255,0.95)"}
-              
+
               :on-mouse-enter
               #(js/clearTimeout @menu-timer)
               :on-mouse-leave
@@ -215,7 +243,7 @@
            :style {:background :none
                    :border :none}}
           theme/icon]
-         
+
          :name (preload/get-value :name)
          :unsaved? (state/needs-save?)}]
 
@@ -241,14 +269,14 @@
                       :overflow :auto
                       :display :flex
                       :flex-direction :column}}
-        
-        (cond 
+
+        (cond
           (= selected-tab :candidates)
           [map-page state/state]
 
           (= selected-tab :parameters)
           [objective/objective-parameters state/state]
-          
+
           (= selected-tab :tariffs)
           [tariff-parameters/tariff-parameters state/state]
 
@@ -260,8 +288,8 @@
 
           (= selected-tab :alternatives)
           [alternatives/alternatives-parameters state/state]
-          
-          
+
+
           (= selected-tab :solution)
           [solution-view/solution-summary state/state]
 
@@ -270,7 +298,7 @@
 
           :else
           [:div "Unknown page!!! urgh!"])]
-       
+
        [popover/component state/state]
        [toaster/component]]
       )))
