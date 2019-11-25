@@ -8,77 +8,54 @@
             [thermos-util :refer [next-integer-key]]
             [thermos-frontend.util :refer [target-value]]))
 
-(defn- insulation-row [{id :key} *doc measure *insulation]
-  [:div.card {:key id :style {:flex 1}}
-   [:table
-    [:tbody
-     [:tr
-      [:th {:style {:text-align :right}} "Name:"]
-      [:td {:col-span 2}
-       [inputs/text
-        :on-change #(swap! *insulation assoc-in [id ::measure/name] (target-value %))
-        :value (::measure/name measure)]]]
-     [:tr
-      [:th {:style {:text-align :right}} "Applies to:"]
-      [:td {:col-span 2}
-       [inputs/radio-group
-        {:options [{:key :roof :label "Roof"}
-                   {:key :floor :label "Floor"}
-                   {:key :wall :label "Wall"}]
-         :value (::measure/surface measure)
-         :on-change #(swap! *insulation assoc-in [id ::measure/surface] %)}]]
-      ]
-
-     [:tr
-      [:th {:style {:text-align :right}} "Fixed cost:"]
-      [:td [inputs/number
-            {:style {:width :100%}
-             :min 0
-             :max 10000
-             :value (::measure/fixed-cost measure)
-             :on-change #(swap! *insulation assoc-in [id ::measure/fixed-cost] %)}]]
-      [:td "¤"]]
-
-     [:tr
-      [:th {:style {:text-align :right}} "Variable cost:"]
-      [:td [inputs/number
-            {:style {:width :100%}
-             :min 0
-             :max 1000
-             :value (::measure/cost-per-m2 measure)
-             :on-change #(swap! *insulation assoc-in [id ::measure/cost-per-m2] %)}]]
-      [:td "¤/m" [:sup "2"]]
-      ]
-
-     [:tr
-      [:th {:style {:text-align :right}} "Maximum effect:"]
-      [:td [inputs/number
-            {:style {:width :100%}
-             :min 0 :max 100
-             :scale 100
-             :value (::measure/maximum-effect measure)
-             :on-change #(swap! *insulation assoc-in [id ::measure/maximum-effect] %)}]]
-      [:td "%"]
-      ]
-
-     [:tr
-      [:th {:style {:text-align :right}} "Maximum area:"]
-      [:td [inputs/number
-            {:style {:width :100%}
-             :scale 100
-             :min 0 :max 100
-             :value (::measure/maximum-area measure)
-             :on-change #(swap! *insulation assoc-in [id ::measure/maximum-area] %)}]]
-      [:td "%"]
-      ]
-     
-     ]
-    ]
-   
-   [:button.button
-    {:on-click #(swap! *doc document/remove-insulation id)}
-    "DELETE " symbols/cross]
-   ])
+(defn- insulation-row
+  [{id :key} *doc measure *insulation]
+  (println "Measure" measure)
+  [:tr {:key id :style {:height :50px}}
+   [:td
+    [inputs/text
+     :on-change #(swap! *insulation assoc-in [id ::measure/name] (target-value %))
+     :value (::measure/name measure)]]
+   [:td
+    [inputs/radio-group
+     {:options [{:key :roof :label "Roof"}
+                {:key :floor :label "Floor"}
+                {:key :wall :label "Wall"}]
+      :value (::measure/surface measure)
+      :on-change #(swap! *insulation assoc-in [id ::measure/surface] %)}]]
+   [:td
+    [inputs/number
+     {:min 0
+      :max 10000
+      :value (::measure/fixed-cost measure)
+      :on-change #(swap! *insulation assoc-in [id ::measure/fixed-cost] %)}]
+    " ¤"]
+   [:td
+    [inputs/number
+     {:min 0
+      :max 1000
+      :value (::measure/cost-per-m2 measure)
+      :on-change #(swap! *insulation assoc-in [id ::measure/cost-per-m2] %)}]
+    " ¤/m" [:sup "2"]]
+   [:td
+    [inputs/number
+     {:min 0 :max 100
+      :scale 100
+      :value (::measure/maximum-effect measure)
+      :on-change #(swap! *insulation assoc-in [id ::measure/maximum-effect] %)}]
+    " %"]
+   [:td
+    [inputs/number
+     {:scale 100
+      :min 0 :max 100
+      :value (::measure/maximum-area measure)
+      :on-change #(swap! *insulation assoc-in [id ::measure/maximum-area] %)}]
+    " %"]
+   [:td {:style {:width :1px}}
+    [:button.button
+     {:title "Delete"
+      :on-click #(swap! *doc document/remove-insulation id)}
+     symbols/cross]]])
 
 (defn- create-new-measure [insulation]
   (let [id (next-integer-key insulation)]
@@ -94,7 +71,8 @@
   (reagent/with-let [*insulation
                      (reagent/cursor doc [::document/insulation])]
     [:div
-     [:div.card.flex-cols
+     [:div.card
+      [:h2.card-header "Insulation"]
       [:div
        "Buildings can have insulation measures, which reduce their heat demand. "
        "Here you can define insulation measures - each one has:"
@@ -107,12 +85,25 @@
        [:a {:href "#"
             :on-click #(swap! doc view/switch-to-tab :parameters)} "objective settings"]
        "."]
-      
-      [:div.flush-right
-       [:button.button
-        {:on-click #(swap! *insulation create-new-measure)}
-        symbols/plus " Add"]]]
 
-     [:div.flex-cols {:style {:flex-wrap :wrap}}
-      (for [[id measure] (sort-by first @*insulation)]
-        [insulation-row {:key id} doc measure *insulation])]]))
+      [:br] [:br]
+
+      (when (seq @*insulation)
+        [:table.table
+         [:thead
+          [:tr
+           [:th "Name"]
+           [:th "Applies to"]
+           [:th "Fixed cost"]
+           [:th "Variable cost"]
+           [:th "Maximum Effect"]
+           [:th "Maximum area"]
+           [:th]]]
+         [:tbody
+          (for [[id measure] (sort-by first @*insulation)]
+            [insulation-row {:key id} doc measure *insulation])]])
+      [:div {:style {:text-align :center :margin-top :10px}}
+       [:button.button
+       {:on-click #(swap! *insulation create-new-measure)}
+        symbols/plus " Add measure"]]]
+     ]))
