@@ -16,37 +16,49 @@
   position: relative;
   max-width: 100%;
 
-  
+
 }
 
 .tag.constraint.optional {
     background: @theme-blue;
     .tag__body { color: white; }
+    .tag__close { color: darken(@theme-blue, 20%); }
+    .tag__close:hover { color: darken(@theme-blue, 25%); }
 }
 
 .tag.constraint.required {
     background: @theme-red;
     .tag__body { color: white; }
+    .tag__close { color: darken(@theme-red, 25%); }
+    .tag__close:hover { color: darken(@theme-red, 30%); }
 }
 
 .tag.solution.impossible {
     background: @theme-magenta;
     .tag__body { color: white; }
+    .tag__close { color: darken(@theme-magenta, 25%); }
+    .tag__close:hover { color: darken(@theme-magenta, 30%); }
 }
 
 .tag.solution.no {
-    background: @theme-yellow;
-    .tag__body { color: black; }
+    background: @theme-beige;
+    .tag__body { color: darken(@theme-beige, 45%); }
+    .tag__close { color: darken(@theme-beige, 35%); }
+    .tag__close:hover { color: darken(@theme-beige, 40%); }
 }
 
 .tag.solution.individual {
     background: @theme-green;
-    .tag__body { color: black; }
+    .tag__body { color: darken(@theme-green, 35%); }
+    .tag__close { color: darken(@theme-green, 25%); }
+    .tag__close:hover { color: darken(@theme-green, 30%); }
 }
 
 .tag.solution.network {
-    background: @theme-blue;
-    .tag__body { color: black; }
+    background: @theme-orange;
+    .tag__body { color: #fff; }
+    .tag__close { color: #ddd; }
+    .tag__close:hover { color: #fff; }
 }
 
 .tag__body {
