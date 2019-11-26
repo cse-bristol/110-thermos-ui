@@ -20,6 +20,7 @@
             [thermos-frontend.supply-parameters :as supply-parameters]
             [thermos-frontend.candidate-editor :as candidate-editor]
             [thermos-frontend.connector-tool :as connector]
+            [thermos-frontend.demand-tool :as demand-tool]
             [thermos-frontend.reactive-layer :as reactive-layer]
 
             [thermos-specs.document :as document]
@@ -40,6 +41,7 @@
          unmount
          candidates-layer
          connector-layer
+         demand-tool-layer
          layers-control
          render-tile
          draw-control
@@ -133,6 +135,10 @@
         connector-layer (connector-layer {:tileSize 256
                                           :minZoom 15
                                           :maxZoom 20})
+        
+        demand-tool-layer (demand-tool-layer {:tileSize 256
+                                              :minZoom 15
+                                              :maxZoom 20})
 
         draw-control (draw-control {:position :topleft
                                     :draw {:polyline false
@@ -143,7 +149,7 @@
                                            }})
 
         candidates-layer
-        (js/L.layerGroup #js [candidates-layer connector-layer])
+        (js/L.layerGroup #js [candidates-layer connector-layer demand-tool-layer])
 
         normal-layers {::view/candidates-layer candidates-layer
                        ::view/heat-density-layer heat-density-layer
@@ -173,6 +179,7 @@
             ]))
 
         connector-control (create-leaflet-control connector/create-control)
+        building-control (create-leaflet-control demand-tool/create-control)
 
         follow-map!
         #(let [bounds (.getBounds map)]
@@ -254,6 +261,8 @@
                       (clj->js {:position :topleft})))
     (.addControl map (connector-control.
                       (clj->js {:position :topleft})))
+    (.addControl map (building-control.
+                      (clj->js {:position :topleft})))
 
     (.on map "moveend" follow-map!)
     (.on map "zoomend" follow-map!)
@@ -290,14 +299,25 @@
 
       (.on map "mousemove"
            (fn [e]
-             (when (connector/is-drawing?)
+             (cond
+               (connector/is-drawing?)
                (let [latln  (o/get e "latlng")
                      hitbox (latlng->jsts-shape latln (pixel-size))
 
                      hover-candidate (first (spatial/find-intersecting-candidates @document hitbox))]
                  (if hover-candidate
                    (connector/mouse-moved-to-candidate! hover-candidate)
-                   (connector/mouse-moved-to-point! (latlng->jsts-point latln)))))))
+                   (connector/mouse-moved-to-point! (latlng->jsts-point latln))))
+
+               (demand-tool/is-drawing?)
+               (let [latln  (o/get e "latlng")
+                     hitbox (latlng->jsts-shape latln (pixel-size))
+                     hover-candidate (first (spatial/find-intersecting-candidates @document hitbox))]
+                 
+                 (if hover-candidate
+                   (demand-tool/draw-at! nil)
+                   (demand-tool/draw-at! (latlng->jsts-point latln))))
+               )))
 
       (.on map "click"
            (fn [e]
@@ -313,6 +333,9 @@
                  (connector/is-drawing?)
                  (connector/mouse-clicked!)
 
+                 (demand-tool/is-drawing?)
+                 (demand-tool/mouse-clicked!)
+                 
                  (= @draw-state :stop-rectangle)
                  (reset! draw-state nil)
 
@@ -459,7 +482,7 @@
                   )))
          )))))
 
-(defn connector-layer [doc args]
+ (defn connector-layer [doc args]
   (let [map-view (reagent/track #(-> @doc ::view/view-state ::view/map-view))]
     (reactive-layer/create
      :constructor-args args
@@ -472,6 +495,19 @@
         (reagent/track!
          (fn []
            (connector/render-tile! canvas coords layer))))))))
+
+(defn demand-tool-layer [doc args]
+  (reactive-layer/create
+   :constructor-args args
+   :internal-id "new-buildings"
+   :paint-tile
+   (fn [canvas coords layer bbox]
+     ;; because there is not a lot to render in the connector layer,
+     ;; we don't need to do optimisations for it
+     (list
+      (reagent/track!
+       (fn []
+         (demand-tool/render-tile! canvas coords layer)))))))
 
 (defn- layers-control [choices extras]
   "Create a leaflet control to choose which layers are displayed on the map.

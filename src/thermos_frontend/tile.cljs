@@ -244,7 +244,7 @@
                    true false true))
 
 (def point-radius
-  "The screen-units radius for a Point geometry." 4.0)
+  "The screen-units radius for a Point geometry." 8.0)
 
 (defn render-geometry
   [geom ctx project fill? close? shadow?]
