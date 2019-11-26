@@ -3,3 +3,5 @@
 !thermos-backend.content-migrations.add-new-pipe-parameters/migrate
 --;;
 !thermos-backend.content-migrations.split-connection-costs/migrate
+--;;
+!thermos-backend.content-migrations.add-map-view/migrate
