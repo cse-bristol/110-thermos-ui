@@ -31,3 +31,81 @@
 .table--white-bg {
   background: #fff;
 }
+
+
+.table-cell-expandable {
+  max-height: 40px;
+  overflow-y: hidden;
+}
+
+.table-cell-expandable--expanded {
+  max-height: initial;
+  border: 1px solid #444;
+}
+
+
+
+.crud-list {
+  max-width: 900px;
+}
+.crud-list__item {
+  position: relative;
+  padding: 15px;
+  padding-left: 20px;
+  border-top: 1px solid #ccc;
+  &:first-child { border-top: none; }
+  &:hover {
+    border-left: 3px solid @theme-blue;
+    padding-left: 17px;
+    .crud-list__title input[type="text"] {
+      background: #eee;
+      border-color: #eee;
+    }
+  }
+  h2, h3, h4 {
+    font-size: 1em;
+    font-weight: bold;
+    margin-bottom: 1em;
+  }
+  table {
+    td {
+      padding: 0 10px;
+    }
+    td:first-child {
+      padding-left: 0;
+    }
+    td:last-child {
+      padding-right: 0;
+    }
+  }
+}
+.crud-list__delete {
+  width: 30px;
+  height: 30px;
+  position: absolute;
+  top: 1em;
+  right: 1em;
+  border: none;
+  border-radius: 15px;
+  font-size: 1em;
+  cursor: pointer;
+  background: #ccc;
+  &:hover {
+    background: #bbb;
+  }
+}
+.crud-list__title {
+  width: calc(~"100% - 30px");
+  margin-bottom: 1em;
+  input[type="text"] {
+    font-size: 1.3em;
+    font-weight: bold;
+    background: transparent;
+    margin-left: -8px;
+    border-color: transparent;
+    min-width: 360px;
+    &:hover, &:focus {
+      border-color: #999;
+    }
+  }
+}

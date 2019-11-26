@@ -20,69 +20,73 @@
             :fixed-cost 0
             :emissions {}})))
 
-(defn- alternative-row [*doc id alternative *alternatives]
-  [:div.card.flex-rows
+(defn- alternative-row
+  [*doc id alternative *alternatives]
+  [:div.crud-list__item {:key id}
    [:div.flex-cols
-    "Name: "[inputs/text
-             :style {:flex-grow 1}
-             :value (::supply/name alternative "")
-             :on-change #(swap! *alternatives assoc-in
-                                [id ::supply/name] (target-value %))]]
+    [:div.crud-list__title
+     [inputs/text
+      :style {:flex-grow 1}
+      :value (::supply/name alternative "")
+      :placeholder "Name"
+      :on-change #(swap! *alternatives assoc-in
+                         [id ::supply/name] (target-value %))]]
+     [:button.crud-list__delete
+      {:title "Delete"
+       :on-click #(swap! *doc document/remove-alternative id)}
+      symbols/cross]
+    ]
    [:div.flex-cols
-    {:style {:flex-wrap :wrap}}
-    [:div
-     [:b "Costs"]
+    [:div.flex-grow
+     [:h3 "Costs"]
      [:table
       [:tbody
-       [:tr
-        [:th "Heat cost / kWh"]
+       [:tr {:key "heat-cost"}
+        [:td "Heat cost / kWh"]
         [:td [inputs/number
               {:min 0 :max 100 :scale 100
                :step 0.1 :value (::supply/cost-per-kwh alternative 0)
                :on-change #(swap! *alternatives assoc-in
                                   [id ::supply/cost-per-kwh] %)}]]
-        [:td "c/kWh"]]
-       
-       [:tr
-        [:th "Fixed capital cost"]
-        [:td 
+        [:td "c/kWh"]
+        ]
+       [:tr {:key "fixed-cost"}
+        [:td "Fixed capital cost"]
+        [:td
          [inputs/number
           {:min 0 :max 50000
            :value (::supply/fixed-cost alternative 0)
            :on-change #(swap! *alternatives assoc-in
                               [id ::supply/fixed-cost] %)}]]
         [:td
-         "¤"]]
-
-       [:tr
-        [:th "Variable capital cost"]
-        [:td 
+         "¤"]
+        ]
+       [:tr {:key "var-cost"}
+        [:td "Variable capital cost"]
+        [:td
          [inputs/number
           {:min 0 :max 1000
            :value (::supply/capex-per-kwp alternative 0)
            :on-change #(swap! *alternatives assoc-in
                               [id ::supply/capex-per-kwp] %)}]]
         [:td
-         "¤/kWp"]]
-
-       [:tr
-        [:th "Operating cost"]
-        [:td 
+         "¤/kWp"]
+        ]
+       [:tr {:key "op-cost"}
+        [:td "Operating cost"]
+        [:td
          [inputs/number
           {:min 0 :max 1000
            :value (::supply/opex-per-kwp alternative 0)
            :on-change #(swap! *alternatives assoc-in
                               [id ::supply/opex-per-kwp] %)}]]
         [:td
-         "¤/kWp"]]]]]
-
-    [:div
-     [:b "Emissions factors"]
+         "¤/kWp"]
+        ]]]
+     ]
+    [:div.flex-grow
+     [:h3 "Emissions factors"]
      [:table
-      [:thead
-       [:tr
-        [:th "Type"]
-        [:th "g/kWh"]]]
       [:tbody
        (for [e candidate/emissions-types]
          [:tr {:key e}
@@ -94,29 +98,25 @@
                  :on-change #(swap! *alternatives
                                     assoc-in
                                     [id ::supply/emissions e]
-                                    %)}]]])]]]]
-   [:div
-    [:button.button
-     {:on-click #(swap! *doc document/remove-alternative id)}
-     "DELETE " symbols/cross]]
-   ])
+                                    %)}]]
+          [:td "g/kWh"]])]]]]])
 
 (defn alternatives-parameters [doc]
   (reagent/with-let [*alternatives
                      (reagent/cursor doc [::document/alternatives])]
-    [:div
-     [:div.card.flex-cols
-      [:div
-       "Buildings can either use a heat network or an individual system as their heat source."
-       "Here you can define the parameters of individual systems."]
-      
-      [:div.flush-right
-       [:button.button
-        {:on-click #(swap! *alternatives create-new-alternative)}
-        symbols/plus " Add"]]]
-     [:div.flex-cols {:style {:flex-wrap :wrap}}
-      (for [[id alternative] @*alternatives]
-        [:div {:key id}
-         [alternative-row doc id alternative *alternatives]])]]))
 
+    [:div.card
+     [:h2.card-header "Individual Systems"]
+     [:div
+      "Buildings can either use a heat network or an individual system as their heat source. "
+      "Here you can define the parameters of individual systems."]
+     [:br] [:br]
 
+     [:div.crud-list
+      (for [[id alternative] (sort-by first @*alternatives)]
+        [alternative-row doc id alternative *alternatives])]
+
+     [:div {:style {:text-align :center :margin-top :20px :max-width :900px}}
+      [:button.button
+       {:on-click #(swap! *alternatives create-new-alternative)}
+       symbols/plus " Add system"]]]))
