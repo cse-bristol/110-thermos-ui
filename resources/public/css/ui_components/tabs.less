@@ -33,7 +33,7 @@
 .tabs__tab {
     display: inline-block;
     padding: 15px 5px;
-    margin-right: 10px;
+    margin-right: 12px;
     font-weight: bold;
     color: #888;
     cursor: pointer;
@@ -58,4 +58,23 @@
 }
 .tabs__page--active {
     display: block;
+}
+
+.tabs__tabs--pills {
+    border-bottom: none;
+    .tabs__tab {
+        height: 30px;
+        line-height: 30px;
+        border-radius: 20px;
+        padding: 0 10px;
+        border: none;
+        &:hover {
+            background: #eee;
+            color: #666;
+        }
+    }
+    .tabs__tab--active, .tabs__tab--active:hover {
+        background: @theme-blue;
+        color: #fff;
+    }
 }

@@ -14,21 +14,27 @@ div.solution-component {
 
    h2 { font-size:1.5em; }
 
+   .section-header {
+      font-size: 1.2em;
+      font-weight: bold;
+      display: block;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #ccc;
+      margin-bottom: 2em;
+   }
+
+   section {
+      padding: 1em;
+   }
+
    table {
        margin-bottom:1em;
-       font-size:1.2em;
+       font-size: 1em;
        border-collapse:collapse;
        white-space: nowrap;
    }
 
-   th {
-       color:black;
-   }
 
-   td, th {
-       text-align:right;
-   }
-   
    td.cost {
       color:#f33;
    }
@@ -43,5 +49,47 @@ div.solution-component {
            background: antiquewhite;
            color:black;
        }
+   }
+   .emissions-table {
+      td:nth-child(odd) {
+         border-right: 1px solid #bbb;
+      }
+      td:first-child, td:last-child {
+         border-right: none;
+      }
+      thead {
+         th:nth-child(odd), th.border-right {
+            border-right: 1px solid #bbb;
+         }
+         th:first-child, th:last-child {
+            border-right: none;
+         }
+      }
+   }
+
+   .display-control-section {
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      margin-bottom: 2em;
+      h3, h4 {
+         font-size: 1.3em;
+         font-weight: bold;
+         display: block;
+         margin-bottom: 1em;
+         color: #777;
+      }
+      h4 { font-size: 1em; }
+      .flex-col {
+         margin-right: 1em;
+      }
+      label {
+         margin-right: 10px;
+      }
+   }
+}
+
+.solution-table-unit-header {
+   tr th {
+      height: 25px;
    }
 }
