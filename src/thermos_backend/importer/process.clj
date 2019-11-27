@@ -112,7 +112,20 @@
         highways
         (->> query-results
              (filter :highway)
-             (filter (comp #{:line-string} ::geoio/type))
+             ;; some highways are polygons!
+             (keep
+              (fn [i]
+                (cond
+                  (= :line-string (::geoio/type i)) i
+                  (= :polygon (::geoio/type i))
+                  ;; If it's a polygon, we want to turn it into a line string.
+                  ;; We can do this by replacing it with its exterior ring.
+                  ;; This is safe, since we're going to node it later.
+                  (let [geometry (::geoio/geometry i)]
+                    (when (zero? (.getNumInteriorRing geometry))
+                      (geoio/update-geometry
+                       i
+                       (.getExteriorRing geometry)))))))
              (map set-road-type))]
 
     (cond-> state
