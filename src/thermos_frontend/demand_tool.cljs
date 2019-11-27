@@ -8,6 +8,7 @@
 
             [thermos-specs.document :as document]
             [thermos-specs.candidate :as candidate]
+            [thermos-specs.demand :as demand]
             ))
 
 (def start-state {::drawing false})
@@ -80,6 +81,8 @@
              ::candidate/selected true
              ::spatial/jsts-geometry geometry
              ::candidate/inclusion :optional
+             ::demand/kwh 0
+             ::demand/kwp 0
              }
             ]
         (editor-state/edit-geometry!
