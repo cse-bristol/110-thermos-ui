@@ -14,12 +14,32 @@
       text-align: right;
     }
   }
+  tbody th {
+    height: 40px;
+    font-size: 0.9em;
+  }
   td {
     height: 40px;
     padding: 0 10px;
     &.align-right {
       text-align: right;
     }
+  }
+  th.numeric, td.numeric {
+    text-align: right;
+  }
+  .totals-row {
+    background: #eef;
+    font-weight: bold;
+    th { color: #555; }
+    td { height: 45px; }
+  }
+  .grand-totals-row {
+    background: #e1e1ff;
+    font-weight: bold;
+    border-top: 2px solid #778;
+    th { color: #555; }
+    td { height: 50px; }
   }
 }
 .table--alternating {
@@ -43,7 +63,24 @@
   border: 1px solid #444;
 }
 
+.table--variable-width {
+  width: initial;
+}
 
+.table--hover {
+  tr:hover {
+    background: #f5f5f5;
+  }
+  thead tr:hover {
+    background: initial;
+  }
+  .totals-row:hover {
+    background: darken(#eef, 1%);
+  }
+  .grand-totals-row:hover {
+    background: darken(#e1e1ff, 1%);
+  }
+}
 
 .crud-list {
   max-width: 900px;

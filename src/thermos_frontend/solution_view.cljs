@@ -33,7 +33,7 @@
    [:ol
     [:li
      [:p "There are required demands which are not reachable from any supply location."]]
-    
+
     [:li
      [:p "The total peak demand in some part of the problem exceeds the maximum supply capacity connectable to it."]]
 
@@ -83,12 +83,12 @@
      [unknown-state document])])
 
 (defn- unit-header [& stuff]
-  [:thead
+  [:thead.solution-table-unit-header
    [:tr
-    (map-indexed (fn [i [l _]] [:th {:key i} l]) stuff)]
+    (map-indexed (fn [i [l _]] [:th {:key i :class (when (> i 0) "numeric")} l]) stuff)]
 
    [:tr {:style {:font-size :small}}
-    (map-indexed (fn [i [_ l]] [:th {:key i} l]) stuff)]])
+    (map-indexed (fn [i [_ l]] [:th {:key i :class (when (> i 0) "numeric")} l]) stuff)]])
 
 
 (defn- summary-card [{opex-mode :opex-mode
@@ -104,16 +104,15 @@
                       demands :demands
                       insulated :insulated
                       by-insulation :by-insulation}]
-  [:div.card
-   [:h1 "Cost summary"]
-   
-   [:table {:style {:width :100%}}
-    [unit-header
-     ["Item"]
-     ["Capital cost" capex-label]
-     ["Operating cost" opex-label]
-     ["Operating revenue" opex-label]
-     ["NPV" "¤"]]
+  [:section
+   [:table.table.table--hover {:style {:max-width :900px}}
+    [:thead
+     [:tr
+      [:th "Item"]
+      [:th.numeric "Capital cost (" capex-label ")"]
+      [:th.numeric "Operating cost (" opex-label ")"]
+      [:th.numeric "Operating revenue (" opex-label ")"]
+      [:th.numeric "NPV (¤)" ]]]
 
     (let [add-up
           (fn [& {:keys [capex opex revenue]}]
@@ -128,9 +127,9 @@
           rows
           [["Network"
             [["Pipework" (add-up :capex (map ::solution/pipe-capex paths))]
-             
+
              ["Heat supply"
-              (add-up 
+              (add-up
                :capex (map ::solution/supply-capex supplies)
                :opex  (mapcat (juxt ::solution/supply-opex
                                     ::solution/heat-cost)
@@ -174,7 +173,7 @@
               (when (seq vs)
                 (format/si-number (reduce + vs))))
             )
-          
+
           ]
       [:tbody
        (for [[row-name rows] rows
@@ -183,27 +182,25 @@
           (for [[row-name {cap :capex op :opex rev :revenue p :present}] rows]
             [:tr {:key row-name}
              [:th row-name]
-             [:td (when cap (format/si-number cap))]
-             [:td (when op (format/si-number op))]
-             [:td (when rev (format/si-number rev))]
-             [:td (format/si-number p)]])
-          [:tr {:key row-name :style {:font-style :italic
-                                      :border-top "1px grey solid"
-                                      :border-bottom "2px grey solid"}}
+             [:td.numeric (if cap (format/si-number cap) "--")]
+             [:td.numeric (if op (format/si-number op) "--")]
+             [:td.numeric (if rev (format/si-number rev) "--")]
+             [:td.numeric (format/si-number p)]])
+          [:tr.totals-row {:key row-name}
            [:th row-name]
-           [:td (totalise row-vals :capex)]
-           [:td (totalise row-vals :opex)]
-           [:td (totalise row-vals :revenue)]
-           [:td (totalise row-vals :present)]]))
-       
-       (let [rows (->> rows (mapcat second) (map second))]
-         [:tr {:style {:border-top "3px black solid"}}
-          [:th "Whole system"]
-          [:td (totalise rows :capex)]
-          [:td (totalise rows :opex)]
-          [:td "n/a"]
+           [:td.numeric (or (totalise row-vals :capex) "--")]
+           [:td.numeric (or (totalise row-vals :opex) "--")]
+           [:td.numeric (or (totalise row-vals :revenue) "--")]
+           [:td.numeric (or (totalise row-vals :present) "--")]]))
 
-          [:td.has-tt
+       (let [rows (->> rows (mapcat second) (map second))]
+         [:tr.grand-totals-row
+          [:th "Whole system"]
+          [:td.numeric (totalise rows :capex)]
+          [:td.numeric (totalise rows :opex)]
+          [:td.numeric "n/a"]
+
+          [:td.numeric.has-tt
            {:title "This does not include network revenues"}
            (format/si-number
             (- (reduce + 0
@@ -227,121 +224,130 @@
                       insulated :insulated
                       by-insulation :by-insulation}
                      parameters]
-  [:div.card
-   [:h1 "Network"]
-   (cond
-     (empty? supplies)
-     "No network was constructed."
-     
-     (empty? paths)
-     "A network was constructed, but it contains only the supply."
+    (let [active-tab (reagent/atom :pipework)]
+      (fn []
+        [:section
+         (cond
+           (empty? supplies)
+           "No network was constructed."
 
-     :else
-     [:div
-      [:table {:style {:width :100%}}
-       [:caption "Pipework"]
-       [unit-header
-        ["Civils"]
-        ["⌀" "mm"]
-        ["Length" "m"]
-        ["Cost" capex-label]
-        ["Cost" [:span capex-label "/m"]]
-        ["Losses" "Wh/yr"]
-        ["Capacity" "W"]]
-       
-       [:tbody
-        (let [pipework-row
-              (fn [{key :key} civ dia pipes]
-                (when (seq pipes)
-                  (let [length (reduce + (map ::path/length pipes))
-                        cost (reduce + (map (comp capex-mode
-                                                  ::solution/pipe-capex)
-                                            pipes))
-                        losses (* 1000
-                                  (reduce + (map ::solution/losses-kwh
-                                                 pipes)))
-                        capacity (* 1000
-                                    (reduce max (map ::solution/capacity-kw
-                                                     pipes)))]
-                    [:tr {:key key}
-                     [:td civ]
-                     [:td dia]
-                     [:td (format/si-number length)]
-                     [:td (format/si-number cost)]
-                     [:td (format/si-number (/ cost length))]
-                     [:td (format/si-number losses)]
-                     [:td (format/si-number capacity)]
-                     ])))
-              pipework-groups
-              (sort-by first
-                       (group-by
-                        (juxt
-                         ::path/civil-cost-id
-                         #(Math/floor (/ (::solution/diameter-mm %) 10)))
-                        paths))]
-          (list
-           (doall
-            (for [[[civ sz] paths] pipework-groups]
-              [pipework-row
-               {:key [civ sz]}
-               (document/civil-cost-name @parameters civ)
-               (str (* 10 sz) "-" (* 10 (inc sz)))
-               paths]))
-           (when (> (count pipework-groups) 1)
-             (pipework-row
-              {:key :all}
-              [:b "All"] "" paths))))]]
-      [:table {:style {:width :100%}}
-       [:caption "Demands"]
-       [unit-header
-        ["Classification"]
-        ["Count"]
-        ["Capacity" "W"]
-        ["Demand" "Wh/yr"]
-        ["Conn. cost" capex-label]
-        ["Revenue" opex-label]]
+           (empty? paths)
+           "A network was constructed, but it contains only the supply."
 
-       [:tbody
-        (for [[class demands] (sort-by first (group-by ::candidate/subtype demands))
-              :let [class (or class "Unclassified")]]
-          [:tr {:key class}
-           [:td class]
-           [:td (count demands)]
-           [:td (format/si-number
-                 (* 1000
-                    (reduce + 0 (map ::demand/kwp demands))))]
-           [:td (format/si-number
-                 (* 1000
-                    (reduce + 0 (map ::solution/kwh demands))))]
-           [:td (format/si-number
-                 (reduce + 0 (map (comp capex-mode ::solution/connection-capex) demands)))]
-           
-           [:td (format/si-number
-                 (reduce + 0 (map (comp opex-mode ::solution/heat-revenue) demands)))]])]
-       ]
+           :else
+           [:div
+            [:ul.tabs__tabs.tabs__tabs--pills
+             (doall (for [[key title] [[:pipework "Pipework"] [:demands "Demands"] [:supplies "Supplies"]]]
+                      [:li.tabs__tab {:key key
+                                      :class (when (= @active-tab key) "tabs__tab--active")
+                                      :on-click #(reset! active-tab key)}
+                       title]))]
+            [:br]
+            [:ul.tabs__pages
+             [:li.tabs__page {:key :pipework :class (when (= @active-tab :pipework) "tabs__page--active")}
+              [:table.table.table--hover {:style {:max-width :900px}}
+               [unit-header
+                ["Civils"]
+                ["⌀" "mm"]
+                ["Length" "m"]
+                ["Cost" capex-label]
+                ["Cost" [:span capex-label "/m"]]
+                ["Losses" "Wh/yr"]
+                ["Capacity" "W"]]
 
-      [:table {:style {:width :100%}}
-       [:caption "Supplies"]
-       [unit-header
-        ["Name"]
-        ["Capacity" "Wp"]
-        ["Output" "Wh/yr"]
-        ["Capital" capex-label]
-        ["Capacity" opex-label]
-        ["Heat" opex-label]
-        ["Coincidence" "%"]]
-       
-       [:tbody
-        (for [s (sort-by ::candidate/name supplies)]
-          [:tr {:key (::candidate/id s)}
-           [:td (::candidate/name s)]
-           [:td (format/si-number (* 1000 (::solution/capacity-kw s)))]
-           [:td (format/si-number (* 1000 (::solution/output-kwh s)))]
-           [:td (format/si-number (capex-mode (::solution/supply-capex s)))]
-           [:td (format/si-number (opex-mode (::solution/supply-opex s)))]
-           [:td (format/si-number (opex-mode (::solution/heat-cost s)))]
-           [:td (* 100 (::solution/diversity s))]])]]]
-     )])
+               [:tbody
+                (let [pipework-row
+                      (fn [{key :key} civ dia pipes]
+                        (when (seq pipes)
+                          (let [length (reduce + (map ::path/length pipes))
+                                cost (reduce + (map (comp capex-mode
+                                                          ::solution/pipe-capex)
+                                                    pipes))
+                                losses (* 1000
+                                          (reduce + (map ::solution/losses-kwh
+                                                         pipes)))
+                                capacity (* 1000
+                                            (reduce max (map ::solution/capacity-kw
+                                                             pipes)))]
+                            [:tr {:key key :class (when (= key :all) "grand-totals-row")}
+                             [:td civ]
+                             [:td.numeric dia]
+                             [:td.numeric (format/si-number length)]
+                             [:td.numeric (format/si-number cost)]
+                             [:td.numeric (format/si-number (/ cost length))]
+                             [:td.numeric (format/si-number losses)]
+                             [:td.numeric (format/si-number capacity)]
+                             ])))
+                      pipework-groups
+                      (sort-by first
+                               (group-by
+                                (juxt
+                                 ::path/civil-cost-id
+                                 #(Math/floor (/ (::solution/diameter-mm %) 10)))
+                                paths))]
+                  (list
+                   (doall
+                     (for [[[civ sz] paths] pipework-groups]
+                       [pipework-row
+                        {:key [civ sz]}
+                        (document/civil-cost-name @parameters civ)
+                        (str (* 10 sz) "-" (* 10 (inc sz)))
+                        paths]))
+                   (when (> (count pipework-groups) 1)
+                     (pipework-row
+                      {:key :all}
+                      [:b "All"] "" paths))))]]]
+
+             [:li.tabs__page {:key :demands :class (when (= @active-tab :demands) "tabs__page--active")}
+              [:table.table.table--hover {:style {:max-width :900px}}
+               [unit-header
+                ["Classification"]
+                ["Count"]
+                ["Capacity" "W"]
+                ["Demand" "Wh/yr"]
+                ["Conn. cost" capex-label]
+                ["Revenue" opex-label]]
+
+               [:tbody
+                (for [[class demands] (sort-by first (group-by ::candidate/subtype demands))
+                      :let [class (or class "Unclassified")]]
+                  [:tr {:key class}
+                   [:td class]
+                   [:td.numeric (count demands)]
+                   [:td.numeric (format/si-number
+                                 (* 1000
+                                    (reduce + 0 (map ::demand/kwp demands))))]
+                   [:td.numeric (format/si-number
+                                 (* 1000
+                                    (reduce + 0 (map ::solution/kwh demands))))]
+                   [:td.numeric (format/si-number
+                                 (reduce + 0 (map (comp capex-mode ::solution/connection-capex) demands)))]
+
+                   [:td.numeric (format/si-number
+                                 (reduce + 0 (map (comp opex-mode ::solution/heat-revenue) demands)))]])]]]
+
+             [:li.tabs__page {:key :supplies :class (when (= @active-tab :supplies) "tabs__page--active")}
+              [:table.table.table--hover {:style {:max-width :900px}}
+               [unit-header
+                ["Name"]
+                ["Capacity" "Wp"]
+                ["Output" "Wh/yr"]
+                ["Capital" capex-label]
+                ["Capacity" opex-label]
+                ["Heat" opex-label]
+                ["Coincidence" "%"]]
+
+               [:tbody
+                (for [s (sort-by ::candidate/name supplies)]
+                  [:tr {:key (::candidate/id s)}
+                   [:td (::candidate/name s)]
+                   [:td.numeric (format/si-number (* 1000 (::solution/capacity-kw s)))]
+                   [:td.numeric (format/si-number (* 1000 (::solution/output-kwh s)))]
+                   [:td.numeric (format/si-number (capex-mode (::solution/supply-capex s)))]
+                   [:td.numeric (format/si-number (opex-mode (::solution/supply-opex s)))]
+                   [:td.numeric (format/si-number (opex-mode (::solution/heat-cost s)))]
+                   [:td.numeric (* 100 (::solution/diversity s))]])]]]
+             ]])])))
 
 (defn- alternatives-card [{opex-mode :opex-mode
                            capex-mode :capex-mode
@@ -356,12 +362,10 @@
                            demands :demands
                            insulated :insulated
                            by-insulation :by-insulation}]
-  [:div.card
-   [:h1
-    "Individual systems"]
+  [:section
    (if (empty? alts)
      "No individual systems have been installed"
-     [:table {:style {:width :100%}}
+     [:table.table.table--hover {:style {:max-width :900px}}
       [unit-header
        ["System"]
        ["Count"]
@@ -370,28 +374,28 @@
        ["Capital cost" capex-label]
        ["Capacity" opex-label]
        ["Heat" opex-label]]
-      
+
       [:tbody
        (for [[alt-name buildings] (sort-by first by-alt)]
          [:tr {:key alt-name}
           [:td alt-name]
-          [:td (count buildings)]
-          [:td (format/si-number (* 1000 (reduce + (map ::demand/kwp buildings))))]
-          [:td (format/si-number (* 1000 (reduce + (map ::solution/kwh buildings))))]
-          [:td (format/si-number (reduce + (map (comp
-                                                 capex-mode
-                                                 :capex
-                                                 ::solution/alternative)
-                                                buildings)))]
+          [:td.numeric (count buildings)]
+          [:td.numeric (format/si-number (* 1000 (reduce + (map ::demand/kwp buildings))))]
+          [:td.numeric (format/si-number (* 1000 (reduce + (map ::solution/kwh buildings))))]
+          [:td.numeric (format/si-number (reduce + (map (comp
+                                                         capex-mode
+                                                         :capex
+                                                         ::solution/alternative)
+                                                        buildings)))]
 
-          [:td (format/si-number (reduce + (map (comp
-                                                 #(opex-mode (:opex %))
-                                                 ::solution/alternative)
-                                                buildings)))]
-          [:td (format/si-number (reduce + (map (comp
-                                                 #(opex-mode (:heat-cost %))
-                                                 ::solution/alternative)
-                                                buildings)))]
+          [:td.numeric (format/si-number (reduce + (map (comp
+                                                         #(opex-mode (:opex %))
+                                                         ::solution/alternative)
+                                                        buildings)))]
+          [:td.numeric (format/si-number (reduce + (map (comp
+                                                         #(opex-mode (:heat-cost %))
+                                                         ::solution/alternative)
+                                                        buildings)))]
           ])]])])
 
 (defn- insulation-card [{opex-mode :opex-mode
@@ -407,14 +411,13 @@
                          demands :demands
                          insulated :insulated
                          by-insulation :by-insulation}]
-  [:div.card
-   [:h1 "Insulation"]
+  [:section
    (if (empty? insulated)
      "No buildings were insulated"
      (let [all-insulations
            (group-by ::measure/id
                      (mapcat ::solution/insulation insulated))]
-       [:table {:style {:width :100%}}
+       [:table.table.table--hover {:style {:max-width :900px}}
         [unit-header
          ["Insulation"]
          ["Count"]
@@ -425,10 +428,10 @@
          (for [[k is] all-insulations]
            [:tr {:key k}
             [:td (::measure/name (first is))]
-            [:td (count is)]
-            [:td (format/si-number (reduce + 0 (map :area is)))]
-            [:td (format/si-number (* 1000 (reduce + 0 (map :kwh is))))]
-            [:td (format/si-number (reduce + 0 (map capex-mode is)))]])]]))])
+            [:td.numeric (count is)]
+            [:td.numeric (format/si-number (reduce + 0 (map :area is)))]
+            [:td.numeric (format/si-number (* 1000 (reduce + 0 (map :kwh is))))]
+            [:td.numeric (format/si-number (reduce + 0 (map capex-mode is)))]])]]))])
 
 
 (defn- emissions-card [{opex-mode :opex-mode
@@ -444,8 +447,7 @@
                         demands :demands
                         insulated :insulated
                         by-insulation :by-insulation}]
-  [:div.card
-   [:h1  "Emissions"]
+  [:section
    (let [sum-alt
          (fn [e alts what]
            (reduce +
@@ -465,13 +467,13 @@
 
          total-alt-emissions
          (apply merge-with + (vals alt-emissions))
-         
+
          sum-counter
          (fn [e what]
            (reduce + 0
                    (map #(get-in % [::solution/counterfactual :emissions e what] 0)
                         buildings)))
-         
+
          counter-emissions
          (into {}
                (for [e candidate/emissions-types]
@@ -484,67 +486,65 @@
            (reduce + 0
                    (map #(get-in % [::solution/supply-emissions e what] 0)
                         supplies)))
-         
+
          supply-emissions
          (into {}
                (for [e candidate/emissions-types]
                  [e {:t (/ (sum-supply e :kg) 1000)
                      :cost (sum-supply e opex-mode)}]))
          ]
-     
 
-     [:table {:style {:width :100%}}
-      [:thead
+
+     [:table.table.table--hover.emissions-table {:style {:max-width :900px}}
+      [:thead.solution-table-unit-header
        [:tr
         [:th]
         (for [e candidate/emissions-types]
-          [:td {:key e
-                :style {:text-align :center
-                        :border-left "1px black solid"}
-                :col-span 2} (name e)])]
+          [:th.border-right {:key e
+                             :style {:text-align :center :background :#eef}
+                             :col-span 2} (name e)])]
        [:tr
         [:th "Cause"]
         (for [e candidate/emissions-types]
           (list
-           [:th {:key [e :t]
-                 :style {:border-left "1px black solid"}}
+           [:th.numeric {:key [e :t]}
             "t/yr"]
-           [:th {:key [e :cost]} opex-label]))]]
+           [:th.numeric {:key [e :cost]} opex-label]))]]
       [:tbody
        [:tr
         [:td "Network"]
         (for [e candidate/emissions-types
               t [:t :cost]]
-          [:td {:key [e t]}
+          [:td.numeric {:key [e t] :style {:width :100px}}
            (format/si-number (get-in supply-emissions [e t]))])]
        (for [[alt alt-emissions] alt-emissions]
          [:tr {:key alt}
           [:td alt]
           (for [e candidate/emissions-types
                 t [:t :cost]]
-            [:td {:key [e t]}
+            [:td.numeric {:key [e t]}
              (format/si-number (get-in alt-emissions [e t]))])])
-       [:tr {:style {:border-top "1px grey solid"}}
+       [:tr.totals-row
         [:th "Total"]
         (for [e candidate/emissions-types
               t [:t :cost]]
-          [:td {:key [e t]}
+          [:td.numeric {:key [e t]}
            (format/si-number (+ (get-in supply-emissions [e t])
                                 (get-in total-alt-emissions [e t])))])
         ]
-       [:tr {:style {:border-top "1px grey solid"}}
+       [:tr.totals-row
         [:th "Counterfactual"]
         (for [e candidate/emissions-types
               t [:t :cost]]
-          [:td {:key [e t]}
+          [:td.numeric {:key [e t]}
            (format/si-number (get-in counter-emissions [e t]))])]
-       
 
-       [:tr {:style {:border-top "1px grey solid"}}
+
+       [:tr.grand-totals-row
         [:th "Net"]
         (for [e candidate/emissions-types
               t [:t :cost]]
-          [:td {:key [e t]}
+          [:td.numeric {:key [e t]}
            (format/si-number (-
                               (+ (get-in supply-emissions [e t])
                                  (get-in total-alt-emissions [e t]))
@@ -552,35 +552,33 @@
 
 
 (defn- optimisation-card [parameters]
-  [:div.card
-   [:h1 "Optimisation"]
-
-   [:table {:style {:width :100%}}
+  [:section
+   [:table.table.table--hover {:style {:max-width :350px}}
     [:tbody
      [:tr
       [:th.has-tt
        {:title
         "This is the optimisation's objective, after fixing parameters which can only be decided after finding a solution."}
-       
+
        "Objective value:"]
-      [:td {:style {:white-space :nowrap}}
+      [:td.numeric {:style {:white-space :nowrap}}
        (format/si-number (::solution/objective @parameters))]
       ]
      [:tr
       [:th "Runtime:"]
-      [:td (format/seconds (::solution/runtime @parameters))]]
+      [:td.numeric (format/seconds (::solution/runtime @parameters))]]
 
      [:tr
       [:th.has-tt
        {:title "Fixing parameters sometimes changes the solution. This is how many solutions were evaluated because of this."}
        "Iterations:"]
-      [:td (::solution/iterations @parameters)]]
+      [:td.numeric (::solution/iterations @parameters)]]
 
      [:tr
       [:th.has-tt
        {:title "This is the range of objective value change caused by fixing parameters."}
        "Iteration range:"]
-      [:td
+      [:td.numeric
        (format/si-number
         (Math/abs
          (- (reduce min (::solution/objectives @parameters))
@@ -588,13 +586,13 @@
 
      [:tr
       [:th "Gap:"]
-      [:td (::solution/gap @parameters)]]
+      [:td.numeric (::solution/gap @parameters)]]
 
      [:tr
       [:th.has-tt {:title "These are the optimiser's bounds on the optimal objective value for the best solution found, without accounting for subsequent parameter fixing."}
        "Bounds:"]
-      [:td (format/si-number
-            (first (::solution/bounds @parameters)))
+      [:td.numeric (format/si-number
+                    (first (::solution/bounds @parameters)))
        " — "
        (format/si-number
         (second (::solution/bounds @parameters)))
@@ -619,21 +617,22 @@
                          ::solution/objectives
                          ::solution/gap
                          ])))
-     
+
      *capex-mode (reagent/atom :total)
      *opex-mode  (reagent/atom :total)
+     active-tab (reagent/atom :cost-summary)
      ]
-    
+
     (let [capex-mode @*capex-mode
           opex-mode  @*opex-mode
 
-          
+
           solution-members @solution-members
 
           {paths :path
            buildings :building}
           (group-by ::candidate/type solution-members)
-          
+
           alts    (filter ::solution/alternative buildings)
           by-alt  (sort-by first
                            (group-by (comp ::supply/name ::solution/alternative) alts))
@@ -668,36 +667,58 @@
            :demands (filter candidate/is-connected? buildings)
            :insulated insulated
            :by-insulation insulations}
-          
           ]
       [:div.solution-component
        {:style {:flex-grow 1 :padding :1em}}
-       
+
        [:div.card
-        [:h1 "Display"]
-        [:div.flex-cols
-         [:label {:style {:flex 1}} "Capital costs: "
-          [inputs/radio-group
-           {:options [{:label "Total" :key :total}
-                      {:label "Principal" :key :principal}
-                      {:label "Present value" :key :present}]
-            :value capex-mode
-            :on-change #(reset! *capex-mode %)}]]
-         [:label {:style {:flex 1}} "Other costs: "
-          [inputs/radio-group
-           {:options [{:label "Total" :key :total}
-                      {:label "Annual" :key :annual}
-                      {:label "Present value" :key :present}]
-            :value opex-mode
-            :on-change #(reset! *opex-mode %)}]]]
-        ]
-       [:div {:style {:display :flex :flex-wrap :wrap}}
-        [:div {:style {:flex 1}} [summary-card card-arguments]]
-        [:div {:style {:flex 1}} [network-card card-arguments parameters]]
-        [:div {:style {:flex 1}} [alternatives-card card-arguments]]
-        [:div {:style {:flex 1}} [insulation-card card-arguments]]
-        [:div {:style {:flex 1}} [emissions-card card-arguments]]
-        [:div {:style {:flex 1}} [optimisation-card parameters]]
+        [:h2.card-header "Solution Summary"]
+        [:section.display-control-section
+         [:h3 "Display Options"]
+         [:div.flex-cols
+          [:div.flex-col
+           [:h4 "Capital costs:"]
+           [inputs/radio-group
+            {:options [{:label "Total" :key :total}
+                       {:label "Principal" :key :principal}
+                       {:label "Present value" :key :present}]
+             :value capex-mode
+             :on-change #(reset! *capex-mode %)}]]
+          [:div.flex-col {:style {:flex-grow 1}}
+           [:h4 "Other costs:"]
+           [inputs/radio-group
+            {:options [{:label "Total" :key :total}
+                       {:label "Annual" :key :annual}
+                       {:label "Present value" :key :present}]
+             :value opex-mode
+             :on-change #(reset! *opex-mode %)}]]]]
+
+        [:ul.tabs__tabs
+         (doall
+           (for [[key name]
+                 [[:cost-summary "Cost summary"] [:network "Network"] [:alternatives "Individual systems"]
+                  [:insulation "Insulation"] [:emissions "Emissions"] [:optimisation "Optimisation"]]]
+
+             [:li.tabs__tab
+              {:key key
+               :class (when (= @active-tab key) "tabs__tab--active")
+               :on-click (fn []
+                           (println key)
+                           (reset! active-tab key))}
+              name]))]
+        [:ul.tabs__pages
+         [:li.tabs__page {:class (when (= @active-tab :cost-summary) "tabs__page--active")}
+          [summary-card card-arguments]]
+         [:li.tabs__page {:class (when (= @active-tab :network) "tabs__page--active")}
+          [network-card card-arguments parameters]]
+         [:li.tabs__page {:class (when (= @active-tab :alternatives) "tabs__page--active")}
+          [alternatives-card card-arguments]]
+         [:li.tabs__page {:class (when (= @active-tab :insulation) "tabs__page--active")}
+          [insulation-card card-arguments]]
+         [:li.tabs__page {:class (when (= @active-tab :emissions) "tabs__page--active")}
+          [emissions-card card-arguments]]
+         [:li.tabs__page {:class (when (= @active-tab :optimisation) "tabs__page--active")}
+          [optimisation-card parameters]]]
         ]])
     ))
 
@@ -717,4 +738,3 @@
   ;;                    :key i} l])
   ;;   (s/split (::solution/log @document) #"\n"))]
   )
-
