@@ -478,7 +478,7 @@
                (reagent/track!
                 (fn []
                   (tile/render-tile
-                   @solution @tile-contents canvas layer @map-view (and @show-diameters? @min-max-diameters))
+                   @solution @tile-contents canvas layer (or @map-view ::view/constraints) (and @show-diameters? @min-max-diameters))
                   )))
          )))))
 

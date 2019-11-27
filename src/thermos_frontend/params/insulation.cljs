@@ -10,7 +10,6 @@
 
 (defn- insulation-row
   [{id :key} *doc measure *insulation]
-  (println "Measure" measure)
   [:tr {:key id :style {:height :50px}}
    [:td
     [inputs/text

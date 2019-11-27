@@ -62,14 +62,13 @@
 
     (fix-size tile layer)
     (.clearRect ctx 0 0 width height)
-    
-    
+
     ;; Render order: non-selected buildings, selected building shadows, selected buildings,
     ;;               non-selected paths, selected path shadows, selected paths
     (let [{buildings :building paths :path} (group-by ::candidate/type contents)
           {selected-buildings true non-selected-buildings false} (group-by (comp boolean ::candidate/selected) buildings)
           {selected-paths true non-selected-paths false} (group-by (comp boolean ::candidate/selected) paths)
-          
+
           pipe-diam-line-width
           (or
            (and
@@ -80,11 +79,11 @@
                      (if-let [diameter (::solution/diameter-mm path)]
                        (let [rel-diam (/ (- diameter min-diameter)
                                          (- max-diameter min-diameter))]
-                         (+ 1.5 (* 10 rel-diam)))
+                         (+ 0.5 (* 10 (Math/sqrt rel-diam))))
                        nil)))))
-           
+
            (constantly nil))
-          
+
           ]
 
       ;; Non-selected buildings

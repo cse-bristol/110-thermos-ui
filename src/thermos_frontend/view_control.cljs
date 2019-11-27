@@ -1,13 +1,27 @@
 (ns thermos-frontend.view-control
   (:require [reagent.core :as reagent]
             [thermos-specs.view :as view]
-            [thermos-frontend.editor-state :as state]))
+            [thermos-frontend.editor-state :as state]
+            [thermos-frontend.theme :as theme]
+            [thermos-specs.solution :as soln]
+            [thermos-specs.document :as document]))
 
 (defn- component [doc]
   (reagent/with-let
     [view (reagent/cursor doc [::view/view-state ::view/map-view])
      show-pipe-diameters? (reagent/cursor doc [::view/view-state ::view/show-pipe-diameters])
-     legend-visible? (reagent/atom false)]
+     legend-visible? (reagent/atom false)
+     solution (reagent/track #(document/has-solution? @doc))
+     just-candidates (reagent/cursor doc [::document/candidates])
+     min-max-diam
+     (reagent/track
+      #(when @solution
+         (reduce
+          (fn [[l u] d]
+            [(or (and l (min d l)) d)
+             (or (and u (max d u)) d)])
+          []
+          (keep ::soln/diameter-mm (vals @just-candidates)))))]
     [:div.view-control
      [:h2.view-control__label "Map view:"]
      [:button.view-control__button
@@ -41,7 +55,14 @@
             [:div [:dt.key.supply-key] [:dd "Network supply"]]]
            ;; Solution
            [:dl
-            [:div [:dt.key.in-network-key] [:dd "In network"]]
+            [:div [:dt.key.in-network-key]
+             [:dd "In network"
+              (when @show-pipe-diameters?
+                [:div.pipe-size-key
+                 [:span.pipe-size-key__min]
+                 (Math/round (first @min-max-diam)) "mm"
+                 [:span.pipe-size-key__max]
+                 (Math/round (second @min-max-diam)) "mm"])]]
             [:div [:dt.key.not-in-network-key] [:dd "Not in network"]]
             [:div [:dt.key.unreachable-key] [:dd "Cannot be reached by network"]]
             [:div [:dt.key.alternative-key] [:dd "Has alternative"]]
