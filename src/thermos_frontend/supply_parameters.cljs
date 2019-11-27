@@ -51,20 +51,21 @@
     [:div.popover-dialog
      [:div
       [:table
-       [:tr [:td {:col-span 3} [:b "Cost and capacity"]] ]
-       ;; TODO check these thresholds are sane
-       [:tr [:td "Maximum capacity"] [:td [inputs/number {:value-atom capacity-kwp  :min 1 :max 1000  :scale (/ 1.0 1000)  :step 0.1}]] [:td "MW"]]
-       [:tr [:td "Fixed cost"]       [:td [inputs/number {:value-atom fixed-cost    :min 0 :max 10000 :scale (/ 1.0 1000)  :step 0.1}]] [:td "k¤"]]
-       [:tr [:td "Capacity cost"]    [:td [inputs/number {:value-atom capex-per-kwp :min 0 :max 10000  :step 0.1}]] [:td "¤/kW"]]
-       [:tr [:td "Annual cost"]      [:td [inputs/number {:value-atom opex-per-kwp  :min 0 :max 1000                       :step 0.1}]] [:td "¤/kW"]]
-       [:tr [:td "Supply cost"]      [:td [inputs/number {:value-atom cost-per-kwh  :min 0 :max 500   :scale 100           :step 0.1}]] [:td "c/kWh"]]
-       [:tr [:td {:col-span 3} [:b "Emissions factors"]] ]
-       (for [e candidate/emissions-types]
-        [:tr {:key e}
-         [:td (name e)]
-         [:td [inputs/number {:value-atom (emissions-atoms e) :min 0 :max 1000 :step 1
-                              :scale 1000}]]
-         [:td "g/kWh"]])
+       [:tbody
+        [:tr [:td {:col-span 3} [:b "Cost and capacity"]] ]
+        ;; TODO check these thresholds are sane
+        [:tr [:td "Maximum capacity"] [:td [inputs/number {:value-atom capacity-kwp  :min 1 :max 1000  :scale (/ 1.0 1000)  :step 0.1}]] [:td "MW"]]
+        [:tr [:td "Fixed cost"]       [:td [inputs/number {:value-atom fixed-cost    :min 0 :max 10000 :scale (/ 1.0 1000)  :step 0.1}]] [:td "k¤"]]
+        [:tr [:td "Capacity cost"]    [:td [inputs/number {:value-atom capex-per-kwp :min 0 :max 10000  :step 0.1}]] [:td "¤/kW"]]
+        [:tr [:td "Annual cost"]      [:td [inputs/number {:value-atom opex-per-kwp  :min 0 :max 1000                       :step 0.1}]] [:td "¤/kW"]]
+        [:tr [:td "Supply cost"]      [:td [inputs/number {:value-atom cost-per-kwh  :min 0 :max 500   :scale 100           :step 0.1}]] [:td "c/kWh"]]
+        [:tr [:td {:col-span 3} [:b "Emissions factors"]] ]
+        (for [e candidate/emissions-types]
+          [:tr {:key e}
+           [:td (name e)]
+           [:td [inputs/number {:value-atom (emissions-atoms e) :min 0 :max 1000 :step 1
+                                :scale 1000}]]
+           [:td "g/kWh"]])]
        ]
       ]
      [:div
