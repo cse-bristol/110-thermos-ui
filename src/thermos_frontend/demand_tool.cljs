@@ -57,40 +57,14 @@
   "
   [point]
   (let [point (.getCoordinate point)
-        R 6378.1
-        d 0.002 ; 20m
-
-        d_R (/ d R)
-        x (rads (.-x point))
-        y (rads (.-y point))
-
-        j (fn [phi]
-            (let [y1
-                  (Math/asin
-                   (+
-                    (* (Math/sin y) (Math/cos d_R))
-                    (* (Math/cos y) (Math/sin d_R) (Math/cos phi))))
-
-                   x1
-                   (+ x
-                      (Math/atan2
-                       (* (Math/sin phi) (Math/sin d_R (Math/cos x)))
-                       (Math/cos d_R)))]
-              [(degs x1) (degs y1)]))
 
         radius
-        (for [phi (range 0 360 30)]
-          (j (rads phi)))
+        (for [phi (range 0 360 20)]
+          (.getCoordinate (jts/geodesic-translation point 5 phi)))
 
         radius (conj radius (last radius))
         ]
-    (println radius)
-    (jts/create-polygon radius)
-    
-
-    )
-  
-  )
+    (jts/create-polygon radius)))
 
 (defn mouse-clicked! []
   (let [geometry (::geometry @state)]
