@@ -557,6 +557,13 @@
                          candidate/forbid-supply!
                          candidate-ids))
           (popover/close!))
+
+        delete-selection!
+        (fn [candidate-ids]
+          (state/edit-geometry!
+           document
+           document/remove-candidates candidate-ids)
+          (popover/close!))
         ]
     [popover-menu/component
      (remove
@@ -608,6 +615,7 @@
               :on-select #(candidate-editor/show-editor! document buildings)}
 
              {:value [:div.popover-menu__divider] :key "divider-2"}))
+        
 
         ~@(list
            (when (seq buildings)
@@ -623,6 +631,13 @@
                        "Make supply point (s)")
               :key "allow-supplies"
               :on-select #(supply-parameters/show-editor! document buildings)}))
+
+        ~@(when (or (not-empty paths) (not-empty buildings))
+            (list {:value [:div.popover-menu__divider] :key "divider"}
+                  {:value "Delete"
+                   :key "delete-items"
+                   :on-select #(delete-selection! (map ::candidate/id selected-candidates))
+                   }))
         ])]))
 
 (defn on-right-click-on-map

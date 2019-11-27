@@ -85,10 +85,7 @@
         (editor-state/edit-geometry!
          editor-state/state
          (fn [doc]
-           (-> doc
-               (update ::document/candidates
-                       assoc (::candidate/id candidate) candidate)
-               )))))
+           (document/add-candidate doc candidate)))))
     
     (reset! state start-state)))
 

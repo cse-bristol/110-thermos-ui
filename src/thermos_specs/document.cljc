@@ -354,3 +354,22 @@
        (fn [c]
          (update c ::demand/insulation disj ins-id)))))
 
+
+(defn remove-candidates [doc candidates]
+  (-> doc
+      (update ::candidates #(apply dissoc % candidates))
+      (update ::deletions concat candidates)))
+
+(defn remove-candidate [doc id]
+  (-> doc
+      (update ::candidates dissoc id)
+      (update ::deletions conj id)))
+
+(defn add-candidates [doc candidates]
+  (-> doc
+      (update ::candidates
+              merge (into {} (for [c candidates] [(::candidate/id c) c])))))
+
+(defn add-candidate [doc candidate]
+  (update doc ::candidates
+          assoc (::candidate/id candidate) candidate))

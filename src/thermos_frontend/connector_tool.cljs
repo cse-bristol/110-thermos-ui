@@ -166,12 +166,8 @@
                          ::path/start vtx-id)
                 ]
             (-> document
-                (update ::document/candidates
-                        #(-> %
-                             (dissoc path-id)
-                             (assoc (::candidate/id h) h
-                                    (::candidate/id t) t)))
-                (update ::document/deletions conj path-id)))
+                (document/add-candidates [h t])
+                (document/remove-candidate path-id)))
           
           ;; if t is nil then the cut only made one piece for some reason
           document)
