@@ -17,11 +17,11 @@
 (def conn-var-unit "¤/kWp")
 
 (defn- connection-cost-row
-  [*document *connection-costs id]
+  [{id :key} *document *connection-costs]
   (let [get #(get-in @*connection-costs [id %])
         put #(swap! *connection-costs assoc-in [id %1] %2)
         delete-connection-cost #(swap! *document document/remove-tariff id)]
-    [:tr 
+    [:tr {:key id}
      [:td [inputs/text
            :style {:width :50%}
            :placeholder (str "Connection cost " id)
@@ -54,11 +54,11 @@
      ]))
 
 (defn- tariff-row
-  [*document *tariffs id]
+  [{id :key} *document *tariffs]
   (let [get #(get-in @*tariffs [id %])
         put #(swap! *tariffs assoc-in [id %1] %2)
         delete-tariff #(swap! *document document/remove-tariff id)]
-    [:tr 
+    [:tr {:key id}
      [:td [inputs/text
            :style {:width :50%}
            :placeholder (str "Tariff " id)
@@ -146,7 +146,7 @@
        [:tbody
         (doall
          (for [id (sort (keys @*tariffs))]
-           (tariff-row doc *tariffs id)))]]
+           [tariff-row {:key id} doc *tariffs]))]]
 
       [:div {:style {:margin-top :1em}}
        (reagent/with-let [more (reagent/atom false)]
@@ -227,7 +227,7 @@
        [:tbody
         (doall
          (for [id (sort (keys @*connection-costs))]
-           (connection-cost-row doc *connection-costs id)))
+           [connection-cost-row {:key id} doc *connection-costs]))
         ]
        ]
       
