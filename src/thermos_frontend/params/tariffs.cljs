@@ -17,11 +17,11 @@
 (def conn-var-unit "¤/kWp")
 
 (defn- connection-cost-row
-  [*document *connection-costs id]
+  [{id :key} *document *connection-costs]
   (let [get #(get-in @*connection-costs [id %])
         put #(swap! *connection-costs assoc-in [id %1] %2)
         delete-connection-cost #(swap! *document document/remove-connection-cost id)]
-    [:tr
+    [:tr {:key id}
      [:td [inputs/text
            :placeholder (str "Connection cost " id)
            :value (get ::tariff/name)
@@ -53,11 +53,11 @@
      ]))
 
 (defn- tariff-row
-  [*document *tariffs id]
+  [{id :key} *document *tariffs]
   (let [get #(get-in @*tariffs [id %])
         put #(swap! *tariffs assoc-in [id %1] %2)
         delete-tariff #(swap! *document document/remove-tariff id)]
-    [:tr
+    [:tr {:key id}
      [:td [inputs/text
            :placeholder (str "Tariff " id)
            :value (get ::tariff/name)
@@ -126,7 +126,7 @@
          [:tbody
           (doall
             (for [id (sort (keys @*tariffs))]
-              (tariff-row doc *tariffs id)))]])
+              [tariff-row {:key id} doc *tariffs]))]])
 
       [:div.centre {:style {:max-width :900px}}
        [:button.button
@@ -213,7 +213,7 @@
          [:tbody
           (doall
             (for [id (sort (keys @*connection-costs))]
-              (connection-cost-row doc *connection-costs id)))]])
+              [connection-cost-row {:key id} doc *connection-costs]))]])
 
       [:div.centre {:style {:max-width :700px}}
        [:button.button

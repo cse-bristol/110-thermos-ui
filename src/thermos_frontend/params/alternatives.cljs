@@ -21,7 +21,7 @@
             :emissions {}})))
 
 (defn- alternative-row
-  [*doc id alternative *alternatives]
+  [{id :key} *doc alternative *alternatives]
   [:div.crud-list__item {:key id}
    [:div.flex-cols
     [:div.crud-list__title
@@ -114,7 +114,7 @@
 
      [:div.crud-list
       (for [[id alternative] (sort-by first @*alternatives)]
-        [alternative-row doc id alternative *alternatives])]
+        [alternative-row {:key id} doc alternative *alternatives])]
 
      [:div {:style {:text-align :center :margin-top :20px :max-width :900px}}
       [:button.button

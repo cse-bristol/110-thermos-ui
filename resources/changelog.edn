@@ -1,4 +1,31 @@
-[
+[{:title "29th November 2019"
+  :changes
+  [{:title "OSM Roundabouts"
+    :summary [:div "Roundabouts or other closed loops of road in OpenStreetMap are now imported properly."]}
+   {:title "Adding points"
+    :summary [:div "There is now a button to add points to the map, for supply locations etc."]}
+   {:title "Removing candidates"
+    :summary [:div "The right-click menu now contains the option to delete candidates from a problem entirely."]}
+   {:title "Interface improvements"
+    :summary [:div
+              "Various improvements to the interface:"
+              [:ul
+               [:li "The map view has a legend, and different display schemes for showing the problem and the solution information"]
+               [:li "Lots of other things look nicer"]]]}
+   {:title "Market tariff"
+    :summary [:div
+              "To make the network NPV objective interact properly with carbon prices and the counterfactual, we have added a special tariff called " [:b "market"] ". "
+
+              "Buildings on this tariff will have their unit rate calculated from the cost of their best alternative non-networked choice, including any cost of carbon."
+              ]
+    }
+
+   {:title "Documentation updated"
+    :summary [:div "The documentation has been updated to be more correct for changes to teh application, and to cover more details about the demand model and the network model."]
+    }
+   ]
+  }
+ 
  {:title "15th October 2019"
   :changes
   [{:title "Demand model fixes"
@@ -105,8 +132,5 @@
   [{:title "Improved documentation"
     :summary "The THERMOS manual is now available online, as part of the application."}
    {:title "Zero demands"
-    :summary "The map creation wizard now allows buildings to have a heat demand of zero"}]}
- 
- 
+    :summary "The map creation wizard now allows buildings to have a heat demand of zero"}]}]
 
- ]
