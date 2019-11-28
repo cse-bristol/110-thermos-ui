@@ -579,7 +579,7 @@
                 
                 ;; 2. If we need some OSM stuff, load that
                 (or osm-buildings osm-roads)
-                (-> (progress* 10 "Quering OpenStreetMap")
+                (-> (progress* 10 "Querying OpenStreetMap")
                     (query-osm parameters)))
 
               ;; at this point, if we have multipolygons we should
