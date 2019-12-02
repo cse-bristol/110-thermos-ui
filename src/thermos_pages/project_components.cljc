@@ -366,7 +366,7 @@
            
            "DELETE " symbols/delete])
 
-        (when (> 1 (count (:users project)))
+        (when (> (count (:users project)) 1)
           [:button.button
            {:style {:margin-left :1em}
             :on-click
