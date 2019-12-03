@@ -40,7 +40,6 @@
             {:title "The variable part of the capital cost of connecting a building."
              :max 100
              :min 0
-             :scale 100
              :step 0.1
              :value (get ::tariff/variable-connection-cost)
              :on-change #(put ::tariff/variable-connection-cost %)
