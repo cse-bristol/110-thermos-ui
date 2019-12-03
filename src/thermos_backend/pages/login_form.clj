@@ -51,7 +51,9 @@
        {:style (style :margin-left :auto)
         :type :submit :value "Login" :name :login}]
       [:input.button 
-       {:type :submit :value "Recover" :name :forgot :style (style :margin-left :1em)}]
+       {:type :submit :value "Recover" :name :forgot :style (style :margin-left :1em)
+        :formnovalidate "formnovalidate"
+        }]
       ]
      [:div
       [:p "If you do not have an account, you can sign up by filling in the fields above and clicking "
