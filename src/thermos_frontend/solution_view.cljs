@@ -370,7 +370,7 @@
        ["System"]
        ["Count"]
        ["Capacity" "Wp"]
-       ["Output" "kWh/yr"]
+       ["Output" "Wh/yr"]
        ["Capital cost" capex-label]
        ["Capacity" opex-label]
        ["Heat" opex-label]]
