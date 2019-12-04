@@ -59,7 +59,7 @@
       [:div "Calculate mechanical engineering costs as "
        [inputs/number {:value-atom mechanical-fixed :min 0 :max 5000 :step 1}]
        "¤/m + ("
-       [inputs/number {:value-atom mechanical-variable :min 0 :max 5000 :step 1}]
+       [inputs/number {:value-atom mechanical-variable :min 0 :max 5000 :step 0.1}]
        "× ⌀/m)"
        [:sup [inputs/number {:value-atom mechanical-exponent :min 0 :max 3 :step 0.01}]]
        "/m"]]
@@ -117,6 +117,7 @@
                                    :value (get-in @civil-costs [id ::path/variable-cost])
                                    :on-change #(swap! civil-costs assoc-in [id ::path/variable-cost] %)
                                    :minimum 0
+                                   :step 0.1
                                    :maximum 5000
                                    }]]
               [:td [:button.button
