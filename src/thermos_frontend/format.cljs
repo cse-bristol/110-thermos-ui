@@ -1,7 +1,10 @@
 (ns thermos-frontend.format
   (:require [thermos-util :as util]))
 
-(let [format (js/Intl.NumberFormat.)]
+(let [format (js/Intl.NumberFormat.
+              js/undefined
+              #js {"maximumFractionDigits" 2}
+              )]
   (defn local-format [value] (.format format value)))
 
 (defn metric-prefix [value scale prefix]
