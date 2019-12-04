@@ -1,6 +1,7 @@
 (ns thermos-backend.handler
   (:require [compojure.core :refer :all]
             [compojure.route :as route]
+            [clojure.string :as string]
             [compojure.middleware :refer [wrap-canonical-redirect remove-trailing-slash]]
             [muuntaja.middleware :as muuntaja]
             
@@ -21,33 +22,25 @@
             [thermos-backend.pages.core :as pages]
             [thermos-backend.pages.cache-control :as cache-control]
             [thermos-backend.auth :as auth]
-            [thermos-backend.current-uri :as current-uri]))
+            [thermos-backend.current-uri :as current-uri]
+            [clojure.java.io :as io]))
 
-(defn wrap-cache-control [handler]
-  (if (= "true" (config :web-server-disable-cache))
-    (do (log/info "Disabling caching")
-        (fn [request]
-          (when-let [response (handler request)]
-            (cache-control/no-store response))))
-    (fn [request]
-      (when-let [response (handler request)]
-        (cache-control/public response)))))
-
-(defn wrap-no-70s
-  "When deploying with nix, the jar goes into the nix store.
-  This resets its mod date to the epoch, which is bad.
-  We fix that here."
-  [handler]
-  (let [date (ring.util.time/format-date (java.util.Date.))]
-    (fn [request]
-      (-> request
-          (handler)
-          (update-in [:headers "Last-Modified"]
-                     (fn [lm]
-                       (if (and (string? lm)
-                                (.startsWith lm "Thu, 01 Jan 1970"))
-                         date
-                         lm)))))))
+(let [resource (io/resource "etag.txt")
+      etag (and resource (string/trim (slurp resource)))]
+  (defn wrap-fixed-etag [handler]
+    (if (string/blank? etag)
+      (do (log/info "No etag, disable cache")
+          (fn [request]
+            (when-let [response (handler request)]
+              (cache-control/no-store response))))
+      
+      (fn [request]
+        (when-let [response (handler request)]
+          (cond-> response
+            (not (cache-control/no-store? response))
+            (-> (cache-control/etag response etag)
+                (cache-control/public :max-age 3600)))
+          )))))
 
 (defroutes monitoring-routes
   (GET "/_prometheus" []
@@ -78,6 +71,5 @@
       (wrap-forwarded-scheme)
       (wrap-hsts)
       
-      (wrap-cache-control)
-      (wrap-no-70s)))
+      (wrap-fixed-etag)))
 

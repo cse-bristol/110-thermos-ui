@@ -1,5 +1,6 @@
 (ns build.pkg
   (:require [clojure.java.io :as io]
+            [clojure.java.shell :refer [sh]]
             [cljs.build.api :as cljs]
             [less4clj.api :as less]
             [clojure.edn :as edn]
@@ -70,10 +71,16 @@
   ;; library for doing this at the moment. Lots of people seem to have
   ;; made 95% of one, including depstar, and I am hacking the final 5%
   ;; here:
+
+  (println (on-cyan (white "update etag")))
+  (spit "target/resources/etag.txt"
+        (sh "git rev-parse HEAD"))
+  
   (println (on-cyan (white "create jar")))
   (uberjar/create-uberjar
    "target/thermos.jar"
    :classpath (classpath/make-classpath {:aliases [:server :jar]})
+   
    :manifest {:Main-Class 'thermos-backend.core
               :Specification-Title "Java Advanced Imaging Image I/O Tools"
               :Specification-Version "1.1"

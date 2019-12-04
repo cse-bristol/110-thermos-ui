@@ -2,11 +2,17 @@
   (:require [ring.util.response :as response]))
 
 (defn no-store
-  "Update response for cache-control no-store. This willl disable any caching."
+  "Update response for cache-control no-store. This will disable any caching."
   [resp]
   (response/header resp
                    "Cache-Control"
                    "no-store"))
+
+(defn no-store? [resp]
+  (-> resp
+      (:headers)
+      (get "Cache-Control")
+      (= "no-store")))
 
 (defn public
   "Update response for cache-control public /unless/ it is already private or no-store"
@@ -33,6 +39,9 @@
                 %
                 :else
                 (format "private, max-age=%d" max-age))))
+
+(defn etag [response etag]
+  (assoc-in response [:headers "ETag"] etag))
 
 (defn wrap-no-store [handler]
   (fn [request]

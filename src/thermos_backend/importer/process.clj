@@ -508,7 +508,9 @@
     (first polygons)
 
     (let [basis (dissoc (first polygons) ::geoio/geometry)
-          geoms (map ::geoio/geometry polygons)]
+          geoms (map ::geoio/geometry polygons)
+          peaks (keep :peak-demand polygons)
+          ]
       (cond-> (geoio/update-geometry
                basis
                (jts/create-multipolygon geoms))
@@ -520,8 +522,10 @@
         ;; but also if the demand-source is given, since for a given
         ;; demand the first one has the right peak also.
         (not (or (= :given (:peak-source basis))
-                 (= :given (:demand-source basis))))
-        (assoc :peak-demand (reduce + (map :peak-demand polygons)))))))
+                 (= :given (:demand-source basis))
+                 (empty? peaks)))
+        (assoc :peak-demand (reduce + peaks))
+        ))))
 
 (defn merge-multi-polygons
   "The inverse of `explode-multi-polygons`."
