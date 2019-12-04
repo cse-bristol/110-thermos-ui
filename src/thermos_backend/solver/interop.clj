@@ -75,14 +75,19 @@
 
         ;; tag all the edges with their path IDs and cost parameters
         net-graph (reduce (fn [g p]
+                            
                             (-> g
                                 ;; the variable and fixed cost
                                 ;; parameters are merged into the path
                                 ;; by code later on. Within a normal
                                 ;; candidate they would be a reference
                                 ;; to something in the document.
+
                                 (attr/add-attr (::path/start p) (::path/end p)
                                                :ids #{(::candidate/id p)})
+
+                                (attr/add-attr :existing (:existing p))
+                                
                                 (attr/add-attr (::path/start p) (::path/end p)
                                                :variable-cost (::path/variable-cost p 0))
                                 (attr/add-attr (::path/start p) (::path/end p)
@@ -360,9 +365,11 @@
   (let [{[lower upper] :mean} bounds
 
         [fixed-cost variable-cost]
-        (cost-function (apply max lower) (apply max upper)
-                       (or (attr/attr net-graph edge :fixed-cost) 0.0)
-                       (or (attr/attr net-graph edge :variable-cost) 0.0))]
+        (if (attr/attr net-graph edge :existing)
+          [0 0]
+          (cost-function (apply max lower) (apply max upper)
+                         (or (attr/attr net-graph edge :fixed-cost) 0.0)
+                         (or (attr/attr net-graph edge :variable-cost) 0.0)))]
     {:i (first edge) :j (second edge)
      :length    (float (or (attr/attr net-graph edge :length) 0))
      "cost/m"   (float (finance/objective-value instance :pipe-capex fixed-cost))
@@ -648,14 +655,17 @@
                 length-factor (safe-div candidate-length input-length)
                 diameter-mm (* (pipes/linear-evaluate power-curve (:capacity-kw solution-edge)) 1000.0)
 
-                {civil-fixed ::path/fixed-cost civil-variable ::path/variable-cost}
-                (document/civil-cost-for-id instance (::path/civil-cost-id e))
+                civil-cost-id (::path/civil-cost-id e)
 
                 principal
-                (path/cost e
-                           civil-fixed civil-variable civil-exponent
-                           mechanical-fixed mechanical-variable mechanical-exponent
-                           diameter-mm)
+                (if (= :existing civil-cost-id)
+                  0
+                  (let [{civil-fixed ::path/fixed-cost civil-variable ::path/variable-cost}
+                        (document/civil-cost-for-id instance civil-cost-id)]
+                    (path/cost e
+                               civil-fixed civil-variable civil-exponent
+                               mechanical-fixed mechanical-variable mechanical-exponent
+                               diameter-mm)))
                 ]
 
             ;; the path cost we're working out here is the 'truth'
@@ -790,8 +800,13 @@
                                  ;; path, as that makes things easier.
 
                                  (map #(cond-> %
-                                         (candidate/is-path? %)
+                                         (and (candidate/is-path? %)
+                                              (not= :existing (::path/civil-cost-id %)))
                                          (merge (document/civil-cost-for-id instance (::path/civil-cost-id %)))
+
+                                         (and (candidate/is-path? %)
+                                              (= :existing (::path/civil-cost-id %)))
+                                         (assoc :existing % true)
                                          )))
         
         net-graph (simplify-topology included-candidates)

@@ -181,6 +181,7 @@
              [:td [inputs/select
                    {:value-atom (reagent/cursor values [group-by-key k :civil-cost])
                     :values `[[:unset "Unchanged"]
+                              [:existing "Already built"]
                               ~@(for [[id c] civils]
                                   [id (::path/civil-cost-name c)])]
                     }

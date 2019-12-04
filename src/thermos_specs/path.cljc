@@ -4,7 +4,7 @@
 (s/def ::path
   (s/and
    #(= (::type % :path))
-   (s/keys :req [::length ::civil-cost-id ::start ::end ])))
+   (s/keys :req [::length ::civil-cost-id ::start ::end ::maximum-diameter])))
 
 (s/def ::length number?)
 (s/def ::cost-per-m number?)
@@ -32,7 +32,6 @@
        (Math/pow (* diameter-m civil-variable) civil-exponent)
        (Math/pow (* diameter-m mechanical-variable) mechanical-exponent))))
 
-
 (defn cost [path
             civil-fixed
             civil-variable
@@ -41,8 +40,7 @@
             mechanical-variable
             mechanical-exponent
             diameter-mm]
-  (let [l (or (::length path) 0)
-        ]
+  (let [l (or (::length path) 0)]
     (* l (cost-per-m civil-fixed
                      civil-variable
                      civil-exponent
@@ -59,4 +57,3 @@
            ::civil-cost-name
            ::fixed-cost
            ::variable-cost]))
-
