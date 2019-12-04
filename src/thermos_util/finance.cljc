@@ -94,6 +94,12 @@
                                (get-in doc [::document/capital-costs :pipework])
                                value
                                false)
+
+        :existing-pipe-capex
+        (objective-capex-value doc
+                               (get-in doc [::document/capital-costs :pipework])
+                               value
+                               true)
         
         :insulation-capex
         (objective-capex-value doc

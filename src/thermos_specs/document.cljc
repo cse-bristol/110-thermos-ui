@@ -216,35 +216,31 @@
   (contains? document ::solution/state))
 
 (defn civil-cost-for-id [doc cost-id]
-  (when-not (= :existing cost-id)
-    (let [costs (::civil-costs doc)]
-      (or (get costs cost-id)
-          (when-let [cost-keys (seq (keys costs))]
-            (get costs (reduce min cost-keys)))))))
+  (let [costs (::civil-costs doc)]
+    (or (get costs cost-id)
+        (when-let [cost-keys (seq (keys costs))]
+          (get costs (reduce min cost-keys))))))
 
 (defn civil-cost-name [doc cost-id]
-  (if (= :existing cost-id)
-    "Already built"
-    (or (::path/civil-cost-name
-         (civil-cost-for-id doc cost-id)
-         (str "Civil cost " cost-id))
-        "None")))
+  (or (::path/civil-cost-name
+       (civil-cost-for-id doc cost-id)
+       (str "Civil cost " cost-id))
+      "None"))
 
 (defn path-cost [path document]
-  (let [cost-id (::path/civil-cost-id path)]
-    (if (= :existing cost-id)
-      0
-      (let [cost (civil-cost-for-id document cost-id)]
-        (path/cost
-         path
-         (::path/fixed-cost cost)
-         (::path/variable-cost cost)
-         (::civil-cost-exponent document)
-         
-         (::mechanical-cost-per-m document)
-         (::mechanical-cost-per-m2 document)
-         (::mechanical-cost-exponent document)
-         10)))))
+  (if (::path/exists path)
+    0
+    (let [cost (civil-cost-for-id document (::path/civil-cost-id path))]
+      (path/cost
+       path
+       (::path/fixed-cost cost)
+       (::path/variable-cost cost)
+       (::civil-cost-exponent document)
+       
+       (::mechanical-cost-per-m document)
+       (::mechanical-cost-per-m2 document)
+       (::mechanical-cost-exponent document)
+       10))))
 
 (defn is-runnable?
   "Tells you if the document might be runnable.

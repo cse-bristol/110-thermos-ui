@@ -168,6 +168,8 @@
          [:tr
           [:th {:style {:width :100%}} (group-by-options group-by-key)]
           [:th.align-right {:style {:min-width :120px :padding-right :25px}} "Length (m)"]
+          [:th.align-right "Maximum diameter (mm)"]
+          [:th.align-right "Exists"]
           [:th.has-tt
            {:title "You can set up civil engineering costs in the pipe costs page."}
            "Civil cost"]]]
@@ -178,10 +180,13 @@
             [:tr {:key (or k "nil")}
              [:td (or k (nil-value-label group-by-key))]
              [:td.align-right {:style {:padding-right :25px}} (format/si-number (apply + (map ::path/length cands)))]
+             [:td [inputs/number]]
+             [:td [inputs/check {:value (get-in @values [group-by-key k :exists])
+                                 :on-change #(swap! values assoc-in [group-by-key k :exists] %)
+                                 }]]
              [:td [inputs/select
                    {:value-atom (reagent/cursor values [group-by-key k :civil-cost])
                     :values `[[:unset "Unchanged"]
-                              [:existing "Already built"]
                               ~@(for [[id c] civils]
                                   [id (::path/civil-cost-name c)])]
                     }
@@ -204,7 +209,15 @@
           [k (->> paths (group-by k)
                   (map (fn [[k v]]
                          [k {:civil-cost
-                             (unset? (map ::path/civil-cost-id v))}
+                             (unset? (map ::path/civil-cost-id v))
+                             :exists
+                             (let [exists (keep ::path/exists v)]
+                               (cond
+                                 (empty? exists) false
+                                 (= (count exists)
+                                    (count v)) true
+                                 :else :indeterminate))}
+                          
                           ]))
                   (into {}))])
         (into {}))})
@@ -258,11 +271,20 @@
      document
      (fn [path]
        (let [path-group (group path)
-             civil-cost-id (get-in values [group path-group :civil-cost])]
+             civil-cost-id (get-in values [group path-group :civil-cost])
+             exists (get-in values [group path-group :exists])
+             ]
          (cond-> path
            (not= :unset civil-cost-id)
            (assoc ::path/civil-cost-id civil-cost-id
-                  ::candidate/modified true))))
+                  ::candidate/modified true)
+
+           (= true exists)
+           (assoc ::path/exists true)
+
+           (= false exists)
+           (dissoc ::path/exists)
+           )))
      path-ids)))
 
 (defn- apply-building-state [document building-state building-ids]

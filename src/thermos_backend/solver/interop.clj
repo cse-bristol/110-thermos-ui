@@ -86,7 +86,7 @@
                                 (attr/add-attr (::path/start p) (::path/end p)
                                                :ids #{(::candidate/id p)})
 
-                                (attr/add-attr :existing (:existing p))
+                                (attr/add-attr :exists (::path/exists p))
                                 
                                 (attr/add-attr (::path/start p) (::path/end p)
                                                :variable-cost (::path/variable-cost p 0))
@@ -365,15 +365,18 @@
   (let [{[lower upper] :mean} bounds
 
         [fixed-cost variable-cost]
-        (if (attr/attr net-graph edge :existing)
-          [0 0]
-          (cost-function (apply max lower) (apply max upper)
-                         (or (attr/attr net-graph edge :fixed-cost) 0.0)
-                         (or (attr/attr net-graph edge :variable-cost) 0.0)))]
+        (cost-function (apply max lower) (apply max upper)
+                       (or (attr/attr net-graph edge :fixed-cost) 0.0)
+                       (or (attr/attr net-graph edge :variable-cost) 0.0))
+
+        cost-type (if (attr/attr net-graph edge :exists)
+                    :existing-pipe-capex
+                    :pipe-capex)
+        ]
     {:i (first edge) :j (second edge)
      :length    (float (or (attr/attr net-graph edge :length) 0))
-     "cost/m"   (float (finance/objective-value instance :pipe-capex fixed-cost))
-     "cost/kwm" (float (finance/objective-value instance :pipe-capex variable-cost))
+     "cost/m"   (float (finance/objective-value instance cost-type fixed-cost))
+     "cost/kwm" (float (finance/objective-value instance cost-type variable-cost))
      :bounds bounds
      :required (boolean (attr/attr net-graph edge :required))}))
 
@@ -658,14 +661,18 @@
                 civil-cost-id (::path/civil-cost-id e)
 
                 principal
-                (if (= :existing civil-cost-id)
-                  0
-                  (let [{civil-fixed ::path/fixed-cost civil-variable ::path/variable-cost}
-                        (document/civil-cost-for-id instance civil-cost-id)]
-                    (path/cost e
-                               civil-fixed civil-variable civil-exponent
-                               mechanical-fixed mechanical-variable mechanical-exponent
-                               diameter-mm)))
+                (let [{civil-fixed ::path/fixed-cost civil-variable ::path/variable-cost}
+                      (document/civil-cost-for-id instance civil-cost-id)]
+                  (path/cost e
+                             civil-fixed civil-variable civil-exponent
+                             mechanical-fixed mechanical-variable mechanical-exponent
+                             diameter-mm))
+
+                capex-type
+                (if (::path/exists e)
+                  :existing-pipe-capex
+                  :pipe-capex)
+                
                 ]
 
             ;; the path cost we're working out here is the 'truth'
@@ -677,7 +684,7 @@
                    ::solution/capacity-kw   (:capacity-kw solution-edge)
                    ::solution/diversity     (:diversity solution-edge)
                    ::solution/pipe-capex     (finance/adjusted-value
-                                             instance :pipe-capex principal)     
+                                              instance capex-type principal)     
                    
                    ::solution/losses-kwh    (* HOURS-PER-YEAR length-factor (:losses-kw solution-edge)))
             ))
@@ -800,13 +807,8 @@
                                  ;; path, as that makes things easier.
 
                                  (map #(cond-> %
-                                         (and (candidate/is-path? %)
-                                              (not= :existing (::path/civil-cost-id %)))
+                                         (candidate/is-path? %)
                                          (merge (document/civil-cost-for-id instance (::path/civil-cost-id %)))
-
-                                         (and (candidate/is-path? %)
-                                              (= :existing (::path/civil-cost-id %)))
-                                         (assoc :existing % true)
                                          )))
         
         net-graph (simplify-topology included-candidates)
