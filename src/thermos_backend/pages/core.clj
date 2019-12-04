@@ -214,6 +214,11 @@
               (get-project project-id))
              (cache-control/no-store)))
 
+       (POST "/leave" []
+         ;; leave the project
+         (projects/set-users! project-id (:id auth/*current-user*))
+         (response/redirect "."))
+       
        (auth/restricted
          {:project-admin project-id}
 
@@ -221,11 +226,6 @@
            (projects/delete-project! project-id)
            deleted)
 
-         (POST "/leave" []
-           ;; leave the project
-           (projects/set-users! project-id (:id auth/*current-user*))
-           (response/redirect "."))
-         
          (GET "/delete" [wrong-name]
            (-> (delete-project-page (projects/get-project project-id) wrong-name)
                (response/response)
