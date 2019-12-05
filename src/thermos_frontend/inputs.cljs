@@ -84,18 +84,21 @@
 
 (defn select [{value-atom :value-atom values :values
                value :value on-change :on-change
+               :as attrs
                }]
   (let [index->key (into {} (map-indexed #(vector (str %1) %2) (map first values)))
         key->index (map-invert index->key)]
     [:select.select
-     {:value (key->index (cond value-atom @value-atom
-                               value value))
-      :on-change
-      (cond value-atom
-            #(reset! value-atom (index->key (.. % -target -value)))
-            on-change
-            #(on-change (index->key (.. % -target -value))))
-      }
+     (merge
+      {:value (key->index (cond value-atom @value-atom
+                                value value))
+       :on-change
+       (cond value-atom
+             #(reset! value-atom (index->key (.. % -target -value)))
+             on-change
+             #(on-change (index->key (.. % -target -value))))
+       }
+      (dissoc attrs :value :on-change :values :value-atom))
 
      (for [[k v] values]
        (let [k (key->index k)]
