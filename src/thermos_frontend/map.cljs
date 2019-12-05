@@ -633,7 +633,7 @@
               :on-select #(supply-parameters/show-editor! document buildings)}))
 
         ~@(when (or (not-empty paths) (not-empty buildings))
-            (list {:value [:div.popover-menu__divider] :key "divider"}
+            (list {:value [:div.popover-menu__divider] :key "divider-3"}
                   {:value "Delete"
                    :key "delete-items"
                    :on-select #(delete-selection! (map ::candidate/id selected-candidates))
