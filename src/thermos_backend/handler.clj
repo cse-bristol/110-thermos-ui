@@ -29,18 +29,20 @@
       etag (and resource (string/trim (slurp resource)))]
   (defn wrap-fixed-etag [handler]
     (if (string/blank? etag)
-      (do (log/info "No etag, disable cache")
+      (do (log/info "No ETag, assume development, disable cache")
           (fn [request]
             (when-let [response (handler request)]
               (cache-control/no-store response))))
       
-      (fn [request]
-        (when-let [response (handler request)]
-          (cond-> response
-            (not (cache-control/no-store? response))
-            (-> (cache-control/etag response etag)
-                (cache-control/public :max-age 3600)))
-          )))))
+      (do
+        (log/info "Resource ETag: " etag)
+        (fn [request]
+          (when-let [response (handler request)]
+            (cond-> response
+              (not (cache-control/no-store? response))
+              (-> (cache-control/etag response etag)
+                  (cache-control/public :max-age 3600)))
+            ))))))
 
 (defroutes monitoring-routes
   (GET "/_prometheus" []
