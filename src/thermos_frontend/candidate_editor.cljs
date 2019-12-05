@@ -180,7 +180,14 @@
             [:tr {:key (or k "nil")}
              [:td (or k (nil-value-label group-by-key))]
              [:td.align-right {:style {:padding-right :25px}} (format/si-number (apply + (map ::path/length cands)))]
-             [:td [inputs/number]]
+             [:td [inputs/check-number
+                   {:max 5000
+                    :min 0
+                    :step 1
+                    :scale 1000.0
+                    :value-atom (reagent/cursor values [group-by-key k :max-diameter :value])
+                    :check-atom (reagent/cursor values [group-by-key k :max-diameter :check])}]]
+             
              [:td [inputs/check {:value (get-in @values [group-by-key k :exists])
                                  :on-change #(swap! values assoc-in [group-by-key k :exists] %)
                                  }]]
@@ -195,7 +202,9 @@
         ])]))
 
 (defn- mean [vals]
-  (/ (reduce + vals) (float (count vals))))
+  (if (empty? vals)
+    0
+    (/ (reduce + vals) (float (count vals)))))
 
 (defn- unset? [vals]
   (if (apply = vals)
@@ -208,7 +217,10 @@
    (->> (for [k (keys group-by-options)]
           [k (->> paths (group-by k)
                   (map (fn [[k v]]
-                         [k {:civil-cost
+                         [k {:max-diameter
+                             {:value (mean (keep ::path/maximum-diameter v))
+                              :check false}
+                             :civil-cost
                              (unset? (map ::path/civil-cost-id v))
                              :exists
                              (let [exists (keep ::path/exists v)]
@@ -273,6 +285,9 @@
        (let [path-group (group path)
              civil-cost-id (get-in values [group path-group :civil-cost])
              exists (get-in values [group path-group :exists])
+
+             {max-dia :value check-dia :check}
+             (get-in values [group path-group :max-diameter])
              ]
          (cond-> path
            (not= :unset civil-cost-id)
@@ -284,7 +299,14 @@
 
            (= false exists)
            (dissoc ::path/exists)
-           )))
+           
+           (and check-dia
+                (number? max-dia))
+           (assoc ::path/maximum-diameter max-dia)
+
+           (and check-dia
+                (nil? max-dia))
+           (dissoc ::path/maximum-diameter))))
      path-ids)))
 
 (defn- apply-building-state [document building-state building-ids]

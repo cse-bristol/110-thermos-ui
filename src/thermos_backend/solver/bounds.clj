@@ -170,11 +170,13 @@
     all
     ))
 
-(defn edge-bounds [g & {:keys [capacity demand peak-demand size max-kwp]
-                        :or {max-kwp 100000000}}]
+(defn edge-bounds [g & {:keys [capacity demand peak-demand size max-kwp edge-max]
+                        :or {edge-max (constantly 100000000)}}]
   (->>
    (pmap (fn [[i j]]
-           (let [posmin (fn [c]
+           (let [max-kwp (edge-max i j)
+
+                 posmin (fn [c]
                           (let [c (filter pos? c)]
                             (if (empty? c) 0
                                 (reduce min c))))

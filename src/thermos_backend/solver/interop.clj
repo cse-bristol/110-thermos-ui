@@ -86,7 +86,9 @@
                                 (attr/add-attr (::path/start p) (::path/end p)
                                                :ids #{(::candidate/id p)})
 
-                                (attr/add-attr :exists (::path/exists p))
+                                (attr/add-attr (::path/start p)
+                                               (::path/end p)
+                                               :exists (::path/exists p))
                                 
                                 (attr/add-attr (::path/start p) (::path/end p)
                                                :variable-cost (::path/variable-cost p 0))
@@ -188,13 +190,20 @@
                     (map (comp ::candidate/inclusion paths) path-ids))
             :required
             :optional))
+
+        total-max-dia
+        (fn [path-ids]
+          (let [max-dias (keep (comp ::path/maximum-diameter paths) path-ids)]
+            (when (not-empty max-dias) (reduce min max-dias))))
         ]
 
     (reduce (fn [g e]
               (let [path-ids (attr/attr g e :ids)]
                 (-> g
                     (attr/add-attr e :length (total-value path-ids ::path/length))
-                    (attr/add-attr e :requirement (total-requirement path-ids)))))
+                    (attr/add-attr e :requirement (total-requirement path-ids))
+                    (attr/add-attr e :max-dia (total-max-dia path-ids))
+                    )))
             
             net-graph (graph/edges net-graph))))
 
@@ -387,12 +396,20 @@
                       (log/info "Computing flow bounds...")
                       (bounds/edge-bounds
                        net-graph
-                       :max-kwp (first (last power-curve))
                        :capacity (comp #(::supply/capacity-kwp % 0) candidates)
                        :demand (comp annual-kwh->kw #(::demand/kwh % 0) candidates)
+                       :edge-max (let [inverse-power-curve (vec (map (comp vec reverse) power-curve))
+                                       global-max (first (last power-curve))]
+                                   (fn [i j]
+                                     (min
+                                      global-max
+                                      (or (when-let [max-dia (attr/attr net-graph [i j] :max-dia)]
+                                            (pipes/linear-evaluate inverse-power-curve max-dia))
+                                          global-max))))
                        :peak-demand (comp #(::demand/kwp % 0) candidates)
                        :size (comp #(::connection-count % 1) candidates)))
 
+        
         _ (log/info "Computed flow bounds")
         ]
     
@@ -859,9 +876,8 @@
                                            (::document/minimum-pipe-diameter instance 0.02)
                                            (::document/maximum-pipe-diameter instance 1.0))
 
-            market (make-market-decisions instance)
-
             
+            market (make-market-decisions instance)
             input-json (postwalk identity (instance->json instance net-graph power-curve market))]
         
         (with-open [writer (io/writer input-file)]
