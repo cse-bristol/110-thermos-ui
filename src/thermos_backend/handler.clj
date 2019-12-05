@@ -34,14 +34,14 @@
             (when-let [response (handler request)]
               (cache-control/no-store response))))
       
-      (do
+      (let [max-age (Integer/parseInt (config :web-server-max-age))]
         (log/info "Resource ETag: " etag)
         (fn [request]
           (when-let [response (handler request)]
             (cond-> response
               (not (cache-control/no-store? response))
               (-> (cache-control/etag etag)
-                  (cache-control/public :max-age 3600)))
+                  (cache-control/public :max-age max-age)))
             ))))))
 
 (defroutes monitoring-routes
