@@ -148,8 +148,7 @@
              ]))]
         ])]))
 
-
-(defn- path-editor [civils state paths]
+(defn- path-editor [civils min-pipe-diameter state paths]
   (reagent/with-let
     [group-by-key (reagent/cursor state [:group-by])
      values       (reagent/cursor state [:values])]
@@ -182,7 +181,7 @@
              [:td.align-right {:style {:padding-right :25px}} (format/si-number (apply + (map ::path/length cands)))]
              [:td [inputs/check-number
                    {:max 5000
-                    :min 0
+                    :min min-pipe-diameter
                     :step 1
                     :scale 1000.0
                     :empty-value [nil "∞"]
@@ -221,7 +220,6 @@
                          [k {:max-diameter
                              {:value (when-let [vals (seq (keep ::path/maximum-diameter v))]
                                        (mean vals))
-                              
                               :check false}
                              :civil-cost
                              (unset? (map ::path/civil-cost-id v))
@@ -415,6 +413,8 @@
                      civils (sort-by first (::document/civil-costs @document))
                      insulation (sort-by first (::document/insulation @document))
                      alternatives (sort-by first (::document/alternatives @document))
+                     min-pipe-diameter (* 1000
+                                          (::document/minimum-pipe-diameter document 0.02))
                      ]
 
     [:div.popover-dialog.popover-dialog--wide
@@ -448,7 +448,7 @@
              demand-state buildings]]
            [:li.tabs__page
             {:class (if (= @active-tab :paths) "tabs__page--active" "")}
-            [path-editor civils path-state paths]]]])
+            [path-editor civils min-pipe-diameter path-state paths]]]])
        ;; Just buildings
        (seq buildings)
        [demand-editor
@@ -459,7 +459,10 @@
         demand-state buildings]
        ;; Just paths
        (seq paths)
-       [path-editor civils path-state paths])
+       [path-editor
+        civils
+        min-pipe-diameter
+        path-state paths])
      [:div.align-right {:style {:margin-top "2em"}}
       [:button.button.button--danger
        {:on-click popover/close!
