@@ -76,6 +76,17 @@
 
 (def emissions-types [:co2 :pm25 :nox])
 
+(def emissions-factor-scales
+  {:co2  1000.0    ;; grams
+   :pm25 1000000.0 ;; milligrams
+   :nox  1000000.0 ;; milligrams
+   })
+
+(def emissions-factor-units
+  {:co2  "g/kWh"
+   :pm25 "mg/kWh"
+   :nox  "mg/kWh"})
+
 (defn unreachable? [candidate] (::solution/unreachable candidate))
 
 (defn forbid-supply! [candidate]

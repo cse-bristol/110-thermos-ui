@@ -93,13 +93,13 @@
           [:td (name e)]
           [:td [inputs/number
                 {:min 0 :max 1000 :step 1
-                 :scale 1000
+                 :scale (candidate/emissions-factor-scales e)
                  :value (get-in alternative [::supply/emissions e] 0)
                  :on-change #(swap! *alternatives
                                     assoc-in
                                     [id ::supply/emissions e]
                                     %)}]]
-          [:td "g/kWh"]])]]]]])
+          [:td (candidate/emissions-factor-units e)]])]]]]])
 
 (defn alternatives-parameters [doc]
   (reagent/with-let [*alternatives
