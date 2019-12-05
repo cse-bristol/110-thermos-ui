@@ -72,9 +72,11 @@
   ;; made 95% of one, including depstar, and I am hacking the final 5%
   ;; here:
 
-  (println (on-cyan (white "update etag")))
-  (spit "target/resources/etag.txt"
-        (sh "git rev-parse HEAD"))
+  (let [etag (try (:out (sh "git" "rev-parse" "HEAD"))
+                  (catch Exception e))]
+    (println (on-cyan (white "update etag")) etag)
+    (.mkdirs (io/file "target/resources"))
+    (spit "target/resources/etag.txt" etag))
   
   (println (on-cyan (white "create jar")))
   (uberjar/create-uberjar
@@ -88,6 +90,7 @@
               :Implementation-Title "com.sun.media.imageio"
               :Implementation-Version "1.1"
               :Implementation-Vendor "Forward Dynamics"}))
+
 
 (defn build-cli-tool []
   (println (on-cyan (white "clean")))
