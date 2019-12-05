@@ -71,7 +71,20 @@
                 (let [scale (or scale 1)
                       vals (remove nil? (map k selected-candidates))]
                   (when-not (empty? vals)
-                    [:span (si-number (* scale (agg vals))) unit])))
+                    (if (rest vals)
+                      [:span.has-tt
+                       {:title
+                        (str
+                         "Range: "
+                         (si-number (* scale (reduce min vals)))
+                         " — "
+                         (si-number (* scale (reduce max vals)))
+                         unit)}
+                       
+                       (si-number (* scale (agg vals)))
+                       ]
+                      [:span (si-number (* scale (agg vals))) unit])
+                    )))
           ]
       [:div.component--selection-info
        [:header.selection-header
@@ -206,10 +219,20 @@
                   nil
                   (let [annual (num ::solution/losses-kwh rsum "Wh/yr" 1000)]
                     (when (seq annual)
-                      [:span annual ", " (num (fn [p]
-                                                (/ (annual-kwh->kw (::solution/losses-kwh p))
-                                                   (::path/length p)))
-                                              rsum "W/m" 1000)]))
+                      (let [total-kwh
+                            (reduce + 0 (keep ::solution/losses-kwh
+                                              selected-candidates))
+
+                            total-length
+                            (reduce + 0 (keep
+                                         #(when (::solution/losses-kwh %)
+                                            (::path/length %))
+                                         selected-candidates))]
+                        [:span annual ", "
+                         (si-number
+                          (/ (* 1000 (annual-kwh->kw total-kwh)) total-length))
+                         "W/m"
+                         ])))
                   ]
                  
                  
