@@ -1,4 +1,21 @@
-[{:title "29th November 2019"
+[{:title "5th December 2019"
+  :changes
+  [{:title "Existing pipes"
+    :summary [:div "Pipes can now be marked as existing network in the candidate editing window. These have no capital costs within a single lifetime."]}
+   {:title "Pipe limits"
+    :summary [:div "Individual paths can now have a maximum diameter set in the candidate editing window."]}
+   {:title "Emissions units"
+    :summary [:div "The display units for pm25 and nox factors have been changed from grams to milligrams."]}
+   {:title "Bugs fixed"
+    :summary [:div
+              "A few bug fixes:"
+              [:ul
+               [:li "Multipolygons now have peak demand estimated correctly."]
+               [:li "Password recovery button should work without a password in the box"]
+               [:li "Some units were wrong in the results summary page"]]]}]
+  
+  }
+ {:title "29th November 2019"
   :changes
   [{:title "OSM Roundabouts"
     :summary [:div "Roundabouts or other closed loops of road in OpenStreetMap are now imported properly."]}
