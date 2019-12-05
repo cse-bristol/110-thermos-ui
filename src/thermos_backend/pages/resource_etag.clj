@@ -34,6 +34,7 @@
                            
                            (swap! resource-checksums assoc path checksum)
                            checksum))]
-        (assoc-in response [:headers "ETag"] (str checksum)))
+        (assoc-in response [:headers "ETag"]
+                  (format "W/\"%s\""(str checksum))))
       (handler request))))
 
