@@ -4,7 +4,7 @@
  :pg-db "thermos"
  
  :web-server-port "8080"
- :web-server-max-age 0
+ :web-server-max-age 600
  :web-server-max-body 800
 
  :solver-directory "solver-work"
