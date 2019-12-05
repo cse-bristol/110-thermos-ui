@@ -8,7 +8,8 @@
             [badigeon.compile :as compile]
             [badigeon.classpath :as classpath]
             [build.uberjar :as uberjar]
-            [clojure.term.colors :refer :all]))
+            [clojure.term.colors :refer :all]
+            [clojure.string :as string]))
 
 (defn- in-thread-group [f & args]
   (let [exception (atom nil)
@@ -72,11 +73,11 @@
   ;; made 95% of one, including depstar, and I am hacking the final 5%
   ;; here:
 
-  (let [etag (try (:out (sh "git" "rev-parse" "HEAD"))
+  (let [etag (try (string/trim (:out (sh "git" "rev-parse" "HEAD")))
                   (catch Exception e))]
     (println (on-cyan (white "update etag")) etag)
     (.mkdirs (io/file "target/resources"))
-    (spit "target/resources/etag.txt" etag))
+    (spit "target/resources/git-rev.txt" etag))
   
   (println (on-cyan (white "create jar")))
   (uberjar/create-uberjar

@@ -23,26 +23,25 @@
             [thermos-backend.pages.cache-control :as cache-control]
             [thermos-backend.auth :as auth]
             [thermos-backend.current-uri :as current-uri]
+
+            [thermos-backend.pages.resource-etag :as etag]
+            
             [clojure.java.io :as io]))
 
-(let [resource (io/resource "etag.txt")
-      etag (and resource (string/trim (slurp resource)))]
-  (defn wrap-fixed-etag [handler]
-    (if (string/blank? etag)
+(let [resource (io/resource "git-rev.txt")
+      git-rev (and resource (string/trim (slurp resource)))]
+  (defn maybe-wrap-cache [handler]
+    (if (string/blank? git-rev)
       (do (log/info "No ETag, assume development, disable cache")
           (fn [request]
             (when-let [response (handler request)]
               (cache-control/no-store response))))
-      
+
       (let [max-age (Integer/parseInt (config :web-server-max-age))]
-        (log/info "Resource ETag: " etag)
         (fn [request]
           (when-let [response (handler request)]
-            (cond-> response
-              (not (cache-control/no-store? response))
-              (-> (cache-control/etag etag)
-                  (cache-control/public :max-age max-age)))
-            ))))))
+            (cache-control/public response :max-age max-age)))))))
+
 
 (defroutes monitoring-routes
   (GET "/_prometheus" []
@@ -56,6 +55,18 @@
   monitoring-routes
   pages/page-routes)
 
+;; (defn debug-none-match [handler]
+;;   (fn [request]
+;;     (let [response (handler request)]
+;;       (println request)
+;;       (println (dissoc response :body))
+;;       response
+;;       )
+    
+;;     )
+;;   )
+
+
 (defstate all
   :start
   (-> site-routes
@@ -67,11 +78,18 @@
       
       (muuntaja/wrap-params)
       (muuntaja/wrap-format)
+
+      (etag/wrap-resources) ;; this should mean we have etag by the time we do the 304
+      
       (wrap-defaults (-> site-defaults
-                         (assoc-in [:security :anti-forgery] false)))
+                         (assoc-in [:security :anti-forgery] false)
+                         (assoc-in [:static :resources] false)))
 
       (wrap-forwarded-scheme)
       (wrap-hsts)
-      
-      (wrap-fixed-etag)))
+      (maybe-wrap-cache)
+      ;; (debug-none-match)
+
+      ))
+
 

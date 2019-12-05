@@ -10,7 +10,9 @@
             [figwheel-sidecar.repl-api
               :as repl-api :refer [cljs-repl]]
             [less4clj.api :as less]
-            [clojure.edn :as edn]))
+            [clojure.edn :as edn]
+            [badigeon.clean :as clean]
+            ))
 
 ;; start an nrepl to connect to
 
@@ -21,6 +23,8 @@
 
 (defn start-dev [{nrepl-handler :nrepl-handler
                   debug-optimizations :debug-optimizations}]
+
+  (clean/clean "target")
   
   (reset! repl-server
           (nrepl/start-server :handler (require-and-resolve nrepl-handler)))
