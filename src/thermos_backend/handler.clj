@@ -40,7 +40,7 @@
           (when-let [response (handler request)]
             (cond-> response
               (not (cache-control/no-store? response))
-              (-> (cache-control/etag response etag)
+              (-> (cache-control/etag etag)
                   (cache-control/public :max-age 3600)))
             ))))))
 
