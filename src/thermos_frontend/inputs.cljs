@@ -14,45 +14,73 @@
             {:value @value-atom})
           ks)])
 
-(defn number [{value-atom :value-atom scale :scale step :step :as ks}]
-  (reagent/with-let [element (atom nil)]
+(defn number [{value-atom :value-atom scale :scale step :step
+               empty-value :empty-value
+               :as ks }]
+  (reagent/with-let [element  (atom nil)
+                     is-blank (reagent/atom false)]
     (let [scale (or scale 1)
           step  (or step 1)
 
           digits (max 0 (- (Math/log10 step)))
 
-          s-value (.toFixed
-                   (* scale (or (when value-atom @value-atom) (:value ks)))
-                   digits)
+          has-empty-value empty-value
+          [empty-value empty-value-label] empty-value
+
+          value (or (when value-atom @value-atom) (:value ks))
+
+          s-value (if (and has-empty-value (= empty-value value))
+                    empty-value-label
+                    (.toFixed (* scale value) digits))
+
           on-change (or (:on-change ks) (partial reset! value-atom))
           parse (if (integer? step)
                   js/parseInt
                   js/parseFloat)
+
+
           ]
 
       [:input.input.number-input
        (merge {:type :number
-               :placeholder "0"
+               :placeholder   (if (and has-empty-value
+                                       @is-blank)
+                                empty-value-label
+                                s-value)
+               
                :default-value s-value}
 
-              (dissoc ks :value-atom :scale :value)
+              (dissoc ks :value-atom :scale :value :empty-value)
 
               (when value-atom
                 {:on-blur
-                 #(let [val @value-atom]
-                    (set! (.. @element -value)
-                          (* val scale)))})
+                 #(let [val     @value-atom
+                        element @element]
+                    (.setCustomValidity element "")
+                    (cond
+                      (and @is-blank has-empty-value)
+                      (do (on-change empty-value)
+                          (set!  (.. element -value) empty-value-label))
+
+                      :else
+                      (set! (.. element -value) s-value)))})
 
               {:ref #(reset! element %)
                :on-change
-               #(let [val (target-value %)
-                      val (parse val)]
-                  (if (js/isFinite val)
+               #(let [s-val (target-value %)
+                      val (parse s-val)]
+                  (reset! is-blank (= "" s-val))
+                  (cond
+                    (and (= "" s-val) has-empty-value)
+                    (on-change empty-value)
+                    
+                    (js/isFinite val)
                     (on-change (/ (parse val) scale))
-                    (let [val @value-atom]
-                      (set! (.. @element -value)
-                            (* val scale)))
-                    ))})])))
+                    
+                    :else
+                    (.setCustomValidity @element "Not a number!"))
+                  
+                  )})])))
 
 (defn select [{value-atom :value-atom values :values
                value :value on-change :on-change

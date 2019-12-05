@@ -185,6 +185,7 @@
                     :min 0
                     :step 1
                     :scale 1000.0
+                    :empty-value [nil "∞"]
                     :value-atom (reagent/cursor values [group-by-key k :max-diameter :value])
                     :check-atom (reagent/cursor values [group-by-key k :max-diameter :check])}]]
              
@@ -218,7 +219,9 @@
           [k (->> paths (group-by k)
                   (map (fn [[k v]]
                          [k {:max-diameter
-                             {:value (mean (keep ::path/maximum-diameter v))
+                             {:value (when-let [vals (seq (keep ::path/maximum-diameter v))]
+                                       (mean vals))
+                              
                               :check false}
                              :civil-cost
                              (unset? (map ::path/civil-cost-id v))
