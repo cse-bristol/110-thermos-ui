@@ -13,8 +13,7 @@
             [thermos-frontend.format :refer [si-number local-format]]
             [thermos-util :refer [annual-kwh->kw]]
             [thermos-frontend.format :as format]
-            [thermos-frontend.inputs :as inputs]
-            ))
+            [thermos-frontend.inputs :as inputs]))
 
 (declare component)
 
@@ -235,15 +234,30 @@
                          "W/m"
                          ])))
                   ]
+                 [[:span.has-tt
+                   {:title
+                    "Linear density of the selected objects. If you want to see the linear density of a solution, select only the things in the solution."}
+                   "Lin. density"]
+                  nil
+                  (let [total-kwh (reduce + 0 (keep
+                                               #(or (::solution/kwh %)
+                                                    (::demand/kwh %))
+                                               selected-candidates))
+                        total-m   (when (and total-kwh
+                                             (pos? total-kwh))
+                                    (reduce + 0 (keep ::path/length selected-candidates)))]
+                    (when (and total-kwh total-m
+                               (pos? total-kwh)
+                               (pos? total-m))
+                      [:span (si-number (* 1000 (/ total-kwh total-m))) "Wh/m"]))]
                  
-                 
-                 ]]
-            (when-not (empty? contents)
-              [:div.selection-table__row {:key row-name}
-               [:div.selection-table__cell.selection-table__cell--first-col row-name]
-               [:div.selection-table__cell.selection-table__cell--second-col
-                {:class class}
-                contents]])
+                 ]
+                (when-not (empty? contents)
+                  [:div.selection-table__row {:key row-name}
+                   [:div.selection-table__cell.selection-table__cell--first-col row-name]
+                   [:div.selection-table__cell.selection-table__cell--second-col
+                    {:class class}
+                    contents]])]
             ))
         ]
        ])))
