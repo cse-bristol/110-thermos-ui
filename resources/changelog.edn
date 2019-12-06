@@ -1,4 +1,16 @@
-[{:title "5th December 2019"
+[{:title "6th December 2019"
+  :changes
+  [{:title "OSM building heights"
+    :summary
+    [:div
+     [:div
+      "When importing from OpenStreetMap, if there is no LIDAR data but OSM contains either the height or building:levels attributes "
+      "these values will be used to determine building height. This should improve the quality of OSM estimates. "
+      "Don't forget, you can edit OSM to add these values yourself!"]
+     [:div "Thanks to Richard Moll for this suggestion."]
+     [:div "Also, the linear density figure is displayed in the selection info panel."]]}]}
+
+ {:title "5th December 2019"
   :changes
   [{:title "Existing pipes"
     :summary [:div "Pipes can now be marked as existing network in the candidate editing window. These have no capital costs within a single lifetime."]}
