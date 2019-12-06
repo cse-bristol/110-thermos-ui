@@ -93,7 +93,7 @@
                                   osm-levels (as-double (:building:levels %))]
                               (cond-> %
                                 osm-levels
-                                (assoc :fallback-height (* lidar/*storey-height* osm-levelse))
+                                (assoc :fallback-height (* lidar/*storey-height* osm-levels))
 
                                 osm-height
                                 (assoc :fallback-height osm-height)))
