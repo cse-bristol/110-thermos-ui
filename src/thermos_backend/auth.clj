@@ -55,7 +55,7 @@
                          (= :admin (get-in this-user [:projects project-admin :auth] )))
                      (or (not sysadmin)
                          (= :admin (:auth this-user))))]
-     (when-not result
+     (when-not (and this-user result)
        (log/warn "Authorization failure" this-user (pr-str restrict)))
      
      result)))
