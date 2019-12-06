@@ -70,20 +70,15 @@
                 (let [scale (or scale 1)
                       vals (remove nil? (map k selected-candidates))]
                   (when-not (empty? vals)
-                    (if (seq (rest vals))
-                      [:span.has-tt
-                       {:title
-                        (str
-                         "Range: "
-                         (si-number (* scale (reduce min vals)))
-                         " — "
-                         (si-number (* scale (reduce max vals)))
-                         unit)}
-                       
-                       (si-number (* scale (agg vals)))
-                       unit
-                       ]
-                      [:span (si-number (* scale (agg vals))) unit])
+                    [:span
+                     (when (seq (rest vals))
+                       {:class :has-tt
+                        :title (str
+                                "Range: "
+                                (si-number (* scale (reduce min vals))) unit
+                                " — "
+                                (si-number (* scale (reduce max vals))) unit)})
+                     (si-number (* scale (agg vals))) unit]
                     )))
           ]
       [:div.component--selection-info
@@ -117,8 +112,7 @@
                  {:title
                   "For buildings on the market tariff, this is the unit rate offered. For multiple selection, it is the mean value."}
                  "Market rate"] nil
-                (num ::solution/market-rate rmean "c/kWh" 100)
-                ]
+                (num ::solution/market-rate rmean "c/kWh" 100)]
 
                [[:span "Civils " [:span
                                   {:on-click #(swap! document view/switch-to-pipe-costs)
@@ -141,7 +135,25 @@
                  "Base cost"] nil (num base-cost   rsum "¤")]
                
                ["Demand" nil (num ::demand/kwh  rsum "Wh/yr" 1000)]
-               ["Peak" nil (num ::demand/kwp  rsum "Wp" 1000)]]]
+               ["Peak" nil (num ::demand/kwp  rsum "Wp" 1000)]
+
+               [[:span.has-tt
+                 {:title
+                  "Linear density of the selected objects. If you want to see the linear density of a solution, select only the things in the solution."}
+                 "Lin. density"]
+                nil
+                (let [total-kwh (reduce + 0 (keep
+                                             #(or (::solution/kwh %)
+                                                  (::demand/kwh %))
+                                             selected-candidates))
+                      total-m   (when (and total-kwh
+                                           (pos? total-kwh))
+                                  (reduce + 0 (keep ::path/length selected-candidates)))]
+                  (when (and total-kwh total-m
+                             (pos? total-kwh)
+                             (pos? total-m))
+                    [:span (si-number (* 1000 (/ total-kwh total-m))) "Wh/m"]))]
+               ]]
 
           (when-not (empty? contents)
             [:div.selection-table__row {:key row-name}
@@ -161,18 +173,9 @@
                        "no"
                        :add-classes "solution")
                   ]
-                 ["Coincidence"
-                  nil
-                  (num ::solution/diversity rmean "%" 100)
-                  ]
-                 ["Capacity"
-                  nil
-                  (num ::solution/capacity-kw rmax "W" 1000)
-                  ]
-                 ["Diameter"
-                  nil
-                  (num ::solution/diameter-mm rmax "m" 0.001)
-                  ]
+                 ["Coincidence" nil (num ::solution/diversity rmean "%" 100)]
+                 ["Capacity"    nil (num ::solution/capacity-kw rmax "W" 1000)]
+                 ["Diameter"    nil (num ::solution/diameter-mm rmax "m" 0.001)]
 
                  [[:span.has-tt
                    {:title "This includes network supply, connection costs, insulation costs and individual system costs. Principal is the capital cost only, for a single purchase. PV capex is the discounted total capital cost, including finance and re-purchasing, which is what the optimisation uses. Summed capex is the un-discounted equivalent."}
@@ -211,10 +214,7 @@
                        rsum "¤")
                   ]
 
-                 ["Revenue"
-                  nil
-                  (num (comp :annual ::solution/heat-revenue) rsum "¤/yr")
-                  ]
+                 ["Revenue" nil (num (comp :annual ::solution/heat-revenue) rsum "¤/yr")]
                  ["Losses"
                   nil
                   (let [annual (num ::solution/losses-kwh rsum "Wh/yr" 1000)]
@@ -234,30 +234,13 @@
                          "W/m"
                          ])))
                   ]
-                 [[:span.has-tt
-                   {:title
-                    "Linear density of the selected objects. If you want to see the linear density of a solution, select only the things in the solution."}
-                   "Lin. density"]
-                  nil
-                  (let [total-kwh (reduce + 0 (keep
-                                               #(or (::solution/kwh %)
-                                                    (::demand/kwh %))
-                                               selected-candidates))
-                        total-m   (when (and total-kwh
-                                             (pos? total-kwh))
-                                    (reduce + 0 (keep ::path/length selected-candidates)))]
-                    (when (and total-kwh total-m
-                               (pos? total-kwh)
-                               (pos? total-m))
-                      [:span (si-number (* 1000 (/ total-kwh total-m))) "Wh/m"]))]
-                 
-                 ]
-                (when-not (empty? contents)
-                  [:div.selection-table__row {:key row-name}
-                   [:div.selection-table__cell.selection-table__cell--first-col row-name]
-                   [:div.selection-table__cell.selection-table__cell--second-col
-                    {:class class}
-                    contents]])]
+                 ]]
+            (when-not (empty? contents)
+              [:div.selection-table__row {:key row-name}
+               [:div.selection-table__cell.selection-table__cell--first-col row-name]
+               [:div.selection-table__cell.selection-table__cell--second-col
+                {:class class}
+                contents]])
             ))
         ]
        ])))
