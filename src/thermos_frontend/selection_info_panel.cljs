@@ -71,7 +71,7 @@
                 (let [scale (or scale 1)
                       vals (remove nil? (map k selected-candidates))]
                   (when-not (empty? vals)
-                    (if (rest vals)
+                    (if (seq (rest vals))
                       [:span.has-tt
                        {:title
                         (str
