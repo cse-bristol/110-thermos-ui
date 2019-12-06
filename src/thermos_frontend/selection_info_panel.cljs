@@ -82,6 +82,7 @@
                          unit)}
                        
                        (si-number (* scale (agg vals)))
+                       unit
                        ]
                       [:span (si-number (* scale (agg vals))) unit])
                     )))
