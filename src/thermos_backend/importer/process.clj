@@ -89,9 +89,21 @@
 
         set-building-type  #(assoc % :subtype (remap-building-type %))
         set-road-type      #(assoc % :subtype (clean-tag (:highway %)))
+        set-osm-height     #(let [osm-height (as-double (:height %))
+                                  osm-levels (as-double (:building:levels %))]
+                              (cond-> %
+                                osm-levels
+                                (assoc :fallback-height (* lidar/*storey-height* osm-levelse))
+
+                                osm-height
+                                (assoc :fallback-height osm-height)))
+        
         set-specials       #(cond-> %
                               (= (:osm-id %) "289662492")
-                              (assoc :name "Rothballer Towers"))
+                              (assoc :name "Rothballer Towers")
+                              (= (:osm-id %) "602252862")
+                              (assoc :name "The Thumimdome")
+                              )
         
         query-results (overpass/get-geometry query-area
                                              :include-buildings get-buildings
@@ -107,7 +119,8 @@
              (geoio/explode-multis)
              (filter (comp #{:polygon} ::geoio/type))
              (map set-building-type)
-             (map set-specials))
+             (map set-specials)
+             (map set-osm-height))
 
         highways
         (->> query-results
