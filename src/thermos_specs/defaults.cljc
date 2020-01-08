@@ -16,12 +16,12 @@
                 :capacity-charge 0}})
 
 (def default-civil-costs
-  {1 #::path {:civil-cost-id 1
+  {2 #::path {:civil-cost-id 2
                :civil-cost-name "Soft"
                :fixed-cost 200
                :variable-cost 200}
 
-   2 #::path {:civil-cost-id 2
+   1 #::path {:civil-cost-id 1
                :civil-cost-name "Hard"
                :fixed-cost 500
                :variable-cost 750}})
