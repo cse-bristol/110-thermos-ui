@@ -28,8 +28,8 @@
     nrepl/nrepl                   {:mvn/version "0.6.0"}
     ;;org.clojure/tools.nrepl       {:mvn/version "0.2.13"}
     org.clojure/tools.namespace   {:mvn/version "0.2.11"}
-    cider/cider-nrepl             {:mvn/version "0.21.0"}
-    refactor-nrepl/refactor-nrepl {:mvn/version "2.4.0"}
+    cider/cider-nrepl             {:mvn/version "0.22.2"}
+    refactor-nrepl/refactor-nrepl {:mvn/version "2.5.0-SNAPSHOT"}
 
     deraen/less4clj {:mvn/version "0.7.0-SNAPSHOT"}
     ;; github/deraen-less4clj
