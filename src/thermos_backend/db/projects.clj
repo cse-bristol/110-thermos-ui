@@ -233,12 +233,12 @@
                             (h/where [:= :project-id project-id])
                             (db/fetch! conn))
           
-          any-admins? (some #{"admin"} (map :auth users))
+          any-admins? (some #{:admin} (map :auth users))
           existing-admins (filter (comp #{"admin"} :auth) current-users)
           
           users (if any-admins?
                   users
-                  (concat users existing-admins))
+                  (concat users (for [u existing-admins] {:id (:user-id u) :auth (:auth u)})))
           
           desired-user-ids (set (map :id users))
           current-user-ids (set (map :user-id current-users))
