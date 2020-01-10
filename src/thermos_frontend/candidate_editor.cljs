@@ -139,6 +139,7 @@
              [:td
               [inputs/select
                {:values `[[:unset "Unchanged"]
+                          [:nothing "Nothing"]
                           ~@(for [[i {n ::supply/name}] alternatives] [i n])]
                 :value (get-in @values [group-by-key k :counterfactual])
                 :on-change #(swap! values
@@ -270,7 +271,8 @@
                                        (if (= n c) :true :indeterminate)])]
                                 (into {} state))
 
-                              :counterfactual (unset? (map ::demand/counterfactual v))
+                              :counterfactual (or (unset? (map ::demand/counterfactual v))
+                                                  :nothing)
 
                               })])))
 
@@ -377,7 +379,14 @@
            set-peak                (assoc ::demand/kwp peak-value)
            set-tariff              (assoc ::tariff/id tariff)
            set-connection-cost     (assoc ::tariff/cc-id connection-cost)
-           set-counterfactual      (assoc ::demand/counterfactual counterfactual)
+
+           (and set-counterfactual
+                (not= :nothing counterfactual))
+                                   (assoc ::demand/counterfactual counterfactual)
+           
+           (and set-counterfactual
+                (= :nothing counterfactual))
+                                   (dissoc ::demand/counterfactual)
 
            (seq add-insulation)    (update ::demand/insulation set/union add-insulation)
            (seq remove-insulation) (update ::demand/insulation set/difference remove-insulation)

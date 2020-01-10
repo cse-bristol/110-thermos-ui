@@ -1,4 +1,11 @@
-[{:title "6th December 2019"
+[{:title "10th Jan 2020"
+  :changes [{:title "Individual system display"
+             :summary [:div "The selection info window now shows what individual systems are in use, rather than just saying 'individual'."]
+             }
+            {:title "Unset counterfactual"
+             :summary [:div "You can now remove a counterfactual option from buildings."]}]}
+
+ {:title "6th December 2019"
   :changes
   [{:title "OSM building heights"
     :summary
