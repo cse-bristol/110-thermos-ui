@@ -7,6 +7,7 @@
             [thermos-specs.path :as path]
             [thermos-specs.solution :as solution]
             [thermos-specs.view :as view]
+            [thermos-specs.supply :as supply]
             [thermos-frontend.editor-state :as state]
             [thermos-frontend.operations :as operations]
             [thermos-frontend.tag :as tag]
@@ -24,8 +25,7 @@
                         (when (and value (not-empty candidates))
                           [tag/component
                            {:key value
-                            :class (when add-classes
-                                     [add-classes (name value)])
+                            :class (when add-classes (add-classes value))
                             
                             :count (count candidates)
                             :body value
@@ -93,7 +93,8 @@
               [["Type" sc-class (cat ::candidate/type nil)]
                ["Classification" sc-class (cat ::candidate/subtype "Unclassified")]
                ["Constraint" sc-class (cat ::candidate/inclusion "Forbidden"
-                                           :add-classes "constraint")]
+                                           :add-classes
+                                           (fn [x] ["constraint" (name x)]))]
                
                ["Name" sc-class (cat ::candidate/name "None")]
                [[:span "Tariff " [:span
@@ -167,11 +168,29 @@
                 [["In solution" sc-class
                   (cat #(cond
                           (candidate/is-connected? %) "network"
-                          (candidate/got-alternative? %) "individual"
+                          (candidate/got-alternative? %)
+                          (-> %
+                              (::solution/alternative)
+                              (::supply/name))
+
+                          (candidate/got-counterfactual? %)
+                          (-> %
+                              (::solution/alternative)
+                              (::supply/name)
+                              (str " (existing)"))
+                          
                           (candidate/unreachable? %) "impossible")
                        
                        "no"
-                       :add-classes "solution")
+                       :add-classes
+                       ;; TODO this is a bit ugly right now
+                       (fn [x] ["solution"
+                                (cond
+                                  (or (= x "network") (= x "impossible"))
+                                  x
+                                  (.endsWith x "(existing)")
+                                  "no"
+                                  true "individual")]))
                   ]
                  ["Coincidence" nil (num ::solution/diversity rmean "%" 100)]
                  ["Capacity"    nil (num ::solution/capacity-kw rmax "W" 1000)]

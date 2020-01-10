@@ -96,3 +96,6 @@
   (and (::solution/alternative candidate)
        (not (:counterfactual (::solution/alternative candidate)))))
 
+(defn got-counterfactual? [candidate]
+  (and (::solution/alternative candidate)
+       (:counterfactual (::solution/alternative candidate))))
