@@ -3,7 +3,14 @@
              :summary [:div "The selection info window now shows what individual systems are in use, rather than just saying 'individual'."]
              }
             {:title "Unset counterfactual"
-             :summary [:div "You can now remove a counterfactual option from buildings."]}]}
+             :summary [:div "You can now remove a counterfactual option from buildings."]}
+
+            {:title "Bugs removed"
+             :summary
+             [:ul
+              [:li "The variable capital cost for individual systems is now included. "
+               "It was accidentally left out of the objective for the optimiser."]]}]}
+ 
 
  {:title "6th December 2019"
   :changes
