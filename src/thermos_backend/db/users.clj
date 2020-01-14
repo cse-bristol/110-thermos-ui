@@ -44,7 +44,7 @@
           (db/with-connection [conn]
             [(-> (h/select :*)
                  (h/from :users)
-                 (h/where [:= :id user-id])
+                 (h/where [:= :id (string/lower-case user-id)])
                  (db/fetch! conn)
                  (first))
 
@@ -87,7 +87,7 @@
 
 (defn delete-user! [user-id]
   (-> (h/delete-from :users)
-      (h/where [:= :id user-id])
+      (h/where [:= :id (string/lower-case user-id)])
       (db/execute!)))
 
 (defn create-user!
@@ -133,7 +133,7 @@
          (string? password)]}
   (-> (h/select :password)
       (h/from :users)
-      (h/where [:= :id user-id])
+      (h/where [:= :id (string/lower-case user-id)])
       (db/fetch!)
       (first)
       (:password)
@@ -154,7 +154,7 @@
   (let [new-token (str (java.util.UUID/randomUUID))
         n (-> (h/update :users)
               (h/sset {:reset-token new-token})
-              (h/where [:= :id user-id])
+              (h/where [:= :id (string/lower-case user-id)])
               (db/execute!))]
     (when (and n (pos? n))
       new-token)))
@@ -181,7 +181,7 @@
       
       (-> (h/insert-into :users-projects)
           (h/values (for [u invitees]
-                      {:user-id (:id u)
+                      {:user-id (string/lower-case (:id u))
                        :project-id project-id
                        :auth (as-project-auth (or (:auth u) :write))}))
           (db/execute! conn)))))
@@ -194,7 +194,7 @@
       (-> (h/delete-from :users-projects)
           (h/where [:and
                     [:= :project-id project-id]
-                    [:in :user-id user-ids]])
+                    [:in :user-id (map string/lower-case user-ids)]])
           (db/execute! conn)))))
 
 (defn authorize!
@@ -205,7 +205,7 @@
   (let [the-values
         (for [[id entries] (group-by :id users)]
           {:project-id project-id
-           :user-id id
+           :user-id (string/lower-case id)
            :auth (as-project-auth (reduce max-auth (map :auth entries)))})]
     
     (db/or-connection [conn]
