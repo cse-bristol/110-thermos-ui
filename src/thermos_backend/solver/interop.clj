@@ -318,8 +318,11 @@
               
               "cost/kwp"
               ;; we pay opex for the CF unless in network-only mode.
-              (finance/objective-value instance :alternative-opex
-                                       (::supply/opex-per-kwp alternative 0))
+              (+ (finance/objective-value instance :alternative-opex
+                                          (::supply/opex-per-kwp alternative 0))
+
+                 (finance/objective-value instance capex-type
+                                          (::supply/capex-per-kwp alternative 2)))
               
               :emissions
               (into {}
