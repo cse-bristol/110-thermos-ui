@@ -1,4 +1,10 @@
-[{:title "10th Jan 2020"
+[{:title "17th Jan 2020"
+  :changes [{:title "Map info"
+             :summary
+             [:div
+              "The project page now displays information about the demand estimation method used in each map, and shows a warning if the estimates are mostly low-quality."]}]}
+
+ {:title "10th Jan 2020"
   :changes [{:title "Individual system display"
              :summary [:div "The selection info window now shows what individual systems are in use, rather than just saying 'individual'."]
              }

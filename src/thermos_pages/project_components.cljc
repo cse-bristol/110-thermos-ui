@@ -7,7 +7,8 @@
             [ajax.core :refer [POST DELETE]]
             [thermos-pages.symbols :as symbols]
             #?@(:cljs
-                [[thermos-pages.dialog :refer [show-delete-dialog! show-dialog! close-dialog!]]])))
+                [[thermos-pages.dialog :refer [show-delete-dialog! show-dialog! close-dialog!]]])
+            [clojure.string :as str]))
 
 (rum/defcs project-user-list < rum/reactive
   [state
@@ -225,7 +226,33 @@
       :row-key :id
       })))
 
-(rum/defc map-component [m]
+(defn- estimation-method-label [method-name]
+  (let [method-name (name method-name)]
+    (cond-> ""
+      (= "given" method-name)
+      (str "Demand input as part of user GIS data")
+
+      (str/ends-with? method-name "svm")
+      (str "Support vector machine")
+
+      (str/ends-with? method-name "lm")
+      (str "Linear model")
+      
+      (str/starts-with? method-name "3d-")
+      (str " using high-quality 3d predictors.")
+      
+      (str/starts-with? method-name "2d-")
+      (str " using low-quality 2d predictors."))))
+
+(defn- mostly-bad-estimates [stats]
+  (let [total (reduce + 0 (vals stats))
+        bad   (reduce + 0
+                      (for [[k v] stats :when (str/starts-with? (name k) "2d-")]
+                        v))]
+    (> (/ bad total) 0.5)))
+
+(rum/defcs map-component < (rum/local nil ::show-info)
+  [{*show-info ::show-info} m]
   [:div.card {:key (:id m)
               :style {:flex-basis :40em
                       :flex-grow 1}}
@@ -244,6 +271,11 @@
      [:span (:name m)]]
     
     [:div
+     [:button.button
+      {:style {:margin-left :1em}
+       :on-click (fn-js [e] (swap! *show-info not))}
+      "ℹ"]
+     
      [:a.button
       {:style {:margin-left :1em}
        :href (str "map/" (:id m) "/data.json")} "DOWNLOAD " symbols/download]
@@ -266,15 +298,39 @@
                    :href (str "map/" (:id m) "/net/new")} "NETWORK " symbols/plus])
      ]]
    
-   [:span (:description m)]
-
+   (when-let [description (:description m)] [:div description])
+   (when (mostly-bad-estimates (:estimation-stats m))
+     [:div {:style {:margin-top :1em}}
+      [:span {:style {:background :pink :color :white
+                      :border-radius :0.5em
+                      :padding-left :0.25em
+                      :padding-right :0.25em
+                      :margin-right :0.25em
+                      :font-weight :bold}} "Warning: "]
+      "A majority of the demand estimates in this map are using low-quality 2d predictors. "
+      "The estimates may be inaccurate."])
+   
    (if (:import-completed m)
      (if-let [networks (seq (:networks m))]
        ;; expando button needs a component
-       [:div.flex-grow
-        {:style {:margin-top :1em}}
-        [:b "Networks:"]
-        (network-table (:id m) networks)]
+       [:div.flex-cols.flex-grow
+        (when @*show-info
+          [:div {:style {:margin-top :1em :margin-right :1em}}
+           [:b "Map info:"]
+           [:table
+            [:thead
+             [:tr [:th "Method"] [:th "Count"]]]
+            [:tbody
+             (for [[k v] (:estimation-stats m)]
+               [:tr
+                [:td {:title (estimation-method-label k)} (name k)]
+                [:td v]])]]
+           
+           ])
+        [:div.flex-grow
+         {:style {:margin-top :1em}}
+         [:b "Networks:"]
+         (network-table (:id m) networks)]]
        [:div
         "This map has no network designs associated with it yet."])
 
