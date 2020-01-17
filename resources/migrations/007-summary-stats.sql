@@ -2,7 +2,7 @@ ALTER TABLE maps
    ADD COLUMN estimation_stats json;
 --;;
 UPDATE maps SET estimation_stats =
-  (SELECT json_object_agg(demand_source, count) FROM
+  (SELECT json_object_agg(coalesce(demand_source, 'unknown'), count) FROM
      (SELECT demand_source, count(*) count
       FROM buildings INNER JOIN candidates ON buildings.candidate_id = candidates.id
       WHERE map_id = maps.id GROUP BY demand_SOURCE) AS demand_sources);
