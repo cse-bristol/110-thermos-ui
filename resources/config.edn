@@ -2,6 +2,7 @@
  :pg-user "postgres"
  :pg-password "therm0s"
  :pg-db "thermos"
+ :force-migrate false
  
  :web-server-port "8080"
  :web-server-max-age 600
