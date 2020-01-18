@@ -37,9 +37,9 @@
     
     (try
       (with-open [conn (jdbc/connection datasource)]
-        (migration/migrate conn)
-        ;;(migration/force conn) ; for when I broken it
-        )
+        (if (= (config :force-migrate) "true")
+          (migration/force conn)
+          (migration/migrate conn)))
       datasource
       (catch Exception e
         (and datasource (hikari/close-datasource datasource))
