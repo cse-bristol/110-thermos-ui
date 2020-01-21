@@ -216,7 +216,7 @@
 
        (POST "/leave" []
          ;; leave the project
-         (projects/set-users! project-id (:id auth/*current-user*))
+         (projects/leave! project-id (:id auth/*current-user*))
          (response/redirect "."))
        
        (auth/restricted
