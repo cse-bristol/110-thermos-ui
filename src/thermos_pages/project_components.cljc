@@ -245,14 +245,15 @@
       (str " using low-quality 2d predictors."))))
 
 (defn- mostly-bad-estimates [stats]
-  (let [total (reduce + 0 (vals stats))
-        bad   (reduce + 0
-                      (for [[k v] stats :when (str/starts-with? (name k) "2d-")]
-                        v))]
-    (> (/ bad total) 0.5)))
+  (try (let [total (reduce + 0 (vals stats))
+             bad   (reduce + 0
+                           (for [[k v] stats :when (str/starts-with? (name k) "2d-")]
+                             v))]
+         (> (/ bad total) 0.5))
+       (catch Exception e)))
 
 (rum/defcs map-component < (rum/local nil ::show-info)
-  [{*show-info ::show-info} m]
+  [{*show-info ::show-info} m & {:keys [on-event] :or {on-event #()}}]
   [:div.card {:key (:id m)
               :style {:flex-basis :40em
                       :flex-grow 1}}
