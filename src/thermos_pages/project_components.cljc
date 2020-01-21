@@ -250,7 +250,8 @@
                            (for [[k v] stats :when (str/starts-with? (name k) "2d-")]
                              v))]
          (> (/ bad total) 0.5))
-       (catch Exception e)))
+       (catch #?(:cljs :default
+                 :clj Exception) e)))
 
 (rum/defcs map-component < (rum/local nil ::show-info)
   [{*show-info ::show-info} m & {:keys [on-event] :or {on-event #()}}]
