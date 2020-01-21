@@ -8,7 +8,7 @@
             [honeysql.core :as sql]
             [thermos-backend.email :as email]))
 
-(defn- as-project-auth [a]
+(defn as-project-auth [a]
   {:pre [(#{:admin :read :write} a)]}
   (sql/call :project_auth (name a)))
 

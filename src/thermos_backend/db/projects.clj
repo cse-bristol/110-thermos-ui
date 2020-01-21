@@ -251,9 +251,9 @@
       (log/info "Authorize" users "for" project-id)
       (jdbc/atomic
        conn
-       (users/uninvite! project-id (map :user-id users-to-remove) conn)
-       (users/invite! project-id current-user users-to-invite conn)
-       (users/authorize! project-id users conn)))))
+        (users/uninvite! project-id (map :user-id users-to-remove) conn)
+        (users/invite! project-id current-user users-to-invite conn)
+        (users/authorize! project-id users conn)))))
 
 (defn leave! [project-id user-id]
   (db/with-connection [conn]
@@ -280,7 +280,7 @@
                   (db/execute! conn))
 
               (-> (h/update :users-projects)
-                  (h/sset {:auth :admin})
+                  (h/sset {:auth (users/as-project-auth :admin)})
                   (h/where [:= :project-id project-id])
                   (db/execute! conn))))))))
 
