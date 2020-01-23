@@ -85,6 +85,9 @@
 
         :connection-id (str/join "," (::spatial/connects-to-node b))
         :demand-kwh-per-year (or (:annual-demand b) 0)
+        :cooling-kwh-per-year (or (:annual-cooling-demand b) 0)
+        :cooling-kwp (or (:cooling-peak b) 0)
+        
         :demand-kwp (or (:peak-demand b) 0)
         :connection-count (or (:connection-count b) 1)
         :demand-source (name (:demand-source b))

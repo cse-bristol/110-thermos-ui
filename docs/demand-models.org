@@ -2,7 +2,8 @@
 
 *NOTE:* This document is not yet complete.
 
-* Annual demand model
+* Heat demand model
+** Annual demand model
 :PROPERTIES:
 :CUSTOM_ID: annual-demand-model
 :END:
@@ -15,7 +16,7 @@ Annual demand is predicted using a combination of several models:
 - A LM trained on two-dimensional predictors only
 - A separate hot water demand model
 
-** Algorithm
+*** Algorithm
 
 If there is three-dimensional data available, then the 3D predictors are calculated and the 3D models are used, otherwise the 2D versions are used. The predictors are given later; following this the process is
 
@@ -33,7 +34,7 @@ If there is three-dimensional data available, then the 3D predictors are calcula
 - Estimate hot water demand ::
    For this we use the methodology from SAP 2012[fn:2], equations (42)-(45). This method is essentially a nonlinear benchmark, as the demand is derived from the building's assumed floor area.
 
-** Model creation
+*** Model creation
 
 *NOTE:* This is incomplete.
 
@@ -41,15 +42,15 @@ The model is based on measured heat demand data from buildings in Copenhagen; fo
 
 To separate space heat demand from hot water demand in the training data, we applied a simple assumption that a constant proportion related space heat to hot water demand. It would perhaps have been more consistent to estimate hot water demand using the SAP equations, and subtract that value.
 
-** Model validation
+*** Model validation
 
 **NOTE:* This is incomplete.
 
-*** Cross-validation
+**** Cross-validation
 
-*** Validation on aggregate datasets
+**** Validation on aggregate datasets
 
-** Predictors
+*** Predictors
 
 - Three-dimensional predictors ::
   - /External/ wall area, computed by taking the length of all walls not shared with adjacent buildings and multiplying it by the building height
@@ -70,7 +71,7 @@ To separate space heat demand from hot water demand in the training data, we app
 
 Other geometric predictors which might be worth considering would include functions of building orientation (e.g. south-facing area), and the number of corners or edges on the building, but we have not assessed these. We have also not explored any further categorical information about buildings, or information about their occupancy. Whilst these features might improve the predictive power, they are harder to come by and so reduce the number of places the model can be applied.
 
-* Peak demand model
+** Peak demand model
 :PROPERTIES:
 :CUSTOM_ID: peak-demand-model
 :END:
@@ -83,8 +84,39 @@ p = 21.84 + 0.0004963 \times a
 
 This rule is derived from analysis of smart meter data in the UK, relating peak to annual gas usage, with some assumed efficiencies and weather correction.
 
-* Footnotes
+* Cooling demand model
+** Annual demand model
+Cooling demand is estimated using the method given by Sven Werner in /European space cooling demands/, published in Elsevier's /Energy/ 110 (2016) pp148 -- 156[fn:3].
 
+The model uses an empirically determined /cooling index/ $E$, which is used to produce a benchmark value of $1.22 \times E - 43.5$ kWh/m^2.
+
+The cooling index varies by region, and so incorporates some evidence about the cooling degree days that are needed.
+** Peak demand model
+At the moment the cooling peak model is very basic. 
+The BSRIA /Rules of thumb/ (5^{th} edition)[fn:4] gives the following indicative values for cooling capacity /in the UK/ by building use:
+
+| Use              | W/m^2 |
+|------------------+-------|
+| Residential      |    70 |
+|------------------+-------|
+| Offices          |    87 |
+| Hotels and shops |   150 |
+| Restaurants      |   200 |
+|------------------+-------|
+| Datacenters      | 1500  |
+
+Since THERMOS doesn't usually know more than whether a building is residential or not, we have taken as representative two values: 70 W/m^2 for residential, and 150 W/m^2 for non-residential buildings.
+
+To translate these values to regions other than the UK, we have related them to Werner's annual demand model to produce ratios between annual demand and peak demand for residential and non-residential buildings.
+
+The peak demand is then calculated by applying this ratio to the annual demand estimate from Werner's method. The assumption here is that the peak-to-base ratio is the same in different regions.
+
+We would be very interested to hear from anyone with a better idea or more evidence about this part.
+* Footnotes
 [fn:1] ECOHEATCOOL, Work Package 1; the European Heat Market (Final Report), by Euroheat & Power, 2005-2006.
 
 [fn:2] [[https://www.bre.co.uk/filelibrary/SAP/2012/SAP-2012_9-92.pdf][SAP 2012]], the Government's Standard Assessment Procedure for Energy Rating of Dwellings
+
+[fn:3] Available from https://ideas.repec.org/a/eee/energy/v110y2016icp148-156.html
+
+[fn:4] ISBN 978 0 86022 692 5

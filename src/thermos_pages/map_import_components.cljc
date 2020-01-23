@@ -792,13 +792,19 @@
 
 (def building-fields
   [{:value :annual-demand
-    :label "Annual demand (kWh/yr)"
+    :label "Annual heat demand (kWh/yr)"
     :doc
     [:span
      "A value for annual demand will be used in preference to any other estimate. "
      "Otherwise, a benchmark estimate will be used if available, or the built-in regression model otherwise."]}
+
+   {:value :annual-cooling-demand
+    :label "Annual cooling demand (kWh/yr)"
+    :doc
+    [:span
+     "A value for annual cooling demand will be used in preference to a cooling estimate."]}
    
-   {:value :peak-demand :label "Peak demand (kW)"
+   {:value :peak-demand :label "Peak heat demand (kW)"
     :doc
     [:span
      "A value for peak demand will be used in preference to any other estimate. "
@@ -816,14 +822,24 @@
     [:span "A value for floor area will be used in benchmark-based estimates. "
      "If no value is provided, a value will be estimated from the building geometry and height (if known)."]}
    
-   {:value :benchmark-c :label "Benchmark (kWh/yr)"
+   {:value :benchmark-c :label "Heat benchmark (kWh/yr)"
     :doc
     [:span
      "A constant benchmark - this is used in combination with the variable benchmark term. "
      "If a building has associated benchmarks and no specified demand, demand will be estimated as this constant plus floor area times the variable benchmark."]
     
     }
-   {:value :benchmark-m :label "Benchmark (kWh/m2/yr)"
+   {:value :benchmark-m :label "Heat benchmark (kWh/m2/yr)"
+    :doc [:span "A variable benchmark per floor area."]}
+
+   {:value :cooling-benchmark-c :label "Cooling benchmark (kWh/yr)"
+    :doc
+    [:span
+     "A constant benchmark - this is used in combination with the variable benchmark term. "
+     "If a building has associated benchmarks and no specified demand, demand will be estimated as this constant plus floor area times the variable benchmark."]
+    
+    }
+   {:value :cooling-benchmark-m :label "Cooling benchmark (kWh/m2/yr)"
     :doc [:span "A variable benchmark per floor area."]}
    
    {:value :peak-base-ratio :label "Peak/base ratio"

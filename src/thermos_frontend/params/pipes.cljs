@@ -27,6 +27,9 @@
      flow-temperature (reagent/cursor document [::document/flow-temperature])
      return-temperature (reagent/cursor document [::document/return-temperature])
      ground-temperature (reagent/cursor document [::document/ground-temperature])
+
+     pumping-overhead     (reagent/cursor document [::document/pumping-overhead])
+     pumping-cost-per-kwh (reagent/cursor document [::document/pumping-cost-per-kwh])
      ]
     [:div
      [:div.card
@@ -51,6 +54,21 @@
        
        ]
       
+      ]
+
+     [:div.card
+      [:b "Pumping costs"]
+      [:p
+       "Pumping costs are taken to be a proportion of the system output. "
+       "In a heat network they offset supply output. "
+       "In a cooling network, they add to the required supply output."]
+      [:p "Pumping overheads are "
+       [inputs/number {:value-atom pumping-overhead :min 0 :max 100 :step 1 :scale 100}]
+       " % of system output, and cost "
+       [inputs/number {:value-atom pumping-cost-per-kwh
+                       :min 0 :max 50 :step 0.01 :scale 100}] "c/kWh."]
+
+      ;; TODO emissions factors for pumping
       ]
      
      [:div.card

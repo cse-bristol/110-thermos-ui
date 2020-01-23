@@ -253,6 +253,11 @@
        (catch #?(:cljs :default
                  :clj Exception) e)))
 
+(rum/defc buttons [& content]
+  [:div.flex-cols {:style {:flex-wrap :wrap}}
+   (for [item content :when item]
+     [:div {:style {:margin-bottom :0.5em :margin-left :1em}} item])])
+
 (rum/defcs map-component < (rum/local nil ::show-info)
   [{*show-info ::show-info} m & {:keys [on-event] :or {on-event #()}}]
   [:div.card {:key (:id m)
@@ -271,36 +276,35 @@
        "")
      
      [:span (:name m)]]
-    
-    [:div
+
+    (buttons
      [:button.button
-      {:style {:margin-left :1em}
-       :on-click (fn-js [e] (swap! *show-info not))}
+      {:on-click (fn-js [e] (swap! *show-info not))}
       [:b {:style {:font-family "Serif"}} "i"]]
      
      [:a.button
-      {:style {:margin-left :1em}
-       :href (str "map/" (:id m) "/data.json")} "DOWNLOAD " symbols/download]
+      {:href (str "map/" (:id m) "/data.json")} "DOWNLOAD " symbols/download]
      [:a.button
-      {:style {:margin-left :1em}
-       :on-click (fn-js [e]
-                        (show-delete-dialog!
-                         {:name (:name m)
-                          :message [:span "Are you sure you want to delete this map "
-                                    "and the " (count (:networks m))
-                                    " network problems associated with it?"]
-                          :on-delete
-                          ;; issue the relevant request - the map should disappear later.
-                          #(DELETE (str "map/" (:id m))
-                               :handler on-event)})
-                        
-                        (.preventDefault e))
+      {:on-click (fn-js [e]
+                   (show-delete-dialog!
+                    {:name (:name m)
+                     :message [:span "Are you sure you want to delete this map "
+                               "and the " (count (:networks m))
+                               " network problems associated with it?"]
+                     :on-delete
+                     ;; issue the relevant request - the map should disappear later.
+                     #(DELETE (str "map/" (:id m))
+                          :handler on-event)})
+                   
+                   (.preventDefault e))
        
        :href (str "map/" (:id m) "/delete")} "DELETE " symbols/delete]
-     (if (:import-completed m)
-       [:a.button {:style {:margin-left :1em}
-                   :href (str "map/" (:id m) "/net/new")} "NETWORK " symbols/plus])
-     ]]
+     (when (:import-completed m)
+       [:a.button {:href (str "map/" (:id m) "/net/new")} "HEAT NET " symbols/plus])
+     (when (:import-completed m)
+       [:a.button {:href (str "map/" (:id m) "/net/new?mode=cooling")} "COLD NET " symbols/plus])
+     )
+    ]
    
    (when-let [description (:description m)] [:div description])
    (when (mostly-bad-estimates (:estimation-stats m))
@@ -383,9 +387,8 @@
           (if (string/blank? d)
             [:em "This project has no description"]
             [:span d]))]
-       [:div
-        [:button.button {:style {:margin-left :1em}
-                         :on-click (fn-js [e]
+       (buttons
+        [:button.button {:on-click (fn-js [e]
                                      (let [user-state (atom (:users project))]
                                        (show-dialog!
                                         (project-user-list
@@ -403,8 +406,7 @@
         
         (when am-admin
           [:button.button
-           {:style {:margin-left :1em}
-            :href "delete"
+           {:href "delete"
             :on-click
             (fn-js [e]
               (show-delete-dialog!
@@ -429,8 +431,7 @@
 
         (when (> (count (:users project)) 1)
           [:button.button
-           {:style {:margin-left :1em}
-            :on-click
+           {:on-click
             (fn-js [e]
               (show-dialog!
                [:div
@@ -454,8 +455,7 @@
            "LEAVE 👋" 
            ])
         
-        [:a.button {:style {:margin-left :1em}
-                    :href "map/new"} "MAP " symbols/plus]]]]
+        [:a.button {:href "map/new"} "MAP " symbols/plus])]]
 
      ;; data uploady box...
      

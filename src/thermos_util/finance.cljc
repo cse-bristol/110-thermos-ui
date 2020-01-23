@@ -119,7 +119,7 @@
                                value
                                true)
 
-        (:supply-heat :supply-opex :emissions-cost :heat-revenue :alternative-opex)
+        (:supply-heat :supply-opex :emissions-cost :heat-revenue :alternative-opex :supply-pumping)
 
         ;; these things are not capexes so we account for them the other way
         (objective-opex-value doc value))

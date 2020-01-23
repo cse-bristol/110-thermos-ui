@@ -290,7 +290,13 @@
               (response/response (maps/get-tile map-id z x y))))
            
            (GET "/d/:z/:x/:y.png" [z :<< as-int x :<< as-int y :<< as-int]
-             (-> (maps/get-density-tile map-id z x y)
+             (-> (maps/get-density-tile map-id z x y true)
+                 (ByteArrayInputStream.)
+                 (response/response)
+                 (response/content-type "image/png")))
+
+           (GET "/cd/:z/:x/:y.png" [z :<< as-int x :<< as-int y :<< as-int]
+             (-> (maps/get-density-tile map-id z x y false)
                  (ByteArrayInputStream.)
                  (response/response)
                  (response/content-type "image/png")))
@@ -312,7 +318,7 @@
              (projects/delete-networks! map-id network-name)
              deleted)
            
-           (auth/restricted-context "/net/:net-id" [net-id]
+           (auth/restricted-context "/net/:net-id" [net-id mode]
              (when-let [id (as-int net-id)] {:network id})
              (GET "/" {{accept "accept"} :headers}
                (let [accept (set (string/split accept #","))
@@ -328,6 +334,9 @@
                            (accept "text/html"))
                        (-> (editor-page (:name info)
                                         (:content info)
+                                        (if (= mode "cooling")
+                                          :cooling
+                                          :heating)
                                         (when-not info
                                           (maps/get-map-bounds map-id)))
                            

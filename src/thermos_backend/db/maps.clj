@@ -66,7 +66,9 @@
 
 (def buildings-keys
   [:candidate-id :connection-id :demand-kwh-per-year :demand-kwp :connection-count :demand-source :peak-source
-   :floor-area :height :wall-area :roof-area :ground-area])
+   :floor-area :height :wall-area :roof-area :ground-area
+   :cooling-kwh-per-year
+   :cooling-kwp])
 
 (def paths-keys
   [:candidate-id :start-id :end-id :length])
@@ -242,7 +244,11 @@
 (defn get-polygon [map-id points]
   (let [query
         (-> (h/select :id :name :type :geometry :is_building
-                      :demand_kwh_per_year :demand_kwp :connection_count :connection_ids
+                      :demand_kwh_per_year
+                      :cooling_kwh_per_year
+                      :cooling_kwp
+                      :demand_source
+                      :demand_kwp :connection_count :connection_ids
                       :start_id :end_id :length
                       :floor_area :height :wall_area :roof_area :ground_area)
             (h/from :joined_candidates) ;; this view is defined in the migration SQL
@@ -275,8 +281,8 @@
                   :geometry (:geometry f)
                   :properties (dissoc f :geometry)})}))
 
-(defn- get-density-points [map-id [tl-x tl-y] [br-x br-y] bw]
-  (-> (h/select :x :y :demand)
+(defn- get-density-points [map-id [tl-x tl-y] [br-x br-y] bw is-heat]
+  (-> (h/select :x :y (if is-heat :demand [:cold-demand :demand]))
       (h/from :heat-centroids)
       (h/where [:and
                 [:= :map-id map-id]
@@ -294,55 +300,59 @@
                    (st/geometry box))]])
       (db/fetch!)))
 
-(defn- get-cached-density-tile [conn map-id z x y]
+(defn- get-cached-density-tile [conn map-id z x y is-heat]
   (-> (h/select :bytes)
       (h/from :tilecache)
       (h/where [:and
                 [:= :map-id map-id]
                 [:= :z z]
                 [:= :x x]
-                [:= :y y]])
+                [:= :y y]
+                [:= :is-heat (boolean is-heat)]])
       (db/fetch-one! conn)
       (:bytes)))
 
-(defn- get-density-maximum [conn map-id z]
+(defn- get-density-maximum [conn map-id z is-heat]
   (-> (h/select :maximum)
       (h/from :tilemaxima)
       (h/where [:and
                 [:= :map-id map-id]
-                [:= :z z]])
+                [:= :z z]
+                [:= :is-heat (boolean is-heat)]])
       (db/fetch-one! conn)
       (:maximum)))
 
-(defn get-density-tile [map-id z x y]
+(defn get-density-tile [map-id z x y is-heat]
   (db/with-connection [conn]
-    (let [existing-tile    (get-cached-density-tile conn map-id z x y)
-          existing-maximum (or (get-density-maximum conn map-id z) 0.01)]
+    (let [existing-tile    (get-cached-density-tile conn map-id z x y is-heat)
+          existing-maximum (or (get-density-maximum conn map-id z is-heat) 0.01)]
       (if existing-tile
-        (heat-density/colour-float-matrix existing-tile existing-maximum)
+        (heat-density/colour-float-matrix existing-tile existing-maximum is-heat)
 
         (let [[new-maximum new-tile]
               (heat-density/density-image :x x :y y :z z :bandwidth 30 :size 256
                                           :get-values
                                           (fn [tl br bwm]
-                                            (get-density-points map-id tl br bwm)))
+                                            (get-density-points map-id tl br bwm is-heat)))
               
               new-maximum (max new-maximum (or existing-maximum 0))]
           (-> (h/insert-into :tilecache)
-              (h/values [{:bytes new-tile :x x :y y :z z :map-id map-id}])
+              (h/values [{:bytes new-tile :x x :y y :z z :map-id map-id
+                          :is-heat (boolean is-heat)}])
               (db/execute!))
 
           (when (> new-maximum existing-maximum)
             (-> (h/insert-into :tilemaxima)
-                (h/values [{:z z :map-id map-id :maximum new-maximum}])
-                (p/upsert (-> (p/on-conflict :z :map-id)
+                (h/values [{:z z :map-id map-id :maximum new-maximum
+                            :is-heat (boolean is-heat)}])
+                (p/upsert (-> (p/on-conflict :z :map-id :is-heat)
                               (p/do-update-set! [:maximum
                                                  (sql/call :greatest
                                                            :EXCLUDED.maximum
                                                            :tilemaxima.maximum)])))
                 (db/execute! conn)))
 
-          (heat-density/colour-float-matrix new-tile new-maximum))))))
+          (heat-density/colour-float-matrix new-tile new-maximum is-heat))))))
 
 
 (defn get-map-centre

@@ -228,7 +228,7 @@ If the scenario definition refers to some fields, you mention them here or they 
                 (and confidence demand)
                 (assoc :use-annual-demand (keyword confidence)))
 
-              (importer/produce-demand sqrt-degree-days)
+              (importer/produce-heat-demand sqrt-degree-days)
               (as-> x
                   (assoc x :peak-demand
                          (or peak

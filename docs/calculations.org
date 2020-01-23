@@ -411,3 +411,26 @@ Calculating an NPV over 15 years we then have
 | 10-14 | 0       | 10,460     |
 
 Using a discount rate of 4% we have (10,460-78,077) + (10,460-78,077)/1.04 + (10,460-78,077)/1.04² ... + (10,460/1.04^{10} + ...) = -516,976, so this network is a loss using this accounting.
+
+* Differences between heating and cooling
+Heating and cooling systems are treated very similarly by the network model; the only differences are as follows:
+** Flow and return temperatures
+When creating a new network problem, in a cooling problem the default flow temperature is below the return temperature (in fact, this is how the model decides whether a system is for heating or cooling).
+** Medium density
+When calculating the size of pipes, the velocity function above is used to get a mass flow rate, which gives a heat flow rate. The mass flow rate involves water density, which varies with temperature.
+
+Water density is determined using the mean of the flow and return temperatures, and looked up the table on [[https://en.wikipedia.org/wiki/Water_%2528data_page%2529][this page]].
+** Pumping energy
+However, they need different treatments in heating and cooling systems, as in a cooling system the pumping energy means extra work for the chillers, whereas for a heating system the pumping energy results in useful heat.
+
+Pumping energy is considered to be a fixed share $p$ of the system's heat or cold output $E$ (including losses).
+
+In a cooling network, the plant is required to supply $(1+p)\times E$ kWh of cold; in a heating network the plant must supply $(1-p) \times E$ kWh of heat.
+
+For the optimisation formulation, pumping energy and cost are incorporated into the price of heat, and only disaggregated afterwards as a presentation detail.
+** Heat losses / gains
+For a cooling system, pipe losses are replaced with undesired gains, when the ground temperature is higher than the average flow temperature. These undesired gains must be overcome by the chillers in the plant.
+
+This is reflected by negating the temperature difference when working out losses for a cooling network.
+
+This is expressed in a preprocessing step, before the optimisation formulation.

@@ -213,9 +213,11 @@
   [instance candidate market]
 
   (let [ignore-revenues (= :system (::document/objective instance :network))
-
-        kwh (float   (::demand/kwh candidate 0))
-        kwp (float   (::demand/kwp candidate (annual-kwh->kw (::demand/kwh candidate 0))))
+        mode (document/mode instance)
+        
+        kwh (float   (candidate/annual-demand candidate mode))
+        kwp (float   (max (candidate/peak-demand candidate mode)
+                          (annual-kwh->kw kwh)))
 
         {standing-charge     ::tariff/standing-charge
          unit-charge         ::tariff/unit-charge
@@ -259,33 +261,34 @@
                   0)]
     (* area (::measure/maximum-area measure 0))))
 
-(defn- insulation-max-effect [measure candidate]
-  (* (::measure/maximum-effect measure 0)
-     (::demand/kwh candidate 0)))
+(defn- insulation-max-effect [measure base-demand]
+  (* (::measure/maximum-effect measure 0) base-demand))
 
 (defn- insulation-definitions [instance candidate]
-  {:insulation
-   (->> (when (::document/consider-insulation instance)
-          (for [insulation-id (::demand/insulation candidate)
-                :let [measure (get-in instance [::document/insulation insulation-id])
-                      area (insulation-max-area measure candidate)
-                      maximum-kwh-saved (insulation-max-effect measure candidate)]
-                :when (and measure
-                           (pos? area)
-                           (pos? maximum-kwh-saved))]
-            (let [cost-per-m2 (::measure/cost-per-m2 measure 0)
-                  maximum-cost (* area cost-per-m2)
-                  cost-per-kwh (safe-div maximum-cost maximum-kwh-saved)]
-              {:id insulation-id
-               :cost      (finance/objective-value instance
-                                                   :insulation-capex
-                                                   (::measure/fixed-cost measure 0))
-               "cost/kwh" (finance/objective-value instance
-                                                   :insulation-capex
-                                                   cost-per-kwh)
-               :minimum   (if (::document/force-insulation instance) maximum-kwh-saved 0)
-               :maximum   maximum-kwh-saved})))
-        (filter identity))})
+  (let [mode (document/mode instance)
+        base-demand (candidate/annual-demand candidate mode)]
+    {:insulation
+     (->> (when (::document/consider-insulation instance)
+            (for [insulation-id (::demand/insulation candidate)
+                  :let [measure (get-in instance [::document/insulation insulation-id])
+                        area (insulation-max-area measure candidate)
+                        maximum-kwh-saved (insulation-max-effect measure base-demand)]
+                  :when (and measure
+                             (pos? area)
+                             (pos? maximum-kwh-saved))]
+              (let [cost-per-m2 (::measure/cost-per-m2 measure 0)
+                    maximum-cost (* area cost-per-m2)
+                    cost-per-kwh (safe-div maximum-cost maximum-kwh-saved)]
+                {:id insulation-id
+                 :cost      (finance/objective-value instance
+                                                     :insulation-capex
+                                                     (::measure/fixed-cost measure 0))
+                 "cost/kwh" (finance/objective-value instance
+                                                     :insulation-capex
+                                                     cost-per-kwh)
+                 :minimum   (if (::document/force-insulation instance) maximum-kwh-saved 0)
+                 :maximum   maximum-kwh-saved})))
+          (filter identity))}))
 
 (defn- alternative-definitions [instance candidate]
    {:alternatives
@@ -362,16 +365,34 @@
         (-> candidate
             (::supply/opex-per-kwp 0)
             (->> (finance/objective-value instance :supply-opex)))
+
+        pumping-overhead
+        (::document/pumping-overhead instance 0.0)
+
+        pumping-cost
+        (::document/pumping-cost-per-kwh instance 0.0)
+
+        is-cooling (document/is-cooling? instance)
+        
+        effective-heat-cost
+        (+ (* pumping-overhead pumping-cost)
+
+           (if is-cooling
+             (* heat-cost-per-kwh (+ 1 pumping-overhead))
+             (* heat-cost-per-kwh (- 1 pumping-overhead))))
+
+        emissions-factors ;; TODO pumping emissions
+        (into {}
+              (for [e candidate/emissions-types]
+                [e (float (get-in candidate [::supply/emissions e] 0))]))
         ]
     
     {:capacity-kw (float (::supply/capacity-kwp  candidate 0))
      :cost        (float fixed-cost)
-     "cost/kwh"   (float heat-cost-per-kwh)
+     "cost/kwh"   (float effective-heat-cost)
      "cost/kwp"   (float (+ capex-per-kwp opex-per-kwp))
-
-     :emissions   (into {}
-                        (for [e candidate/emissions-types]
-                          [e (float (get-in candidate [::supply/emissions e] 0))]))}))
+     
+     :emissions   emissions-factors}))
 
 (defn- edge-terms [instance cost-function bounds net-graph edge]
   (let [{[lower upper] :mean} bounds
@@ -394,13 +415,15 @@
 
 (defn- instance->json [instance net-graph power-curve market]
   (let [candidates     (::document/candidates instance)
+
+        mode (document/mode instance)
         
         edge-bounds (do
                       (log/info "Computing flow bounds...")
                       (bounds/edge-bounds
                        net-graph
                        :capacity (comp #(::supply/capacity-kwp % 0) candidates)
-                       :demand (comp annual-kwh->kw #(::demand/kwh % 0) candidates)
+                       :demand (comp annual-kwh->kw #(candidate/annual-demand % mode) candidates)
                        :edge-max (let [inverse-power-curve (vec (map (comp vec reverse) power-curve))
                                        global-max (first (last power-curve))]
                                    (fn [i j]
@@ -409,7 +432,7 @@
                                       (or (when-let [max-dia (attr/attr net-graph [i j] :max-dia)]
                                             (pipes/linear-evaluate inverse-power-curve max-dia))
                                           global-max))))
-                       :peak-demand (comp #(::demand/kwp % 0) candidates)
+                       :peak-demand (comp #(candidate/peak-demand % mode) candidates)
                        :size (comp #(::connection-count % 1) candidates)))
 
         
@@ -445,11 +468,11 @@
      :vertices
      (for [vertex (graph/nodes net-graph)
            :let [candidate (candidates vertex)]
-           :when (or (candidate/has-demand? candidate)
+           :when (or (candidate/has-demand? candidate mode)
                      (candidate/has-supply? candidate))]
        (let [unreachable (attr/attr net-graph vertex :unreachable)]
          (cond-> {:id vertex}
-           (candidate/has-demand? candidate)
+           (candidate/has-demand? candidate mode)
            (assoc :demand (demand-terms instance candidate market))
 
            unreachable
@@ -484,10 +507,13 @@
 (defn- output-insulation [instance candidate id kwh]
   (when (pos? kwh)
     (when-let [insulation (document/insulation-for-id instance id)]
-      (let [fixed-cost  (::measure/fixed-cost insulation 0)
+      (let [mode        (document/mode instance)
+            base-demand (candidate/annual-demand candidate mode)
+            
+            fixed-cost  (::measure/fixed-cost insulation 0)
             cost-per-m2 (::measure/cost-per-m2 insulation 0)
             max-area    (insulation-max-area insulation candidate)
-            max-effect  (insulation-max-effect insulation candidate)
+            max-effect  (insulation-max-effect insulation base-demand)
             proportion-done (safe-div kwh max-effect)
             area-done   (* proportion-done max-area)
             cost        (+ fixed-cost (* cost-per-m2 area-done))]
@@ -505,10 +531,13 @@
          (if-let [alternative (document/alternative-for-id instance (::demand/counterfactual candidate))]
            (let [cost-per-kwh (::supply/cost-per-kwh alternative 0)
                  opex-per-kwp (::supply/opex-per-kwp alternative 0)
-                 kwp (::demand/kwp candidate)
-                 kwh (::demand/kwh candidate)
+
+                 kwh (candidate/annual-demand candidate (document/mode instance))
+                 kwp (candidate/peak-demand candidate (document/mode instance))
+                 
+                 fuel (* cost-per-kwh kwh)
                  opex (* opex-per-kwp kwp)
-                 fuel (* cost-per-kwh kwh)]
+                 ]
              {:opex (finance/adjusted-value instance :alternative-opex opex)
               :heat-cost (finance/adjusted-value instance :alternative-opex fuel)
               :emissions
@@ -529,7 +558,7 @@
              (assoc (::solution/counterfactual candidate)
                     :counterfactual true)
              (let [kwh (::solution/kwh candidate)
-                   kwp (::demand/kwp candidate)
+                   kwp (candidate/peak-demand candidate (document/mode instance))
 
                    capex (supply/principal alternative kwp kwh)
                    opex  (supply/opex alternative kwp)
@@ -569,57 +598,32 @@
                                   (market (::candidate/id v))
                                   (document/tariff-for-id instance tariff-id))
 
-                connection-cost (document/connection-cost-for-id instance (::tariff/cc-id v))
+                connection-cost      (document/connection-cost-for-id instance (::tariff/cc-id v))
                 
                 insulation           (for [[id kwh] (:insulation solution-vertex)]
                                        (output-insulation instance v id kwh))
 
                 total-insulation-kwh (reduce + 0 (map :kwh insulation))
-                effective-demand     (- (::demand/kwh v) total-insulation-kwh)
+                effective-demand     (- (candidate/annual-demand v (document/mode instance))
+                                        total-insulation-kwh)
 
                 alternative          (document/alternative-for-id
                                       instance
                                       (:alternative solution-vertex))
 
+                effective-peak (candidate/peak-demand v (document/mode instance))
+                
                 heat-revenue
                 (finance/adjusted-value
                  instance
                  :heat-revenue
-                 (tariff/annual-heat-revenue
-                  tariff
-                  effective-demand
-                  (::demand/kwp v)))
+                 (tariff/annual-heat-revenue tariff effective-demand effective-peak))
 
                 connection-cost
                 (finance/adjusted-value
                  instance
                  :connection-capex
-                 (tariff/connection-cost
-                  connection-cost
-                  effective-demand
-                  (::demand/kwp v)))
-
-                [supply-capex
-                 supply-opex
-                 supply-heat-cost]
-                (when-let [supply-capacity (:capacity-kw solution-vertex)]
-                  [(finance/adjusted-value
-                    instance
-                    :supply-capex
-                    (supply/principal v
-                                      (:capacity-kw solution-vertex)
-                                      (:output-kwh solution-vertex)))
-
-                   (finance/adjusted-value
-                    instance
-                    :supply-opex
-                    (supply/opex v (:capacity-kw solution-vertex)))
-
-                   (finance/adjusted-value
-                    instance
-                    :supply-heat
-                    (supply/heat-cost v (:output-kwh solution-vertex)))
-                   ])
+                 (tariff/connection-cost connection-cost effective-demand effective-peak))
                 ]
             (-> v
                 (assoc ::solution/included true
@@ -643,25 +647,63 @@
                          ::solution/heat-revenue heat-revenue
                          ::solution/connection-capex connection-cost)
 
-
                   (= :market tariff-id)
                   (assoc ::solution/market-rate
                          (::tariff/unit-charge tariff))
                   
                   ;; supply facts
                   (:capacity-kw solution-vertex)
-                  (assoc ::solution/capacity-kw   (:capacity-kw solution-vertex)
-                         ::solution/diversity     (:diversity solution-vertex)
-                         ::solution/output-kwh    (:output-kwh solution-vertex)
-                         ::solution/supply-capex  supply-capex 
-                         ::solution/supply-opex   supply-opex
-                         ::solution/heat-cost     supply-heat-cost
-                         ::solution/supply-emissions
-                         (into {}
-                               (for [e candidate/emissions-types]
-                                 (let [supply-factor      (get (::supply/emissions v) e 0) ;; kg/kwh
-                                       emissions (* supply-factor (:output-kwh solution-vertex))]
-                                   [e (finance/emissions-value instance e emissions)]))))
+                  (as-> out
+                      (let [output-kwh  (:output-kwh solution-vertex)
+                            capacity-kw (:capacity-kw solution-vertex)
+                            diversity   (:diversity solution-vertex)
+
+                            pumping-overhead     (::document/pumping-overhead instance 0.0)
+                            pumping-cost-per-kwh (::document/pumping-cost-per-kwh instance 0.0)
+                            pumping-kwh          (* output-kwh pumping-overhead)
+
+                             ;; +/- pumping overhead
+                            output-kwh (if (document/is-cooling? instance)
+                                         (+ output-kwh pumping-kwh)
+                                         (- output-kwh pumping-kwh))]
+                        
+                        (assoc out
+                               ::solution/capacity-kw   capacity-kw
+                               ::solution/diversity     diversity
+                               ::solution/output-kwh    output-kwh
+                               ::solution/pumping-kwh   pumping-kwh
+
+                               ::solution/supply-capex
+                               (finance/adjusted-value
+                                instance :supply-capex
+                                (supply/principal out capacity-kw output-kwh))
+
+                               ::solution/supply-opex
+                               (finance/adjusted-value
+                                instance :supply-opex
+                                (supply/opex out capacity-kw))
+
+                               ::solution/heat-cost
+                               (finance/adjusted-value
+                                instance
+                                :supply-heat
+                                (supply/heat-cost out output-kwh))
+
+                               ::solution/pumping-cost
+                               (finance/adjusted-value
+                                instance
+                                :supply-pumping
+                                (* pumping-kwh pumping-cost-per-kwh))
+                               
+                               ::solution/supply-emissions
+                               ;; TODO pumping emissions
+                               (into {}
+                                     (for [e candidate/emissions-types]
+                                       (let [supply-factor (get (::supply/emissions v) e 0) ;; kg/kwh
+                                             emissions     (* supply-factor output-kwh)]
+                                         [e (finance/emissions-value instance e emissions)]))))))
+                  
+                  
                   ))))
 
         ;; in kw -> diameter
@@ -793,8 +835,9 @@
                               market-rate
                               market-stickiness
 
-                              (::demand/kwp v 0)
-                              (::demand/kwh v 0)
+                              (candidate/peak-demand v (document/mode instance))
+                              (candidate/annual-demand v (document/mode instance))
+                              
                               areas
 
                               emissions-costs
@@ -874,8 +917,8 @@
           (mark-unreachable net-graph included-candidates))
       
       :else
-      (let [power-curve (pipes/power-curve (- (::document/flow-temperature instance)
-                                              (::document/return-temperature instance))
+      (let [power-curve (pipes/power-curve (::document/flow-temperature instance)
+                                           (::document/return-temperature instance)
                                            (::document/minimum-pipe-diameter instance 0.02)
                                            (::document/maximum-pipe-diameter instance 1.0))
 
