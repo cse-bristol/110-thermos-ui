@@ -436,6 +436,11 @@
                           ::lidar/height height
                           :height height
                           :residential residential)
+
+        ;; because we may have updated the height, we need to recompute
+        ;; the predictors here; the LIDAR code already does this once.
+        ;; This could be quite a lot better.
+        feature    (lidar/derive-more-fields feature)
         
         use-annual-demand (or (#{:use :estimate :max} (:use-annual-demand feature)) :use)
 
