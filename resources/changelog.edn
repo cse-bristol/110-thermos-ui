@@ -1,4 +1,10 @@
-[{:title "17th Jan 2020"
+[{:title "23 Jan 2020"
+  :changes [{:title "Bug with GIS height"
+             :summary
+             [:div "User-specified height fields in GIS data were being ignored. "
+              "This has been corrected."]}]}
+ 
+ {:title "17th Jan 2020"
   :changes [{:title "Map info"
              :summary
              [:div
