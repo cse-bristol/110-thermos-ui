@@ -443,6 +443,10 @@
   "Make sure the feature has an :annual-demand"
   [feature sqrt-degree-days]
   (let [given-demand (as-double (:annual-demand feature))
+        
+        minimum-demand (as-double (:minimum-annual-demand feature))
+        maximum-demand (as-double (:maximum-annual-demand feature))
+        
         given-height (as-double (:height feature))
         given-fallback-height (as-double (:fallback-height feature))
         given-floor-area (as-double (:floor-area feature))
@@ -476,20 +480,17 @@
         ;; This could be quite a lot better.
         feature    (lidar/derive-more-fields feature)
         
-        use-annual-demand (or (#{:use :estimate :max} (:use-annual-demand feature)) :use)
+        model-output (delay
+                       (cond-> (run-svm-models feature sqrt-degree-days)
+                         (number? minimum-demand)
+                         (update :annual-demand max minimum-demand)
 
-        model-output (delay (run-svm-models feature sqrt-degree-days))
+                         (number? maximum-demand)
+                         (update :annual-demand min maximum-demand)))
         
         ;; produce demand
         feature (cond
-                  (and given-demand
-                       (not= :estimate use-annual-demand)
-                       (or (= :use use-annual-demand)
-                           (and
-                            (= :max use-annual-demand)
-                            (>= given-demand (:annual-demand @model-output)))))
-
-                  ;; we only use the given demand if it exceeds the model output
+                  given-demand
                   (assoc feature
                          :annual-demand given-demand
                          :demand-source use-annual-demand)
@@ -502,6 +503,8 @@
 
                   :else
                   (merge feature @model-output))
+
+        
         ]
     
     (assoc feature

@@ -798,6 +798,16 @@
      "A value for annual demand will be used in preference to any other estimate. "
      "Otherwise, a benchmark estimate will be used if available, or the built-in regression model otherwise."]}
 
+   {:value :maximum-annual-demand
+    :label "Max. heat demand (kWh/yr)"
+    :doc
+    [:span "An upper bound to apply to the modelled annual heat demand. If the demand estimation model is used, and it produces an annual demand above this value, this value will be used instead."]}
+
+   {:value :minimum-annual-demand
+    :label "Min. heat demand (kWh/yr)"
+    :doc
+    [:span "A lower bound to apply to the modelled annual heat demand. If the demand estimation model is used, and it produces an annual demand below this value, this value will be used instead."]}
+
    {:value :annual-cooling-demand
     :label "Annual cooling demand (kWh/yr)"
     :doc
@@ -816,7 +826,12 @@
      "A value for building height will be used in preference to any LIDAR data on the server."
      [:br]
      "Building height will improve the quality of any demand estimates produced from the built-in regression model."]}
-   
+
+   {:value :fallback-height :label "Fallback building height (m)"
+    :doc
+    [:span
+     "A value for building height to be used if LIDAR data on the server and the building height field are missing."]}
+
    {:value :floor-area :label "Floor area (m2)"
     :doc
     [:span "A value for floor area will be used in benchmark-based estimates. "
