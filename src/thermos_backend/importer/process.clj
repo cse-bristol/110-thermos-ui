@@ -481,19 +481,26 @@
         feature    (lidar/derive-more-fields feature)
         
         model-output (delay
-                       (cond-> (run-svm-models feature sqrt-degree-days)
-                         (number? minimum-demand)
-                         (update :annual-demand max minimum-demand)
+                       (let [result (run-svm-models feature sqrt-degree-days)
+                             annual-demand (:annual-demand result)]
+                         (cond-> result
+                           (and (number? minimum-demand)
+                                (> minimum-demand annual-demand))
+                           (assoc :annual-demand minimum-demand
+                                  :demand-source :minimum)
 
-                         (number? maximum-demand)
-                         (update :annual-demand min maximum-demand)))
+                           (and (number? maximum-demand)
+                                (> annual-demand maximum-demand))
+                           (assoc :annual-demand maximum-demand
+                                  :demand-source :maximum))))
+        
         
         ;; produce demand
         feature (cond
                   given-demand
                   (assoc feature
                          :annual-demand given-demand
-                         :demand-source use-annual-demand)
+                         :demand-source :given)
 
                   benchmark-c
                   (assoc feature
