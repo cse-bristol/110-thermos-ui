@@ -80,7 +80,8 @@
 
 (def cooling-parameters
   {::document/flow-temperature 5.5
-   ::document/return-temperature 13.0})
+   ::document/return-temperature 13.0
+   ::document/ground-temperature 10.0})
 
 (def default-cooling-document
   (merge default-document cooling-parameters))
