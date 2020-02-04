@@ -369,22 +369,31 @@
         pumping-overhead
         (::document/pumping-overhead instance 0.0)
 
-        pumping-cost
+        pumping-cost-per-kwh
         (::document/pumping-cost-per-kwh instance 0.0)
 
+        pumping-emissions
+        (::document/pumping-emissions instance {})
+
         is-cooling (document/is-cooling? instance)
+
+        adjust-for-pumping
+        (fn [main-factor pumping-factor]
+          (+ (* pumping-overhead pumping-factor)
+             (* main-factor (if is-cooling
+                              (+ 1 pumping-overhead)
+                              (- 1 pumping-overhead)))))
         
         effective-heat-cost
-        (+ (* pumping-overhead pumping-cost)
+        (adjust-for-pumping heat-cost-per-kwh pumping-cost-per-kwh)
 
-           (if is-cooling
-             (* heat-cost-per-kwh (+ 1 pumping-overhead))
-             (* heat-cost-per-kwh (- 1 pumping-overhead))))
-
-        emissions-factors ;; TODO pumping emissions
+        emissions-factors
         (into {}
               (for [e candidate/emissions-types]
-                [e (float (get-in candidate [::supply/emissions e] 0))]))
+                [e (float
+                    (adjust-for-pumping
+                     (get-in candidate [::supply/emissions e] 0)
+                     (get pumping-emissions e 0)))]))
         ]
     
     {:capacity-kw (float (::supply/capacity-kwp  candidate 0))
@@ -660,7 +669,9 @@
 
                             pumping-overhead     (::document/pumping-overhead instance 0.0)
                             pumping-cost-per-kwh (::document/pumping-cost-per-kwh instance 0.0)
+                            pumping-emissions    (::document/pumping-emissions instance {})
                             pumping-kwh          (* output-kwh pumping-overhead)
+                            is-cooling           (document/is-cooling? instance)
 
                              ;; +/- pumping overhead
                             output-kwh (if (document/is-cooling? instance)
@@ -694,14 +705,25 @@
                                 instance
                                 :supply-pumping
                                 (* pumping-kwh pumping-cost-per-kwh))
-                               
+
+                               ;; These include reduced heat or extra
+                               ;; cold from pumping, because we have
+                               ;; adjusted output-kwh already.
                                ::solution/supply-emissions
-                               ;; TODO pumping emissions
                                (into {}
                                      (for [e candidate/emissions-types]
                                        (let [supply-factor (get (::supply/emissions v) e 0) ;; kg/kwh
                                              emissions     (* supply-factor output-kwh)]
-                                         [e (finance/emissions-value instance e emissions)]))))))
+                                         [e (finance/emissions-value instance e emissions)])))
+
+                               ;; However, we also need to compute the pumping emissions separately
+                               ::solution/pumping-emissions
+                               (into {}
+                                     (for [e candidate/emissions-types]
+                                       (let [supply-factor (get pumping-emissions e 0) ;; kg/kwh
+                                             emissions     (* supply-factor pumping-kwh)]
+                                         [e (finance/emissions-value instance e emissions)])))
+                               )))
                   
                   
                   ))))
