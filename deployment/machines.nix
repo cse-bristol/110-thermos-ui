@@ -116,10 +116,10 @@
         export SMTP_USER=thermos-project.eu
         export SMTP_PASSWORD=$(cat /run/keys/smtp)
         export SMTP_FROM_ADDRESS="THERMOS <system@thermos-project.eu>"
-        export BASE_URL="https://v5.thermos-project.eu"
+        export BASE_URL="https://tool.thermos-project.eu"
         export WEB_SERVER_DISABLE_CACHE=false
         export LIDAR_DIRECTORY=${../../lidar}
-        ${pkgs.jre}/bin/java -jar ${../target/thermos.jar}
+        ${pkgs.jre}/bin/java -Xmx6g -server -jar ${../target/thermos.jar}
       '';
     };
 
