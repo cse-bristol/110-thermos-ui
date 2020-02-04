@@ -17,13 +17,13 @@ FROM
 ;
 --;;
 ALTER TABLE tilecache
-   ADD COLUMN is_heat boolean,
+   ADD COLUMN is_heat boolean DEFAULT TRUE,
    DROP CONSTRAINT tilecache_pkey,
    ADD CONSTRAINT tilecache_pkey PRIMARY KEY (x, y, z, map_id, is_heat)
 ;
 --;;
 ALTER TABLE tilemaxima
-   ADD COLUMN is_heat boolean,
+   ADD COLUMN is_heat boolean DEFAULT TRUE,
    DROP CONSTRAINT tilemaxima_pkey,
    ADD CONSTRAINT tilemaxima_pkey PRIMARY KEY (z, map_id, is_heat);
 --;;
