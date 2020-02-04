@@ -1,5 +1,12 @@
-[{:title "23 Jan 2020"
-  :changes [{:title "Bug with GIS height"
+[{:title "4th Feb 2020"
+  :changes [{:title "Cooling model"
+             :summary
+             [:div
+              "The network editor can now model cooling networks. "
+              "Existing maps will not have cooling demands, so you will need to make a new map to make a cooling network."]}]}
+ 
+ {:title "23rd Jan 2020"
+  :changes [{:title "Fixed bug with GIS height"
              :summary
              [:div "User-specified height fields in GIS data were being ignored. "
               "This has been corrected."]}]}
