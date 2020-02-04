@@ -130,7 +130,7 @@
       date-part)))
 
 (rum/defcs network-table < (rum/local nil ::expanded-row-name)
-  [{*expanded ::expanded-row-name} map-id networks]
+  [{*expanded ::expanded-row-name} map-id networks {on-event :on-event}]
   (let [today (today-date)
         expanded-name @*expanded
         desc #(compare %2 %1)]
@@ -159,8 +159,7 @@
           networks))
       
       :columns
-      [
-       {:key :state
+      [{:key :state
         :value #(cond
                   (:has-run %)
                   [:b ""]
@@ -205,7 +204,8 @@
                          {:name (:name r)
                           :message "Are you sure you want to delete this network?"
                           :on-delete #(DELETE (str "map/" map-id "/"
-                                                   "net/" (:name r)))})
+                                                   "net/" (:name r))
+                                          {:handler on-event})})
                         (.preventDefault e))
                       
                       :href (str "map/" map-id
@@ -253,6 +253,11 @@
        (catch #?(:cljs :default
                  :clj Exception) e)))
 
+(rum/defc buttons [& content]
+  [:div.flex-cols {:style {:flex-wrap :wrap}}
+   (for [item content :when item]
+     [:div {:style {:margin-bottom :0.5em :margin-left :1em}} item])])
+
 (rum/defcs map-component < (rum/local nil ::show-info)
   [{*show-info ::show-info} m & {:keys [on-event] :or {on-event #()}}]
   [:div.card {:key (:id m)
@@ -271,34 +276,35 @@
        "")
      
      [:span (:name m)]]
-    
-    [:div
+
+    (buttons
      [:button.button
-      {:style {:margin-left :1em}
-       :on-click (fn-js [e] (swap! *show-info not))}
-      "ℹ"]
+      {:on-click (fn-js [e] (swap! *show-info not))}
+      [:b {:style {:font-family "Serif"}} "i"]]
      
      [:a.button
-      {:style {:margin-left :1em}
-       :href (str "map/" (:id m) "/data.json")} "DOWNLOAD " symbols/download]
+      {:href (str "map/" (:id m) "/data.json")} "DOWNLOAD " symbols/download]
      [:a.button
-      {:style {:margin-left :1em}
-       :on-click (fn-js [e]
-                        (show-delete-dialog!
-                         {:name (:name m)
-                          :message [:span "Are you sure you want to delete this map "
-                                    "and the " (count (:networks m))
-                                    " network problems associated with it?"]
-                          :on-delete
-                          ;; issue the relevant request - the map should disappear later.
-                          #(DELETE (str "map/" (:id m)))})
-                        (.preventDefault e))
+      {:on-click (fn-js [e]
+                   (show-delete-dialog!
+                    {:name (:name m)
+                     :message [:span "Are you sure you want to delete this map "
+                               "and the " (count (:networks m))
+                               " network problems associated with it?"]
+                     :on-delete
+                     ;; issue the relevant request - the map should disappear later.
+                     #(DELETE (str "map/" (:id m))
+                          :handler on-event)})
+                   
+                   (.preventDefault e))
        
        :href (str "map/" (:id m) "/delete")} "DELETE " symbols/delete]
-     (if (:import-completed m)
-       [:a.button {:style {:margin-left :1em}
-                   :href (str "map/" (:id m) "/net/new")} "NETWORK " symbols/plus])
-     ]]
+     (when (:import-completed m)
+       [:a.button {:href (str "map/" (:id m) "/net/new")} "HEAT NET " symbols/plus])
+     (when (:import-completed m)
+       [:a.button {:href (str "map/" (:id m) "/net/new?mode=cooling")} "COLD NET " symbols/plus])
+     )
+    ]
    
    (when-let [description (:description m)] [:div description])
    (when (mostly-bad-estimates (:estimation-stats m))
@@ -313,28 +319,28 @@
       "The estimates may be inaccurate."])
    
    (if (:import-completed m)
-     (if-let [networks (seq (:networks m))]
-       ;; expando button needs a component
-       [:div.flex-cols.flex-grow
-        (when @*show-info
-          [:div {:style {:margin-top :1em :margin-right :1em}}
-           [:b "Map info:"]
-           [:table
-            [:thead
-             [:tr [:th "Method"] [:th "Count"]]]
-            [:tbody
-             (for [[k v] (:estimation-stats m)]
-               [:tr
-                [:td {:title (estimation-method-label k)} (name k)]
-                [:td v]])]]
-           
-           ])
-        [:div.flex-grow
-         {:style {:margin-top :1em}}
-         [:b "Networks:"]
-         (network-table (:id m) networks)]]
-       [:div
-        "This map has no network designs associated with it yet."])
+     [:div.flex-cols.flex-grow
+      [:div.flex-grow
+       {:style {:margin-top :1em}}
+       (if-let [networks (seq (:networks m))]
+         [:div [:b "Networks:"]
+          (network-table (:id m) networks {:on-event on-event})]
+          
+         "This map has no network designs associated with it yet.")]
+      (when @*show-info
+        [:div {:style {:margin-top :1em :margin-left :1em}}
+         [:b "Map info:"]
+         [:table
+          [:thead
+           [:tr [:th "Method"] [:th "Count"]]]
+          [:tbody
+           (for [[k v] (:estimation-stats m)]
+             [:tr
+              [:td {:title (estimation-method-label k)} (name k)]
+              [:td v]])]]
+         
+         ])]
+     
 
      (case (keyword (:state m))
        :ready
@@ -364,7 +370,7 @@
          (str m)]
         ]))])
 
-(rum/defc project-page-body [project]
+(rum/defc project-page-body [project & {:keys [on-event] :or {on-event #()}}]
   (let [am-admin (:user-is-admin project)
         me (:user project)
         other-admins (filter
@@ -381,14 +387,14 @@
           (if (string/blank? d)
             [:em "This project has no description"]
             [:span d]))]
-       [:div
-        [:button.button {:style {:margin-left :1em}
-                         :on-click (fn-js [e]
+       (buttons
+        [:button.button {:on-click (fn-js [e]
                                      (let [user-state (atom (:users project))]
                                        (show-dialog!
                                         (project-user-list
                                          {:on-save
                                           #(do (POST "users" {:params {:users@user-state}})
+                                               (on-event)
                                                (close-dialog!))
                                           :on-close close-dialog!}
                                          user-state))
@@ -400,8 +406,7 @@
         
         (when am-admin
           [:button.button
-           {:style {:margin-left :1em}
-            :href "delete"
+           {:href "delete"
             :on-click
             (fn-js [e]
               (show-delete-dialog!
@@ -426,8 +431,7 @@
 
         (when (> (count (:users project)) 1)
           [:button.button
-           {:style {:margin-left :1em}
-            :on-click
+           {:on-click
             (fn-js [e]
               (show-dialog!
                [:div
@@ -439,9 +443,9 @@
                 [:div.flex-cols
                  [:button.button {:style {:margin-left :auto} :on-click close-dialog!} "CANCEL"]
                  [:button.button.button--danger
-                  {:on-click (fn [e]
-                               (POST "leave"
-                                   {:handler (fn [b] (js/window.location.replace "/"))}))}
+                  {:on-click (fn-js [e]
+                               (POST "leave")
+                               (js/window.location.replace "/"))}
                   "LEAVE"]]
                 ]
                )
@@ -451,9 +455,9 @@
            "LEAVE 👋" 
            ])
         
-        [:a.button {:style {:margin-left :1em}
-                    :href "map/new"} "MAP " symbols/plus]]]]
+        [:a.button {:href "map/new"} "MAP " symbols/plus])]]
 
+     ;; data uploady box...
      
      (if-let [maps (seq (:maps project))]
        [:div
@@ -461,7 +465,7 @@
                  :flex-flow "row wrap"}}
         
         (for [m maps]
-          (map-component m))]
+          (map-component m :on-event on-event))]
        [:div.card
         "This project has no maps in it yet. "
         "Get started by creating a new map above."])]))

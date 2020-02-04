@@ -16,7 +16,19 @@
     "CREATE EXTENSION postgis;";
   in
   {
-    environment.systemPackages = [pkgs.rxvt_unicode.terminfo pkgs.xclip pkgs.xorg.xauth];
+    environment.systemPackages = [
+      pkgs.rxvt_unicode.terminfo
+      pkgs.xclip
+      pkgs.xorg.xauth
+      (pkgs.stdenv.mkDerivation {
+        name="get-lidar";
+        src = ./get-lidar.sh;
+        installPhase = ''
+          mkdir -p $out/bin
+          makeWrapper $src $out/bin/get-lidar --prefix PATH : ${lib.makeBinPath [pkgs.gdal pkgs.jq pkgs.curl pkgs.findutils]}
+        '';
+      })
+    ];
 
     networking.firewall.allowedTCPPorts = [ 80 ];
 
@@ -51,11 +63,6 @@
             proxy_read_timeout 7200;
             proxy_send_timeout 7200;
             send_timeout 7200;
-        }
-
-        location /_solver-work {
-            alias /solver-work/;
-            autoindex on;
         }
       }
       '';
@@ -118,7 +125,7 @@
         export SMTP_FROM_ADDRESS="THERMOS <system@thermos-project.eu>"
         export BASE_URL="https://tool.thermos-project.eu"
         export WEB_SERVER_DISABLE_CACHE=false
-        export LIDAR_DIRECTORY=${../../lidar}
+        export LIDAR_DIRECTORY=/thermos-lidar/
         ${pkgs.jre}/bin/java -Xmx6g -server -jar ${../target/thermos.jar}
       '';
     };
@@ -128,13 +135,7 @@
     users.motd = ''
     THERMOS demo server
     -------------------
-    To restart the application: sudo systemctl restart thermos
-    To restart the tileserver: sudo systemctl restart tiles
-    
-    To look in the db: psql -U postgres thermos
-
-    Running / complete jobs will have data in /solver-work.
-    This directory is shared as /_solver-work online, but with no privs.
+    LIDAR is stored in /thermos-lidar/
     '';
 
     users.users.josh = {

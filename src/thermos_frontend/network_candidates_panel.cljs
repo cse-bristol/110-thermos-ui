@@ -3,6 +3,7 @@
             [reagent.core :as reagent]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.demand :as demand]
+            [thermos-specs.cooling :as cooling]
             [thermos-specs.path :as path]
             [thermos-specs.solution :as solution]
             [thermos-specs.document :as document]
@@ -32,6 +33,8 @@
      open-filter (reagent/cursor document [::view/view-state
                                            ::view/table-state
                                            ::view/open-filter])
+
+     mode (reagent/track #(document/mode document))
      
      filtered-candidates (reagent/track #(operations/get-filtered-candidates @document))
 
@@ -54,6 +57,11 @@
                         (name v))
                       )
 
+          [demand-key peak-key]
+          (case @mode
+            :cooling [::cooling/kwh ::cooling/kwp]
+            [::demand/kwh ::demand/kwp])
+          
           open-filter @open-filter
           filtered-candidates @filtered-candidates
           candidates @candidates
@@ -94,11 +102,11 @@
         (assoc (col "Name" ::candidate/name "text" data-value)
                :flexGrow 1
                :width 80)
-        (assoc (col "Wh/yr" ::demand/kwh "number"
+        (assoc (col "Wh/yr" demand-key "number"
                     #(when-let [v (data-value %)]
                        (si-number (* 1000 v))))
                :width 90)
-        (assoc (col "Wp" ::demand/kwp "number"
+        (assoc (col "Wp" peak-key "number"
                     #(when-let [v (data-value %)]
                        (si-number (* 1000 v))))
                :width 90)

@@ -5,12 +5,13 @@
             [thermos-frontend.io :as io]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.demand :as demand]
+            [thermos-specs.cooling :as cooling]
             [thermos-specs.path :as path]
 
             [clojure.string :as string]
             
             [thermos-specs.document :as document]
-            [thermos-specs.defaults :refer [default-document]]
+            [thermos-specs.defaults :refer [default-document default-cooling-document]]
             [thermos-frontend.preload :as preload]
             [reagent.core :as reagent :refer [atom]]
 
@@ -54,9 +55,12 @@
    (let [p (preload/get-value :initial-state :clear true)]
      (if p
        (spatial/update-index (cljs.reader/read-string p))
-       ;; default-document
        (operations/move-map
-        default-document
+        (case (preload/get-value :mode)
+          :cooling default-cooling-document
+          default-document)
+        
+        
         (let [bounds (preload/get-value :map-bounds)]
           {:north (:y-max bounds)
            :south (:y-min bounds)
@@ -120,7 +124,7 @@
              ::path/length        (o/get properties "length")
              ::path/start         (o/get properties "start-id")
              ::path/end           (o/get properties "end-id"))
-      
+
       :building
       (assoc basics
              ::candidate/wall-area     (o/get properties "wall-area" 0)
@@ -129,6 +133,9 @@
              ::demand/kwh              (o/get properties "demand-kwh-per-year" nil)
              ::demand/kwp              (o/get properties "demand-kwp" nil)
              ::demand/connection-count (o/get properties "connection-count" 1)
+             ::cooling/kwh             (o/get properties "cooling-kwh-per-year" nil)
+             ::cooling/kwp             (o/get properties "cooling-kwp" nil)
+             ::demand/source           (o/get properties "demand-source" nil)
              ::candidate/connections   (string/split (o/get properties "connection-ids") #",")))))
 
 (defn load-tile! [document x y z]

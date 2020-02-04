@@ -95,6 +95,13 @@
              :minZoom 12
              :maxZoom 20})))
 
+(def cold-density-layer
+  (js/L.tileLayer
+   "../cd/{z}/{x}/{y}.png"
+   (clj->js {:opacity 0.6
+             :minZoom 12
+             :maxZoom 20})))
+
 (def labels-layer
   (js/L.tileLayer
    "https://cartodb-basemaps-{s}.global.ssl.fastly.net/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png"
@@ -151,8 +158,12 @@
         candidates-layer
         (js/L.layerGroup #js [candidates-layer connector-layer demand-tool-layer])
 
+        density-layer
+        (if (document/is-cooling? @document)
+          cold-density-layer heat-density-layer)
+        
         normal-layers {::view/candidates-layer candidates-layer
-                       ::view/heat-density-layer heat-density-layer
+                       ::view/heat-density-layer density-layer
                        ::view/labels-layer labels-layer
                        }
 
@@ -164,7 +175,10 @@
                                      (name k)) v]))
 
                         {"Candidates" candidates-layer
-                         "Heatmap" heat-density-layer
+                         (if (document/is-cooling? @document)
+                           "Coldmap" "Heatmap")
+                         
+                         density-layer
                          "Labels" labels-layer
                          })
 

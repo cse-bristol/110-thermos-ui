@@ -10,7 +10,7 @@
             [thermos-specs.tariff :as tariff]
             [clojure.string :as str]
             [clojure.walk :refer [prewalk]]
-            [com.rpl.specter :as sr :refer-macros [setval]]
+            [com.rpl.specter :as sr :refer-macros [transform setval]]
             [clojure.test :as test]))
 
 (s/def ::document
@@ -51,6 +51,10 @@
 
                 ::maximum-pipe-diameter
                 ::minimum-pipe-diameter
+
+                ::pumping-overhead
+                ::pumping-cost-per-kwh
+                ::pumping-emissions
                 ]
           :opt [::solution/summary
                 ::deletions]))
@@ -174,28 +178,29 @@
 (defn map-candidates
   "Go through a document and apply f to all the indicated candidates."
   ([doc f]
-   (update doc ::candidates
-           #(reduce-kv
-             (fn [m k v] (assoc m k (f v))) {} %)))
+   (sr/transform
+    [::candidates sr/MAP-VALS]
+    f
+    doc))
 
   ([doc f ids]
    (if (empty? ids)
      doc
-     (update doc
-             ::candidates
-             #(persistent!
-               (reduce
-                (fn [cands id]
-                  (assoc! cands id (f (get cands id))))
-                (transient %) ids))))))
+     (sr/transform
+      [::candidates (sr/submap ids) sr/MAP-VALS]
+      f
+      doc)
+     )))
 
 (defn map-buildings [doc f]
-  (map-candidates
-   doc f (map ::candidate/id (filter candidate/is-building? (vals (::candidates doc))))))
+  (sr/transform
+   [::candidates sr/MAP-VALS (sr/selected? candidate/is-building?)]
+   f doc))
 
 (defn map-paths [doc f]
-  (map-candidates
-   doc f (map ::candidate/id (filter candidate/is-path? (vals (::candidates doc))))))
+  (sr/transform
+   [::candidates sr/MAP-VALS (sr/selected? candidate/is-path?)]
+   f doc))
 
 (defn candidates-by-type
   "Return candidates from the given document, grouped by type"
@@ -278,11 +283,9 @@
   [doc tariff-id]
   (-> doc
       (update ::tariffs dissoc tariff-id)
-      (map-candidates
-       (fn [c]
-         (if (= tariff-id (::tariff/id c))
-           (dissoc c ::tariff/id)
-           c)))))
+      (->> (sr/setval
+            [::candidates sr/MAP-VALS ::tariff/id (sr/pred= tariff-id)]
+            sr/NONE))))
 
 (defn connection-cost-for-id [doc connection-cost-id]
   (let [connection-costs (::connection-costs doc)]
@@ -307,20 +310,17 @@
   [doc connection-cost-id]
   (-> doc
       (update ::connection-costs dissoc connection-cost-id)
-      (map-candidates
-       (fn [c]
-         (if (= connection-cost-id (::tariff/cc-id c))
-           (dissoc c ::tariff/cc-id)
-           c)))))
+      (->> (sr/setval
+            [::candidates sr/MAP-VALS ::tariff/cc-id (sr/pred= connection-cost-id)]
+            sr/NONE
+            ))))
 
 (defn remove-civils [doc cost-id]
   (-> doc
       (update ::civil-costs dissoc cost-id)
-      (map-candidates
-       (fn [c]
-         (if (= cost-id (::path/civil-cost-id c))
-           (dissoc c ::path/civil-cost-id)
-           c)))))
+      (->> (sr/setval
+            [::candidates sr/MAP-VALS ::path/civil-cost-id (sr/pred= cost-id)]
+            sr/NONE))))
 
 (s/def ::insulation
   (s/and
@@ -341,21 +341,19 @@
 (defn remove-alternative [doc alt-id]
   (-> doc
       (update ::alternatives dissoc alt-id)
-      (map-candidates
-       (fn [c]
-         (-> c
-             (update ::demand/alternatives disj alt-id)
-             (cond-> 
-                 (= alt-id (::demand/counterfactual c))
-               (dissoc ::demand/counterfactual)))))))
+      (->> (sr/setval
+            [::candidates sr/MAP-VALS
+             (sr/multi-path
+              [::demand/counterfactual (sr/pred= alt-id)]
+              [::demand/alternatives (sr/set-elem alt-id)])]
+            sr/NONE))))
 
 (defn remove-insulation [doc ins-id]
   (-> doc
       (update ::insulation dissoc ins-id)
-      (map-candidates
-       (fn [c]
-         (update c ::demand/insulation disj ins-id)))))
-
+      (->> (sr/setval
+            [::candidates sr/MAP-VALS ::demand/insulation (sr/set-elem ins-id)]
+            sr/NONE))))
 
 (defn remove-candidates [doc candidates]
   (-> doc
@@ -375,3 +373,13 @@
 (defn add-candidate [doc candidate]
   (update doc ::candidates
           assoc (::candidate/id candidate) candidate))
+
+(defn is-cooling? [doc]
+  (< (::flow-temperature doc) (::return-temperature doc))
+  ;; (= :cooling (::mode doc))
+  )
+
+(defn mode [doc]
+  (if (is-cooling? doc)
+    :cooling
+    :heating))

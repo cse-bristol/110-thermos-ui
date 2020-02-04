@@ -10,6 +10,7 @@
 
 (defn editor-page [name
                    initial-content
+                   initial-mode
                    map-bounds]
   (str
    (html
@@ -17,7 +18,8 @@
      (preloaded-values
       {:initial-state initial-content
        :name name
-       :map-bounds map-bounds})
+       :map-bounds map-bounds
+       :mode initial-mode})
      [:title (str "THERMOS - " (or name "New network"))]
      [:meta {:charset "UTF-8"}]
      [:meta {:name :viewport :content "width=device-width, initial-scale=1"}]

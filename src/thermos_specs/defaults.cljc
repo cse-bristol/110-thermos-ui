@@ -76,5 +76,14 @@
 
    ::tariff/market-term 10
    ::tariff/market-discount-rate 0.035
-   ::tariff/market-stickiness 0.1
-   })
+   ::tariff/market-stickiness 0.1})
+
+(def cooling-parameters
+  {::document/flow-temperature 5.5
+   ::document/return-temperature 13.0
+   ::document/ground-temperature 10.0})
+
+(def default-cooling-document
+  (merge default-document cooling-parameters))
+
+

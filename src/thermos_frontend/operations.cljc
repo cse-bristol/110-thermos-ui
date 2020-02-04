@@ -1,6 +1,9 @@
 (ns thermos-frontend.operations
   (:require [clojure.spec.alpha :as s]
             [clojure.string :as str]
+
+            [com.rpl.specter :as x :refer-macros [select transform]]
+            
             [thermos-specs.document :as document]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.solution :as solution]
@@ -96,13 +99,11 @@
             (assoc candidate ::candidate/selected is-selected-now)))
         ]
 
-    (update doc ::document/candidates
-            (fn [candidates]
-              (persistent!
-               (reduce (fn [candidates id]
-                         (assoc! candidates id (update-fn (get candidates id))))
-                       (transient (or candidates {}))
-                       (keys candidates)))))))
+    (x/transform
+     [::document/candidates x/MAP-VALS]
+     update-fn
+     doc
+     )))
 
 (defn select-all-candidates [doc]
   (select-candidates doc (all-candidates-ids doc) :replace))

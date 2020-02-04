@@ -3,6 +3,7 @@
             [thermos-specs.solution :as solution]
             [thermos-specs.supply :as supply]
             [thermos-specs.demand :as demand]
+            [thermos-specs.cooling :as cooling]
             [thermos-specs.tariff :as tariff]
             [thermos-specs.path :as path]))
 
@@ -52,8 +53,22 @@
 (defn is-included? [candidate] (not= :forbidden (::inclusion candidate :forbidden)))
 (defn is-path? [candidate] (= (::type candidate) :path))
 (defn is-building? [candidate] (= (::type candidate) :building))
-(defn has-demand? [candidate]
-  (when-let [demand (::demand/kwh candidate)] (pos? demand)))
+
+(defn annual-demand
+  [candidate mode]
+  (case mode
+    :cooling (::cooling/kwh candidate 0)
+    (::demand/kwh candidate 0)))
+
+(defn peak-demand
+  [candidate mode]
+  (case mode
+    :cooling (::cooling/kwp candidate 0)
+    (::demand/kwp candidate 0)))
+
+(defn has-demand? [candidate mode]
+  (when-let [demand (annual-demand candidate mode)]
+    (pos? demand)))
 
 (defn has-supply? [candidate]
   (when-let [cap (::supply/capacity-kwp candidate)]
@@ -99,3 +114,5 @@
 (defn got-counterfactual? [candidate]
   (and (::solution/alternative candidate)
        (:counterfactual (::solution/alternative candidate))))
+
+

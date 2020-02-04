@@ -1,6 +1,7 @@
 (ns thermos-frontend.candidate-editor
   (:require [thermos-specs.candidate :as candidate]
             [thermos-specs.demand :as demand]
+            [thermos-specs.cooling :as cooling]
             [thermos-specs.tariff :as tariff]
             [thermos-specs.measure :as measure]
 
@@ -236,48 +237,52 @@
                   (into {}))])
         (into {}))})
 
-(defn- initial-building-state [buildings]
-  {:group-by ::candidate/subtype
-   :benchmarks false
-   :values
-   (->> (for [k (keys group-by-options)]
-          [k
-           (->> buildings
-                (group-by k)
-                (map (fn [[k v]]
-                       (let [n (count v)]
-                         [k (merge
-                             {:demand {:value (mean (map ::demand/kwh v))}
-                              :tariff (unset? (map ::tariff/id v))
-                              :connection-cost (unset? (map ::tariff/cc-id v))
-                              :peak-demand {:value (mean (map ::demand/kwp v))}
-                              :demand-benchmark {:value 2}
-                              :peak-benchmark {:value 3}
-                              :insulation
-                              (let [fs (frequencies
-                                        (mapcat (comp seq ::demand/insulation) v))
-                                    state
-                                    (for [[i c] fs :when (pos? c)]
-                                      [i
-                                       (if (= n c) :true :indeterminate)])]
-                                (into {} state))
+(defn- initial-building-state [buildings mode]
+  (let [[annual-demand peak-demand]
+        (case mode
+          :cooling [::cooling/kwh ::cooling/kwp]
+          [::demand/kwh ::demand/kwp])]
+    {:group-by ::candidate/subtype
+     :benchmarks false
+     :values
+     (->> (for [k (keys group-by-options)]
+            [k
+             (->> buildings
+                  (group-by k)
+                  (map (fn [[k v]]
+                         (let [n (count v)]
+                           [k (merge
+                               {:demand {:value (mean (map annual-demand v))}
+                                :tariff (unset? (map ::tariff/id v))
+                                :connection-cost (unset? (map ::tariff/cc-id v))
+                                :peak-demand {:value (mean (map peak-demand v))}
+                                :demand-benchmark {:value 2}
+                                :peak-benchmark {:value 3}
+                                :insulation
+                                (let [fs (frequencies
+                                          (mapcat (comp seq ::demand/insulation) v))
+                                      state
+                                      (for [[i c] fs :when (pos? c)]
+                                        [i
+                                         (if (= n c) :true :indeterminate)])]
+                                  (into {} state))
 
-                              :alternatives
-                              (let [fs (frequencies
-                                        (mapcat (comp seq ::demand/alternatives) v))
-                                    state
-                                    (for [[i c] fs :when (pos? c)]
-                                      [i
-                                       (if (= n c) :true :indeterminate)])]
-                                (into {} state))
+                                :alternatives
+                                (let [fs (frequencies
+                                          (mapcat (comp seq ::demand/alternatives) v))
+                                      state
+                                      (for [[i c] fs :when (pos? c)]
+                                        [i
+                                         (if (= n c) :true :indeterminate)])]
+                                  (into {} state))
 
-                              :counterfactual (or (unset? (map ::demand/counterfactual v))
-                                                  :nothing)
+                                :counterfactual (or (unset? (map ::demand/counterfactual v))
+                                                    :nothing)
 
-                              })])))
+                                })])))
 
-                (into {}))])
-        (into {}))})
+                  (into {}))])
+          (into {}))}))
 
 (defn- apply-path-state [document path-state path-ids]
   (let [{group :group-by values :values} path-state]
@@ -316,7 +321,14 @@
   (let [{group :group-by
          bench :benchmarks
          values :values}
-        building-state]
+        building-state
+
+        [annual-demand peak-demand]
+        (if (document/is-cooling? document)
+          [::cooling/kwh ::cooling/kwp]
+          [::demand/kwh ::demand/kwp])
+        ]
+    
     ;; we need to update the candidates in the document
     ;; modifying each one to have the relevant group-by demand-value
     (document/map-candidates
@@ -375,8 +387,8 @@
              ]
 
          (cond-> building
-           set-demand              (assoc ::demand/kwh demand-value)
-           set-peak                (assoc ::demand/kwp peak-value)
+           set-demand              (assoc annual-demand demand-value)
+           set-peak                (assoc peak-demand peak-value)
            set-tariff              (assoc ::tariff/id tariff)
            set-connection-cost     (assoc ::tariff/cc-id connection-cost)
 
@@ -411,11 +423,13 @@
      building-ids)))
 
 (defn- candidate-editor [document candidate-ids]
-  (reagent/with-let [candidates (map (::document/candidates @document) candidate-ids)
+  (reagent/with-let [mode (document/mode @document)
+
+                     candidates (map (::document/candidates @document) candidate-ids)
                      {buildings :building paths :path}
                      (group-by ::candidate/type candidates)
 
-                     demand-state (reagent/atom (initial-building-state buildings))
+                     demand-state (reagent/atom (initial-building-state buildings mode))
                      path-state   (reagent/atom (initial-path-state paths))
                      tariffs (sort-by first (::document/tariffs @document))
                      connection-costs (sort-by first (::document/connection-costs @document))

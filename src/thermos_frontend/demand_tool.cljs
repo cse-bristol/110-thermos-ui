@@ -9,6 +9,7 @@
             [thermos-specs.document :as document]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.demand :as demand]
+            [thermos-specs.cooling :as cooling]
             ))
 
 (def start-state {::drawing false})
@@ -83,6 +84,8 @@
              ::candidate/inclusion :optional
              ::demand/kwh 0
              ::demand/kwp 0
+             ::cooling/kwh 0
+             ::cooling/kwp 0
              }
             ]
         (editor-state/edit-geometry!

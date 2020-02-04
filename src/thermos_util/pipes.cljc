@@ -1,12 +1,13 @@
 (ns thermos-util.pipes
   (:require [clojure.test :as test]))
 
-(def density  975.0)
 (def heat-capacity 4.18)
 (def diameter-step 0.01)
 
-(defn kw-per-m [^double diameter
-                ^double delta-t]
+(defn- kw-per-m ^double
+  [^double diameter
+   ^double delta-t
+   ^double density]
   (let [area     (* Math/PI (Math/pow (* diameter 0.5) 2.0))
         velocity (- (* 4.7617 (Math/pow diameter 0.3701))
                     0.4834)
@@ -124,16 +125,51 @@
                          (+ k5 X2))))))
         ))))
 
-(def ^{:arglists '([delta-t min-dia max-dia])}
+(def ^:private density-curve
+  "Taken from https://en.wikipedia.org/wiki/Water_%28data_page%29"
+  [[0.0   0.9998395]
+   [3.984 0.999972]
+   [4.0   0.9999720]
+   [5.0   0.99996]
+   [10.0  0.9997026]
+   [15.0  0.9991026]
+   [20.0  0.9982071]
+   [22.0  0.9977735]
+   [25.0  0.9970479]
+   [30.0  0.9956502]
+   [35.0  0.99403]
+   [40.0  0.99221]
+   [45.0  0.99022]
+   [50.0  0.98804]
+   [55.0  0.98570]
+   [60.0  0.98321]
+   [65.0  0.98056]
+   [70.0  0.97778]
+   [75.0  0.97486]
+   [80.0  0.97180]
+   [85.0  0.96862]
+   [90.0  0.96531]
+   [95.0  0.96189]
+   [100.0 0.95835]])
+
+(defn- water-density ^double [^double t]
+  (* 1000 (linear-evaluate density-curve t)))
+
+(def ^{:arglists '([t-flow t-return min-dia max-dia])}
   power-curve
   
   (memoize
-   (fn [delta-t min-dia max-dia]
-     (vec (for [x (range
-                   (or min-dia 0.02)
-                   (or max-dia 1.0)
-                   diameter-step)]
-            [(kw-per-m x delta-t) x])))))
+   (fn [t-flow t-return min-dia max-dia]
+     (let [density (water-density (* 0.5 (+ t-flow t-return)))
+           ;; we take abs of difference, because in a cooling network
+           ;; these are reversed.
+           delta-t (Math/abs (- t-flow t-return))]
+       
+       (vec (for [x (range
+                     (or min-dia 0.02)
+                     (or max-dia 1.0)
+                     diameter-step)]
+              [(kw-per-m x delta-t density) x]))))))
 
 (defn linear-cost-per-kw*
   "Given some pipe parameters, linearly approximate the cost/kw function"
@@ -164,7 +200,7 @@
            (Math/pow (* mechanical-var dia-m) mechanical-expt)
            (Math/pow (* civil-var dia-m) civil-expt)))))))
 
-(defn heat-loss-w-per-kwpm [delta-t diameter]
+(defn heat-loss-w-per-kwpm ^double [^double delta-t ^double diameter]
   (* delta-t
      (if (zero? diameter) 0 (+ (* 0.16807 (Math/log diameter)) 0.85684))))
 
@@ -172,8 +208,13 @@
   "Given flow, return and ground temperatures return
   a curve which relates kW of pipe peak capacity to W/m
   of heat losses in said pipe under average conditions."
-  [power-curve flow return ground]
-  (let [delta-t (- (/ (+ flow return) 2) ground)]
+  [power-curve ^double flow ^double return ^double ground]
+  ;; If flow < return it is cooling, in which case
+  ;; ground temperature will probably be higher than network avg.
+  ;; If this is the case, we need to invert our delta-t, because
+  ;; a heat gain is a cooling loss.
+  (let [sign (if (< flow return) -1.0 1.0)
+        delta-t (* sign (- (/ (+ flow return) 2.0) ground))]
     (for [[kw dia] power-curve]
       [kw (heat-loss-w-per-kwpm delta-t dia)])))
 

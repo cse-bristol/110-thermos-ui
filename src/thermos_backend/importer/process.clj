@@ -14,6 +14,7 @@
             [thermos-importer.spatial :as topo]
             [thermos-importer.util :refer [has-extension file-extension]]
             [thermos-backend.importer.sap :as sap]
+            [thermos-backend.importer.cooling :as cooling]
 
             [clojure.data.json :as json]
             [clojure.string :as str]
@@ -405,10 +406,47 @@
              :peak-demand (run-peak-model (:annual-demand feature))
              :peak-source :regression))))
 
-(defn produce-demand
+(defn produce-cooling-demand
+  "Make sure the feature has an :annual-cooling-demand"
+  [feature cooling-benchmark]
+
+  (let [given-demand (as-double (:annual-cooling-demand feature))
+        given-peak   (as-double (:cooling-peak feature))
+        
+        given-benchmark-m (as-double (:cooling-benchmark-m feature))
+        given-benchmark-c (as-double (:cooling-benchmark-c feature))
+        floor-area (or (as-double (:floor-area feature)) 0)
+
+        cooling-demand (cond
+                         given-demand given-demand
+
+                         (or given-benchmark-c given-benchmark-m)
+                         (+ (or given-benchmark-c 0)
+                            (* floor-area
+                               (or given-benchmark-m 0)))
+                         
+                         :else
+                         (* floor-area cooling-benchmark))
+        
+        cooling-peak (cond
+                       given-peak given-peak
+                       
+                       :else
+                       (cooling/cooling-peak cooling-demand (as-boolean (:residential feature true))))
+        ]
+    (assoc feature
+           :annual-cooling-demand cooling-demand
+           :cooling-peak          cooling-peak
+           )))
+
+(defn produce-heat-demand
   "Make sure the feature has an :annual-demand"
   [feature sqrt-degree-days]
   (let [given-demand (as-double (:annual-demand feature))
+        
+        minimum-demand (as-double (:minimum-annual-demand feature))
+        maximum-demand (as-double (:maximum-annual-demand feature))
+        
         given-height (as-double (:height feature))
         given-fallback-height (as-double (:fallback-height feature))
         given-floor-area (as-double (:floor-area feature))
@@ -436,21 +474,23 @@
                           ::lidar/height height
                           :height height
                           :residential residential)
-        
-        use-annual-demand (or (#{:use :estimate :max} (:use-annual-demand feature)) :use)
 
-        model-output (delay (run-svm-models feature sqrt-degree-days))
+        ;; because we may have updated the height, we need to recompute
+        ;; the predictors here; the LIDAR code already does this once.
+        ;; This could be quite a lot better.
+        feature    (lidar/derive-more-fields feature)
+        
+        model-output (delay
+                       (cond-> (run-svm-models feature sqrt-degree-days)
+                         (number? minimum-demand)
+                         (update :annual-demand max minimum-demand)
+
+                         (number? maximum-demand)
+                         (update :annual-demand min maximum-demand)))
         
         ;; produce demand
         feature (cond
-                  (and given-demand
-                       (not= :estimate use-annual-demand)
-                       (or (= :use use-annual-demand)
-                           (and
-                            (= :max use-annual-demand)
-                            (>= given-demand (:annual-demand @model-output)))))
-
-                  ;; we only use the given demand if it exceeds the model output
+                  given-demand
                   (assoc feature
                          :annual-demand given-demand
                          :demand-source use-annual-demand)
@@ -463,10 +503,13 @@
 
                   :else
                   (merge feature @model-output))
+
+        
         ]
     
     (assoc feature
            :sap-water-demand (sap/hot-water floor-area)
+           :floor-area floor-area
            )))
 
 (defn- should-explode?
@@ -526,7 +569,7 @@
           ]
       (cond-> (geoio/update-geometry
                basis
-               (jts/create-multipolygon geoms))
+               (jts/create-multi-polygon geoms))
 
         (not= :given (:demand-source basis))
         (assoc :annual-demand (reduce + (map :annual-demand polygons)))
@@ -611,9 +654,24 @@
               (update :buildings lidar/add-lidar-to-shapes (load-lidar-index))
               
               (progress* 30 "Computing annual demands")
-              (update :buildings geoio/update-features :produce-demands
-                      produce-demand sqrt-degree-days)
+              
+              (as-> x
+                  (let [;; choose a representative point
+                        bounds (geoio/bounding-box
+                                (:buildings x)
+                                (geoio/bounding-box
+                                 (:roads x)))
 
+                        middle (.centre bounds)
+                        
+                        cooling-benchmark (cooling/cooling-benchmark (.getX middle) (.getY middle))]
+                    (log/info "Cooling bounds" bounds)
+                    (log/info "Cooling benchmark" cooling-benchmark)
+                    (update x :buildings geoio/update-features :produce-demands
+                            #(-> %
+                                 (produce-heat-demand sqrt-degree-days)
+                                 (produce-cooling-demand cooling-benchmark)))))
+              
               ;; at this point we need to recombine anything that has
               ;; been exploded.
               (update-in [:buildings ::geoio/features] merge-multi-polygons)

@@ -185,24 +185,44 @@
     (.close output-stream)
     [@max-value (.toByteArray output-stream)]))
 
-(defn colour-float-matrix [byte-array max-value]
+(defn colour-float-matrix [byte-array max-value is-heat]
   (let [image-in (ImageIO/read (ByteArrayInputStream. byte-array))]
-    (dotimes [i (.getWidth image-in)]
-      (dotimes [j (.getHeight image-in)]
-        (let [value (.getRGB image-in i j)
-              value (Float/intBitsToFloat (int value))
-              value (if (zero? value) 0 (/ value max-value))
-              c (min 255 (int (* value 255)))
-              ;; we could pack a float directly into this image and not scale it
-              c (unchecked-int
-                 (bit-or
-                  (bit-shift-left (int (min 255 (* (Math/pow value 0.5) 255))) 24)
-                  (bit-shift-left c 16) ;; R
-                  (bit-shift-left (int (/ (- 255 c) 1.7)) 8) ;; G
-                  (int (- 255 c)) ;; B
-                  ))
-              ]
-          (.setRGB image-in i j c))))
+    (if is-heat
+      (dotimes [i (.getWidth image-in)]
+        (dotimes [j (.getHeight image-in)]
+          (let [value (.getRGB image-in i j)
+                value (Float/intBitsToFloat (int value))
+                value (if (zero? value) 0 (/ value max-value))
+                c (min 255 (int (* value 255)))
+                ;; we could pack a float directly into this image and not scale it
+                c (unchecked-int
+                   (bit-or
+                    (bit-shift-left (int (min 255 (* (Math/pow value 0.5) 255))) 24)
+                    (bit-shift-left c 16) ;; R
+                    (bit-shift-left (int (/ (- 255 c) 1.7)) 8) ;; G
+                    (int (- 255 c)) ;; B
+                    ))
+                ]
+            (.setRGB image-in i j c))))
+
+      ;; cold map is the same, but R and B are swapped.
+      (dotimes [i (.getWidth image-in)]
+        (dotimes [j (.getHeight image-in)]
+          (let [value (.getRGB image-in i j)
+                value (Float/intBitsToFloat (int value))
+                value (if (zero? value) 0 (/ value max-value))
+                c (min 255 (int (* value 255)))
+                ;; we could pack a float directly into this image and not scale it
+                c (unchecked-int
+                   (bit-or
+                    (bit-shift-left (int (min 255 (* (Math/pow value 0.5) 255))) 24)
+                    (bit-shift-left (- 255 c) 16) ;; R
+                    (bit-shift-left (int (/ (- 255 c) 1.7)) 8) ;; G
+                    (int c) ;; B
+                    ))
+                ]
+            (.setRGB image-in i j c))))
+      )
     (let [os (ByteArrayOutputStream.)]
       (ImageIO/write image-in "png" os)
       (.close os)

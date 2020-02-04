@@ -121,6 +121,7 @@
 (defn main-page []
   (r/with-let [*selected-tab (r/cursor state/state [::view/view-state ::view/selected-tab])
                *show-menu (r/atom false)
+               *is-cooling (r/track #(document/is-cooling? @state/state))
                has-solution? (r/track #(document/has-solution? @state/state))
                has-valid-solution? (r/track #(solution/valid-state?
                                              (keyword (::solution/state @state/state))))]
@@ -244,8 +245,13 @@
          [:button.hamburger
           {:on-click #(swap! *show-menu not)
            :class (when (state/is-running?) "spin-around")
-           :style {:background :none
-                   :border :none}}
+           :style (merge
+                   {:background :none
+                    :border :none}
+
+                   (when @*is-cooling
+                     {:transform "scaleY(-1)"}))
+           }
           theme/icon]
 
          :name (preload/get-value :name)

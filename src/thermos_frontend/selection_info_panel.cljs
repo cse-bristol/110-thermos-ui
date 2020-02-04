@@ -3,6 +3,7 @@
             [thermos-specs.candidate :as candidate]
             [thermos-specs.document :as document]
             [thermos-specs.demand :as demand]
+            [thermos-specs.cooling :as cooling]
             [thermos-specs.tariff :as tariff]
             [thermos-specs.path :as path]
             [thermos-specs.solution :as solution]
@@ -44,18 +45,28 @@
 (defn component
   "The panel in the bottom right which displays some information about the currently selected candidates."
   [document]
-  (reagent/with-let [capital-mode (reagent/atom :principal)]    
-    (let [rsum (partial reduce +)
+  (reagent/with-let [capital-mode (reagent/atom :principal)
+                     model-mode   (reagent/track #(document/mode @document))
+                     ]
+
+    (let [model-mode @model-mode
+          
+          mode-name (case model-mode :cooling "Cold" "Heat")
+
+          rsum (partial reduce +)
           rmax (partial reduce max)
           rmin (partial reduce min)
           rmean #(/ (rsum %) (count %))
 
+          ;; TODO all these @document below will be rerendering this
+          ;; bit when we drag or whatever, which is clearly silly
+          
           base-cost #(case (::candidate/type %)
                        :path (document/path-cost % @document)
                        :building (tariff/connection-cost
                                   (document/connection-cost-for-id @document (::tariff/cc-id %))
-                                  (::demand/kwh %)
-                                  (::demand/kwp %))
+                                  (candidate/annual-demand % model-mode)
+                                  (candidate/peak-demand % model-mode))
                        nil)
           
           has-solution (document/has-solution? @document)
@@ -135,8 +146,12 @@
                        "For paths it is the cost of a 10mm pipe.")}
                  "Base cost"] nil (num base-cost   rsum "¤")]
                
-               ["Demand" nil (num ::demand/kwh  rsum "Wh/yr" 1000)]
-               ["Peak" nil (num ::demand/kwp  rsum "Wp" 1000)]
+               [(str mode-name " demand") nil (num
+                                               #(candidate/annual-demand % model-mode)
+                                               rsum "Wh/yr" 1000)]
+               [(str mode-name " peak") nil   (num
+                                               #(candidate/peak-demand % model-mode)
+                                               rsum "Wp" 1000)]
 
                [[:span.has-tt
                  {:title
@@ -145,7 +160,7 @@
                 nil
                 (let [total-kwh (reduce + 0 (keep
                                              #(or (::solution/kwh %)
-                                                  (::demand/kwh %))
+                                                  (candidate/annual-demand % model-mode))
                                              selected-candidates))
                       total-m   (when (and total-kwh
                                            (pos? total-kwh))
