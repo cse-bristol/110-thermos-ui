@@ -49,7 +49,20 @@
                  (::geoio/features @eci-shapes))]
     (double
      (if (empty? matches)
-       (do (log/warn "No ECI for lon/lat" lon lat ) @mean-eci)
+       (let [shapes (for [shape (::geoio/features @eci-shapes)]
+                       (assoc shape :distance
+                              (jts/distance-between
+                               point (::geoio/geometry shape)
+                               :geodesic true)))
+             best-match (first (sort-by :distance shapes))]
+         (if (< (/ (:distance best-match) 1000.0) 50.0) ;; allow 50KM discrepancy
+           (do
+             (log/warn "Using nearby ECI at" (:distance best-match) "km")
+             (:Index best-match))
+           (do
+             (log/warn "No ECI at or near" lon lat "so producing zero")
+             0)))
+       
        (:Index (first matches))))))
 
 (defn cooling-benchmark [lon lat]

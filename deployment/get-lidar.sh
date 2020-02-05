@@ -43,13 +43,20 @@ query_box () {
     curl -s 'https://environment.data.gov.uk/arcgis/rest/directories/arcgisjobs/gp/datadownload_gpserver/'$job'/scratch/results.json'
 }
 
-OUTPUT_DIR="/thermos-lidar/$1,$2,$3,$4/"
+
+if (( $# != 5 )); then
+    echo "usage: $0 <place> <xmin> <ymin> <xmax> <ymax>"
+    exit 1
+fi
+
+OUTPUT_DIR="/thermos-lidar/$1/"
+shift
 mkdir -p -- "${OUTPUT_DIR}"
 
 pushd "${OUTPUT_DIR}"
 
 query_box "$@" |tee query-result.json|
-    jq -r '[.data[]| select(.productName == "LIDAR Composite DSM")| .years[]| select(.year == "Latest")| .resolutions[]|.tiles[]| . + (.tileName | capture("LIDAR-DSM-(?<res>[^-]+)-(?<tile>.+)"))]|group_by(.tile)|.[]|sort_by({"1M": 0, "50CM":1, "2M":2}[.res])|.[0].url' |
+    jq -r '[.data[]| select(.productName == "LIDAR Composite DSM")| .years[]| select(.year == "Latest")| .resolutions[]|.tiles[]| . + (.tileName | capture("LIDAR-DSM-(?<res>[^-]+)-(?<tile>.+)"))]|.[]|select(.res!="50CM")|.url' |
     while read -r url; do
         curl -O -J "${url}"
     done
@@ -57,6 +64,14 @@ query_box "$@" |tee query-result.json|
 for i in *.zip; do
     unzip "$i"
     rm -- "$i"
+done
+
+# chuck away 2M except where needed
+find . -iname \*.asc -print | perl -ne 'print "$1\n" if /..(.+)_DSM/' | sort | uniq |
+while read TILE; do
+    if [[ -e "${TILE}_DSM_1M.asc" ]]; then
+        rm -f -- "${TILE}_DSM_2M.asc"
+    fi
 done
 
 for i in *.asc; do
