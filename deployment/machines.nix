@@ -23,9 +23,13 @@
       (pkgs.stdenv.mkDerivation {
         name="get-lidar";
         src = ./get-lidar.sh;
+        unpackPhase = ''
+          true
+        '';
+        buildInputs = [pkgs.makeWrapper];
         installPhase = ''
           mkdir -p $out/bin
-          makeWrapper $src $out/bin/get-lidar --prefix PATH : ${lib.makeBinPath [pkgs.gdal pkgs.jq pkgs.curl pkgs.findutils]}
+          makeWrapper $src $out/bin/get-lidar --prefix PATH : ${pkgs.lib.makeBinPath [pkgs.gdal pkgs.jq pkgs.curl pkgs.findutils pkgs.unzip]}
         '';
       })
     ];
