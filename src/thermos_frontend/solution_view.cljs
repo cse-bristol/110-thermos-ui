@@ -143,7 +143,8 @@
 
              ["Emissions"
               (add-up
-               :opex (mapcat (comp vals ::solution/supply-emissions) supplies))
+               :opex (mapcat (juxt (comp vals ::solution/supply-emissions)
+                                   (comp vals ::solution/pumping-emissions)) supplies))
               ]
              ]]
 
@@ -494,16 +495,22 @@
                    :cost (sum-counter e opex-mode)}]))
 
          sum-supply
-         (fn [e what]
+         (fn [k e what]
            (reduce + 0
-                   (map #(get-in % [::solution/supply-emissions e what] 0)
+                   (map #(get-in % [k e what] 0)
                         supplies)))
 
          supply-emissions
          (into {}
                (for [e candidate/emissions-types]
-                 [e {:t (/ (sum-supply e :kg) 1000)
-                     :cost (sum-supply e opex-mode)}]))
+                 [e {:t (/ (sum-supply ::solution/supply-emissions e :kg) 1000)
+                     :cost (sum-supply ::solution/supply-emissions e opex-mode)}]))
+
+         pumping-emissions
+         (into {}
+               (for [e candidate/emissions-types]
+                 [e {:t (/ (sum-supply ::solution/pumping-emissions e :kg) 1000)
+                     :cost (sum-supply ::solution/pumping-emissions e opex-mode)}]))
          ]
 
 
@@ -524,11 +531,19 @@
            [:th.numeric {:key [e :cost]} opex-label]))]]
       [:tbody
        [:tr
-        [:td "Network"]
+        [:td "Network (heat)"]
         (for [e candidate/emissions-types
               t [:t :cost]]
           [:td.numeric {:key [e t] :style {:width :100px}}
            (format/si-number (get-in supply-emissions [e t]))])]
+
+       [:tr
+        [:td "Network (pumping)"]
+        (for [e candidate/emissions-types
+              t [:t :cost]]
+          [:td.numeric {:key [e t] :style {:width :100px}}
+           (format/si-number (get-in pumping-emissions [e t]))])]
+       
        (for [[alt alt-emissions] alt-emissions]
          [:tr {:key alt}
           [:td alt]
@@ -536,6 +551,7 @@
                 t [:t :cost]]
             [:td.numeric {:key [e t]}
              (format/si-number (get-in alt-emissions [e t]))])])
+       
        [:tr.totals-row
         [:th "Total"]
         (for [e candidate/emissions-types
