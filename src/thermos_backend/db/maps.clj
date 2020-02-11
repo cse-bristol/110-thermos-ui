@@ -418,7 +418,10 @@
                   (-> (h/select :candidates.geoid :orig-id :name :type
                                 :connection-id
                                 :demand-kwh-per-year
+                                :demand-source
                                 :demand-kwp
+                                :cooling-kwh-per-year
+                                :cooling-kwp
                                 :connection-count
                                 [(sql/call :ST_AsGeoJson
                                            :geometry) :geometry])
@@ -432,7 +435,7 @@
       
       (with-open [cursor
                   (-> (h/select :candidates.geoid :orig-id :name :type
-                                :start-id :end-id :length :fixed-cost :variable-cost
+                                :start-id :end-id :length
                                 [(sql/call :ST_AsGeoJson
                                            :geometry) :geometry])
                       (h/from :candidates)
