@@ -75,8 +75,9 @@
             (.write w "\n"))
           ))
 
-       (.write w "]}"))
-     )))
+       (.write w "]}")
+       (.flush w))
+     (.flush o))))
 
 (defn- handle-map-creation
   [project-id
