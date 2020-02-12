@@ -21,6 +21,7 @@
             [thermos-backend.db.maps :as maps]
             [thermos-backend.importer.core :as importer]
             [clojure.string :as string]
+            [clojure.tools.logging :as log]
             [clojure.edn :as edn]
             [ring.middleware.json :refer [wrap-json-response wrap-json-body]]
             [thermos-backend.solver.core :as solver]
@@ -60,23 +61,28 @@
          (.write "{ \"type\": \"FeatureCollection\", ")
          (.write "  \"features\": ["))
 
-       (let [first (atom true)]
-         (maps/stream-features
-          map-id
-          (fn [feature]
-            (if @first (reset! first false) (.write w ","))
+       
+       (try
+         (let [first (atom true)]
+          (maps/stream-features
+           map-id
+           (fn [feature]
+             (if @first (reset! first false) (.write w ","))
 
-            (json/write
-             {:type :Feature
-              :geometry (json/read-str (:geometry feature))
-              :properties (dissoc feature :geometry)}
-             w)
-            
-            (.write w "\n"))
-          ))
+             (json/write
+              {:type :Feature
+               :geometry (json/read-str (:geometry feature))
+               :properties (dissoc feature :geometry)}
+              w)
+             
+             (.write w "\n"))
+           ))
+         (catch Exception e
+           (log/error e "Whilst streaming" map-id)))
 
-       (.write w "]}"))
-     )))
+       (.write w "]}")
+       (.flush w))
+     (.flush o))))
 
 (defn- handle-map-creation
   [project-id

@@ -94,7 +94,8 @@
                                   osm-levels (as-double (:building:levels %))]
                               (cond-> %
                                 osm-levels
-                                (assoc :fallback-height (* lidar/*storey-height* osm-levels))
+                                (assoc :fallback-height (* lidar/*storey-height* osm-levels)
+                                       ::lidar/storeys osm-levels)
 
                                 osm-height
                                 (assoc :fallback-height osm-height)))
@@ -458,10 +459,7 @@
         height     (or given-height (::lidar/height feature) given-fallback-height)
 
         floor-area (or given-floor-area
-                       (* (Math/ceil
-                           (/ (or height storey-height)
-                              storey-height))
-                          (::lidar/footprint feature)))
+                       (::lidar/floor-area feature))
 
         residential (if (contains? feature :residential)
                       ;; the double boolean here means that if
@@ -471,6 +469,8 @@
                       (contains? residential-subtypes (:subtype feature)))
 
         feature    (assoc feature
+                          ::lidar/floor-area floor-area
+                          :floor-area floor-area
                           ::lidar/height height
                           :height height
                           :residential residential)
@@ -494,7 +494,6 @@
                            (assoc :annual-demand maximum-demand
                                   :demand-source :maximum))))
         
-        
         ;; produce demand
         feature (cond
                   given-demand
@@ -516,7 +515,6 @@
     
     (assoc feature
            :sap-water-demand (sap/hot-water floor-area)
-           :floor-area floor-area
            )))
 
 (defn- should-explode?
@@ -527,7 +525,7 @@
   (and
    (#{:multi-polygon :multi-point} (::geoio/type feature))
    (not (or (:annual-demand feature)
-            (and (:given-floor-area feature)
+            (and (:floor-area feature)
                  (or (:benchmark-m feature)
                      (:benchmark-c feature)))))))
 
@@ -543,7 +541,7 @@
                                 (let [feature
                                       (-> feature
                                           (update :annual-demand as-double)
-                                          (update :given-floor-area as-double)
+                                          (update :floor-area as-double)
                                           (update :benchmark-m as-double)
                                           (update :benchmark-c as-double))]
                                   (if (should-explode? feature)
