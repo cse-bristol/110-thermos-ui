@@ -444,8 +444,8 @@
                  [:button.button {:style {:margin-left :auto} :on-click close-dialog!} "CANCEL"]
                  [:button.button.button--danger
                   {:on-click (fn-js [e]
-                               (POST "leave")
-                               (js/window.location.replace "/"))}
+                               (POST "leave" {:handler #(js/window.location.replace "/")})
+                               )}
                   "LEAVE"]]
                 ]
                )
