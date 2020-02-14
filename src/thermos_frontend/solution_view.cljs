@@ -393,7 +393,8 @@
           [:tr {:key alt-name}
            [:td alt-name]
            [:td.numeric (count buildings)]
-           [:td.numeric (format/si-number (* 1000 (reduce + #(candidate/peak-demand % (document/mode @parameters)))))]
+           [:td.numeric (format/si-number (* 1000 (reduce + #(candidate/peak-demand % (document/mode @parameters))
+                                                          buildings)))]
            [:td.numeric (format/si-number (* 1000 (reduce + (map ::solution/kwh buildings))))]
            [:td.numeric (format/si-number (reduce + (map (comp
                                                           capex-mode
