@@ -618,80 +618,75 @@
                         (config :import-directory)
                         (str
                          "map-" map-id "-"
-                         (str/replace (or map-name "????") #"[^a-zA-Z0-9]+" "-") "-"))
-
-        osm-buildings (-> parameters :buildings :source (= :osm))
-        osm-roads     (-> parameters :roads :source (= :osm))
-
-        progress* (fn [x p m] (progress :message m :percent p :can-cancel true) x)
-
-        sqrt-degree-days (Math/sqrt (:degree-days parameters))
-        ]
-    
+                         (str/replace (or map-name "????") #"[^a-zA-Z0-9]+" "-") "-"))]
     (log/info "About to import" map-id map-name "in" (.getName work-directory))
     (with-open [log-writer (io/writer (io/file work-directory "log.txt"))]
       (binding [*out* log-writer]
         (pprint parameters)
         
         (try
-          (-> (cond-> {:work-directory work-directory}
-                ;; 1. Load any GIS files
-                (not osm-buildings)
-                (assoc :buildings (load-and-join (:buildings parameters)))
+          (let [osm-buildings (-> parameters :buildings :source (= :osm))
+                osm-roads     (-> parameters :roads :source (= :osm))
+                progress* (fn [x p m] (progress :message m :percent p :can-cancel true) x)
+                sqrt-degree-days (Math/sqrt (:degree-days parameters 2000.0))]
+            (-> (cond-> {:work-directory work-directory}
+                  ;; 1. Load any GIS files
+                  (not osm-buildings)
+                  (assoc :buildings (load-and-join (:buildings parameters)))
 
-                (not osm-roads)
-                (assoc :roads (load-and-join (:roads parameters)))
+                  (not osm-roads)
+                  (assoc :roads (load-and-join (:roads parameters)))
+                  
+                  ;; 2. If we need some OSM stuff, load that
+                  (or osm-buildings osm-roads)
+                  (-> (progress* 10 "Querying OpenStreetMap")
+                      (query-osm parameters)))
+
+                ;; at this point, if we have multipolygons we should
+                ;; explode them so that the LIDAR processing calculates
+                ;; its stuff on a per-shape basis.
+
+                ;; step 1: subdivide multi-features into bits
+                (update-in [:buildings ::geoio/features] explode-multi-polygons)
+                (update-in [:roads ::geoio/features] explode-multi-lines)
+                ;; now we have several of everything, potentially
+                (progress* 20 "Checking for LIDAR coverage")
+                (update :buildings lidar/add-lidar-to-shapes (load-lidar-index))
                 
-                ;; 2. If we need some OSM stuff, load that
-                (or osm-buildings osm-roads)
-                (-> (progress* 10 "Querying OpenStreetMap")
-                    (query-osm parameters)))
+                (progress* 30 "Computing annual demands")
+                
+                (as-> x
+                    (let [;; choose a representative point
+                          bounds (geoio/bounding-box
+                                  (:buildings x)
+                                  (geoio/bounding-box
+                                   (:roads x)))
 
-              ;; at this point, if we have multipolygons we should
-              ;; explode them so that the LIDAR processing calculates
-              ;; its stuff on a per-shape basis.
+                          middle (.centre bounds)
+                          
+                          cooling-benchmark (cooling/cooling-benchmark (.getX middle) (.getY middle))]
+                      (log/info "Cooling bounds" bounds)
+                      (log/info "Cooling benchmark" cooling-benchmark)
+                      (update x :buildings geoio/update-features :produce-demands
+                              #(-> %
+                                   (produce-heat-demand sqrt-degree-days)
+                                   (produce-cooling-demand cooling-benchmark)))))
+                
+                ;; at this point we need to recombine anything that has
+                ;; been exploded.
+                (update-in [:buildings ::geoio/features] merge-multi-polygons)
 
-              ;; step 1: subdivide multi-features into bits
-              (update-in [:buildings ::geoio/features] explode-multi-polygons)
-              (update-in [:roads ::geoio/features] explode-multi-lines)
-              ;; now we have several of everything, potentially
-              (progress* 20 "Checking for LIDAR coverage")
-              (update :buildings lidar/add-lidar-to-shapes (load-lidar-index))
-              
-              (progress* 30 "Computing annual demands")
-              
-              (as-> x
-                  (let [;; choose a representative point
-                        bounds (geoio/bounding-box
-                                (:buildings x)
-                                (geoio/bounding-box
-                                 (:roads x)))
+                ;; we want to do peak modelling afterwards
+                (progress* 35 "Computing peak demands")
+                (update :buildings geoio/update-features :produce-peaks produce-peak)
 
-                        middle (.centre bounds)
-                        
-                        cooling-benchmark (cooling/cooling-benchmark (.getX middle) (.getY middle))]
-                    (log/info "Cooling bounds" bounds)
-                    (log/info "Cooling benchmark" cooling-benchmark)
-                    (update x :buildings geoio/update-features :produce-demands
-                            #(-> %
-                                 (produce-heat-demand sqrt-degree-days)
-                                 (produce-cooling-demand cooling-benchmark)))))
-              
-              ;; at this point we need to recombine anything that has
-              ;; been exploded.
-              (update-in [:buildings ::geoio/features] merge-multi-polygons)
+                (progress* 45 "De-duplicating geometry")
+                (dedup)
+                (progress* 50 "Noding paths and adding connectors")
+                (topo)
+                (progress* 80 "Adding map to database")
 
-              ;; we want to do peak modelling afterwards
-              (progress* 35 "Computing peak demands")
-              (update :buildings geoio/update-features :produce-peaks produce-peak)
-
-              (progress* 45 "De-duplicating geometry")
-              (dedup)
-              (progress* 50 "Noding paths and adding connectors")
-              (topo)
-              (progress* 80 "Adding map to database")
-
-              (update :buildings geoio/update-features :add-areas add-areas))
+                (update :buildings geoio/update-features :add-areas add-areas)))
           
           (catch Exception e
             (log/error e "Error during import: ")
