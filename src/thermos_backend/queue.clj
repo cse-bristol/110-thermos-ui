@@ -35,7 +35,7 @@
   "Maps from queue names to callback + capacity"
   (atom {}))
 
-(def running-jobs (atom {}))
+(def running-jobs (atom {})) ;; {queue {job-id thread}}
 
 (defn- get-spare-slots
   "
@@ -178,7 +178,24 @@
     (.start thread)
     thread)
   :stop
-  (.interrupt ^Thread poll-thread))
+  (do
+    ;; terminate polling
+    (.interrupt ^Thread poll-thread)
+    (Thread/sleep 50)
+    (let [running-jobs @running-jobs
+          restart-jobs (atom #{})]
+      (doseq [[queue running-jobs] running-jobs]
+        (doseq [[job thread] running-jobs]
+          ;; terminate job
+          (.interrupt thread)
+          (swap! restart-jobs conj job)))
+      ;; reset all jobs that were in-progress to READY
+      (-> (update :jobs)
+          (sset {:state READY_STATE})
+          (where [:and
+                  [:in :id @restart-jobs]
+                  [:not [:in :state FINISHED_STATES]]])
+          (db/execute!)))))
 
 (defn consume
   "Add a consumer function to the given queue.

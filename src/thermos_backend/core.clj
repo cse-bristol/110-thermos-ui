@@ -31,6 +31,7 @@
   
   ;; wait for stop.
   (.addShutdownHook (Runtime/getRuntime)
-                    (Thread. #(mount/stop))))
+                    (Thread. #(do (mount/stop)
+                                  (shutdown-agents)))))
 
 
