@@ -119,8 +119,10 @@
   [{map-id :map-id} progress]
   
   (let [{map-name :name parameters :parameters} (db/get-map map-id)]
-    (-> (run-import map-id map-name parameters progress)
-        (add-to-database (assoc parameters :map-id map-id)))))
+    (if (empty? parameters)
+      (log/error "Map" map-id "does not exist - probably been deleted before import")
+      (-> (run-import map-id map-name parameters progress)
+          (add-to-database (assoc parameters :map-id map-id))))))
 
 
 
