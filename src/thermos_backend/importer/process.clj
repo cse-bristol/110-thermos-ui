@@ -66,92 +66,94 @@
         ]
     [min-lat min-lon max-lat max-lon]))
 
-(defn- query-osm [state parameters]
-  (let [get-roads     (-> parameters :roads :source (= :osm))
-        get-buildings (-> parameters :buildings :source (= :osm))
+(let [osm-lock (Object.)]
+  (defn- query-osm [state parameters]
+    (locking osm-lock
+      (let [get-roads     (-> parameters :roads :source (= :osm))
+            get-buildings (-> parameters :buildings :source (= :osm))
 
-        query-area    (if get-buildings
-                        (or
-                         (-> parameters :buildings :osm :osm-id)
-                         ;; this needs way: or rel: on it
+            query-area    (if get-buildings
+                            (or
+                             (-> parameters :buildings :osm :osm-id)
+                             ;; this needs way: or rel: on it
 
-                         ;; bounding box query
-                         (-> parameters :buildings :osm :boundary geojson-bounds))
+                             ;; bounding box query
+                             (-> parameters :buildings :osm :boundary geojson-bounds))
 
-                        ;; we are only getting the roads, so we want
-                        ;; to get bounds from the existing geometry
+                            ;; we are only getting the roads, so we want
+                            ;; to get bounds from the existing geometry
 
-                        (let [box (geoio/bounding-box (:buildings state))]
-                          [(.getMinY box)
-                           (.getMinX box)
-                           
-                           (.getMaxY box)
-                           (.getMaxX box)]))
+                            (let [box (geoio/bounding-box (:buildings state))]
+                              [(.getMinY box)
+                               (.getMinX box)
+                               
+                               (.getMaxY box)
+                               (.getMaxX box)]))
 
-        set-building-type  #(assoc % :subtype (remap-building-type %))
-        set-road-type      #(assoc % :subtype (clean-tag (:highway %)))
-        set-osm-height     #(let [osm-height (as-double (:height %))
-                                  osm-levels (as-double (:building:levels %))]
-                              (cond-> %
-                                osm-levels
-                                (assoc :fallback-height (* lidar/*storey-height* osm-levels)
-                                       ::lidar/storeys osm-levels)
+            set-building-type  #(assoc % :subtype (remap-building-type %))
+            set-road-type      #(assoc % :subtype (clean-tag (:highway %)))
+            set-osm-height     #(let [osm-height (as-double (:height %))
+                                      osm-levels (as-double (:building:levels %))]
+                                  (cond-> %
+                                    osm-levels
+                                    (assoc :fallback-height (* lidar/*storey-height* osm-levels)
+                                           ::lidar/storeys osm-levels)
 
-                                osm-height
-                                (assoc :fallback-height osm-height)))
-        
-        set-specials       #(cond-> %
-                              (= (:osm-id %) "289662492")
-                              (assoc :name "Rothballer Towers")
-                              (= (:osm-id %) "602252862")
-                              (assoc :name "The Thumimdome")
-                              )
-        
-        query-results (overpass/get-geometry query-area
-                                             :include-buildings get-buildings
-                                             :include-highways get-roads)
+                                    osm-height
+                                    (assoc :fallback-height osm-height)))
+            
+            set-specials       #(cond-> %
+                                  (= (:osm-id %) "289662492")
+                                  (assoc :name "Rothballer Towers")
+                                  (= (:osm-id %) "602252862")
+                                  (assoc :name "The Thumimdome")
+                                  )
+            
+            query-results (overpass/get-geometry query-area
+                                                 :include-buildings get-buildings
+                                                 :include-highways get-roads)
 
-        query-results
-        (for [r query-results]
-          (assoc r :identity (:osm-id r)))
-        
-        buildings
-        (->> query-results
-             (filter :building)
-             (geoio/explode-multis)
-             (filter (comp #{:polygon} ::geoio/type))
-             (map set-building-type)
-             (map set-specials)
-             (map set-osm-height))
+            query-results
+            (for [r query-results]
+              (assoc r :identity (:osm-id r)))
+            
+            buildings
+            (->> query-results
+                 (filter :building)
+                 (geoio/explode-multis)
+                 (filter (comp #{:polygon} ::geoio/type))
+                 (map set-building-type)
+                 (map set-specials)
+                 (map set-osm-height))
 
-        highways
-        (->> query-results
-             (filter :highway)
-             ;; some highways are polygons!
-             (keep
-              (fn [i]
-                (cond
-                  (= :line-string (::geoio/type i)) i
-                  (= :polygon (::geoio/type i))
-                  ;; If it's a polygon, we want to turn it into a line string.
-                  ;; We can do this by replacing it with its exterior ring.
-                  ;; This is safe, since we're going to node it later.
-                  (let [geometry (::geoio/geometry i)]
-                    (when (zero? (.getNumInteriorRing geometry))
-                      (geoio/update-geometry
-                       i
-                       (.getExteriorRing geometry)))))))
-             (map set-road-type))]
+            highways
+            (->> query-results
+                 (filter :highway)
+                 ;; some highways are polygons!
+                 (keep
+                  (fn [i]
+                    (cond
+                      (= :line-string (::geoio/type i)) i
+                      (= :polygon (::geoio/type i))
+                      ;; If it's a polygon, we want to turn it into a line string.
+                      ;; We can do this by replacing it with its exterior ring.
+                      ;; This is safe, since we're going to node it later.
+                      (let [geometry (::geoio/geometry i)]
+                        (when (zero? (.getNumInteriorRing geometry))
+                          (geoio/update-geometry
+                           i
+                           (.getExteriorRing geometry)))))))
+                 (map set-road-type))]
 
-    (cond-> state
-      get-buildings
-      (assoc :buildings
-             {::geoio/crs "EPSG:4326" ::geoio/features buildings})
+        (cond-> state
+          get-buildings
+          (assoc :buildings
+                 {::geoio/crs "EPSG:4326" ::geoio/features buildings})
 
-      get-roads
-      (assoc :roads
-             {::geoio/crs "EPSG:4326" ::geoio/features highways}))
-    ))
+          get-roads
+          (assoc :roads
+                 {::geoio/crs "EPSG:4326" ::geoio/features highways}))
+        ))))
 
 (defn load-lidar-index []
   (when-let [lidar-directory (config :lidar-directory)]

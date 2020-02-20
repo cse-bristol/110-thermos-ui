@@ -148,6 +148,6 @@
                   (with-open [r (io/reader file)]
                     (first (csv/read-csv r :separator \tab))))})))))
 
-(queue/consume :imports 1 run-import-and-store)
+(queue/consume :imports 4 run-import-and-store)
 
 
