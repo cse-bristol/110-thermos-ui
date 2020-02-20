@@ -25,4 +25,6 @@
  :smtp-from-address ""
 
  :base-url ""
+
+ :restart-running-jobs true
  }

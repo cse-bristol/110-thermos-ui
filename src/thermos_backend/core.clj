@@ -24,6 +24,11 @@
 (defn -main [& args]
   (log/info "Starting THERMOS application")
   (mount/start)
+
+  (when (= "true" (config :restart-running-jobs))
+    (log/info "Restarting all previously running jobs")
+    (queue/restart-all-running!))
+  
   ;; wait for stop.
   (.addShutdownHook (Runtime/getRuntime)
                     (Thread. #(mount/stop))))

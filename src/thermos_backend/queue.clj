@@ -265,6 +265,18 @@
             ;; update state to a keyword?
             (assoc :after rank))))))
 
-(comment
-  (restart 98))
+(defn restart-all-running!
+  "Safe to use only after a system restart, if no other machine is running jobs."
+  ([]
+   (-> (update :jobs)
+       (sset {:state READY_STATE})
+       (where [:= :state RUNNING_STATE])
+       (db/execute!)))
+  ([queue-name]
+   (-> (update :jobs)
+       (sset {:state READY_STATE})
+       (where [:and [:= :queue-name (name queue-name)]
+               [:= :state RUNNING_STATE]])
+       (db/execute!))))
+
 
