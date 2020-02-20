@@ -188,14 +188,16 @@
         (doseq [[job thread] running-jobs]
           ;; terminate job
           (.interrupt thread)
-          (swap! restart-jobs conj job)))
+          (swap! restart-jobs conj job)
+          (log/warn "Re-posting" job "on" queue)))
       ;; reset all jobs that were in-progress to READY
-      (-> (update :jobs)
-          (sset {:state READY_STATE})
-          (where [:and
-                  [:in :id @restart-jobs]
-                  [:not [:in :state FINISHED_STATES]]])
-          (db/execute!)))))
+      (when (not-empty @restart-jobs)
+        (-> (update :jobs)
+            (sset {:state READY_STATE})
+            (where [:and
+                    [:in :id @restart-jobs]
+                    [:not [:in :state FINISHED_STATES]]])
+            (db/execute!))))))
 
 (defn consume
   "Add a consumer function to the given queue.
