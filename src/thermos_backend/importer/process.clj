@@ -657,14 +657,14 @@
                 
                 (as-> x
                     (let [;; choose a representative point
-                          bounds (geoio/bounding-box
-                                  (:buildings x)
-                                  (geoio/bounding-box
-                                   (:roads x)))
+                          bounds (geoio/bounding-box (:buildings x) (geoio/bounding-box (:roads x)))
 
                           middle (.centre bounds)
                           
-                          cooling-benchmark (cooling/cooling-benchmark (.getX middle) (.getY middle))]
+                          cooling-benchmark (try (cooling/cooling-benchmark (.getX middle) (.getY middle))
+                                                 (catch Exception e
+                                                   (log/error e "Error getting cooling benchmark, proceeding regardless with zero")
+                                                   0))]
                       (log/info "Cooling bounds" bounds)
                       (log/info "Cooling benchmark" cooling-benchmark)
                       (update x :buildings geoio/update-features :produce-demands
