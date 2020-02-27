@@ -38,20 +38,25 @@
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#annual-demand-model">1. Annual demand model</a>
+<li><a href="#org513f075">1. Heat demand model</a>
 <ul>
-<li><a href="#org2756d7c">1.1. Algorithm</a></li>
-<li><a href="#org95359a4">1.2. Model creation</a></li>
-<li><a href="#org041f1d6">1.3. Model validation</a>
+<li><a href="#annual-demand-model">1.1. Annual demand model</a>
 <ul>
-<li><a href="#org3c7892b">1.3.1. Cross-validation</a></li>
-<li><a href="#org0ce0d98">1.3.2. Validation on aggregate datasets</a></li>
+<li><a href="#org2756d7c">1.1.1. Algorithm</a></li>
+<li><a href="#org95359a4">1.1.2. Model creation</a></li>
+<li><a href="#org041f1d6">1.1.3. Model validation</a></li>
+<li><a href="#orga309da7">1.1.4. Predictors</a></li>
 </ul>
 </li>
-<li><a href="#orga309da7">1.4. Predictors</a></li>
+<li><a href="#peak-demand-model">1.2. Peak demand model</a></li>
 </ul>
 </li>
-<li><a href="#peak-demand-model">2. Peak demand model</a></li>
+<li><a href="#orgf2651c7">2. Cooling demand model</a>
+<ul>
+<li><a href="#org5a67c36">2.1. Annual demand model</a></li>
+<li><a href="#org3c47cc9">2.2. Peak demand model</a></li>
+</ul>
+</li>
 </ul>
 </div>
 </div>
@@ -59,9 +64,13 @@
 <b>NOTE:</b> This document is not yet complete.
 </p>
 
-<div id="outline-container-org7330dfe" class="outline-2">
-<h2 id="annual-demand-model"><a id="org7330dfe"></a><span class="section-number-2">1</span> Annual demand model</h2>
-<div class="outline-text-2" id="text-annual-demand-model">
+<div id="outline-container-org513f075" class="outline-2">
+<h2 id="org513f075"><span class="section-number-2">1</span> Heat demand model</h2>
+<div class="outline-text-2" id="text-1">
+</div>
+<div id="outline-container-org7330dfe" class="outline-3">
+<h3 id="annual-demand-model"><span class="section-number-3">1.1</span> Annual demand model</h3>
+<div class="outline-text-3" id="text-annual-demand-model">
 <p>
 Annual demand is predicted using a combination of several models:
 </p>
@@ -75,9 +84,9 @@ Annual demand is predicted using a combination of several models:
 </ul>
 </div>
 
-<div id="outline-container-org2756d7c" class="outline-3">
-<h3 id="org2756d7c"><span class="section-number-3">1.1</span> Algorithm</h3>
-<div class="outline-text-3" id="text-1-1">
+<div id="outline-container-org2756d7c" class="outline-4">
+<h4 id="org2756d7c"><span class="section-number-4">1.1.1</span> Algorithm</h4>
+<div class="outline-text-4" id="text-1-1-1">
 <p>
 If there is three-dimensional data available, then the 3D predictors are calculated and the 3D models are used, otherwise the 2D versions are used. The predictors are given later; following this the process is
 </p>
@@ -108,9 +117,9 @@ This is following the methodology in Ecoheatcool's work package 1<sup><a id="fnr
 </div>
 </div>
 
-<div id="outline-container-org95359a4" class="outline-3">
-<h3 id="org95359a4"><span class="section-number-3">1.2</span> Model creation</h3>
-<div class="outline-text-3" id="text-1-2">
+<div id="outline-container-org95359a4" class="outline-4">
+<h4 id="org95359a4"><span class="section-number-4">1.1.2</span> Model creation</h4>
+<div class="outline-text-4" id="text-1-1-2">
 <p>
 <b>NOTE:</b> This is incomplete.
 </p>
@@ -125,26 +134,24 @@ To separate space heat demand from hot water demand in the training data, we app
 </div>
 </div>
 
-<div id="outline-container-org041f1d6" class="outline-3">
-<h3 id="org041f1d6"><span class="section-number-3">1.3</span> Model validation</h3>
-<div class="outline-text-3" id="text-1-3">
+<div id="outline-container-org041f1d6" class="outline-4">
+<h4 id="org041f1d6"><span class="section-number-4">1.1.3</span> Model validation</h4>
+<div class="outline-text-4" id="text-1-1-3">
 <p>
 <b>*NOTE:</b> This is incomplete.
 </p>
 </div>
 
-<div id="outline-container-org3c7892b" class="outline-4">
-<h4 id="org3c7892b"><span class="section-number-4">1.3.1</span> Cross-validation</h4>
+<ol class="org-ol">
+<li><a id="org3c7892b"></a>Cross-validation<br /></li>
+
+<li><a id="org0ce0d98"></a>Validation on aggregate datasets<br /></li>
+</ol>
 </div>
 
-<div id="outline-container-org0ce0d98" class="outline-4">
-<h4 id="org0ce0d98"><span class="section-number-4">1.3.2</span> Validation on aggregate datasets</h4>
-</div>
-</div>
-
-<div id="outline-container-orga309da7" class="outline-3">
-<h3 id="orga309da7"><span class="section-number-3">1.4</span> Predictors</h3>
-<div class="outline-text-3" id="text-1-4">
+<div id="outline-container-orga309da7" class="outline-4">
+<h4 id="orga309da7"><span class="section-number-4">1.1.4</span> Predictors</h4>
+<div class="outline-text-4" id="text-1-1-4">
 <dl class="org-dl">
 <dt>Three-dimensional predictors</dt><dd><ul class="org-ul">
 <li><i>External</i> wall area, computed by taking the length of all walls not shared with adjacent buildings and multiplying it by the building height</li>
@@ -174,9 +181,9 @@ Other geometric predictors which might be worth considering would include functi
 </div>
 </div>
 
-<div id="outline-container-orgcf94625" class="outline-2">
-<h2 id="peak-demand-model"><a id="orgcf94625"></a><span class="section-number-2">2</span> Peak demand model</h2>
-<div class="outline-text-2" id="text-peak-demand-model">
+<div id="outline-container-orgcf94625" class="outline-3">
+<h3 id="peak-demand-model"><span class="section-number-3">1.2</span> Peak demand model</h3>
+<div class="outline-text-3" id="text-peak-demand-model">
 <p>
 The peak demand in kW \(p\) is derived as a function of the annual demand in kWh \(a\), using the rule:
 </p>
@@ -192,6 +199,98 @@ This rule is derived from analysis of smart meter data in the UK, relating peak 
 </p>
 </div>
 </div>
+</div>
+
+<div id="outline-container-orgf2651c7" class="outline-2">
+<h2 id="orgf2651c7"><span class="section-number-2">2</span> Cooling demand model</h2>
+<div class="outline-text-2" id="text-2">
+</div>
+<div id="outline-container-org5a67c36" class="outline-3">
+<h3 id="org5a67c36"><span class="section-number-3">2.1</span> Annual demand model</h3>
+<div class="outline-text-3" id="text-2-1">
+<p>
+Cooling demand is estimated using the method given by Sven Werner in <i>European space cooling demands</i>, published in Elsevier's <i>Energy</i> 110 (2016) pp148 &#x2013; 156<sup><a id="fnr.3" class="footref" href="#fn.3">3</a></sup>.
+</p>
+
+<p>
+The model uses an empirically determined <i>cooling index</i> \(E\), which is used to produce a benchmark value of \(1.22 \times E - 43.5\) kWh/m<sup>2</sup>.
+</p>
+
+<p>
+The cooling index varies by region, and so incorporates some evidence about the cooling degree days that are needed.
+</p>
+</div>
+</div>
+<div id="outline-container-org3c47cc9" class="outline-3">
+<h3 id="org3c47cc9"><span class="section-number-3">2.2</span> Peak demand model</h3>
+<div class="outline-text-3" id="text-2-2">
+<p>
+At the moment the cooling peak model is very basic. 
+The BSRIA <i>Rules of thumb</i> (5<sup>th</sup> edition)<sup><a id="fnr.4" class="footref" href="#fn.4">4</a></sup> gives the following indicative values for cooling capacity <i>in the UK</i> by building use:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-right" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Use</th>
+<th scope="col" class="org-right">W/m<sup>2</sup></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Residential</td>
+<td class="org-right">70</td>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td class="org-left">Offices</td>
+<td class="org-right">87</td>
+</tr>
+
+<tr>
+<td class="org-left">Hotels and shops</td>
+<td class="org-right">150</td>
+</tr>
+
+<tr>
+<td class="org-left">Restaurants</td>
+<td class="org-right">200</td>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td class="org-left">Datacenters</td>
+<td class="org-right">1500</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Since THERMOS doesn't usually know more than whether a building is residential or not, we have taken as representative two values: 70 W/m<sup>2</sup> for residential, and 150 W/m<sup>2</sup> for non-residential buildings.
+</p>
+
+<p>
+To translate these values to regions other than the UK, we have related them to Werner's annual demand model to produce ratios between annual demand and peak demand for residential and non-residential buildings.
+</p>
+
+<p>
+The peak demand is then calculated by applying this ratio to the annual demand estimate from Werner's method. The assumption here is that the peak-to-base ratio is the same in different regions.
+</p>
+
+<p>
+We would be very interested to hear from anyone with a better idea or more evidence about this part.
+</p>
+</div>
+</div>
+</div>
 <div id="footnotes">
 <h2 class="footnotes">Footnotes: </h2>
 <div id="text-footnotes">
@@ -202,6 +301,14 @@ ECOHEATCOOL, Work Package 1; the European Heat Market (Final Report), by Eurohea
 
 <div class="footdef"><sup><a id="fn.2" class="footnum" href="#fnr.2">2</a></sup> <div class="footpara"><p class="footpara">
 <a href="https://www.bre.co.uk/filelibrary/SAP/2012/SAP-2012_9-92.pdf">SAP 2012</a>, the Government's Standard Assessment Procedure for Energy Rating of Dwellings
+</p></div></div>
+
+<div class="footdef"><sup><a id="fn.3" class="footnum" href="#fnr.3">3</a></sup> <div class="footpara"><p class="footpara">
+Available from <a href="https://ideas.repec.org/a/eee/energy/v110y2016icp148-156.html">https://ideas.repec.org/a/eee/energy/v110y2016icp148-156.html</a>
+</p></div></div>
+
+<div class="footdef"><sup><a id="fn.4" class="footnum" href="#fnr.4">4</a></sup> <div class="footpara"><p class="footpara">
+ISBN 978 0 86022 692 5
 </p></div></div>
 
 

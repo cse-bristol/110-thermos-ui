@@ -73,6 +73,14 @@
 </li>
 </ul>
 </li>
+<li><a href="#org8ffd842">6. Differences between heating and cooling</a>
+<ul>
+<li><a href="#orgf159e6c">6.1. Flow and return temperatures</a></li>
+<li><a href="#org2acf946">6.2. Medium density</a></li>
+<li><a href="#orge6d5666">6.3. Pumping energy</a></li>
+<li><a href="#org42c0fc7">6.4. Heat losses / gains</a></li>
+</ul>
+</li>
 </ul>
 </div>
 </div>
@@ -193,7 +201,7 @@ In principle, if there are several supplies in the system, or several pipes conn
 </div>
 
 <div id="outline-container-org1703144" class="outline-3">
-<h3 id="pipe-diameter-calc"><a id="org1703144"></a><span class="section-number-3">2.4</span> Pipe diameter</h3>
+<h3 id="pipe-diameter-calc"><span class="section-number-3">2.4</span> Pipe diameter</h3>
 <div class="outline-text-3" id="text-pipe-diameter-calc">
 <p>
 Although the model works with pipes' capacity to deliver power, prices and heat losses are determined by the pipe diameter.
@@ -291,7 +299,7 @@ This approximation reduces the fidelity of the cost calculation, but makes the p
 </div>
 
 <div id="outline-container-orgd86b30f" class="outline-3">
-<h3 id="pipe-heat-losses"><a id="orgd86b30f"></a><span class="section-number-3">2.6</span> Pipe heat losses</h3>
+<h3 id="pipe-heat-losses"><span class="section-number-3">2.6</span> Pipe heat losses</h3>
 <div class="outline-text-3" id="text-pipe-heat-losses">
 <p>
 Heat losses are also determined by pipe diameter, along with the flow temperature in the pipe and the ground temperature.
@@ -1216,6 +1224,71 @@ Calculating an NPV over 15 years we then have
 Using a discount rate of 4% we have (10,460-78,077) + (10,460-78,077)/1.04 + (10,460-78,077)/1.04² &#x2026; + (10,460/1.04<sup>10</sup> + &#x2026;) = -516,976, so this network is a loss using this accounting.
 </p>
 </div>
+</div>
+</div>
+</div>
+
+<div id="outline-container-org8ffd842" class="outline-2">
+<h2 id="org8ffd842"><span class="section-number-2">6</span> Differences between heating and cooling</h2>
+<div class="outline-text-2" id="text-6">
+<p>
+Heating and cooling systems are treated very similarly by the network model; the only differences are as follows:
+</p>
+</div>
+<div id="outline-container-orgf159e6c" class="outline-3">
+<h3 id="orgf159e6c"><span class="section-number-3">6.1</span> Flow and return temperatures</h3>
+<div class="outline-text-3" id="text-6-1">
+<p>
+When creating a new network problem, in a cooling problem the default flow temperature is below the return temperature (in fact, this is how the model decides whether a system is for heating or cooling).
+</p>
+</div>
+</div>
+<div id="outline-container-org2acf946" class="outline-3">
+<h3 id="org2acf946"><span class="section-number-3">6.2</span> Medium density</h3>
+<div class="outline-text-3" id="text-6-2">
+<p>
+When calculating the size of pipes, the velocity function above is used to get a mass flow rate, which gives a heat flow rate. The mass flow rate involves water density, which varies with temperature.
+</p>
+
+<p>
+Water density is determined using the mean of the flow and return temperatures, and looked up the table on <a href="https://en.wikipedia.org/wiki/Water_%28data_page%29">this page</a>.
+</p>
+</div>
+</div>
+<div id="outline-container-orge6d5666" class="outline-3">
+<h3 id="orge6d5666"><span class="section-number-3">6.3</span> Pumping energy</h3>
+<div class="outline-text-3" id="text-6-3">
+<p>
+However, they need different treatments in heating and cooling systems, as in a cooling system the pumping energy means extra work for the chillers, whereas for a heating system the pumping energy results in useful heat.
+</p>
+
+<p>
+Pumping energy is considered to be a fixed share \(p\) of the system's heat or cold output \(E\) (including losses).
+</p>
+
+<p>
+In a cooling network, the plant is required to supply \((1+p)\times E\) kWh of cold; in a heating network the plant must supply \((1-p) \times E\) kWh of heat.
+</p>
+
+<p>
+For the optimisation formulation, pumping energy and cost are incorporated into the price of heat, and only disaggregated afterwards as a presentation detail.
+</p>
+</div>
+</div>
+<div id="outline-container-org42c0fc7" class="outline-3">
+<h3 id="org42c0fc7"><span class="section-number-3">6.4</span> Heat losses / gains</h3>
+<div class="outline-text-3" id="text-6-4">
+<p>
+For a cooling system, pipe losses are replaced with undesired gains, when the ground temperature is higher than the average flow temperature. These undesired gains must be overcome by the chillers in the plant.
+</p>
+
+<p>
+This is reflected by negating the temperature difference when working out losses for a cooling network.
+</p>
+
+<p>
+This is expressed in a preprocessing step, before the optimisation formulation.
+</p>
 </div>
 </div>
 </div>

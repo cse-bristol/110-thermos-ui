@@ -216,7 +216,7 @@ These variables produce contributions to objective in a fairly direct way:
                \]
 - Plant cost :: The cost of plant is 
                 \[
-                \sum_{i \in \mathit{SVTX}} \mathit{SVIN}_{i}_{} \times \text{present fixed cost of supply at $i$} + \mathit{SUPPLYCAPACITY}_i \times \text{present variable cost of supply at $i$}
+                \sum_{i \in \mathit{SVTX}} \mathit{SVIN}_{i} \times \text{present fixed cost of supply at $i$} + \mathit{SUPPLYCAPACITY}_i \times \text{present variable cost of supply at $i$}
                 \]
 - Pipe cost :: The cost of pipes is quite similar to the cost of supplies: 
                \[
@@ -497,7 +497,7 @@ C = \min_{a \in \text{alternatives}, i \in 2^\text{insulation}} \mathit{PC}(a, i
 and then finding $u$ so that
 
 \[
-\mathit{PC}(\text{annual cost of $u \times $ demand)) = \text{stickiness} \times C
+\mathit{PC}(\text{annual cost of $u \times $ demand}) = \text{stickiness} \times C
 \]
 
 * Footnotes
