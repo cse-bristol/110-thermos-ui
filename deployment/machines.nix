@@ -102,6 +102,9 @@
 
     systemd.services.thermos =
     {
+      serviceConfig = {
+        TimeoutStopSec = 60;
+      };
       wantedBy = ["multi-user.target"];
       after = ["enable-postgis.service" "smtp-key.service"];
       requires = ["enable-postgis.service"  "smtp-key.service"];
@@ -130,7 +133,7 @@
         export BASE_URL="https://tool.thermos-project.eu"
         export WEB_SERVER_DISABLE_CACHE=false
         export LIDAR_DIRECTORY=/thermos-lidar/
-        ${pkgs.jre}/bin/java -Xmx6g -server -jar ${../target/thermos.jar}
+        exec ${pkgs.jre}/bin/java -Xmx6g -server -jar ${../target/thermos.jar}
       '';
     };
 
