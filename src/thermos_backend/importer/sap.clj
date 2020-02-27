@@ -10,16 +10,17 @@
       ;;             J  F  M  A  M  J  Jy A  S  O  N  D
       (double-array [31 28 31 30 31 30 31 31 30 31 30 31])
 
+      ;; This is from Sap Table 3: Primary circuit loss
+      
       primary-losses
       (areduce sap-days month total 0
                (+ total (* (aget sap-days month)
                            14
-                           (+ 0.0263
-                              (* 0.0091 3)
-                              
-                              )
-                           ))
-               )
+                           ;;        ↓ this is [0.0091 × p + 0.0245 × (1-p)] × h
+                           ;;        ↓ but where p = 1 and h = 3, which is
+                           ;;        ↓ fully insulated primary & cylinder stat & prog.
+                           (+ 0.0263 (* 0.0091 3))
+                           )))
       ]
   
   (defn hot-water ^double [^double floor-area]
