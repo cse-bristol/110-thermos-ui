@@ -113,6 +113,9 @@
 
     thermos-importer {:local/root "libs/thermos-importer"}
 
+    ;; TODO fix later
+    thermos-models {:local/root "../thermos-models"}
+
     buddy/buddy-hashers {:mvn/version "1.3.0"}
 
     com.draines/postal {:mvn/version "2.0.2"}

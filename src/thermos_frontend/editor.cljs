@@ -21,6 +21,7 @@
             [thermos-frontend.params.pipes :as pipe-parameters]
             [thermos-frontend.params.insulation :as insulation]
             [thermos-frontend.params.alternatives :as alternatives]
+            [thermos-frontend.params.profiles :as profiles]
             [thermos-frontend.solution-view :as solution-view]
             [thermos-frontend.toaster :as toaster]
             [thermos-frontend.editor-keys :as keys]
@@ -173,7 +174,7 @@
               }
 
              [:div.menu-block
-              [:h1 "Problem"]
+              [:h1 "Network problem"]
               [:ul
                [:li [:button.button--link-style
                      {:on-click #(goto :candidates)
@@ -195,6 +196,13 @@
                      {:on-click #(goto :alternatives)
                       :class (when (= @*selected-tab :alternatives) "selected")} "Individual systems"]]
                ]]
+             
+             [:div.menu-block
+              [:h1 "Supply problem"]
+              [:ul [:li [:button.button--link-style
+                     {:on-click #(goto :profiles)
+                      :class (when (= @*selected-tab :profiles) "selected")} "Profiles"]]]
+              ]
 
              (when @has-solution?
                [:div.menu-block
@@ -299,6 +307,8 @@
           (= selected-tab :alternatives)
           [alternatives/alternatives-parameters state/state]
 
+          (= selected-tab :profiles)
+          [profiles/profiles-parameters state/state]
 
           (= selected-tab :solution)
           [solution-view/solution-summary state/state]
