@@ -103,8 +103,8 @@
     systemd.services.thermos =
     {
       wantedBy = ["multi-user.target"];
-      after = ["enable-postgis.service" "smtp-key.service"];
-      requires = ["enable-postgis.service"  "smtp-key.service"];
+      after = ["enable-postgis.service"];
+      requires = ["enable-postgis.service"];
       path = (pkgs.callPackage ./model/path.nix {});
       script =
       let
@@ -125,6 +125,10 @@
         export SMTP_PORT=25
         export SMTP_TLS=true
         export SMTP_USER=thermos-project.eu
+        while [[ ! -f /run/keys/smtp ]]; do 
+            echo "waiting for smtp key"
+            sleep 2
+        done
         export SMTP_PASSWORD=$(cat /run/keys/smtp)
         export SMTP_FROM_ADDRESS="THERMOS <system@thermos-project.eu>"
         export BASE_URL="https://tool.thermos-project.eu"
