@@ -56,15 +56,19 @@
 
 (defn annual-demand
   [candidate mode]
-  (case mode
-    :cooling (::cooling/kwh candidate 0)
-    (::demand/kwh candidate 0)))
+  
+  (when (is-building? candidate)
+    (case mode
+      :cooling (::cooling/kwh candidate 0)
+      (::demand/kwh candidate 0))))
 
 (defn peak-demand
   [candidate mode]
-  (case mode
-    :cooling (::cooling/kwp candidate 0)
-    (::demand/kwp candidate 0)))
+  
+  (when (is-building? candidate)
+    (case mode
+      :cooling (::cooling/kwp candidate 0)
+      (::demand/kwp candidate 0))))
 
 (defn has-demand? [candidate mode]
   (when-let [demand (annual-demand candidate mode)]

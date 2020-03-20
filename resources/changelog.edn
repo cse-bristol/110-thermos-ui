@@ -1,4 +1,27 @@
-[{:title "4th Feb 2020"
+[{:title "20th March 2020"
+  :changes [{:title "Support forum"
+             :summary [:div
+                       "There's now a support forum - click forum at the top to go there. "
+                       "Unfortunately you will have to sign up for a separate account there, as it's a separate system."]}]}
+ 
+ {:title "27th Feb 2020"
+  :changes [{:title "International numbers"
+             :summary
+             [:div "When using GIS data to create a map, numbers expressed as text "
+              "that use the comma as a decimal point separator will now be understood. "
+              "Such numbers must be of the form (digits),(more digits), so cannot "
+              "include thousands separators etc."]}
+            {:title "Fixed bugs"
+             :summary
+             [:ul
+              [:li
+               "When using the line drawing tool, if the new line split an existing line in two, each half of the split line would have the original length. "
+               "The expected (and now correct) outcome is that the length of each half is recalculated. "
+               "This fix does " [:em "not"] " apply retroactively to existing network problems."]
+              ]
+             }]
+  }
+ {:title "4th Feb 2020"
   :changes [{:title "Cooling model"
              :summary
              [:div

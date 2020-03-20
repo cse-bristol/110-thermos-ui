@@ -156,14 +156,17 @@
                          ::candidate/id (jts/ghash h)
                          ::candidate/geometry (jts/geom->json h)
                          ::candidate/modified true
-                         ::path/end vtx-id)
+                         ::path/end vtx-id
+                         ::path/length (jts/geodesic-length h)
+                         )
                 
                 t (assoc path
                          ::spatial/jsts-geometry t
                          ::candidate/id (jts/ghash t)
                          ::candidate/geometry (jts/geom->json t)
                          ::candidate/modified true
-                         ::path/start vtx-id)
+                         ::path/start vtx-id
+                         ::path/length (jts/geodesic-length t))
                 ]
             (-> document
                 (document/add-candidates [h t])

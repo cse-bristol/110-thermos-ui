@@ -206,8 +206,14 @@
 
       (log/info tag "inserted" (+ (count paths) (count buildings)) "candidates")
       ;; (re)generate map icon and so on
-      (-> (h/select (sql/call :update_map (int map-id)))
-          (db/fetch! conn))
+      ;; this sometimes dies, so we will retry thrice
+      (loop [n 3]
+        (when (pos? n)
+          (recur (try
+                   (-> (h/select (sql/call :update_map (int map-id)))
+                       (db/fetch! conn))
+                   0
+                   (catch Exception e (dec n))))))
 
       (log/info tag "updated summary information")
       

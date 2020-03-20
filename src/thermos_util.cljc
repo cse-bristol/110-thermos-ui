@@ -48,17 +48,30 @@
                  (catch NumberFormatException e)))
     (number? v) (int v)))
 
-(defn as-double
-  "Try and turn v into a double. Nil if we can't."
-  [v]
-  (cond
-    (string? v)
-    #?(:cljs (let [x (js/parseFloat v)]
-               (and x (js/isFinite x) x))
-       :clj (try (Double/parseDouble v)
-                 (catch NumberFormatException e)))
-    
-    (number? v) (double v)))
+
+(let [comma-number #"^\s*\d+,\d+\s*$"]
+  (defn as-double
+    "Try and turn v into a double. Nil if we can't."
+    {:test #(do (test/is (= 1.0 (as-double "1.0")))
+                (test/is (= 1.5 (as-double "1,5")))
+                (test/is (nil? (as-double "1,5,")))
+                (test/is (nil? (as-double nil)))
+                (test/is (= 1.0 (as-double 1.0)))
+                (test/is (nil? (as-double false)))
+                (test/is (nil? (as-double "a1"))))}
+    [v]
+    (cond
+      (string? v)
+      (let [v (if (re-matches comma-number v)
+                (string/replace v \, \.)
+                v
+                )]
+        #?(:cljs (let [x (js/parseFloat v)]
+                   (and x (js/isFinite x) x))
+           :clj (try (Double/parseDouble v)
+                     (catch NumberFormatException e))))
+      
+      (number? v) (double v))))
 
 (defmacro safe-div [a b]
   `(let [a# ~a]
