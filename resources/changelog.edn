@@ -1,4 +1,10 @@
-[{:title "27th Feb 2020"
+[{:title "20th March 2020"
+  :changes [{:title "Support forum"
+             :summary [:div
+                       "There's now a support forum - click forum at the top to go there. "
+                       "Unfortunately you will have to sign up for a separate account there, as it's a separate system."]}]}
+ 
+ {:title "27th Feb 2020"
   :changes [{:title "International numbers"
              :summary
              [:div "When using GIS data to create a map, numbers expressed as text "

@@ -59,8 +59,8 @@
        [:span {:style (style :margin-left :auto)}
         [:a {:style (style :margin-left :1em)
              :href "/settings"} "Settings"]
-        [:a {:style (style :margin-left :1em)
-             :href "/help"} "Help"]
+        [:a {:style (style :margin-left :1em) :href "/help"} "Help"]
+        [:a {:target :_forum :style (style :margin-left :1em) :href "https://forum.thermos-project.eu/"} "Forum"]
         [:a {:style (style :margin-left :1em)
              :href "/logout"} "Logout"]
         ]]
