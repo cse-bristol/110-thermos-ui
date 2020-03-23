@@ -432,7 +432,18 @@
                       (bounds/edge-bounds
                        net-graph
                        :capacity (comp #(::supply/capacity-kwp % 0) candidates)
-                       :demand (comp annual-kwh->kw #(candidate/annual-demand % mode) candidates)
+                       :demand
+                       (fn [id]
+                         (-> (get candidates id)
+                             (candidate/annual-demand mode)
+                             (or 0.0)
+                             (annual-kwh->kw)))
+                       :peak-demand
+                       (fn [id]
+                         (-> (get candidates id)
+                             (candidate/peak-demand mode)
+                             (or 0.0)))
+                       
                        :edge-max (let [inverse-power-curve (vec (map (comp vec reverse) power-curve))
                                        global-max (first (last power-curve))]
                                    (fn [i j]
@@ -441,7 +452,7 @@
                                       (or (when-let [max-dia (attr/attr net-graph [i j] :max-dia)]
                                             (pipes/linear-evaluate inverse-power-curve max-dia))
                                           global-max))))
-                       :peak-demand (comp #(candidate/peak-demand % mode) candidates)
+                       
                        :size (comp #(::connection-count % 1) candidates)))
 
         
