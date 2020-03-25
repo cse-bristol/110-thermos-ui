@@ -290,3 +290,63 @@
                 [:= :map-id map-id]
                 [:= :name network-name]])
       (db/execute!)))
+
+(defn is-public-project? [project-id]
+  (-> (h/select :public)
+      (h/from :projects)
+      (h/where [:= project-id :id])
+      (db/fetch-one!)
+      (:public)))
+
+(defn is-public-map? [map-id]
+  (-> (h/select :public)
+      (h/from :projects)
+      (h/join :maps [:= :maps.project-id :projects.id])
+      (h/where [:= :maps.id map-id])
+      (db/fetch-one!)
+      (:public)))
+
+(defn is-public-network? [net-id]
+  (-> (h/select :public)
+      (h/from :projects)
+      (h/join :maps [:= :maps.project-id :projects.id]
+              :networks [:= :networks.map-id :maps.id])
+      (h/where [:= :networks.id net-id])
+      (db/fetch-one!)
+      (:public)))
+
+(defn make-public! [project-id public]
+  (-> (h/update :projects)
+      (h/sset {:public public})
+      (h/where [:= :id project-id])
+      (db/execute!)))
+
+(defn get-map-project-auth
+  "Get the project auth for given user on given map"
+  [map-id user-id]
+  (and user-id map-id
+       (-> (h/select :auth)
+           (h/from :projects)
+           (h/join :maps [:= :maps.project-id :projects.id]
+                   :users-projects [:= :projects.id :users-projects.project-id])
+           (h/where [:and
+                     [:= :users-projects.user-id user-id]
+                     [:= :maps.id map-id]])
+           (db/fetch-one!)
+           (:auth)
+           (keyword))))
+
+(defn get-network-project-auth [net-id user-id]
+  (and user-id net-id
+       (-> (h/select :auth)
+           (h/from :projects)
+           (h/join :maps [:= :maps.project-id :projects.id]
+                   :networks [:= :networks.map-id :maps.id]
+                   :users-projects [:= :projects.id :users-projects.project-id])
+           (h/where [:and
+                     [:= :users-projects.user-id user-id]
+                     [:= :networks.id net-id]])
+           (db/fetch-one!)
+           (:auth)
+           (keyword))))
+
