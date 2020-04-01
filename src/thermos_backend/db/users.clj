@@ -32,6 +32,12 @@
       (h/order-by :auth :id)
       (db/fetch!)))
 
+(defn set-user-auth! [user-id auth]
+  (-> (h/update :users)
+      (h/sset {:auth (as-user-auth auth)})
+      (h/where [:= :id user-id])
+      (db/execute!)))
+
 (defn user-rights
   "Given a `user-id` (email address), this will return a map describing their db rights, having at least.
   :name, :id, :auth - the user's name, id and system authority

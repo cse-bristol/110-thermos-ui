@@ -27,6 +27,9 @@ If it does exist, you don't have privileges to see it.")
                    (response/status 401)
                    (cache-control/no-store)))
 
+(defn- current-sysadmin? []
+  (= :admin (:auth *current-user*)))
+
 (defn forbidden-or-login []
   (if *current-user* forbidden (redirect-to-login-page)))
 
@@ -38,12 +41,12 @@ If it does exist, you don't have privileges to see it.")
   (when-not *current-user* (redirect-to-login-page)))
 
 (defmethod verify* :sysadmin [_]
-  (when-not (:sysadmin *current-user*) (forbidden-or-login)))
+  (when-not (current-sysadmin?) (forbidden-or-login)))
 
 (defmethod verify* :project [[operation _ project-id]]
   (let [user-project-auth (-> *current-user* :projects (get project-id) :auth)
         am-member         (not (nil? user-project-auth))
-        am-sysadmin       (:sysadmin *current-user*)
+        am-sysadmin       (current-sysadmin?)
         am-project-admin  (= :admin user-project-auth)]
     (when-not (case operation
                 :read    (or am-sysadmin am-member (projects/is-public-project? project-id))
@@ -56,7 +59,7 @@ If it does exist, you don't have privileges to see it.")
       (forbidden-or-login))))
 
 (defmethod verify* :map [[operation _ map-id]]
-  (let [am-sysadmin (:sysadmin *current-user*)
+  (let [am-sysadmin (current-sysadmin?)
         am-member   (contains? (:maps *current-user*) map-id)]
     (when-not (case operation
                 :delete  (or am-sysadmin am-member)
@@ -68,7 +71,7 @@ If it does exist, you don't have privileges to see it.")
       (forbidden-or-login))))
 
 (defmethod verify* :network [[operation _ net-id]]
-  (let [am-sysadmin (:sysadmin *current-user*)
+  (let [am-sysadmin (current-sysadmin?)
         am-member   (contains? (:networks *current-user*) net-id)]
     (when-not (case operation
                 :read    (or am-sysadmin am-member (projects/is-public-network? net-id))
