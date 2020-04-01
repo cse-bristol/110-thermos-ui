@@ -319,6 +319,7 @@
     ["/new" {:get new-project-page :post create-project!}]
     [["/" [long :project-id]]
      {""       project-page
+      "/"      project-page
       "/poll.t" project-data-poll
       "/leave"  {:post leave-project!}
       "/delete" {:delete delete-project!
