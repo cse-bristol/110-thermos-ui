@@ -288,8 +288,9 @@
 
 (rum/defc buttons [& content]
   [:div.flex-cols {:style {:flex-wrap :wrap}}
-   (for [item content :when item]
-     [:div {:style {:margin-bottom :0.5em :margin-left :1em}} item])])
+   (for [[n item] (map-indexed vector content) :when item]
+     [:div {:key n
+            :style {:margin-bottom :0.5em :margin-left :1em}} item])])
 
 (rum/defcs map-component < (rum/local nil ::show-info)
   [{*show-info ::show-info} m & {:keys [on-event user-auth] :or {on-event #()}}]
