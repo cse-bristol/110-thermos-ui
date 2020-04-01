@@ -344,7 +344,8 @@
 
 (defn- load-and-join [{files :files
                        joins :joins
-                       mappings :mapping}]
+                       mappings :mapping}
+                      legal-geometry-types]
   (let [files (for [[base {id :id}] files :when id]
                 [base (primary-file (io/file (config :import-directory) id))])
 
@@ -380,6 +381,11 @@
          (fn [[base file]]
            (let [features (::geoio/features
                            (geoio/read-from file :force-crs "EPSG:4326" :key-transform identity))
+
+                 features (filter
+                           (comp legal-geometry-types ::geoio/type)
+                           features)
+                 
                  mapping (get mappings base identity)
                  join    (get joins base identity)]
              (map (comp join mapping) features)))
@@ -634,10 +640,14 @@
             (-> (cond-> {:work-directory work-directory}
                   ;; 1. Load any GIS files
                   (not osm-buildings)
-                  (assoc :buildings (load-and-join (:buildings parameters)))
+                  (assoc :buildings
+                         (load-and-join (:buildings parameters)
+                                        #{:multi-polygon :polygon :point}))
+                  
 
                   (not osm-roads)
-                  (assoc :roads (load-and-join (:roads parameters)))
+                  (assoc :roads (load-and-join (:roads parameters)
+                                               #{:line-string :multi-line-string}))
                   
                   ;; 2. If we need some OSM stuff, load that
                   (or osm-buildings osm-roads)
