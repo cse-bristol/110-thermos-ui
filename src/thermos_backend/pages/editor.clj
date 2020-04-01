@@ -11,7 +11,8 @@
 (defn editor-page [name
                    initial-content
                    initial-mode
-                   map-bounds]
+                   map-bounds
+                   read-only]
   (str
    (html
     [:head
@@ -19,7 +20,8 @@
       {:initial-state initial-content
        :name name
        :map-bounds map-bounds
-       :mode initial-mode})
+       :mode initial-mode
+       :read-only read-only})
      [:title (str "THERMOS - " (or name "New network"))]
      [:meta {:charset "UTF-8"}]
      [:meta {:name :viewport :content "width=device-width, initial-scale=1"}]

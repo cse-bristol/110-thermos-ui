@@ -273,13 +273,15 @@
                :response-format :transit
                :handler
                (fn [x]
-                 (let [geom-types (set (:geometry-types x))
-                       invalid-geom-types (set/difference geom-types legal-geometries)]
-                   (if (and (not-empty geom-types)
-                            (not-empty invalid-geom-types))
+                 (let [geom-types (set (:geometry-types x))]
+                   (if (empty? (set/intersection geom-types legal-geometries))
                      (swap! status assoc
                             :state :invalid
-                            :message (str "File contains supported geometry types: " invalid-geom-types))
+                            :message
+                            (str "File does not contain any suitable geometries. "
+                                 "It contains " geom-types ", but this stage requires "
+                                 legal-geometries
+                                 ))
                      (swap! status
                             merge
                             (assoc x :state :uploaded)))))

@@ -10,32 +10,65 @@
                 [[thermos-pages.dialog :refer [show-delete-dialog! show-dialog! close-dialog!]]])
             [clojure.string :as str]))
 
+(defn- remove-index [v i]
+  (vec (concat (subvec v 0 i) (subvec v (inc i)))))
+
 (rum/defcs project-user-list < rum/reactive
   [state
    {:keys [on-close on-save]}
-   users]
+   users is-public]
   [:div
    [:h1 "Project participants"]
-   [:ul
-    (for [u (rum/react users)]
-      [:li {:key (:id u)}
-       [:div
-        [:a {:href (str "mailto:" (:id u))} (:name u)]
-        (when (= :admin (:auth u))
-          [:span {:style {:border "1px #eee solid" :border-radius :4px :padding :2px}} "project admin"])
-        (when (:new u)
-          [:span {:style {:background "#afa" :border "1px #eee solid" :border-radius :4px :padding :2px :margin :2px}} "New"])]])]
-   
-   [:input {:ref "invite" :placeholder "an.email@address.com"}]
-   [:button {:on-click #(let [input (rum/ref state "invite")
-                              input-value (.-value input)]
-                          (swap! users conj {:id input-value :name input-value
-                                             :new true :auth :read})
-                          (set! (.-value input) nil))
-             } "Add"]
    [:div
-    (when on-close [:button {:on-click on-close} "Cancel"])
-    (when on-save [:button {:on-click on-save} "Save"])]])
+    (for [[i u] (map-indexed vector (rum/react users))]
+      [:div.flex-cols {:key (:id u)
+                       :style {:padding :0.25em
+                               :border "1px #eee solid"
+                               :border-radius :0.5em
+                               :margin-top :0.5em
+                               }}
+       [:div.flex-grow
+        [:a {:href (str "mailto:" (:id u))} (:name u)]]
+
+       (when (= :admin (:auth u))
+         [:span {:style {:border "1px #eee solid" :border-radius :4px :padding :2px}} "project admin"])
+       (when (:new u)
+         [:span {:style {:background "#afa" :border "1px #eee solid" :border-radius :4px :padding :2px :margin :2px}} "New"])
+
+       (if (= :admin (:auth u))
+         [:button.button {:on-click #(swap! users assoc-in [i :auth] :read)
+                          :style {:margin-left :1em} :title "Demote from admin"} "↓"]
+         [:button.button {:on-click #(swap! users assoc-in [i :auth] :admin)
+                          :style {:margin-left :1em}:title "Promote to admin"} "↑"])
+
+       [:button.button {:on-click #(swap! users remove-index i)
+                        :title "Remove from project"} symbols/cross]
+       ])
+
+    [:div.flex-cols {:style {:margin-top :1em}}
+     [:input.input.text-input.flex-grow {:ref "invite" :placeholder "an.email@address.com"}]
+     [:button.button {:style { :margin-left :1em}
+                      :on-click #(let [input (rum/ref state "invite")
+                                       input-value (.-value input)]
+                                   (swap! users conj {:id input-value :name input-value
+                                                      :new true :auth :read})
+                                   (set! (.-value input) nil))
+                      } "Add"]]
+    
+    ]
+   
+   [:h1 "Global visibility"]
+   [:div
+    [:label
+     [:input {:type :checkbox
+              :checked (rum/react is-public)
+              :on-click #(reset! is-public (-> % .-target .-checked))
+              }]
+     "Make project, maps, and networks visible to anyone who knows the URL"]]
+   
+   [:div.flex-cols {:style {:margin-top :1em}}
+    (when on-close [:button.button {:on-click on-close :style {:margin-left :auto}} "Close"])
+    (when on-save  [:button.button {:on-click on-save :style {:margin-left :1em}} "Save changes"])]])
 
 (rum/defc version-list-widget [map-id versions]
   [:div {:on-click (fn-js [] (close-dialog!))
@@ -130,7 +163,7 @@
       date-part)))
 
 (rum/defcs network-table < (rum/local nil ::expanded-row-name)
-  [{*expanded ::expanded-row-name} map-id networks {on-event :on-event}]
+  [{*expanded ::expanded-row-name} map-id networks {on-event :on-event user-auth :user-auth}]
   (let [today (today-date)
         expanded-name @*expanded
         desc #(compare %2 %1)]
@@ -196,7 +229,7 @@
        {:key :controls
         :value (fn [r]
                  [:span
-                  (when (:name r)
+                  (when (and user-auth (:name r))
                     [:a
                      {:on-click
                       (fn-js [e]
@@ -255,11 +288,12 @@
 
 (rum/defc buttons [& content]
   [:div.flex-cols {:style {:flex-wrap :wrap}}
-   (for [item content :when item]
-     [:div {:style {:margin-bottom :0.5em :margin-left :1em}} item])])
+   (for [[n item] (map-indexed vector content) :when item]
+     [:div {:key n
+            :style {:margin-bottom :0.5em :margin-left :1em}} item])])
 
 (rum/defcs map-component < (rum/local nil ::show-info)
-  [{*show-info ::show-info} m & {:keys [on-event] :or {on-event #()}}]
+  [{*show-info ::show-info} m & {:keys [on-event user-auth] :or {on-event #()}}]
   [:div.card {:key (:id m)
               :style {:flex-basis :40em
                       :flex-grow 1}}
@@ -284,21 +318,22 @@
      
      [:a.button
       {:href (str "map/" (:id m) "/data.json")} "DOWNLOAD " symbols/download]
-     [:a.button
-      {:on-click (fn-js [e]
-                   (show-delete-dialog!
-                    {:name (:name m)
-                     :message [:span "Are you sure you want to delete this map "
-                               "and the " (count (:networks m))
-                               " network problems associated with it?"]
-                     :on-delete
-                     ;; issue the relevant request - the map should disappear later.
-                     #(DELETE (str "map/" (:id m))
-                          :handler on-event)})
-                   
-                   (.preventDefault e))
-       
-       :href (str "map/" (:id m) "/delete")} "DELETE " symbols/delete]
+     (when user-auth
+       [:a.button
+        {:on-click (fn-js [e]
+                     (show-delete-dialog!
+                      {:name (:name m)
+                       :message [:span "Are you sure you want to delete this map "
+                                 "and the " (count (:networks m))
+                                 " network problems associated with it?"]
+                       :on-delete
+                       ;; issue the relevant request - the map should disappear later.
+                       #(DELETE (str "map/" (:id m))
+                            :handler on-event)})
+                     
+                     (.preventDefault e))
+         
+         :href (str "map/" (:id m) "/delete")} "DELETE " symbols/delete])
      (when (:import-completed m)
        [:a.button {:href (str "map/" (:id m) "/net/new")} "HEAT NET " symbols/plus])
      (when (:import-completed m)
@@ -324,7 +359,7 @@
        {:style {:margin-top :1em}}
        (if-let [networks (seq (:networks m))]
          [:div [:b "Networks:"]
-          (network-table (:id m) networks {:on-event on-event})]
+          (network-table (:id m) networks {:on-event on-event :user-auth user-auth})]
           
          "This map has no network designs associated with it yet.")]
       (when @*show-info
@@ -372,6 +407,7 @@
 
 (rum/defc project-page-body [project & {:keys [on-event] :or {on-event #()}}]
   (let [am-admin (:user-is-admin project)
+        user-auth (:user-auth project)
         me (:user project)
         other-admins (filter
                       #(and (= :admin (:auth %))
@@ -379,7 +415,6 @@
                       (:users project))
         ]
     [:div
-
      [:div.card {:style {:margin-bottom "2em"}}
       [:div.flex-cols
        [:div {:style {:flex-grow 1}}
@@ -388,21 +423,26 @@
             [:em "This project has no description"]
             [:span d]))]
        (buttons
-        [:button.button {:on-click (fn-js [e]
-                                     (let [user-state (atom (:users project))]
-                                       (show-dialog!
-                                        (project-user-list
-                                         {:on-save
-                                          #(do (POST "users" {:params {:users@user-state}})
-                                               (on-event)
-                                               (close-dialog!))
-                                          :on-close close-dialog!}
-                                         user-state))
-                                       (.preventDefault e)))
-                         :href "users"}
-         (let [n (count (:users project))]
-           (str n " USER" (when (> n 1) "S") " " symbols/person))
-         ]
+        (when user-auth
+          [:button.button
+           {:on-click (fn-js [e]
+                        (let [user-state (atom (:users project))
+                              is-public  (atom (:public project))
+                              ]
+                          (show-dialog!
+                           (project-user-list
+                            {:on-save
+                             #(do (POST "users" {:params {:users @user-state
+                                                          :public @is-public}})
+                                  (on-event)
+                                  (close-dialog!))
+                             :on-close close-dialog!}
+                            user-state is-public))
+                          (.preventDefault e)))
+            :href "users"}
+           (let [n (count (:users project))]
+             (str n " USER" (when (> n 1) "S") " " symbols/person))
+           ])
         
         (when am-admin
           [:button.button
@@ -429,7 +469,7 @@
            
            "DELETE " symbols/delete])
 
-        (when (> (count (:users project)) 1)
+        (when (and user-auth (> (count (:users project)) 1))
           [:button.button
            {:on-click
             (fn-js [e]
@@ -455,7 +495,8 @@
            "LEAVE 👋" 
            ])
         
-        [:a.button {:href "map/new"} "MAP " symbols/plus])]]
+        (when user-auth
+          [:a.button {:href "map/new"} "MAP " symbols/plus]))]]
 
      ;; data uploady box...
      
@@ -465,7 +506,7 @@
                  :flex-flow "row wrap"}}
         
         (for [m maps]
-          (map-component m :on-event on-event))]
+          (map-component m :on-event on-event :user-auth user-auth))]
        [:div.card
         "This project has no maps in it yet. "
         "Get started by creating a new map above."])]))

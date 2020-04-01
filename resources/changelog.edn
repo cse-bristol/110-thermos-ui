@@ -1,4 +1,13 @@
-[{:title "20th March 2020"
+[{:title "31st March 2020"
+  :changes [{:title "Public Projects"
+             :summary
+             [:div "You can now make projects public. "
+              "In a public project, anyone who knows the URL can see maps and projects, but they cannot change anything."
+              ]
+             }]
+  }
+
+ {:title "20th March 2020"
   :changes [{:title "Support forum"
              :summary [:div
                        "There's now a support forum - click forum at the top to go there. "

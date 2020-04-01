@@ -15,7 +15,8 @@
 
             [net.cgrand.enlive-html :as en]
             [clojure.tools.logging :as log]
-            [thermos-backend.changelog :refer [changelog]])
+            [thermos-backend.changelog :refer [changelog]]
+            )
   (:import [org.apache.lucene.search.highlight
             Formatter
             Fragmenter
