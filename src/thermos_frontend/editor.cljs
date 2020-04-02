@@ -245,25 +245,26 @@
 
              ]))
 
-       [main-nav/component
-        {:on-save (partial do-save false)
-         :on-run (partial do-save true)
+       (when-not (preload/get-value :read-only)
+         [main-nav/component
+          {:on-save (partial do-save false)
+           :on-run (partial do-save true)
 
-         :hamburger
-         [:button.hamburger
-          {:on-click #(swap! *show-menu not)
-           :class (when (state/is-running?) "spin-around")
-           :style (merge
-                   {:background :none
-                    :border :none}
+           :hamburger
+           [:button.hamburger
+            {:on-click #(swap! *show-menu not)
+             :class (when (state/is-running?) "spin-around")
+             :style (merge
+                     {:background :none
+                      :border :none}
 
-                   (when @*is-cooling
-                     {:transform "scaleY(-1)"}))
-           }
-          theme/icon]
+                     (when @*is-cooling
+                       {:transform "scaleY(-1)"}))
+             }
+            theme/icon]
 
-         :name (preload/get-value :name)
-         :unsaved? (state/needs-save?)}]
+           :name (preload/get-value :name)
+           :unsaved? (state/needs-save?)}])
 
        (cond
          (state/is-running?)

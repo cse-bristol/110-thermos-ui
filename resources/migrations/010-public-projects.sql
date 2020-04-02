@@ -1,0 +1,3 @@
+ALTER TABLE projects ADD COLUMN public BOOLEAN DEFAULT FALSE;
+--;;
+UPDATE projects SET public = FALSE;

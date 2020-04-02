@@ -2,8 +2,7 @@
   "The web application's authentication is quite simple, and most of it is in here.
   In a route you should be able to say (auth/restrict {:user (some-user)} ...).
   "
-  (:require [thermos-backend.db.users :as db]
-            [honeysql.helpers :as sql]
+  (:require [honeysql.helpers :as sql]
             [ring.util.response :as response]
             [buddy.hashers :as hash]
             [compojure.core :refer :all]
@@ -11,61 +10,87 @@
             [thermos-backend.pages.login-form :refer [login-form]]
             [thermos-backend.current-uri :refer [*current-uri*]]
             [clojure.tools.logging :as log]
-            [thermos-backend.db.users :as users]))
+            [thermos-backend.db.users :as users]
+            [thermos-backend.db.projects :as projects]
+            [thermos-backend.pages.cache-control :as cache-control]))
 
 (def ^:dynamic *current-user* nil)
 
-(defn authorized
-  "Determine whether `this-user` is authorized according to the requirements:
-  `user` is `this-user`'s user id
-  `user` has access to `project`
-  `user` is admin on `project-admin`
-  `user` is `sysadmin`"
+(defn redirect-to-login-page []
+  (-> (response/redirect (str "/login?redirect-to=" *current-uri*))
+      (cache-control/no-store)))
 
-  ([{logged-in :logged-in
-     user :user
-     project :project
-     map-id :map
-     network :network
-     project-admin :project-admin
-     sysadmin :sysadmin :as restrict}]
-   (authorized restrict *current-user*))
-  
-  ([{logged-in :logged-in
-     user :user
-     project :project
-     project-admin :project-admin
-     map-id :map
-     network :network
-     sysadmin :sysadmin
-     :as restrict}
-    this-user]
+(def forbidden (-> (response/response
+                    "I can neither confirm nor deny that this exists.
+If it does exist, you don't have privileges to see it.")
+                   (response/content-type "text/plain")
+                   (response/status 401)
+                   (cache-control/no-store)))
 
-   (let [result (and (or (not logged-in)
-                         (:id this-user))
-                     (or (not user)
-                         (= user (:id this-user)))
-                     (or (not project)
-                         (contains? (:projects this-user) project))
-                     (or (not map-id)
-                         (contains? (:maps this-user) map-id))
-                     (or (not network)
-                         (contains? (:networks this-user) network))
-                     (or (not project-admin)
-                         (= :admin (get-in this-user [:projects project-admin :auth] )))
-                     (or (not sysadmin)
-                         (= :admin (:auth this-user))))]
-     (when-not (and this-user result)
-       (when (seq this-user)
-         (log/warn "Authorization failure" this-user (pr-str restrict))))
-     
-     result)))
+(defn- current-sysadmin? []
+  (= :admin (:auth *current-user*)))
 
+(defn forbidden-or-login []
+  (if *current-user* forbidden (redirect-to-login-page)))
 
-(defn- do? [stuff]
-  (if (seq (rest stuff))
-    (cons 'do stuff)
-    (first stuff)))
+(defmulti verify* (fn [t] (cond
+                            (keyword? t) t
+                            (vector? t) (second t))))
+
+(defmethod verify* :logged-in [_]
+  (when-not *current-user* (redirect-to-login-page)))
+
+(defmethod verify* :sysadmin [_]
+  (when-not (current-sysadmin?) (forbidden-or-login)))
+
+(defmethod verify* :project [[operation _ project-id]]
+  (let [user-project-auth (-> *current-user* :projects (get project-id) :auth)
+        am-member         (not (nil? user-project-auth))
+        am-sysadmin       (current-sysadmin?)
+        am-project-admin  (= :admin user-project-auth)]
+    (when-not (case operation
+                :read    (or am-sysadmin am-member (projects/is-public-project? project-id))
+                :share   (or am-sysadmin am-project-admin)
+                :delete  (or am-sysadmin am-project-admin)
+                :modify  (or am-sysadmin am-member)
+                :leave   am-member
+                
+                (log/warn "Unknown project operation" operation))
+      (forbidden-or-login))))
+
+(defmethod verify* :map [[operation _ map-id]]
+  (let [am-sysadmin (current-sysadmin?)
+        am-member   (contains? (:maps *current-user*) map-id)]
+    (when-not (case operation
+                :delete  (or am-sysadmin am-member)
+                :read    (or am-sysadmin am-member (projects/is-public-map? map-id))
+                :write   (or am-sysadmin am-member)
+                
+                (log/warn "Unknown map operation" operation))
+      
+      (forbidden-or-login))))
+
+(defmethod verify* :network [[operation _ net-id]]
+  (let [am-sysadmin (current-sysadmin?)
+        am-member   (contains? (:networks *current-user*) net-id)]
+    (when-not (case operation
+                :read    (or am-sysadmin am-member (projects/is-public-network? net-id))
+                (log/warn "Unknown network operation" operation))
+      (forbidden-or-login))))
+
+(defmethod verify* :default [query]
+  (log/warn "Unknown type of permission" query)
+  (forbidden-or-login))
+
+(defmacro verify {:style/indent :defn}
+  [rules & body]
+  `(let [resp# (verify* ~rules)]
+     (if resp#
+       (do
+         (when *current-user*
+           (log/warn "Invalid access by" (:id *current-user*) ~rules))
+         resp#)
+       (do ~@body))))
 
 (defn wrap-auth
   "Ring middleware that gets the ::user-id out of the session
@@ -78,45 +103,28 @@
   [h]
   (fn [r]
     (let [user-id (::user-id (:session r))
-          user (and user-id (db/user-rights user-id))]
+          user (and user-id (users/user-rights user-id))]
       (binding [*current-user* user]
         (h r)))))
 
-(defn restricted* [handler requirement]
-  (fn [request]
-    (if (authorized requirement)
-      (handler request)
-      (-> (if *current-user*
-            (-> (response/response
-                 "I can neither confirm nor deny that this exists.
-If it does exist, you don't have privileges to see it.")
-                (response/content-type "text/plain")
-                (response/status 401))
+;; (defn restricted* [handler requirement]
+;;   (fn [request]
+;;     (if (authorized requirement)
+;;       (handler request)
+;;       (-> (if *current-user*
+;;             (-> (response/response
+;;                  "I can neither confirm nor deny that this exists.
+;; If it does exist, you don't have privileges to see it.")
+;;                 (response/content-type "text/plain")
+;;                 (response/status 401))
+            
+;;             (response/redirect (str "/login?redirect-to=" *current-uri*)))
+;;           (response/header "Cache-Control" "no-store")))))
 
-            (response/redirect (str "/login?redirect-to=" *current-uri*)))
-          (response/header "Cache-Control" "no-store")))))
-
-(defmacro restricted
-  {:style/indent :defn}
-  [requirement & inner]
-  (let [inner (if (seq (rest inner))
-                (cons 'routes inner)
-                (first inner))]
-    `(wrap-routes
-      ~inner
-      restricted*
-      ~requirement)))
-
-(defmacro restricted-context
-  {:style/indent :defn}
-  [path variables requirement & inner]
-  `(context ~path ~variables
-     (restricted ~requirement
-                 ~@inner)))
 
 (defn handle-login [email password redirect-to]
   (let [email (string/lower-case email)]
-    (if (db/correct-password? email password)
+    (if (users/correct-password? email password)
       (do (log/info email "logged in")
           (users/logged-in! email)
           (-> (response/redirect (or redirect-to "/"))
@@ -138,7 +146,7 @@ If it does exist, you don't have privileges to see it.")
   (GET "/token/:token" [token]
     ;; since the token is sent by email, knowing it is as good as a password.
     ;; we want to go to the user settings page when we handle it.
-    (when-let [user-id (db/verify-reset-token token)]
+    (when-let [user-id (users/verify-reset-token token)]
       (-> (response/redirect "/settings")
           (update :session assoc ::user-id user-id))))
     
@@ -146,7 +154,7 @@ If it does exist, you don't have privileges to see it.")
                   create login forgot]
     (cond
       create
-      (if (db/create-user! username username password)
+      (if (users/create-user! username username password)
         (handle-login username password "/")
         (response/redirect "/login?flash=exists"))
 
@@ -154,7 +162,7 @@ If it does exist, you don't have privileges to see it.")
       (handle-login username password redirect-to)
 
       forgot
-      (do (db/emit-reset-token! username)
+      (do (users/emit-reset-token! username)
           (response/redirect "/login?flash=check-mail"))))
 
   (GET "/logout" []
