@@ -22,6 +22,8 @@
             [thermos-frontend.params.insulation :as insulation]
             [thermos-frontend.params.alternatives :as alternatives]
             [thermos-frontend.params.profiles :as profiles]
+            [thermos-frontend.params.supply-technologies :as supply-technologies]
+            
             [thermos-frontend.solution-view :as solution-view]
             [thermos-frontend.toaster :as toaster]
             [thermos-frontend.editor-keys :as keys]
@@ -142,7 +144,16 @@
 
           menu-timer (atom nil)
 
-          selected-tab (or @*selected-tab :candidates)]
+          goto #(reset! *selected-tab %)
+          selected-tab (or @*selected-tab :candidates)
+
+          switcher (fn [key label]
+                     [:li [:button.button--link-style
+                           {:on-click #(goto key)
+                            :class (when (= @*selected-tab key) "selected")}
+                           label]])
+
+          ]
 
       [:div {:style {:height :100% :width :100%
                      :display :flex
@@ -151,99 +162,81 @@
              :on-context-menu close-popover
              :ref popover/set-focus-element!}
        (when @*show-menu
-          (let [goto #(reset! *selected-tab %)]
-            [:div.main-menu.slide-left.shadow.right
-             {:style {:position :absolute
-                      :z-index 1000000
-                      :width :20em
-                      :left :-20em
-                      :flex-grow 1
-                      :height "100%"
-                      :display :flex
-                      :flex-direction :column
-                      :background "rgba(255,255,255,0.95)"}
+         [:div.main-menu.slide-left.shadow.right
+          {:style {:position :absolute
+                   :z-index 1000000
+                   :width :20em
+                   :left :-20em
+                   :flex-grow 1
+                   :height "100%"
+                   :display :flex
+                   :flex-direction :column
+                   :background "rgba(255,255,255,0.95)"}
 
-              :on-mouse-enter
-              #(js/clearTimeout @menu-timer)
-              :on-mouse-leave
-              #(reset! menu-timer
-                       (js/setTimeout
-                        (fn [] (reset! *show-menu false))
-                        300))
+           :on-mouse-enter
+           #(js/clearTimeout @menu-timer)
+           :on-mouse-leave
+           #(reset! menu-timer
+                    (js/setTimeout
+                     (fn [] (reset! *show-menu false))
+                     300))
 
-              }
+           }
+          
+          [:div.menu-block
+           [:h1 "Network problem"]
+           [:ul
+            [switcher :candidates "Map view"]
+            [switcher :parameters "Objective"]
+            
+            [switcher :tariffs "Tariffs"]
+            [switcher :pipe-costs "Pipe costs"]
+            [switcher :insulation "Insulation"]
+            [switcher :alternatives "Individual systems"]
+            ]]
+          
+          [:div.menu-block
+           [:h1 "Supply problem"]
+           [:ul
+            [switcher :profiles "Profiles"]
+            [switcher :supply-technologies "Technologies"]]]
 
-             [:div.menu-block
-              [:h1 "Network problem"]
-              [:ul
-               [:li [:button.button--link-style
-                     {:on-click #(goto :candidates)
-                      :class (when (= @*selected-tab :candidates) "selected")}
-                     "Map view"]]
-               [:li [:button.button--link-style
-                     {:on-click #(goto :parameters)
-                      :class (when (= @*selected-tab :parameters) "selected")} "Objective"]]
-               [:li [:button.button--link-style
-                     {:on-click #(goto :tariffs)
-                      :class (when (= @*selected-tab :tariffs) "selected")} "Tariffs"]]
-               [:li [:button.button--link-style
-                     {:on-click #(goto :pipe-costs)
-                      :class (when (= @*selected-tab :pipe-costs) "selected")} "Pipe costs"]]
-               [:li [:button.button--link-style
-                     {:on-click #(goto :insulation)
-                      :class (when (= @*selected-tab :insulation) "selected")} "Insulation"]]
-               [:li [:button.button--link-style
-                     {:on-click #(goto :alternatives)
-                      :class (when (= @*selected-tab :alternatives) "selected")} "Individual systems"]]
-               ]]
-             
-             [:div.menu-block
-              [:h1 "Supply problem"]
-              [:ul [:li [:button.button--link-style
-                     {:on-click #(goto :profiles)
-                      :class (when (= @*selected-tab :profiles) "selected")} "Profiles"]]]
-              ]
+          (when @has-solution?
+            [:div.menu-block
+             [:h1 "Solution"]
+             [:ul
+              [switcher :solution "Solution summary"]
+              [switcher :run-log "Run log"]
+              ]])
 
-             (when @has-solution?
-               [:div.menu-block
-                [:h1 "Solution"]
-                [:ul
-                 [:li [:button.button--link-style
-                       {:on-click #(goto :solution)
-                        :class (when (= @*selected-tab :solution) "selected")} "Solution summary"]]
-                 [:li [:button.button--link-style
-                       {:on-click #(goto :run-log)
-                        :class (when (= @*selected-tab :run-log) "selected")} "Run log"]]
-                 ]])
-
-             [:div.menu-block
-              [:h1 "Help"]
-              [:input.text-input
-               {:placeholder "Search help..."
-                :type :search
-                :on-key-press
-                #(let [key (.-key %)]
-                   (when (= key "Enter")
-                     (->> (target-value %)
-                          (str "/help/search?q=")
-                          (js/window.open))))}
-               ]
+          [:div.menu-block
+           [:h1 "Help"]
+           [:input.text-input
+            {:placeholder "Search help..."
+             :type :search
+             :on-key-press
+             #(let [key (.-key %)]
+                (when (= key "Enter")
+                  (->> (target-value %)
+                       (str "/help/search?q=")
+                       (js/window.open))))}
+            ]
 
 
-              [:ul
-               [:li [:a {:href "/help" :target "help"} "Help contents"]]
-               [:li [:a {:href "/help/networks.html" :target "help"} "Network editor help"]]]
+           [:ul
+            [:li [:a {:href "/help" :target "help"} "Help contents"]]
+            [:li [:a {:href "/help/networks.html" :target "help"} "Network editor help"]]]
 
-              ]
-             [:div.menu-block
-              [:h1 "Project"]
-              [:ul
-               [:li [:a {:href "../../../"} "Back to project"]]
-               [:li [:a {:href "/"} "THERMOS home page"]]
-               ]
-              ]
+           ]
+          [:div.menu-block
+           [:h1 "Project"]
+           [:ul
+            [:li [:a {:href "../../../"} "Back to project"]]
+            [:li [:a {:href "/"} "THERMOS home page"]]
+            ]
+           ]
 
-             ]))
+          ])
 
        (when-not (preload/get-value :read-only)
          [main-nav/component
@@ -310,6 +303,9 @@
 
           (= selected-tab :profiles)
           [profiles/profiles-parameters state/state]
+
+          (= selected-tab :supply-technologies)
+          [supply-technologies/supply-tech-parameters state/state]
 
           (= selected-tab :solution)
           [solution-view/solution-summary state/state]

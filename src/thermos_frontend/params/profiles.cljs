@@ -8,41 +8,6 @@
             [clojure.pprint]
             [thermos-util :refer-macros [forM]]))
 
-(def profiles
-  (let [default-divisions 24]
-    (reagent/atom
-     {:day-types {"Standard Day" {:frequency 30 :divisions default-divisions}
-                  "Peak Day"     {:frequency 1 :divisions default-divisions}
-                  }
-      :heat-profiles
-      {"Residential"
-       {"Standard Day" (vec (repeat default-divisions 0.5))
-        "Peak Day"     (vec (repeat default-divisions 1))
-        }
-       
-       "Industrial" {"Standard Day" (vec (repeat default-divisions 1))
-                     "Peak Day"     (vec (repeat default-divisions 1))
-                     }}
-
-      :grid-offer {"Standard Day" (vec (repeat default-divisions 0.1))
-                   "Peak Day" (vec (repeat default-divisions 0.15))}
-
-      :fuel {"Gas"
-             {"Standard Day"
-              {:price (vec (repeat default-divisions 0.1))
-               :co2   (vec (repeat default-divisions 0.1))
-               }
-              "Peak Day"
-              {:price (vec (repeat default-divisions 0.2))}
-              }
-             "Electricity"
-             {"Standard Day"
-              {:price (vec (repeat default-divisions 0.1))}
-              "Peak Day"
-              {:price (vec (repeat default-divisions 0.3))}
-              }
-             }})))
-
 (defn- add-day-type [profiles day-type]
   (-> profiles
       (assoc-in [:day-types day-type]
@@ -53,10 +18,15 @@
       (assoc-in [:heat-profiles profile]
                 (forM [[day-type {d :divisions}] (:day-types profiles)]
                   day-type (vec (repeat d 0.0))))))
-  
 
 (defn- add-fuel [profiles fuel]
-  profiles)
+  (let [new-fuel (forM [[day-type {d :divisions}] (:day-types profiles)
+                        :let [z (vec (repeat d 0.0))]]
+                   day-type
+                   (merge {:price z}
+                          (forM [e candidate/emissions-types] e z)))]
+    (println new-fuel)
+    (assoc-in profiles [:fuel fuel] new-fuel)))
 
 (defn- add-tab-button [{:keys [placeholder on-add-tab]
                         :or {placeholder "Add"}}]
@@ -191,26 +161,28 @@
                [add-tab-button {:placeholder "Add fuel"
                                 :on-add-tab #(swap! profiles add-fuel %)
                                 }]]]
-         (for [e candidate/emissions-types]
-           (list
-            [:tr [:td {:padding :1em} " "]]
-            [:tr {:key [e 1]}
-                  [:th [:em (name e)]]
-                  (for [i (range divisions)] [:th {:key i} (str i)])]
-            (doall
-             (for [fnam fuel-names :let [values (get-in fuel-emissions-values [e fnam])]]
-               [vector-row {:values @values :divisions divisions
-                            :key fnam
-                            :on-change (fn [i v] (swap! values put-vec i v))}
-                [:td fnam]]))
-                 ))
+         (doall
+          (for [e candidate/emissions-types]
+            (list
+             [:tr {:key :header} [:td {:padding :1em} " "]]
+             [:tr {:key [e 1]}
+              [:th [:em (name e)]]
+              (for [i (range divisions)] [:th {:key i} (str i)])]
+             (doall
+              (for [fnam fuel-names :let [values (get-in fuel-emissions-values [e fnam])]]
+                [vector-row {:values @values :divisions divisions
+                             :key fnam
+                             :on-change (fn [i v] (swap! values put-vec i v))}
+                 [:td fnam]]))
+             )))
          ]]]
       )))
 
 
 
 (defn profiles-parameters [doc]
-  (reagent/with-let [day-types     (reagent/cursor profiles [:day-types])
+  (reagent/with-let [profiles (reagent/cursor doc [:supply/profiles])
+                     day-types     (reagent/cursor profiles [:day-types])
                      selected-day (reagent/atom (first (keys @day-types)))]
     (let [day-type @selected-day]
       [:div.card.flex-grow
