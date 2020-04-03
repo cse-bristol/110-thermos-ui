@@ -900,6 +900,20 @@
      :else
      (list [from x]))))
 
+(defn- find-bad-numbers
+  {:test #(do (= #{[:a] [:b :c]}
+                 (set (find-bad-numbers {:a ##NaN
+                                         :b {:c ##NaN :d 1}
+                                         :e 1
+                                         :f "A string"
+                                         }))))}
+    [data]
+  (->> (paths-into data [])
+       (keep (fn [[a b]]
+               (when (and (number? b)
+                          (not (Double/isFinite b)))
+                 a)))))
+
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
@@ -980,11 +994,8 @@
 
             input-json (instance->json instance net-graph power-curve market)
             
-            bad-numbers (->> (paths-into input-json [])
-                             (keep (fn [[a b]]
-                                     (when (and (number? b)
-                                                (not (Double/isFinite b)))
-                                       a))))
+            bad-numbers (find-bad-numbers input-json)
+            
             zero-nans (fn [x]
                         (if (and (number? x)
                                  (Double/isNaN x))
