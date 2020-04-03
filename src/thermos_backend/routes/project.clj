@@ -318,15 +318,18 @@
    [["/" project-page]
     ["/new" {:get new-project-page :post create-project!}]
     [["/" [long :project-id]]
-     {""       project-page
-      "/"      project-page
-      "/poll.t" project-data-poll
-      "/leave"  {:post leave-project!}
-      "/delete" {:delete delete-project!
-                 :get    delete-project-page
-                 :post   delete-project!}
-      "/users"  {:post set-project-users!}
-      "/map"    map-routes}
+
+     (let [root {:get project-page
+                 :delete delete-project!}]
+       {""       root
+        "/"      root
+        "/poll.t" project-data-poll
+        "/leave"  {:post leave-project!}
+        "/delete" {:delete delete-project!
+                   :get    delete-project-page
+                   :post   delete-project!}
+        "/users"  {:post set-project-users!}
+        "/map"    map-routes})
      ]
     ]
    ])
