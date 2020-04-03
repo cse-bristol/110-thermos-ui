@@ -24,8 +24,10 @@
   (let [bad-ids (-> (h/select :id)
                     (h/from :networks)
                     (h/where [:like :content "%##NaN%"])
-                    (db/fetch! conn))]
+                    (db/fetch! conn)
+                    (->> (map :id)))]
     (log/info "Patching NaN length paths in" (count bad-ids))
     (doseq [id bad-ids]
+      (log/info "Patch" id)
       (modify-network-with conn patch-nan-paths id))))
 
