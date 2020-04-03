@@ -31,7 +31,8 @@
 
             [thermos-specs.tariff :as tariff]
             [thermos-specs.measure :as measure]
-            [thermos-backend.solver.market :as market])
+            [thermos-backend.solver.market :as market]
+            [clojure.string :as string])
   
   (:import [java.io StringWriter]))
 
@@ -880,6 +881,25 @@
          [k market-decision]))
      (into {}))))
 
+(defn- paths-into [x from]
+  (lazy-seq
+   (cond
+     (map? x)
+     (mapcat
+      (fn [[k v]] (paths-into v (conj from k)))
+      x)
+     
+     (or (vector? x) (list? x))
+     (apply
+      concat
+      (map-indexed
+       (fn [i v]
+         (paths-into v (conj from i)))
+       x))
+  
+     :else
+     (list [from x]))))
+
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
@@ -957,7 +977,25 @@
 
             
             market (make-market-decisions instance)
-            input-json (postwalk identity (instance->json instance net-graph power-curve market))]
+
+            input-json (instance->json instance net-graph power-curve market)
+            
+            bad-numbers (->> (paths-into input-json [])
+                             (keep (fn [[a b]]
+                                     (when (and (number? val)
+                                                (not (Double/isFinite val)))
+                                       a))))
+            zero-nans (fn [x]
+                        (if (and (number? x)
+                                 (Double/isNaN x))
+                          0.0
+                          x))
+            
+            input-json (postwalk zero-nans input-json)]
+
+
+        (doseq [p bad-numbers]
+          (log/error "Invalid numeric value at" p))
         
         (with-open [writer (io/writer input-file)]
           (json/write input-json writer :escape-unicode false))
@@ -980,7 +1018,12 @@
               solved-instance
               (-> instance
                   (assoc
-                   ::solution/log (str (:out output) "\n" (:err output))
+                   ::solution/log (str
+                                   (when (seq bad-numbers)
+                                     (str "WARNING: invalid inputs at: \n"
+                                          (string/join "\n" (map str bad-numbers))))
+                                   (:out output) "\n" (:err output))
+                   
                    ::solution/state (:state output-json)
                    ::solution/message (:message output-json)
                    ::solution/runtime (safe-div (- end-time start-time) 1000.0))
