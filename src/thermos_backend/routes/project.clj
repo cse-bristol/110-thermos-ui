@@ -4,6 +4,7 @@
             [thermos-backend.auth :as auth]
             [clojure.string :as string]
             [ring.util.response :as response]
+            [ring.util.codec :refer [url-decode]]
             [thermos-backend.db.projects :as projects]
             [thermos-backend.pages.cache-control :as cache-control]
             [thermos-backend.pages.maps :as map-pages]
@@ -288,7 +289,7 @@
 
 (defn- delete-networks! [{{:keys [network-name map-id]} :params}]
   (auth/verify [:write :map map-id] ;; yes/no?
-    (projects/delete-networks! map-id network-name)
+    (projects/delete-networks! map-id (url-decode network-name))
     deleted))
 
 (def map-routes
@@ -308,10 +309,9 @@
                                         :head network-poll-status
                                         :post network-save!}
                                     
-                                    "/data.json" network-geojson
+                                    "/data.json" {:get network-geojson}
                                     }]
-                                  [["/" :network-name] {:delete delete-networks!}]]}]])
-
+                                  [["/" [#".+" :network-name]] {:delete delete-networks!}]]}]])
 
 (def project-routes
   ["/project"
