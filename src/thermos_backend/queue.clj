@@ -90,6 +90,17 @@
                  (clojure.core/update :args edn/read-string))
              )))))))
 
+(defn job-details [job-id]
+  {:pre [(int? job-id)]}
+
+  (-> (select :*)
+      (from :jobs)
+      (where [:= :id job-id])
+      (db/fetch-one!)
+      (clojure.core/update :queue-name keyword)
+      (clojure.core/update :args edn/read-string)
+      (clojure.core/update :state keyword)))
+
 (defn run-jobs [claimed-jobs]
   (let [consumers @consumers]
     (doseq [{job-id :id job-args :args queue-name :queue-name} claimed-jobs]
