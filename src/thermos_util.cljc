@@ -126,3 +126,10 @@
      (if (pos? minutes-part)
        (str minutes-part "m, ") "")
      seconds-part "s")))
+
+(defmacro forM [indices key value]
+  {:style/indent :defn}
+  `(into
+    {}
+    (for ~indices
+      [~key ~value])))
