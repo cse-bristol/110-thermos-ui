@@ -16,6 +16,21 @@
         (html)
         (cache-control/no-store))))
 
+(defn- view-job [{{:keys [job-id]} :params}]
+  (auth/verify :sysadmin
+    (-> (queue/job-details job-id)
+        (admin/job-page)
+        (html)
+        (cache-control/no-store))))
+
+(defn- act-on-job! [{{:keys [action job-id]} :params}]
+  {:pre [(int job-id) (#{"restart" "cancel"} action)]}
+  (auth/verify :sysadmin
+    (case action
+      "restart" (queue/restart job-id)
+      "cancel"  (queue/cancel job-id))
+    (response/redirect ".")))
+
 (defn- send-email-page [_]
   (auth/verify :sysadmin
     (-> (admin/send-email-page)
@@ -42,6 +57,7 @@
   ["/admin"
    {""            admin-page
     "/send-email" {:get send-email-page :post send-email!}
+    ["/job/" [long :job-id]] {:get view-job :post act-on-job!}
     ["/clean-queue/" :queue-name] clean-queue!
     "/map-bounds" get-map-bounds}])
 
