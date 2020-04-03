@@ -29,7 +29,7 @@
     (case action
       "restart" (queue/restart job-id)
       "cancel"  (queue/cancel job-id))
-    (response/redirect ".")))
+    (response/redirect (str job-id))))
 
 (defn- send-email-page [_]
   (auth/verify :sysadmin
