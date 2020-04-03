@@ -982,8 +982,8 @@
             
             bad-numbers (->> (paths-into input-json [])
                              (keep (fn [[a b]]
-                                     (when (and (number? val)
-                                                (not (Double/isFinite val)))
+                                     (when (and (number? b)
+                                                (not (Double/isFinite b)))
                                        a))))
             zero-nans (fn [x]
                         (if (and (number? x)
