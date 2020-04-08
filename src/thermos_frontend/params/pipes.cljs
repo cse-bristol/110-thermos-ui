@@ -139,9 +139,9 @@
            (for [id (sort (keys @civil-costs))]
              [:tr {:key id}
               [:td [inputs/text
-                    :value (get-in @civil-costs [id ::path/civil-cost-name])
-                    :on-change #(swap! civil-costs assoc-in [id ::path/civil-cost-name] (target-value %))
-                    :placeholder "Name" :style {:width :100%}]]
+                    {:value (get-in @civil-costs [id ::path/civil-cost-name])
+                     :on-change #(swap! civil-costs assoc-in [id ::path/civil-cost-name] (target-value %))
+                     :placeholder "Name" :style {:width :100%}}]]
               [:td [inputs/number {:style {:width :100%}
                                    :value (get-in @civil-costs [id ::path/fixed-cost])
                                    :minimum 0

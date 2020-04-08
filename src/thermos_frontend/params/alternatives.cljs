@@ -26,11 +26,11 @@
    [:div.flex-cols
     [:div.crud-list__title
      [inputs/text
-      :style {:flex-grow 1}
-      :value (::supply/name alternative "")
-      :placeholder "Name"
-      :on-change #(swap! *alternatives assoc-in
-                         [id ::supply/name] (target-value %))]]
+      {:style {:flex-grow 1}
+       :value (::supply/name alternative "")
+       :placeholder "Name"
+       :on-change #(swap! *alternatives assoc-in
+                          [id ::supply/name] (target-value %))}]]
      [:button.crud-list__delete
       {:title "Delete"
        :on-click #(swap! *doc document/remove-alternative id)}

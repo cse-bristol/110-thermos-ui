@@ -23,6 +23,7 @@
             [thermos-frontend.params.alternatives :as alternatives]
             [thermos-frontend.params.profiles :as profiles]
             [thermos-frontend.params.supply-technologies :as supply-technologies]
+            [thermos-frontend.params.supply-objective :as supply-objective]
             
             [thermos-frontend.solution-view :as solution-view]
             [thermos-frontend.toaster :as toaster]
@@ -194,20 +195,22 @@
             [switcher :insulation "Insulation"]
             [switcher :alternatives "Individual systems"]
             ]]
+
+          (when @has-solution?
+            [:div.menu-block
+             [:h1 "Network solution"]
+             [:ul
+              [switcher :solution "Solution summary"]
+              [switcher :run-log "Run log"]
+              ]])
           
           [:div.menu-block
            [:h1 "Supply problem"]
            [:ul
             [switcher :profiles "Profiles"]
-            [switcher :supply-technologies "Technologies"]]]
-
-          (when @has-solution?
-            [:div.menu-block
-             [:h1 "Solution"]
-             [:ul
-              [switcher :solution "Solution summary"]
-              [switcher :run-log "Run log"]
-              ]])
+            [switcher :supply-technologies "Technologies"]
+            [switcher :supply-objective "Objective"]
+            ]]
 
           [:div.menu-block
            [:h1 "Help"]
@@ -307,6 +310,9 @@
           (= selected-tab :supply-technologies)
           [supply-technologies/supply-tech-parameters state/state]
 
+          (= selected-tab :supply-objective)
+          [supply-objective/supply-objective-parameters state/state]
+          
           (= selected-tab :solution)
           [solution-view/solution-summary state/state]
 

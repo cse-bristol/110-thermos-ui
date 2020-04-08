@@ -1,7 +1,8 @@
 (ns thermos-frontend.debug-box
   (:require [reagent.core :as reagent]
             [clojure.string :as string]
-            [clojure.walk :as walk]))
+            [clojure.walk :as walk]
+            [clojure.pprint :as pprint]))
 
 (defn- debug-box- [obj]
   (cond
@@ -84,3 +85,7 @@
              (try (filter-pattern (re-pattern @search) obj)
                   (catch js/Error e obj)))))
       ]]))
+
+(defn pprint-pre [obj]
+  [:pre {:style {:white-space :pre-wrap}}
+   (with-out-str (pprint/pprint obj))])

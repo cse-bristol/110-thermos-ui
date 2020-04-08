@@ -23,9 +23,9 @@
         delete-connection-cost #(swap! *document document/remove-connection-cost id)]
     [:tr {:key id}
      [:td [inputs/text
-           :placeholder (str "Connection cost " id)
-           :value (get ::tariff/name)
-           :on-change #(put ::tariff/name (target-value %))]]
+           { :placeholder (str "Connection cost " id)
+            :value (get ::tariff/name)
+            :on-change #(put ::tariff/name (target-value %))}]]
      [:td [:label
            [inputs/number
             {:title "The fixed part of the capital cost of connecting a building."
@@ -58,9 +58,9 @@
         delete-tariff #(swap! *document document/remove-tariff id)]
     [:tr {:key id}
      [:td [inputs/text
-           :placeholder (str "Tariff " id)
-           :value (get ::tariff/name)
-           :on-change #(put ::tariff/name (target-value %))]]
+           { :placeholder (str "Tariff " id)
+            :value (get ::tariff/name)
+            :on-change #(put ::tariff/name (target-value %))}]]
      [:td [:label
            [inputs/number
             {:title "A fixed annual payment from customers on this tariff."

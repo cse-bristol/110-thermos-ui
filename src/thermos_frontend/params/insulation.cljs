@@ -13,8 +13,8 @@
   [:tr {:key id :style {:height :50px}}
    [:td
     [inputs/text
-     :on-change #(swap! *insulation assoc-in [id ::measure/name] (target-value %))
-     :value (::measure/name measure)]]
+     { :on-change #(swap! *insulation assoc-in [id ::measure/name] (target-value %))
+      :value (::measure/name measure)}]]
    [:td
     [inputs/radio-group
      {:options [{:key :roof :label "Roof"}

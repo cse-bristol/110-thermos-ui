@@ -3,7 +3,7 @@
             [clojure.set :refer [map-invert]]
             [thermos-frontend.util :refer [target-value]]))
 
-(defn text [& {:keys [value-atom] :as ks
+(defn text [{:keys [value-atom] :as ks
                :or {value-atom nil}}]
   [:input.input.text-input
    (merge {:type :text
@@ -14,7 +14,9 @@
             {:value @value-atom})
           ks)])
 
-(defn number [{value-atom :value-atom scale :scale step :step
+(defn number
+  "Render a number input. SCALE of 100 means display value is 100 times larger than real value."
+  [{value-atom :value-atom scale :scale step :step
                empty-value :empty-value
                :as ks }]
   (reagent/with-let [element  (atom nil)

@@ -16,16 +16,19 @@
 (defn- add-profile [profiles profile]
   (-> profiles
       (assoc-in [:heat-profiles profile]
-                (forM [[day-type {d :divisions}] (:day-types profiles)]
-                  day-type (vec (repeat d 0.0))))))
+                (assoc
+                 (forM [[day-type {d :divisions}] (:day-types profiles)]
+                   day-type (vec (repeat d 0.0)))
+                 :name profile
+                 ))))
 
 (defn- add-fuel [profiles fuel]
   (let [new-fuel (forM [[day-type {d :divisions}] (:day-types profiles)
                         :let [z (vec (repeat d 0.0))]]
                    day-type
+                   ;; this is little use
                    (merge {:price z}
                           (forM [e candidate/emissions-types] e z)))]
-    (println new-fuel)
     (assoc-in profiles [:fuel fuel] new-fuel)))
 
 (defn- add-tab-button [{:keys [placeholder on-add-tab]
