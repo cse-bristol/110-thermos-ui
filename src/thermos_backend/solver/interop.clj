@@ -119,10 +119,10 @@
         combinable-costs?
         (fn [net-graph v]
           (let [[e1 e2] (graph/out-edges net-graph v)
-                variable-cost-1 (attr/attr net-graph e1 :variable-cost)
-                variable-cost-2 (attr/attr net-graph e2 :variable-cost)
-                length-1 (attr/attr net-graph e1 :length)
-                length-2 (attr/attr net-graph e2 :length)]
+                variable-cost-1 (or (attr/attr net-graph e1 :variable-cost) 0)
+                variable-cost-2 (or (attr/attr net-graph e2 :variable-cost) 0)
+                length-1 (or (attr/attr net-graph e1 :length) 0)
+                length-2 (or (attr/attr net-graph e2 :length) 0)]
             (or (= variable-cost-1 variable-cost-2)
                 (zero? variable-cost-1)
                 (zero? variable-cost-2)
