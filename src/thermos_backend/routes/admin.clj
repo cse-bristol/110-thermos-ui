@@ -49,7 +49,7 @@
       (queue/clean-up (keyword queue-name)))
     (response/redirect "/admin")))
 
-(defn- get-map-bounds []
+(defn- get-map-bounds [_]
   (auth/verify :sysadmin
     (json (maps/get-map-bounds-as-geojson))))
 
