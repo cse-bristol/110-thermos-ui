@@ -1,9 +1,21 @@
-[{:title "31st March 2020"
+[{:title "14th April 2020"
+  :changes [{:title "Model improvements"
+             :summary
+             [:ul
+              [:li "The network flow bounds calculation has been made faster."]
+              [:li "Network topology pre-processing no longer fails if the network contains a peripheral closed loop (a circular connected path that touches no buildings)."]
+              [:li "Backward flow along connectors has been forbidden. This means that a network can no longer pass through a building."]
+              [:li "A bug has been removed which caused the model to ignore civil costs on some paths after they had been simplified to remove spurious junctions."]
+              ]
+             
+             }]}
+ 
+ {:title "31st March 2020"
   :changes [{:title "Public Projects"
              :summary
              [:div "You can now make projects public. "
-              "In a public project, anyone who knows the URL can see maps and projects, but they cannot change anything."
-              ]
+              "In a public project, anyone who knows the URL can see maps and projects, but they cannot change anything."]
+             
              }]
   }
 
