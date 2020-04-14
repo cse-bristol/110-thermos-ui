@@ -52,6 +52,12 @@
     (map #(vector (::path/start %) (::path/end %)) paths)
     (mapcat #(for [c (::candidate/connections %)] [c (::candidate/id %)]) buildings))))
 
+(defn- check-invalid-edges [net-graph at]
+  (doseq [[i j] (graph/edges net-graph)]
+    (when (or (nil? i) (nil? j))
+      (throw (ex-info "Invalid edge found in graph" {:i i :j j :at at}))))
+  net-graph)
+
 (defn- simplify-topology
   "For CANDIDATES, create a similar graph in which all vertices of degree two
   that don't represent demand or supply points have been collapsed.
@@ -66,8 +72,12 @@
   (let [{paths :path buildings :building}
         (group-by ::candidate/type candidates)
 
-        net-graph (create-graph buildings paths)
+        net-graph (check-invalid-edges
+                   (create-graph buildings paths)
+                   :construction)
 
+        _ (log/info "Basic graph has" (count (graph/nodes net-graph)) "nodes and" (count (graph/edges net-graph)) "edges")
+        
         ;; tag all the real vertices
         net-graph (reduce (fn [g d]
                             (attr/add-attr g (::candidate/id d) :real-vertex true))
@@ -98,72 +108,99 @@
                           net-graph
                           paths)
 
-        ;; delete all edges which do nothing
-        net-graph (graph/remove-edges*
-                   net-graph
-                   (filter (fn [e] (= (second e) (first e)))
-                           (graph/edges net-graph)))
+        ;; delete all self-edges
+        net-graph (check-invalid-edges
+                   (graph/remove-edges*
+                    net-graph
+                    (filter (fn [e] (= (second e) (first e)))
+                            (graph/edges net-graph)))
+                   :delete-self-edges)
+
+        junction-edge-costs
+        (fn [net-graph v]
+          (let [[e1 e2] (graph/out-edges net-graph v)
+                variable-cost-1 (attr/attr net-graph e1 :variable-cost)
+                variable-cost-2 (attr/attr net-graph e2 :variable-cost)]
+            
+            [variable-cost-1 variable-cost-2]))
         
+        collapsible? (fn [net-graph node]
+                       (and (not (attr/attr net-graph node :real-vertex))
+                            (= 2 (graph/out-degree net-graph node))
+                            (let [[a b c d] (junction-edge-costs net-graph node)]
+                              (and (= a b) (= c d)))))
+
         collapse-junction
         ;; this is a function to take a graph and delete a node,
         ;; preserving the identiy information on the edges. This will
         ;; later let us emit the edges into the output usefully.
         (fn [graph node]
-          (let [edges (graph/out-edges graph node)
-                all-ids (set (mapcat #(attr/attr graph % :ids) edges))
-                ;; since an edge is just a tuple, apply concat edges gives me
-                ;; e.g. [a b] [b c] => [a b c]
-                ;; we only call this when there are exactly two edges
-                ;; so deleting b gives us [a c] which is our new edge
-                new-edge (vec (remove (partial = node) (apply concat edges)))
-                graph (-> graph
-                          (graph/remove-nodes node)
-                          (graph/add-edges new-edge))
-                existing-ids (attr/attr graph new-edge :ids)
-                ]
-            (if (empty? existing-ids)
-              (attr/add-attr graph new-edge :ids all-ids)
-              graph)))
+          (if (collapsible? graph node)
+            (let [edges (graph/out-edges graph node)
+                  all-ids (set (mapcat #(attr/attr graph % :ids) edges))
+                  ;; since an edge is just a tuple, apply concat edges gives me
+                  ;; e.g. [a b] [b c] => [a b c]
+                  ;; we only call this when there are exactly two edges
+                  ;; so deleting b gives us [a c] which is our new edge
+                  new-edge (vec (remove (partial = node) (apply concat edges)))
 
-        equal-costs
-        ;; Test whether two edges have combinable cost terms.
-        ;; TODO There's a bit of room for improvement - if two edges have only fixed costs the fixed costs are combinable
-        (fn [net-graph v]
-          (let [[e1 e2] (graph/out-edges net-graph v)
-                variable-cost-1 (attr/attr net-graph e1 :variable-cost)
-                variable-cost-2 (attr/attr net-graph e2 :variable-cost)
-                fixed-cost-1 (attr/attr net-graph e1 :fixed-cost)
-                fixed-cost-2 (attr/attr net-graph e2 :fixed-cost)]
-            (and (= variable-cost-1 variable-cost-2)
-                 (= fixed-cost-1 fixed-cost-2))))
+                  old-fixed-cost (attr/attr graph (first edges) :fixed-cost)
+                  old-var-cost   (attr/attr graph (first edges) :variable-cost)
+                  
+                  graph (-> graph
+                            (graph/remove-nodes node)
+                            (graph/add-edges new-edge)
+                            ;; We propagate variable cost so that the collapsible?
+                            ;; test continues to work on the shrunk edge.
+                            ;; However, variable and fixed cost are recomputed later
+                            ;; by summarise-attributes
+                            (attr/add-attr new-edge :variable-cost old-var-cost))
+
+                  existing-ids (attr/attr graph new-edge :ids)
+                  ]
+              (if (empty? existing-ids)
+                (attr/add-attr graph new-edge :ids all-ids)
+                graph))
+
+            ;; if we in the reduce phase below made the node not collapsible any more,
+            ;; don't try and collapse it after all.
+            graph))
         
         ;; collapse all collapsible edges until we have finished doing so.
         net-graph
-        (loop [net-graph net-graph]
-          (let [collapsible (->> (graph/nodes net-graph)
-                                 (filter #(not (attr/attr net-graph % :real-vertex)))
-                                 (filter #(= 2 (graph/out-degree net-graph %)))
-                                 (filter #(equal-costs net-graph %)))]
-            (if (empty? collapsible)
-              net-graph
-              ;; this should be OK because we are working on nodes.
-              ;; removing one collapsible node does not make another
-              ;; collapsible node invalid.
-              (recur (reduce collapse-junction net-graph collapsible)))))
+        (check-invalid-edges
+         (loop [net-graph net-graph]
+           (let [collapsible (->> (graph/nodes net-graph) (filter #(collapsible? net-graph %)))]
+             (if (empty? collapsible)
+               net-graph
+
+               ;; Although removing one collapsible junction may
+               ;; render another one invalid in the case where there
+               ;; is a loop in the graph, so (recur) sounds unsafe, we
+               ;; have a check in collapse-junction which covers this
+               ;; off. We might be able to make the loop more
+               ;; efficient in principle by determining which new
+               ;; collapsible vertices have appeared as we go, but why
+               ;; bother.
+               (recur (reduce collapse-junction net-graph collapsible)))))
+         :collapse-junctions)
+        
 
         ;; prune all spurious junctions
         net-graph
-        (loop [net-graph net-graph]
-          (let [spurious (->> (graph/nodes net-graph)
-                              (filter #(not (attr/attr net-graph % :real-vertex)))
-                              (filter #(= 1 (graph/out-degree net-graph %))))]
-            (if (empty? spurious)
-              net-graph
-              ;; this should be OK because we are working on nodes.
-              ;; removing one collapsible node does not make another
-              ;; collapsible node invalid.
-              (recur (graph/remove-nodes* net-graph spurious)))))
+        
+        (check-invalid-edges
+         (loop [net-graph net-graph]
+           (let [spurious (->> (graph/nodes net-graph)
+                               (filter #(not (attr/attr net-graph % :real-vertex)))
+                               (filter #(= 1 (graph/out-degree net-graph %))))]
+             (if (empty? spurious)
+               net-graph
+               (recur (graph/remove-nodes* net-graph spurious)))))
+         :prune)
+        
         ]
+    (log/info "Simplified graph has" (count (graph/nodes net-graph)) "nodes and" (count (graph/edges net-graph)) "edges")
     net-graph))
 
 (defn- summarise-attributes
@@ -180,6 +217,26 @@
              (map #(vector (::candidate/id %) %))
              (into {}))
 
+        variable-cost
+        (fn [path-ids]
+          (let [variable-costs (set (map (comp ::path/variable-cost paths) path-ids))]
+            (when (not= 1 (count variable-costs))
+              (log/error "Reduced path does not have a singular variable cost"
+                         path-ids
+                         variable-costs))
+
+            (first variable-costs)))
+
+        fixed-cost
+        (fn [path-ids]
+          (let [lengths (map (comp ::path/length paths) path-ids)
+                costs   (map (comp ::path/fixed-cost paths) path-ids)
+                total-l (reduce + lengths)
+                total-c (reduce + (map * lengths costs))]
+            (if (zero? total-c)
+              0.0
+              (/ total-c total-l))))
+        
         total-value
         (fn [path-ids value]
           (let [costs (map #(or (value (paths %)) 0) path-ids)]
@@ -200,11 +257,13 @@
 
     (reduce (fn [g e]
               (let [path-ids (attr/attr g e :ids)]
-                (-> g
-                    (attr/add-attr e :length (total-value path-ids ::path/length))
-                    (attr/add-attr e :requirement (total-requirement path-ids))
-                    (attr/add-attr e :max-dia (total-max-dia path-ids))
-                    )))
+                (cond-> g
+                  (seq path-ids)
+                  (-> (attr/add-attr e :length (total-value path-ids ::path/length))
+                      (attr/add-attr e :requirement (total-requirement path-ids))
+                      (attr/add-attr e :max-dia (total-max-dia path-ids))
+                      (attr/add-attr e :fixed-cost (fixed-cost path-ids))
+                      (attr/add-attr e :variable-cost (variable-cost path-ids))))))
             
             net-graph (graph/edges net-graph))))
 
@@ -405,19 +464,35 @@
      :emissions   emissions-factors}))
 
 (defn- edge-terms [instance cost-function bounds net-graph edge]
-  (let [{[lower upper] :mean} bounds
+  (let [length (or (attr/attr net-graph edge :length) 0)
 
         [fixed-cost variable-cost]
-        (cost-function (apply max lower) (apply max upper)
-                       (or (attr/attr net-graph edge :fixed-cost) 0.0)
-                       (or (attr/attr net-graph edge :variable-cost) 0.0))
+        (if (zero? length) [0 0] ;; zero length path has no cost, and is probably a virtual connecty thing
+            (let [{[[lf lb] [uf ub]] :mean} bounds]
+              (cost-function (if (zero? (min lf lb))
+                               (max lf lb)
+                               (min lf lb))
+                             (max uf ub)
+                             (or (attr/attr net-graph edge :fixed-cost)
+                                 (log/error "Missing fixed cost for" edge)
+                                 0)
+                             
+                             (or (attr/attr net-graph edge :variable-cost)
+                                 (log/error "Missing variable cost for" edge)
+                                 0))))
 
         cost-type (if (attr/attr net-graph edge :exists)
                     :existing-pipe-capex
-                    :pipe-capex)
-        ]
+                    :pipe-capex)]
+
+    (when (and (seq (attr/attr net-graph edge :ids))
+               (not (attr/attr net-graph edge :length)))
+      (log/error "Edge" edge "which maps to real edges"
+                 (attr/attr net-graph edge :ids)
+                 "has no recorded length"))
+    
     {:i (first edge) :j (second edge)
-     :length    (float (or (attr/attr net-graph edge :length) 0))
+     :length    length
      "cost/m"   (float (finance/objective-value instance cost-type fixed-cost))
      "cost/kwm" (float (finance/objective-value instance cost-type variable-cost))
      :bounds bounds
@@ -432,27 +507,28 @@
                       (log/info "Computing flow bounds...")
                       (bounds/edge-bounds
                        net-graph
-                       :capacity (comp #(::supply/capacity-kwp % 0) candidates)
+                       :capacity (memoize (comp #(::supply/capacity-kwp % 0) candidates))
                        :demand
-                       (fn [id]
-                         (-> (get candidates id)
-                             (candidate/annual-demand mode)
-                             (or 0.0)
-                             (annual-kwh->kw)))
+                       (memoize (fn [id]
+                                  (-> (get candidates id)
+                                      (candidate/annual-demand mode)
+                                      (or 0.0)
+                                      (annual-kwh->kw))))
                        :peak-demand
-                       (fn [id]
-                         (-> (get candidates id)
-                             (candidate/peak-demand mode)
-                             (or 0.0)))
+                       (memoize (fn [id]
+                                  (-> (get candidates id)
+                                      (candidate/peak-demand mode)
+                                      (or 0.0))))
                        
                        :edge-max (let [inverse-power-curve (vec (map (comp vec reverse) power-curve))
                                        global-max (first (last power-curve))]
-                                   (fn [i j]
-                                     (min
-                                      global-max
-                                      (or (when-let [max-dia (attr/attr net-graph [i j] :max-dia)]
-                                            (pipes/linear-evaluate inverse-power-curve max-dia))
-                                          global-max))))
+                                   (memoize
+                                    (fn [i j]
+                                      (min
+                                       global-max
+                                       (or (when-let [max-dia (attr/attr net-graph [i j] :max-dia)]
+                                             (pipes/linear-evaluate inverse-power-curve max-dia))
+                                           global-max)))))
                        
                        :size (comp #(::connection-count % 1) candidates)))
 
@@ -940,6 +1016,7 @@
                                          (candidate/is-path? %)
                                          (merge (document/civil-cost-for-id instance (::path/civil-cost-id %)))
                                          )))
+
         
         net-graph (simplify-topology included-candidates)
         net-graph (summarise-attributes net-graph included-candidates)
@@ -954,7 +1031,11 @@
               ;; if we are offering alternative systems we don't need to do this
               
               invalid-ccs (filter (fn [cc] (not-any? cc supplies)) ccs)]
-          (if (::document/consider-alternatives instance)
+          (cond
+            (empty? invalid-ccs)
+            net-graph ;; do nothing if no invalid CCs
+
+            (::document/consider-alternatives instance)
             (do (log/info "Removing unusable edges contained in disconnected components")
                 (reduce (fn [g cc]
                           (-> g
@@ -962,6 +1043,7 @@
                               (attr/add-attr-to-nodes :unreachable true cc)))
                         net-graph invalid-ccs))
 
+            :else
             (do (log/info "Removing disconnected components")
                 (reduce (fn [g cc] (graph/remove-nodes* g cc))
                         net-graph invalid-ccs))))

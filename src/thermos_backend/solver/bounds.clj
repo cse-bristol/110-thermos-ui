@@ -170,61 +170,107 @@
     all
     ))
 
-(defn edge-bounds [g & {:keys [capacity demand peak-demand size max-kwp edge-max]
+(defn edge-bounds [g & {:keys [capacity demand peak-demand size edge-max]
                         :or {edge-max (constantly 100000000)}}]
-  (->>
-   (pmap (fn [[i j]]
-           (let [max-kwp (edge-max i j)
+  (let [stop-on-connectors (fn [neighbour predecessor depth]
+                             ;; if we have that pred is a real-vertex we should stop
+                             ;; as pipes cannot travel through buildings.
+                             (not (attr/attr g predecessor :real-vertex)))
 
-                 posmin (fn [c]
-                          (let [c (filter pos? c)]
-                            (if (empty? c) 0
-                                (reduce min c))))
+        ;; A connector is a special case
+        conn (fn [i j] ;; a connector TO i FROM j - capacity required
+                       ;; in the REVERSE direction only
+                 (let [em (min (edge-max i j))
+                       p  (min em (peak-demand i))
+                       a  (min em (demand i))
+                       s  (size i)]
 
-                 bound (fn [a b] [(min a b max-kwp) (min b max-kwp)])
-                 
-                 g' (graph/remove-edges g [i j] [j i])
-                 i* (set (alg/bf-traverse g' i))
-                 j* (set (alg/bf-traverse g' j))
+                   {:count [[0 0] [s s]]
+                    :peak  [[0 0] [p p]]
+                    :mean  [[0 0] [a a]]}))
 
-                 peak-i* (map peak-demand i*)
-                 mean-i* (map demand i*)
-                 cap-i* (map capacity i*)
-                 count-i* (map size i*)
+        rconn (fn [i j] ;; a connector FROM i TO j - capacity required
+                        ;; in the forward direction only.
+                  (let [em (min (edge-max i j))
+                        p  (min em (peak-demand j))
+                        a  (min em (demand j))
+                        s  (size j)]
+                    {:count [[s s] [0 0]]
+                     :peak  [[p p] [0 0]]
+                     :mean  [[a a] [0 0]]}))]
+    (->>
+     (pmap (fn [[i j]]
+             [[i j]  ;; Edge FROM i TO j
+              (cond
+                ;; Edge is a connector to a real-vertex which is not a supply
+                ;; In this case we can assume the connector should be a bridge
+                ;; This should be safe as we only collapse degree-2 vertices
+                ;; If a building lies within a road, it will still be at a fake
+                ;; T-junction in the topology.
+                (and (attr/attr g i :real-vertex)
+                     (zero? (capacity i)))
+                (conn i j)
+                
+                (and (attr/attr g j :real-vertex)
+                     (zero? (capacity j)))
+                (rconn i j)
 
-                 peak-j* (map peak-demand j*)
-                 mean-j* (map demand j*)
-                 cap-j* (map capacity j*)
-                 count-j* (map size j*)
+                ;; Edge is a normal edge in the graph
+                :else
+                (let [max-kwp (edge-max i j)
 
-                 sum-peak-i* (reduce + peak-i*)
-                 sum-mean-i* (reduce + mean-i*)
-                 sum-cap-i* (reduce + cap-i*)
-                 sum-count-i* (reduce + count-i*)
+                      posmin (fn [c]
+                               (let [c (filter pos? c)]
+                                 (if (empty? c) 0
+                                     (reduce min c))))
 
-                 sum-peak-j* (reduce + peak-j*)
-                 sum-mean-j* (reduce + mean-j*)
-                 sum-cap-j* (reduce + cap-j*)
-                 sum-count-j* (reduce + count-j*)
+                      bound (fn [a b] [(min a b max-kwp) (min b max-kwp)])
+                      
+                      g' (graph/remove-edges g [i j] [j i])
+                      i* (set (alg/bf-traverse g' i :when stop-on-connectors))
+                      j* (set (alg/bf-traverse g' j :when stop-on-connectors))
 
-                 min-peak-i* (posmin peak-i*)
-                 min-mean-i* (posmin mean-i*)
-                 min-count-i* (posmin count-i*)
+                      peak-i* (map peak-demand i*)
+                      mean-i* (map demand i*)
+                      cap-i* (map capacity i*)
+                      count-i* (map size i*)
 
-                 min-peak-j* (posmin peak-j*)
-                 min-mean-j* (posmin mean-j*)
-                 min-count-j* (posmin count-j*)]
+                      peak-j* (map peak-demand j*)
+                      mean-j* (map demand j*)
+                      cap-j* (map capacity j*)
+                      count-j* (map size j*)
+
+                      sum-peak-i* (reduce + peak-i*)
+                      sum-mean-i* (reduce + mean-i*)
+                      sum-cap-i* (reduce + cap-i*)
+                      sum-count-i* (reduce + count-i*)
+
+                      sum-peak-j* (reduce + peak-j*)
+                      sum-mean-j* (reduce + mean-j*)
+                      sum-cap-j* (reduce + cap-j*)
+                      sum-count-j* (reduce + count-j*)
+
+                      min-peak-i* (posmin peak-i*)
+                      min-mean-i* (posmin mean-i*)
+                      min-count-i* (posmin count-i*)
+
+                      min-peak-j* (posmin peak-j*)
+                      min-mean-j* (posmin mean-j*)
+                      min-count-j* (posmin count-j*)]
+                  
+                  {:count [[min-count-j* sum-count-j*]  ;; going forwards, we range from the smallest thing on j-side to the total on j-side
+                           [min-count-i* sum-count-i*]] ;; going backwards it's the inverse
+                   :peak  [(bound min-peak-j* (min sum-cap-i* sum-peak-j*)) ;; going forwards, it's the smallest demand on the j side up to either flow from i or flow into j
+                           (bound min-peak-i* (min sum-cap-j* sum-peak-i*))]
+                   :mean  [(bound min-mean-j* (min sum-cap-i* sum-mean-j*))
+                           (bound min-mean-i* (min sum-cap-j* sum-mean-i*))]
+                   }
+                  )
+                
+                )]
              
-             [[i j]
-              {:count [[min-count-j* sum-count-j*]  ;; going forwards, we range from the smallest thing on j-side to the total on j-side
-                       [min-count-i* sum-count-i*]] ;; going backwards it's the inverse
-               :peak  [(bound min-peak-j* (min sum-cap-i* sum-peak-j*)) ;; going forwards, it's the smallest demand on the j side up to either flow from i or flow into j
-                       (bound min-peak-i* (min sum-cap-j* sum-peak-i*))]
-               :mean  [(bound min-mean-j* (min sum-cap-i* sum-mean-j*))
-                       (bound min-mean-i* (min sum-cap-j* sum-mean-i*))]
-               }
-              ]
+             
+             
              )
-           )
-         (graph/edges g))
-   (into {})))
+           (graph/edges g))
+     (into {}))))
