@@ -116,18 +116,24 @@
                             (graph/edges net-graph)))
                    :delete-self-edges)
 
-        junction-edge-costs
+        combinable-costs?
         (fn [net-graph v]
           (let [[e1 e2] (graph/out-edges net-graph v)
                 variable-cost-1 (attr/attr net-graph e1 :variable-cost)
-                variable-cost-2 (attr/attr net-graph e2 :variable-cost)]
-            [variable-cost-1 variable-cost-2]))
+                variable-cost-2 (attr/attr net-graph e2 :variable-cost)
+                length-1 (attr/attr net-graph e1 :length)
+                length-2 (attr/attr net-graph e2 :length)]
+            (or (= variable-cost-1 variable-cost-2)
+                (zero? variable-cost-1)
+                (zero? variable-cost-2)
+                (zero? length-1)
+                (zero? length-2))))
         
         collapsible? (fn [net-graph node]
                        (and (not (attr/attr net-graph node :real-vertex))
                             (= 2 (graph/out-degree net-graph node))
-                            (let [[a b] (junction-edge-costs net-graph node)]
-                              (or (= a b) (zero? a) (zero? b)))))
+                            (combinable-costs? net-graph node)))
+        
 
         collapse-junction
         ;; this is a function to take a graph and delete a node,
@@ -188,9 +194,8 @@
              (if (empty? spurious)
                net-graph
                (recur (graph/remove-nodes* net-graph spurious)))))
-         :prune)
-        
-        ]
+         :prune)]
+    
     (log/info "Simplified graph has" (count (graph/nodes net-graph)) "nodes and" (count (graph/edges net-graph)) "edges")
     net-graph))
 
