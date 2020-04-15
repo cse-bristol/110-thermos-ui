@@ -116,19 +116,24 @@
                             (graph/edges net-graph)))
                    :delete-self-edges)
 
-        junction-edge-costs
+        combinable-costs?
         (fn [net-graph v]
           (let [[e1 e2] (graph/out-edges net-graph v)
-                variable-cost-1 (attr/attr net-graph e1 :variable-cost)
-                variable-cost-2 (attr/attr net-graph e2 :variable-cost)]
-            
-            [variable-cost-1 variable-cost-2]))
+                variable-cost-1 (or (attr/attr net-graph e1 :variable-cost) 0)
+                variable-cost-2 (or (attr/attr net-graph e2 :variable-cost) 0)
+                length-1 (or (attr/attr net-graph e1 :length) 0)
+                length-2 (or (attr/attr net-graph e2 :length) 0)]
+            (or (= variable-cost-1 variable-cost-2)
+                (zero? variable-cost-1)
+                (zero? variable-cost-2)
+                (zero? length-1)
+                (zero? length-2))))
         
         collapsible? (fn [net-graph node]
                        (and (not (attr/attr net-graph node :real-vertex))
                             (= 2 (graph/out-degree net-graph node))
-                            (let [[a b c d] (junction-edge-costs net-graph node)]
-                              (and (= a b) (= c d)))))
+                            (combinable-costs? net-graph node)))
+        
 
         collapse-junction
         ;; this is a function to take a graph and delete a node,
@@ -144,17 +149,9 @@
                   ;; so deleting b gives us [a c] which is our new edge
                   new-edge (vec (remove (partial = node) (apply concat edges)))
 
-                  old-fixed-cost (attr/attr graph (first edges) :fixed-cost)
-                  old-var-cost   (attr/attr graph (first edges) :variable-cost)
-                  
                   graph (-> graph
                             (graph/remove-nodes node)
-                            (graph/add-edges new-edge)
-                            ;; We propagate variable cost so that the collapsible?
-                            ;; test continues to work on the shrunk edge.
-                            ;; However, variable and fixed cost are recomputed later
-                            ;; by summarise-attributes
-                            (attr/add-attr new-edge :variable-cost old-var-cost))
+                            (graph/add-edges new-edge))
 
                   existing-ids (attr/attr graph new-edge :ids)
                   ]
@@ -197,9 +194,8 @@
              (if (empty? spurious)
                net-graph
                (recur (graph/remove-nodes* net-graph spurious)))))
-         :prune)
-        
-        ]
+         :prune)]
+    
     (log/info "Simplified graph has" (count (graph/nodes net-graph)) "nodes and" (count (graph/edges net-graph)) "edges")
     net-graph))
 
@@ -217,20 +213,10 @@
              (map #(vector (::candidate/id %) %))
              (into {}))
 
-        variable-cost
-        (fn [path-ids]
-          (let [variable-costs (set (map (comp ::path/variable-cost paths) path-ids))]
-            (when (not= 1 (count variable-costs))
-              (log/error "Reduced path does not have a singular variable cost"
-                         path-ids
-                         variable-costs))
-
-            (first variable-costs)))
-
-        fixed-cost
-        (fn [path-ids]
+        combine-cost
+        (fn [path-ids cost]
           (let [lengths (map (comp ::path/length paths) path-ids)
-                costs   (map (comp ::path/fixed-cost paths) path-ids)
+                costs   (map (comp cost paths) path-ids)
                 total-l (reduce + lengths)
                 total-c (reduce + (map * lengths costs))]
             (if (zero? total-c)
@@ -262,8 +248,8 @@
                   (-> (attr/add-attr e :length (total-value path-ids ::path/length))
                       (attr/add-attr e :requirement (total-requirement path-ids))
                       (attr/add-attr e :max-dia (total-max-dia path-ids))
-                      (attr/add-attr e :fixed-cost (fixed-cost path-ids))
-                      (attr/add-attr e :variable-cost (variable-cost path-ids))))))
+                      (attr/add-attr e :fixed-cost (combine-cost path-ids ::path/fixed-cost))
+                      (attr/add-attr e :variable-cost (combine-cost path-ids ::path/variable-cost))))))
             
             net-graph (graph/edges net-graph))))
 
