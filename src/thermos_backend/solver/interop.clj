@@ -230,10 +230,10 @@
         
         total-requirement
         (fn [path-ids]
-          (if (some (partial = :required)
-                    (map (comp ::candidate/inclusion paths) path-ids))
-            :required
-            :optional))
+          (let [requirements (map (comp ::candidate/inclusion paths) path-ids)
+                result (if (some #{:required} requirements)
+                         true false)]
+            result))
 
         total-max-dia
         (fn [path-ids]
@@ -246,7 +246,7 @@
                 (cond-> g
                   (seq path-ids)
                   (-> (attr/add-attr e :length (total-value path-ids ::path/length))
-                      (attr/add-attr e :requirement (total-requirement path-ids))
+                      (attr/add-attr e :required (total-requirement path-ids))
                       (attr/add-attr e :max-dia (total-max-dia path-ids))
                       (attr/add-attr e :fixed-cost (combine-cost path-ids ::path/fixed-cost))
                       (attr/add-attr e :variable-cost (combine-cost path-ids ::path/variable-cost))))))
