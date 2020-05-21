@@ -14,6 +14,14 @@
   [s f]
   (reduce #(assoc %1 (f %2) %2)  {} s))
 
+(defmacro for-map [[binding values & stuff] a & [b]]
+  `(into
+    {}
+    (for [~binding ~values ~@stuff]
+      ~(if b
+         [a b]
+         [(first binding) a]))))
+
 (defn distinct-by
   "Given a sequence `values` and a function `f`, returns a sequence
   containing only the first x in values for a given value of (f x)
@@ -127,9 +135,3 @@
        (str minutes-part "m, ") "")
      seconds-part "s")))
 
-(defmacro forM [indices key value]
-  {:style/indent :defn}
-  `(into
-    {}
-    (for ~indices
-      [~key ~value])))

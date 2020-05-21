@@ -264,6 +264,11 @@
           (cache-control/no-store)))))
 
 (defn- network-save! [{{:keys [name run content map-id project-id]} :params}]
+  {:pre [(contains? #{nil "network" "supply" "both"} run)
+         (int? map-id)
+         (int? project-id)
+         (string? name)
+         (not (string/blank? name))]}
   (auth/verify [:write :map map-id]
     (let [content (if (:tempfile content)
                     (slurp (:tempfile content))
@@ -271,7 +276,8 @@
           new-id (projects/save-network!
                   (:id auth/*current-user*)
                   project-id map-id name content)]
-      (when run (solver/queue-problem new-id))
+      (when run
+        (solver/queue-problem new-id (keyword run)))
       (-> (response/created (str new-id))
           (response/header "X-ID" new-id)))))
 

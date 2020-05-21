@@ -31,6 +31,9 @@
     
     (string? obj)
     obj
+
+    (nil? obj)
+    [:div "nil"]
     
     (seqable? obj)
     [:div {:style {:margin-left :4px :border "1px green dashed"}}

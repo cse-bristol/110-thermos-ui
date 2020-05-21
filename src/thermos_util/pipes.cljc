@@ -1,5 +1,6 @@
 (ns thermos-util.pipes
-  (:require [clojure.test :as test]))
+  (:require [clojure.test :as test]
+            #?@(:cljs [goog.array])))
 
 (def heat-capacity 4.18)
 (def diameter-step 0.01)
@@ -30,8 +31,9 @@
   (let [position #?(:clj (java.util.Collections/binarySearch curve [x]
                                                              #(<= (first %1)
                                                                   (first %2)))
-                    :cljs 0)]
-    ;; TODO cljs is broken here, need a cljs binarysearch
+                    ;; this is horribly inefficient, urgh
+                    :cljs (goog.array/binarySearch (clj->js (map first curve)) x))]
+    
     (let [position (if (neg? position)
                      (- (- position) 1)
                      position)]

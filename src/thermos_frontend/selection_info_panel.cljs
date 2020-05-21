@@ -120,6 +120,15 @@
                      (document/tariff-name @document (::tariff/id x))))
                  nil)]
 
+               ["Profile"
+                sc-class
+                (cat
+                 (fn [x]
+                   (when (candidate/is-building? x)
+                     (document/profile-name @document (::supply/profile-id x))))
+                 nil)
+                ]
+
                [[:span.has-tt
                  {:title
                   "For buildings on the market tariff, this is the unit rate offered. For multiple selection, it is the mean value."}

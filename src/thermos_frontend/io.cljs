@@ -33,7 +33,7 @@
   [org proj document run? cb]
   (xhr/send
    (str (urls/document org proj)
-        (if run? "?run=1" ""))
+        (if run? "?run=network" ""))
    (fn [e]
      (cb (.getResponseHeader (.. e -target) "X-Problem-ID")))
 

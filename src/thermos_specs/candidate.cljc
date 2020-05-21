@@ -71,11 +71,11 @@
       (::demand/kwp candidate 0))))
 
 (defn has-demand? [candidate mode]
-  (when-let [demand (annual-demand candidate mode)]
+  (when-let [^double demand (annual-demand candidate mode)]
     (pos? demand)))
 
 (defn has-supply? [candidate]
-  (when-let [cap (::supply/capacity-kwp candidate)]
+  (when-let [^double cap (::supply/capacity-kwp candidate)]
     (pos? cap)))
 
 (defn required? [candidate]

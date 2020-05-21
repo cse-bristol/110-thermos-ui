@@ -12,7 +12,7 @@
            }
           (when value-atom
             {:value @value-atom})
-          ks)])
+          (dissoc ks :value-atom))])
 
 (defn number
   "Render a number input. SCALE of 100 means display value is 100 times larger than real value."
@@ -35,7 +35,7 @@
                     empty-value-label
                     (.toFixed (* scale value) digits))
 
-          on-change (or (:on-change ks) (partial reset! value-atom))
+          on-change (or (:on-change ks) (when value-atom (partial reset! value-atom)))
           parse (if (integer? step)
                   js/parseInt
                   js/parseFloat)
@@ -50,7 +50,8 @@
                                 empty-value-label
                                 s-value)
                
-               :default-value s-value}
+               :default-value s-value
+               :ref #(reset! element %)}
 
               (dissoc ks :value-atom :scale :value :empty-value)
 
@@ -67,22 +68,22 @@
                       :else
                       (set! (.. element -value) s-value)))})
 
-              {:ref #(reset! element %)
-               :on-change
-               #(let [s-val (target-value %)
-                      val (parse s-val)]
-                  (reset! is-blank (= "" s-val))
-                  (cond
-                    (and (= "" s-val) has-empty-value)
-                    (on-change empty-value)
+              (when on-change
+                {:on-change
+                 #(let [s-val (target-value %)
+                        val (parse s-val)]
+                    (reset! is-blank (= "" s-val))
+                    (cond
+                      (and (= "" s-val) has-empty-value)
+                      (on-change empty-value)
+                      
+                      (js/isFinite val)
+                      (on-change (/ (parse val) scale))
+                      
+                      :else
+                      (.setCustomValidity @element "Not a number!"))
                     
-                    (js/isFinite val)
-                    (on-change (/ (parse val) scale))
-                    
-                    :else
-                    (.setCustomValidity @element "Not a number!"))
-                  
-                  )})])))
+                    )}))])))
 
 (defn select [{value-atom :value-atom values :values
                value :value on-change :on-change
@@ -157,3 +158,44 @@
       :component-will-update
       (fn [_ [_ {value :value}]] (paint value))
       })))
+
+(defn parsed [{:keys [parse render on-change on-blur value]
+               :or   {render identity parse identity}
+               :as   attrs}]
+  (let [raw-value    (reagent/atom (render value))
+        parsed-value (atom value)]
+    (reagent/create-class
+     {:reagent-render
+      (fn [{:keys [parse render on-change on-blur]
+            :or {render identity parse identity}
+            :as attrs}]
+        (let [attrs (dissoc attrs :parse :render :on-change :on-blur :value)]
+          [:input.input
+           (merge
+            {:value @raw-value
+             :on-change
+             (fn [e]
+               (let [value (-> e .-target .-value)]
+                 (reset! raw-value value)
+                 (when-let [value (parse value)]
+                   (reset! parsed-value value)
+                   (set! (.. e -target -parsedValue) value)
+                   (when on-change (on-change e value)))))
+             :on-blur
+             (fn [e]
+               (reset! raw-value (render @parsed-value))
+               ;; not sure about change of meaning for on-blur
+               (when on-blur (on-blur e @parsed-value)))}
+            
+            attrs)
+           ])
+        )
+      :component-did-update
+      (fn [this old-argv]
+        (let [new-value (:value (reagent/props this))
+              old-value (:value (second old-argv))]
+          (when-not (= new-value old-value)
+            (reset! parsed-value new-value)
+            (reset! raw-value (render new-value)))
+          ))})))
+

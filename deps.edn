@@ -26,10 +26,9 @@
     org.clojure/tools.cli         {:mvn/version "0.4.2"}
     proto-repl                    {:mvn/version "0.3.1"}
     nrepl/nrepl                   {:mvn/version "0.6.0"}
-    ;;org.clojure/tools.nrepl       {:mvn/version "0.2.13"}
     org.clojure/tools.namespace   {:mvn/version "0.2.11"}
-    cider/cider-nrepl             {:mvn/version "0.22.2"}
-    refactor-nrepl/refactor-nrepl {:mvn/version "2.5.0-SNAPSHOT"}
+    cider/cider-nrepl             {:mvn/version "0.25.0-SNAPSHOT"}
+    refactor-nrepl/refactor-nrepl {:mvn/version "2.5.0"}
 
     deraen/less4clj {:mvn/version "0.7.0-SNAPSHOT"}
     ;; github/deraen-less4clj
@@ -43,11 +42,11 @@
     ;; it would be nice to use figwheel main here, but we can't
     ;; because it would force a clojurescript version bump and we
     ;; depend on an outdated clojurescript feature for AMD modules.
-    com.cemerick/piggieback
-    {:mvn/version "0.2.2"
+    cider/piggieback
+    {:mvn/version "0.4.2"
      :exclusions  [com.google.javascript/closure-compiler]}
     figwheel-sidecar
-    {:mvn/version "0.5.14"
+    {:mvn/version "0.5.19"
      :exclusions  [com.google.javascript/closure-compiler]}}}
 
   :client
@@ -55,12 +54,13 @@
    ;; our code only works with this version, because
    ;; we depend on some AMD modules, which have been
    ;; broken by CLJS-2375.
-   {org.clojure/clojurescript {:mvn/version "1.9.946"}}
+   {org.clojure/clojurescript {:mvn/version "1.10.597"}}
    :extra-deps
    {
-    org.clojure/clojurescript {:mvn/version "1.9.946"}
+    org.clojure/clojurescript {:mvn/version "1.10.597"}
+    
     cljsjs/leaflet {:mvn/version "1.2.0-0"}
-    cljsjs/jsts {:mvn/version "1.6.0-0"}
+;;    cljsjs/jsts {:mvn/version "1.6.0-0"}
     cljsjs/rbush {:mvn/version "2.0.1-0"}
     cljsjs/react-virtualized {:mvn/version "9.11.1-1"
                               :exclusions [cljsjs/react cljsjs/react-dom]}
@@ -134,13 +134,15 @@
     }}}
  
  :deps
- {org.clojure/clojure {:mvn/version "1.9.0"}
+ {org.clojure/clojure {:mvn/version "1.10.1"}
   org.clojure/core.async {:mvn/version "0.3.443"}
   org.clojure/tools.reader {:mvn/version "1.3.0"}
   net.cgrand/macrovich {:mvn/version "0.2.1"}
   com.rpl/specter {:mvn/version "1.1.2"}
   rum {:mvn/version "0.11.3"}
   cljs-ajax {:mvn/version "0.8.0"
-             :exclusions [commons-logging/commons-logging]}}
+             :exclusions [commons-logging/commons-logging]}
+  metosin/spec-tools {:mvn/version "0.10.1"}
+  }
  
  }

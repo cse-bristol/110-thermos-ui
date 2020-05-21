@@ -29,16 +29,15 @@
 (def nil-value-label {::candidate/name "None"
                       ::candidate/subtype "Unclassified"})
 
-(defn- demand-editor [tariffs connection-costs insulation alternatives state buildings]
+(defn- tariff-editor [tariffs connection-costs state buildings]
   (reagent/with-let
     [group-by-key  (reagent/cursor state [:group-by])
-     benchmarks    (reagent/cursor state [:benchmarks])
      values        (reagent/cursor state [:values])]
 
     [:div
      (when (seq (rest buildings))
        [:div
-        [:div [:b "Edit buildings by "]
+        [:div [:b "Edit tariffs by "]
          [inputs/select
           {:value-atom group-by-key
            :values group-by-options}]]])
@@ -47,12 +46,156 @@
            grouped (group-by group-by-key buildings)
            group-by-nothing (= group-by-key ::candidate/type)
 
+           tariff-frequencies (frequencies (map ::tariff/id buildings))]
+       [:table.table.table--alternating {:style {:max-height :400px :overflow-y :auto :margin-top :1em}}
+        [:thead
+         [:tr
+          (when-not group-by-nothing
+            [:th (group-by-options group-by-key)])
+          [:th.align-right "Count"]
+          
+          [:th "Tariff"]
+          [:th "Con. cost"]
+          ]]
+
+        [:tbody
+         (doall
+          (for [[k cands] grouped]
+            
+            (list
+             [:tr {:key (or k "nil")}
+              (when-not group-by-nothing
+                [:td (or k (nil-value-label group-by-key))])
+              [:td.align-right (count cands)]
+              
+              
+              [:td [inputs/select
+                    {:value-atom (reagent/cursor values [group-by-key k :tariff])
+                     :values `[[:unset "Unchanged"]
+                               [:market "Market"]
+                               ~@(map
+                                  (fn [[id {name ::tariff/name}]] [id (str name " ("
+                                                                           (get tariff-frequencies id 0 )
+                                                                           ")")])
+                                  tariffs)]}]]
+              [:td [inputs/select
+                    {:value-atom (reagent/cursor values [group-by-key k :connection-cost])
+                     :values `[[:unset "Unchanged"]
+                               ~@(map
+                                  (fn [[id {name ::tariff/name}]] [id name ])
+                                  connection-costs)]}]]
+              
+              ])))]
+        ])]))
+
+(defn- insulation-editor [insulation alternatives state buildings]
+  (reagent/with-let
+    [group-by-key  (reagent/cursor state [:group-by])
+     benchmarks    (reagent/cursor state [:benchmarks])
+     values        (reagent/cursor state [:values])]
+
+    [:div
+     (when (seq (rest buildings))
+       [:div
+        [:div [:b "Edit other technologies by "]
+         [inputs/select
+          {:value-atom group-by-key
+           :values group-by-options}]]])
+
+     (let [group-by-key @group-by-key
+           grouped (group-by group-by-key buildings)
+           group-by-nothing (= group-by-key ::candidate/type)]
+       
+       [:table.table.table--alternating {:style {:max-height :400px :overflow-y :auto :margin-top :1em}}
+        [:thead
+         [:tr
+          (when-not group-by-nothing
+            [:th (group-by-options group-by-key)])
+          [:th.align-right "Count"]
+          
+          [:th "Insulation"]
+          [:th "Alternatives"]
+          [:th "Counterfactual"]]]
+
+        [:tbody
+         (doall
+          (for [[k cands] grouped]
+            
+            (list
+             [:tr {:key (or k "nil")}
+              (when-not group-by-nothing
+                [:td (or k (nil-value-label group-by-key))])
+              [:td.align-right (count cands)]
+
+              [:td
+               (doall
+                (for [[id measure] insulation]
+                  [:div {:key id}
+                   [inputs/check
+                    {:value (get-in @values [group-by-key k :insulation id])
+                     :on-change #(swap! values
+                                        assoc-in
+                                        [group-by-key k :insulation id]
+                                        %)
+                     :label (::measure/name measure)}]]
+                  ))]
+
+              [:td
+               (doall
+                (for [[id alternative] alternatives]
+                  [:div {:key id}
+                   [inputs/check
+                    {:value (get-in @values [group-by-key k :alternatives id])
+                     :on-change #(swap! values
+                                        assoc-in
+                                        [group-by-key k :alternatives id]
+                                        %)
+                     :label (::supply/name alternative)}]]
+                  ))
+               ]
+              [:td
+               [inputs/select
+                {:values `[[:unset "Unchanged"]
+                           [:nothing "Nothing"]
+                           ~@(for [[i {n ::supply/name}] alternatives] [i n])]
+                 :value (get-in @values [group-by-key k :counterfactual])
+                 :on-change #(swap! values
+                                    assoc-in
+                                    [group-by-key k :counterfactual]
+                                    %)}]]
+              ])))]
+        ])]))
+
+(defn- demand-editor [profiles state buildings]
+  (reagent/with-let
+    [group-by-key  (reagent/cursor state [:group-by])
+     benchmarks    (reagent/cursor state [:benchmarks])
+     values        (reagent/cursor state [:values])]
+
+    [:div
+     (when (seq (rest buildings))
+       [:div
+        [:div
+
+         [:b "Edit demands by "]
+         [inputs/select
+          {:value-atom group-by-key
+           :values group-by-options}]
+         ;;" — "
+         ;; [inputs/check
+         ;;  {:on-change #(reset! benchmarks %) :value @benchmarks
+         ;;   :label [:b "Set demands as benchmarks"]}]
+
+         ]])
+
+     (let [group-by-key @group-by-key
+           grouped (group-by group-by-key buildings)
+           group-by-nothing (= group-by-key ::candidate/type)
+
            benchmarks @benchmarks
            demand-key (if benchmarks :demand-benchmark :demand)
-           peak-key (if benchmarks :peak-benchmark :peak-demand)
-
-           ;; this is a bit wrong still
-           tariff-frequencies (frequencies (map ::tariff/id buildings))]
+           peak-key (if benchmarks :peak-benchmark :peak-demand)]
+       
        [:table.table.table--alternating {:style {:max-height :400px :overflow-y :auto :margin-top :1em}}
         [:thead
          [:tr
@@ -61,93 +204,55 @@
           [:th.align-right "Count"]
           [:th {:style {:min-width :140px}} "Demand " (if benchmarks [:small "(kWh/m2 yr)"] [:small "(MWh/yr)"])]
           [:th "Peak " (if benchmarks [:small "(kW/m2)"] [:small "(kW)"])]
-          [:th "Tariff"]
-          [:th "Con. cost"]
-          [:th "Insulation"]
-          [:th "Alternatives"]
-          [:th "Counterfactual"]]]
+          [:th.has-tt {:title "This affects the supply model, not the network model."} "Profile"]
+          ]]
 
         [:tbody
          (doall
           (for [[k cands] grouped]
-            [:tr {:key (or k "nil")}
-             (when-not group-by-nothing
-               [:td (or k (nil-value-label group-by-key))])
-             [:td.align-right (count cands)]
+            
+            (list
+             [:tr {:key (or k "nil")}
+              (when-not group-by-nothing
+                [:td (or k (nil-value-label group-by-key))])
+              [:td.align-right (count cands)]
 
-             [:td [inputs/check-number
-                   {:max 1000
-                    :style {:max-width :5em}
-                    ;; benchmarks are in kWh but absolute in MWh
-                    :scale (if benchmarks 1 (/ 1 1000.0))
-                    :min 0
-                    :step 1
-                    :value-atom
-                    (reagent/cursor values [group-by-key k demand-key :value])
-                    :check-atom
-                    (reagent/cursor values [group-by-key k :demand :check])}]]
-             [:td [inputs/check-number
-                   {:max 1000
-                    :style {:max-width :5em}
-                    :min 0
-                    :step 1
-                    :value-atom
-                    (reagent/cursor values [group-by-key k peak-key :value])
-                    :check-atom
-                    (reagent/cursor values [group-by-key k :peak-demand :check])}]]
-             [:td [inputs/select
-                   {:value-atom (reagent/cursor values [group-by-key k :tariff])
-                    :values `[[:unset "Unchanged"]
-                              [:market "Market"]
-                              ~@(map
-                                 (fn [[id {name ::tariff/name}]] [id (str name " ("
-                                                                          (get tariff-frequencies id 0 )
-                                                                          ")")])
-                                 tariffs)]}]]
-             [:td [inputs/select
-                   {:value-atom (reagent/cursor values [group-by-key k :connection-cost])
-                    :values `[[:unset "Unchanged"]
-                              ~@(map
-                                 (fn [[id {name ::tariff/name}]] [id name ])
-                                 connection-costs)]}]]
+              [:td [inputs/check-number
+                    {:key demand-key
+                     :max 1000
+                     :style {:max-width :5em}
+                     ;; benchmarks are in kWh but absolute in MWh
+                     :scale (if benchmarks 1 (/ 1 1000.0))
+                     :min 0
+                     :step 1
+                     :value-atom
+                     (reagent/cursor values [group-by-key k demand-key :value])
+                     :check-atom
+                     (reagent/cursor values [group-by-key k :demand :check])}]]
+              [:td [inputs/check-number
+                    {:key peak-key
+                     :max 1000
+                     :style {:max-width :5em}
+                     :min 0
+                     :step 1
+                     :value-atom
+                     (reagent/cursor values [group-by-key k peak-key :value])
+                     :check-atom
+                     (reagent/cursor values [group-by-key k :peak-demand :check])}]]
 
-             [:td
-              (doall
-               (for [[id measure] insulation]
-                 [:div {:key id}
-                  [inputs/check
-                   {:value (get-in @values [group-by-key k :insulation id])
-                    :on-change #(swap! values
-                                       assoc-in
-                                       [group-by-key k :insulation id]
-                                       %)
-                    :label (::measure/name measure)}]]
-                 ))]
+              [:td
+               ;; profile choices go here.
+               [inputs/select
+                {:values `[[:unset "Unchanged"] ~@profiles]
+                 :value (get-in @values [group-by-key k :profile])
+                 :on-change #(swap! values
+                                    assoc-in
+                                    [group-by-key k :profile]
+                                    %)}]
+               ]
 
-             [:td
-              (doall
-               (for [[id alternative] alternatives]
-                 [:div {:key id}
-                  [inputs/check
-                   {:value (get-in @values [group-by-key k :alternatives id])
-                    :on-change #(swap! values
-                                       assoc-in
-                                       [group-by-key k :alternatives id]
-                                       %)
-                    :label (::supply/name alternative)}]]
-                 ))
-              ]
-             [:td
-              [inputs/select
-               {:values `[[:unset "Unchanged"]
-                          [:nothing "Nothing"]
-                          ~@(for [[i {n ::supply/name}] alternatives] [i n])]
-                :value (get-in @values [group-by-key k :counterfactual])
-                :on-change #(swap! values
-                                   assoc-in
-                                   [group-by-key k :counterfactual]
-                                   %)}]]
-             ]))]
+              
+              ])))]
         ])]))
 
 (defn- path-editor [civils min-pipe-diameter state paths]
@@ -254,6 +359,7 @@
                            [k (merge
                                {:demand {:value (mean (map annual-demand v))}
                                 :tariff (unset? (map ::tariff/id v))
+                                :profile (unset? (map ::supply/profile-id v))
                                 :connection-cost (unset? (map ::tariff/cc-id v))
                                 :peak-demand {:value (mean (map peak-demand v))}
                                 :demand-benchmark {:value 2}
@@ -317,11 +423,11 @@
            (dissoc ::path/maximum-diameter))))
      path-ids)))
 
-(defn- apply-building-state [document building-state building-ids]
+(defn- apply-demand-state [document demand-state building-ids]
   (let [{group :group-by
          bench :benchmarks
          values :values}
-        building-state
+        demand-state
 
         [annual-demand peak-demand]
         (if (document/is-cooling? document)
@@ -349,13 +455,66 @@
                             (* (:demand-benchmark values) (::candidate/area building))
                             demand-value)
 
-             tariff (:tariff values)
 
+
+             profile (:profile values)
+             set-profile (not= :unset profile)]
+         
+         (cond-> building
+           set-demand              (assoc annual-demand demand-value)
+           set-peak                (assoc peak-demand peak-value)
+           set-profile             (assoc ::supply/profile-id profile)
+
+           ;; ensure we don't delete it since we edited it
+           (or set-demand
+               set-peak
+               set-profile)
+           (assoc ::candidate/modified true))))
+     building-ids)))
+
+(defn- apply-tariff-state [document tariff-state building-ids]
+  (let [{group :group-by
+         bench :benchmarks
+         values :values}
+        tariff-state]
+    ;; we need to update the candidates in the document
+    ;; modifying each one to have the relevant group-by demand-value
+    (document/map-candidates
+     document
+     (fn [building]
+       (let [building-group (group building)
+
+             values (get-in values [group building-group])
+
+             tariff (:tariff values)
              set-tariff (not= :unset tariff)
 
              connection-cost (:connection-cost values)
-
              set-connection-cost (not= :unset connection-cost)
+             ]
+         (cond-> building
+           set-tariff              (assoc ::tariff/id tariff)
+           ;; ensure we don't delete it since we edited it
+           (or set-tariff set-connection-cost)
+           (assoc ::candidate/modified true)
+           )))
+     building-ids)))
+
+(defn- apply-technology-state [document technology-state building-ids]
+  (let [{group :group-by
+         bench :benchmarks
+         values :values}
+        technology-state
+        ]
+    
+    ;; we need to update the candidates in the document
+    ;; modifying each one to have the relevant group-by demand-value
+    (document/map-candidates
+     document
+     (fn [building]
+       (let [building-group (group building)
+
+             values (get-in values [group building-group])
 
              counterfactual (:counterfactual values)
 
@@ -385,33 +544,22 @@
                   (map first)
                   (set))
              ]
-
          (cond-> building
-           set-demand              (assoc annual-demand demand-value)
-           set-peak                (assoc peak-demand peak-value)
-           set-tariff              (assoc ::tariff/id tariff)
-           set-connection-cost     (assoc ::tariff/cc-id connection-cost)
-
            (and set-counterfactual
                 (not= :nothing counterfactual))
-                                   (assoc ::demand/counterfactual counterfactual)
+           (assoc ::demand/counterfactual counterfactual)
            
            (and set-counterfactual
                 (= :nothing counterfactual))
-                                   (dissoc ::demand/counterfactual)
+           (dissoc ::demand/counterfactual)
 
            (seq add-insulation)    (update ::demand/insulation set/union add-insulation)
            (seq remove-insulation) (update ::demand/insulation set/difference remove-insulation)
            (seq add-alternatives)    (update ::demand/alternatives set/union add-alternatives)
            (seq remove-alternatives) (update ::demand/alternatives set/difference remove-alternatives)
 
-
            ;; ensure we don't delete it since we edited it
-           (or set-demand
-               set-peak
-               set-tariff
-               set-connection-cost
-               set-counterfactual
+           (or set-counterfactual
 
                (seq add-insulation)
                (seq remove-insulation)
@@ -429,9 +577,19 @@
                      {buildings :building paths :path}
                      (group-by ::candidate/type candidates)
 
-                     demand-state (reagent/atom (initial-building-state buildings mode))
+                     bstate (initial-building-state buildings mode)
+                     demand-state (reagent/atom bstate)
+                     tariff-state (reagent/atom bstate)
+                     technology-state (reagent/atom bstate)
+                     
                      path-state   (reagent/atom (initial-path-state paths))
                      tariffs (sort-by first (::document/tariffs @document))
+
+                     profiles
+                     (for [[id {n :name}]
+                           (sort-by first (::supply/heat-profiles @document))]
+                       [id n])
+                     
                      connection-costs (sort-by first (::document/connection-costs @document))
                      civils (sort-by first (::document/civil-costs @document))
                      insulation (sort-by first (::document/insulation @document))
@@ -446,46 +604,54 @@
       {:on-click popover/close!}
       "⨯"]
 
-     (cond
-       ;; When there are both buildings and paths, make some tabs to switch between them
-       (and (seq buildings) (seq paths))
-       (reagent/with-let [active-tab (reagent/atom :buildings)]
-         [:div
-          [:ul.tabs__tabs
-           [:li.tabs__tab
-            {:class (if (= @active-tab :buildings) "tabs__tab--active" "")
-             :on-click #(reset! active-tab :buildings)}
-            "Buildings"]
-           [:li.tabs__tab
-            {:class (if (= @active-tab :paths) "tabs__tab--active" "")
-             :on-click #(reset! active-tab :paths)}
-            "Paths"]]
-          [:ul.tabs__pages
-           [:li.tabs__page
-            {:class (if (= @active-tab :buildings) "tabs__page--active" "")}
-            [demand-editor
-             tariffs
-             connection-costs
-             insulation
-             alternatives
-             demand-state buildings]]
-           [:li.tabs__page
-            {:class (if (= @active-tab :paths) "tabs__page--active" "")}
-            [path-editor civils min-pipe-diameter path-state paths]]]])
-       ;; Just buildings
-       (seq buildings)
-       [demand-editor
-        tariffs
-        connection-costs
-        insulation
-        alternatives
-        demand-state buildings]
-       ;; Just paths
-       (seq paths)
-       [path-editor
-        civils
-        min-pipe-diameter
-        path-state paths])
+     (let [tabs
+           (remove
+            nil?
+
+            `[~@(when (seq buildings)
+                  [[:demands "Demands"
+                    [demand-editor
+                     profiles
+                     demand-state
+                     buildings]]
+                   [:tariff "Tariff & Connection Costs"
+                    [tariff-editor
+                     tariffs
+                     connection-costs
+                     tariff-state
+                     buildings]
+                    ]
+                   [:insulation "Insulation & Systems"
+                    [insulation-editor
+                     insulation
+                     alternatives
+                     technology-state
+                     buildings
+                     ]
+                    ]
+                   ])
+              
+              ~(when (seq paths)
+                 [:paths "Paths"
+                  [path-editor civils min-pipe-diameter path-state paths]])]
+            )]
+       (if (seq (rest tabs))
+         (reagent/with-let [active-tab (reagent/atom (first (first tabs)))]
+           [:div
+            [:ul.tabs__tabs
+             (doall
+              (for [[tab-id tab-label _] tabs]
+                [:li.tabs__tab
+                 {:key tab-id
+                  :class (if (= @active-tab tab-id) "tabs__tab--active" "")
+                  :on-click #(reset! active-tab tab-id)}
+                 tab-label
+                 ]))]
+            (first (keep (fn [[id _ val]]
+                           (when (= id @active-tab) val))
+                         tabs))])
+         (first tabs)))
+          
      [:div.align-right {:style {:margin-top "2em"}}
       [:button.button.button--danger
        {:on-click popover/close!
@@ -495,12 +661,13 @@
        {:on-click (fn []
                     (state/edit! document
                                  #(-> %
-                                      (apply-path-state @path-state
-                                                        (map ::candidate/id paths)
-                                                        )
-                                      (apply-building-state @demand-state
-                                                            (map ::candidate/id buildings)
-                                                            )))
+                                      (apply-path-state       @path-state       (map ::candidate/id paths))
+                                      (apply-demand-state     @demand-state     (map ::candidate/id buildings))
+                                      (apply-tariff-state     @tariff-state     (map ::candidate/id buildings))
+                                      (apply-technology-state @technology-state (map ::candidate/id buildings))
+                                      
+                                      
+                                      ))
                     (popover/close!))}
        "OK"]]]
     ))

@@ -29,19 +29,17 @@
                      sort! (fn [items]
                              (let [[sort-col sort-dir] @sort-order
                                    sort-col (cljs.reader/read-string sort-col)
-                                   sort-col (if (seqable? sort-col)
+                                   sort-col (if (and (not (nil? sort-col))
+                                                     (seqable? sort-col))
                                               #(get-in % sort-col)
-                                              sort-col)
-                                   ]
+                                              sort-col)]
                                (if sort-col
                                  ((if (= "ASC" sort-dir) identity reverse)
                                   (sort-by sort-col items))
-                                 items)))
-                     ]
+                                 items)))]
     ;; and now the actual component
     (let [[sort-col sort-dir] @sort-order
           items (sort! items)]
-      
 
       [:> js/ReactVirtualized.AutoSizer
        (fn [dims]

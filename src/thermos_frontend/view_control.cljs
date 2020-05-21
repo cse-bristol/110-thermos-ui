@@ -6,7 +6,7 @@
             [thermos-specs.solution :as soln]
             [thermos-specs.document :as document]))
 
-(defn- component [doc]
+(defn component [doc]
   (reagent/with-let
     [view (reagent/cursor doc [::view/view-state ::view/map-view])
      show-pipe-diameters? (reagent/cursor doc [::view/view-state ::view/show-pipe-diameters])

@@ -24,6 +24,7 @@
             [thermos-frontend.params.profiles :as profiles]
             [thermos-frontend.params.supply-technologies :as supply-technologies]
             [thermos-frontend.params.supply-objective :as supply-objective]
+            [thermos-frontend.supply-solution-view :as supply-solution-view]
             
             [thermos-frontend.solution-view :as solution-view]
             [thermos-frontend.toaster :as toaster]
@@ -37,23 +38,24 @@
             [goog.math :refer [Size]]
             [goog.functions :refer [debounce]]
             [thermos-frontend.util :refer [target-value]]
+            
 
             [re-com.core :as rc]))
 
 (enable-console-print!)
 
-(defn do-save [run? name]
+(defn do-save [name run?]
   (let [can-run (document/is-runnable? @state/state)
         invalid (and run? (not can-run))]
     (when invalid
       (toaster/show!
        [:div.toaster.toaster--error
         "Cannot optimise until you have added some demands and supplies!"]))
-
+    
     (when-not (and invalid (not (state/needs-save?)))
       (state/save!
        name
-       :run (and run? can-run)
+       :run (when (and run? can-run) run?)
        :callback
        #(when-not invalid
           (toaster/show! [:div.toaster.toaster--success "Project saved"]))))))
@@ -84,13 +86,15 @@
                      :initial-split (or @h-split-pos 60)
                      :on-split-change #(reset! h-split-pos %)
                      :margin "0"
-                     :panel-1 [:div.map-container [map/component doc] [view-control/component doc]]
+                     :panel-1 [:div.map-container [map/component doc]
+                               [view-control/component doc]]
                      :panel-2 [selection-info-panel/component doc]
 
                      ]
            :panel-2 [:div
                      {:style {:width :100%}}
-                     [network-candidates-panel/component doc]]
+                     [network-candidates-panel/component doc]
+                     ]
            
            ])
         :component-did-mount
@@ -127,6 +131,7 @@
                *show-menu (r/atom false)
                *is-cooling (r/track #(document/is-cooling? @state/state))
                has-solution? (r/track #(document/has-solution? @state/state))
+               has-supply-solution? (r/track #(document/has-supply-solution? @state/state))
                has-valid-solution? (r/track #(solution/valid-state?
                                              (keyword (::solution/state @state/state))))]
 
@@ -170,6 +175,7 @@
                    :left :-20em
                    :flex-grow 1
                    :height "100%"
+                   :overflow-y :auto
                    :display :flex
                    :flex-direction :column
                    :background "rgba(255,255,255,0.95)"}
@@ -183,7 +189,7 @@
                      300))
 
            }
-          
+
           [:div.menu-block
            [:h1 "Network problem"]
            [:ul
@@ -212,6 +218,13 @@
             [switcher :supply-objective "Objective"]
             ]]
 
+          (when @has-supply-solution?
+            [:div.menu-block
+             [:h1 "Supply solution"]
+             [:ul
+              [switcher :supply-solution "Solution summary"]
+              ]])
+
           [:div.menu-block
            [:h1 "Help"]
            [:input.text-input
@@ -236,15 +249,12 @@
            [:ul
             [:li [:a {:href "../../../"} "Back to project"]]
             [:li [:a {:href "/"} "THERMOS home page"]]
-            ]
-           ]
-
-          ])
+            ]]])
 
        (when-not (preload/get-value :read-only)
          [main-nav/component
-          {:on-save (partial do-save false)
-           :on-run (partial do-save true)
+          {:on-save #(do-save % nil)
+           :on-run  do-save
 
            :hamburger
            [:button.hamburger
@@ -315,6 +325,9 @@
           
           (= selected-tab :solution)
           [solution-view/solution-summary state/state]
+
+          (= selected-tab :supply-solution)
+          [supply-solution-view/supply-solution state/state]
 
           (= selected-tab :run-log)
           [solution-view/run-log state/state]

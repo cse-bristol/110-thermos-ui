@@ -1,0 +1,13 @@
+svg.chart {
+    
+}
+
+// convert from stupid coordinates to cartesian coordinates
+svg.chart > g {
+    transform: scaleY(-1);
+}
+
+// Fix text which is otherwise upside down
+svg.chart > g text {
+    transform: scaleY(-1);
+}

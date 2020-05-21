@@ -476,7 +476,7 @@
       (log/error "Edge" edge "which maps to real edges"
                  (attr/attr net-graph edge :ids)
                  "has no recorded length"))
-    
+
     {:i (first edge) :j (second edge)
      :length    length
      "cost/m"   (float (finance/objective-value instance cost-type fixed-cost))
@@ -976,6 +976,8 @@
                           (not (Double/isFinite b)))
                  a)))))
 
+
+
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
@@ -1119,4 +1121,21 @@
           
           solved-instance)))
     ))
+
+
+
+(defn try-solve [label instance & {:keys [remove-temporary-files]}]
+  (try
+    (solve label instance :remove-temporary-files remove-temporary-files)
+
+    (catch Throwable ex
+      (log/error "Uncaught exception solving network problem" ex)
+      (-> instance
+          (document/remove-solution)
+          (assoc ::solution/state :uncaught-error
+                 ::solution/log   (with-out-str
+                                    (clojure.stacktrace/print-throwable ex)
+                                    (println "---")
+                                    (clojure.stacktrace/print-cause-trace ex)))))))
+
 

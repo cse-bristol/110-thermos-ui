@@ -171,7 +171,7 @@
   [title & {:keys [run callback]}]
 
   (xhr/send
-   (if run "?run=1" "")
+   (if run (str "?run=" (name run)) "")
    (fn on-success [e]
      (update-url
       (.getResponseHeader (.. e -target) "Location"))

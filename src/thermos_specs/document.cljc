@@ -220,11 +220,16 @@
 (defn has-solution? [document]
   (contains? document ::solution/state))
 
+(defn has-supply-solution? [document]
+  (contains? document ::solution/supply-solution))
+
+(defn minimum-key [m]
+  (when-let [keys (seq (keys m))] (reduce min keys)))
+
 (defn civil-cost-for-id [doc cost-id]
   (let [costs (::civil-costs doc)]
     (or (get costs cost-id)
-        (when-let [cost-keys (seq (keys costs))]
-          (get costs (reduce min cost-keys))))))
+        (get costs (minimum-key costs)))))
 
 (defn civil-cost-name [doc cost-id]
   (or (::path/civil-cost-name
@@ -269,6 +274,14 @@
   (if (= tariff-id :market)
     "Market"
     (or (::tariff/name (tariff-for-id doc tariff-id)) "None")))
+
+(defn profile-name [doc profile-id & {:keys [default-profile]}]
+  (let [heat-profiles (::supply/heat-profiles doc)
+        default-profile
+        (or default-profile
+            (minimum-key heat-profiles))]
+    (:name (or (get heat-profiles profile-id)
+               (get heat-profiles default-profile)))))
 
 (defn remove-tariff
   {:test #(test/is
