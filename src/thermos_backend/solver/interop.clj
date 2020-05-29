@@ -32,7 +32,10 @@
             [thermos-specs.tariff :as tariff]
             [thermos-specs.measure :as measure]
             [thermos-backend.solver.market :as market]
-            [clojure.string :as string])
+            [clojure.string :as string]
+
+            [thermos.opt.net.core :as net-model]
+            )
   
   (:import [java.io StringWriter]))
 
@@ -985,11 +988,11 @@
   
   (let [instance (document/remove-solution instance)
 
-        working-directory (util/create-temp-directory!
-                           (config :solver-directory)
-                           label)
+        ;; working-directory (util/create-temp-directory!
+        ;;                    (config :solver-directory)
+        ;;                    label)
         
-        input-file (io/file working-directory "problem.json")
+        ;; input-file (io/file working-directory "problem.json")
 
         solver-command (config :solver-command)
 
@@ -1078,23 +1081,28 @@
         (doseq [p bad-numbers]
           (log/error "Invalid numeric value at" p))
         
-        (with-open [writer (io/writer input-file)]
-          (json/write input-json writer :escape-unicode false))
+        ;; (with-open [writer (io/writer input-file)]
+        ;;   (json/write input-json writer :escape-unicode false))
+
+
         
         (log/info "Starting solver")
         
         (let [start-time (System/currentTimeMillis)
-              output (sh solver-command "problem.json" "solution.json"
-                         :dir working-directory)
+              ;; output (sh solver-command "problem.json" "solution.json"
+              ;;            :dir working-directory)
+
+              result (net-model/run-model input-json)
               
               end-time (System/currentTimeMillis)
 
-              output-json (try
-                            (with-open [r (io/reader (io/file working-directory "solution.json"))]
-                              (json/read r :key-fn keyword))
-                            (catch Exception ex
-                              {:state :error
-                               :message (.getMessage ex)}))
+              ;; output-json
+              ;; (try
+              ;;               (with-open [r (io/reader (io/file working-directory "solution.json"))]
+              ;;                 (json/read r :key-fn keyword))
+              ;;               (catch Exception ex
+              ;;                 {:state :error
+              ;;                  :message (.getMessage ex)}))
 
               solved-instance
               (-> instance
@@ -1103,21 +1111,23 @@
                                    (when (seq bad-numbers)
                                      (str "WARNING: invalid inputs at: \n"
                                           (string/join "\n" (map str bad-numbers))))
-                                   (:out output) "\n" (:err output))
+                                   ;(:out output) "\n" (:err output)
+                                   )
                    
-                   ::solution/state (:state output-json)
-                   ::solution/message (:message output-json)
+                   ::solution/state (:state result)
+                   ::solution/message (:message result)
                    ::solution/runtime (safe-div (- end-time start-time) 1000.0))
-                  (merge-solution net-graph power-curve market output-json)
+                  (merge-solution net-graph power-curve market result)
                   (mark-unreachable net-graph included-candidates))
               ]
 
-          (if remove-temporary-files
-            (util/remove-files! working-directory)
-            (do
-              (spit (io/file working-directory "stdout.txt") (:out output))
-              (spit (io/file working-directory "stderr.txt") (:err output))
-              (spit (io/file working-directory "instance.edn") solved-instance)))
+          ;; (if remove-temporary-files
+          ;;   (util/remove-files! working-directory)
+          ;;   (do
+          ;;     (spit (io/file working-directory "stdout.txt") (:out output))
+          ;;     (spit (io/file working-directory "stderr.txt") (:err output))
+          ;;     (spit (io/file working-directory "instance.edn") solved-instance)))
+
           
           solved-instance)))
     ))
