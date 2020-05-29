@@ -158,7 +158,6 @@
                               key
                               ]
                        :or {scale 1}}]
-  (println "render tab block" key)
   `[:div {:style {:display               :grid
                   :grid-template-columns ~(str "max-content " (s/join " " (repeat columns "2em")))}}
     ~@(doall
@@ -174,8 +173,15 @@
                              :parse       (fn [val]
                                             (let [val (js/parseFloat val)]
                                               (when (js/isFinite val) val)))
-                             :on-blur     (fn [e val] (on-change row-id i
-                                                                 (/ val scale)))
+                             :on-blur     (fn [e val] (on-change
+                                                       row-id i
+                                                       (/ val scale)))
+                             :on-key-down (fn [e val]
+                                            (when (= (.-key e) "=")
+                                              (dotimes [i columns]
+                                                (on-change row-id i (/ val scale)))
+                                              (.preventDefault e)))
+
                              :placeholder (* scale (get cell-values i 0))
                              :value       (* scale (get cell-values i 0))}]
              ]))))
@@ -283,6 +289,11 @@
        }]
 
      [day-type-parameters doc @selected-day-type]
+
+     [:div {:style {:padding-top :1em
+                    :padding-bottom :1em}}
+      "Press the " [:b "="] " key to set all values in a row to the focused cell."]
+     
      (let [today         @selected-day-type
            columns-today (:divisions (get @day-types today) 1)]
 
