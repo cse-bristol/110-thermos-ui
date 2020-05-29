@@ -70,7 +70,7 @@
   (let [total-lifetime-cost (atom nil)
         total-lifetime-heat (atom nil)]
     [:div
-     [:div.flex-cols {:style {:flex-wrap :wrap}}
+     [:div.flex-cols.flex-wrap
       [:table.supply-solution-table {:style {:margin :1em :flex-grow 1}}
        [:caption "Supply technologies"]
        [:thead
@@ -314,7 +314,7 @@
         heat-demands     (assoc-by heat-demands :day-type)]
     
     
-    [:div.flex-cols {:style {:flex-wrap :wrap}}
+    [:div.flex-cols.flex-wrap
      (doall
       (for [[day lines] (group-by :day-type chart-lines)
             :let        [heat-productions (get heat-productions day)
@@ -398,7 +398,7 @@
              [:td.num (format/si-number (* 1000.0 lifetime))]])
           )
         ]
-    [:div.flex-cols {:style {:flex-wrap :wrap}}
+    [:div.flex-cols.flex-wrap
      (for [[day-type {day-name :name divisions :divisions freq :frequency}]
            (:day-types problem)]
        (let [division-weight (/ 24.0 divisions)
@@ -503,7 +503,7 @@
                :value     opex-mode
                :on-change #(do (println %)
                                (reset! *opex-mode %))}]]]]
-          [:div.flex-cols {:style {:flex-wrap :wrap}}
+          [:div.flex-cols.flex-wrap
            [plant-summary problem solution highlight capex-mode opex-mode]
            [store-summary problem solution highlight capex-mode]]]]
         
@@ -523,100 +523,190 @@
                (colors/for-set (conj (set (map :fuel (map (:plant-options problem)
                                                           (keys (:plant solution)))))
                                      :grid-export))
-               ]
-           [:div
-            (for [day-type (keys (:day-types problem))]
-              [:div {:key day-type}
-               (let [plant-fuel
-                     (fn [plant] (-> problem :plant-options (get plant) :fuel))
-                     
-                     fuel-consumption
-                     (reduce
-                      (fn [acc [plant-id plant]]
-                        (let [fuel  (plant-fuel plant-id)
-                              input (get (:input plant) day-type)
-                              export (get (:generation plant) day-type)
-                              ]
-                          (cond->
-                              (update acc fuel
-                                      (fn [x]
-                                        (if x
-                                          (mapv + x input)
-                                          input)))
-                            (seq export)
-                            (update :grid-export
+
+               plant-fuel
+               (fn [plant] (-> problem :plant-options (get plant) :fuel))
+               
+               fuel-consumption ;; not the nicest, but basically just
+                                ;; adding up fuel for each day type /
+                                ;; fuel type / halfhour
+               (into
+                {}
+                (for [day-type (keys (:day-types problem))]
+                  [day-type
+                   (reduce
+                    (fn [acc [plant-id plant]]
+                      (let [fuel  (plant-fuel plant-id)
+                            input (get (:input plant) day-type)
+                            export (get (:generation plant) day-type)
+                            ]
+                        (cond->
+                            (update acc fuel
                                     (fn [x]
                                       (if x
                                         (mapv + x input)
-                                        export))))))
-                      {}
-                      (:plant solution))
-                     
-                     max-consumption
-                     (reduce
-                      (fn [a xs] (max a (apply max xs)))
-                      0 (vals fuel-consumption))
-                     ]
-                 [:div {:key day-type :style {:min-width :400px :flex-grow 1}}
-                  [chart/xy-chart {:style {:height :12em}}
-                   [chart/clip {:with chart-margin}
-                    [chart/axes {:line-style axis-style
-                                 :range      {:y [0 (* 1000 max-consumption)]
-                                              :x [0 24]}
-                                 }]
-                    ;; we want a scale on the y-axis
-                    [chart/clip {:with axis-margin}
-                     [chart/staggered-bar
-                      {:series (for [[fuel-id vals] fuel-consumption]
-                                 {:values (mapv #(/ % max-consumption) vals)
-                                  :bar-style
-                                  {:fill (get fuel-colors fuel-id)}
-                                  })}]
-                     
-                     ]]]
-                  [:div
-                   [:b (:name (get (:day-types problem) day-type))]
-                   " — "
-                   (for [[fuel color] fuel-colors]
-                     [:label {:key fuel :style {:margin-right :0.5em}}
-                      [color-square color]
-                      [:b
-                       (if (= fuel :grid-export)
-                         "Grid export"
-                         (-> problem :fuels (get fuel) :name))
+                                        input)))
+                          (seq export)
+                          (update :grid-export
+                                  (fn [x]
+                                    (if x
+                                      (mapv + x input)
+                                      export))))))
+                    {}
+                    (:plant solution))]))
 
-                       ": "]
-                      (format/si-number (* 1000.0
-                                           (reduce max (get fuel-consumption fuel))))
-                      "Wp, "
-                      (format/si-number (* 1000.0
-                                           (/ (:divisions (get (:day-types problem) day-type))
-                                              24.0)
-                                           (reduce + (get fuel-consumption fuel))))
-                      "Wh"
-                      ])
-                   ]
+               fuel-name
+               (fn [fuel]
+                 (if (= fuel :grid-export)
+                   "Grid export"
+                   (-> problem :fuels (get fuel) :name)))
+               ]
+           
+           [:div
+            [:div.flex-cols.flex-wrap
+             (for [day-type (keys (:day-types problem))]
+               [:div.flex-grow {:key day-type}
+                (let [fuel-consumption (get fuel-consumption day-type)
+                      
+                      max-consumption
+                      (reduce
+                       (fn [a xs] (max a (apply max xs)))
+                       0 (vals fuel-consumption))
+                      ]
+                  [:div {:key day-type :style {:min-width :400px :flex-grow 1}}
+                   [chart/xy-chart {:style {:height :12em}}
+                    [chart/clip {:with chart-margin}
+                     [chart/axes {:line-style axis-style
+                                  :range      {:y [0 (* 1000 max-consumption)]
+                                               :x [0 24]}
+                                  }]
+                     ;; we want a scale on the y-axis
+                     [chart/clip {:with axis-margin}
+                      [chart/staggered-bar
+                       {:series (for [[fuel-id vals] fuel-consumption]
+                                  {:values (mapv #(/ % max-consumption) vals)
+                                   :bar-style
+                                   {:fill (get fuel-colors fuel-id)}
+                                   })}]
+                      
+                      ]]]
+                   [:div
+                    [:b (:name (get (:day-types problem) day-type))]
+                    " — "
+                    (for [[fuel color] fuel-colors]
+                      [:label {:key fuel :style {:margin-right :0.5em}}
+                       [color-square color]
+                       [:b
+                        (fuel-name fuel)
+
+                        ": "]
+                       (format/si-number (* 1000.0
+                                            (reduce max (get fuel-consumption fuel))))
+                       "Wp, "
+                       (format/si-number (* 1000.0
+                                            (/ (:divisions (get (:day-types problem) day-type))
+                                               24.0)
+                                            (reduce + (get fuel-consumption fuel))))
+                       "Wh"
+                       ])]])])]
+            (let [total-frequency (-> problem :day-types vals
+                                      (->> (map :frequency) (reduce +)))
                   
-                  ])])
-            
-            [:div "A table showing fuel consumption & grid export by day type, with total rows"]
-            ])
-         ]
+                  span (:accounting-period problem)
+
+                  value-cells
+                  (fn [output division-weight day-weight]
+                    (let [peak     (reduce max output)
+                          daily    (* division-weight (reduce + output))
+                          yearly   (* 365 day-weight daily)
+                          lifetime (* yearly span)]
+                      [:<>
+                       [:td.num (format/si-number (* 1000.0 peak))]
+                       [:td.num (format/si-number (* 1000.0 daily))]
+                       [:td.num (format/si-number (* 1000.0 yearly))]
+                       [:td.num (format/si-number (* 1000.0 lifetime))]])
+                    )
+                  ]
+              [:div.flex-cols.flex-wrap
+               ;; tables
+               (for [[day-type {day-name :name
+                                divisions :divisions freq :frequency}]
+                     (:day-types problem)
+                     :let [fuel-consumption (get fuel-consumption day-type)
+                           division-weight (/ 24.0 divisions)
+                           day-weight      (/ freq total-frequency)
+                           ]]
+                 [:table.supply-solution-table.flex-grow
+                  {:key day-type}
+                  [:caption day-name]
+                  [:thead
+                   [:tr [:th "Fuel"]
+                    [:th.num "Wp"]
+                    [:th.num "Wh/day"]
+                    [:th.num "Wh/yr"]
+                    [:th.num "Wh total"]]]
+                  [:tbody
+                   (for [[fuel consumption] fuel-consumption]
+                     [:tr {:key fuel}
+                      [:th (fuel-name fuel)]
+                      (value-cells consumption division-weight day-weight)])]])])])]
 
         [summary-details {:open (reagent/cursor doc [::view/view-state :supply-solution
                                                      :emissions-open])}
          "Emissions"
-         [:div "Table about emissions"]]
+         (reagent/with-let [span (reagent/atom :yearly)]
+           [:div
+            [inputs/radio-group {:options [{:key :yearly :label "Yearly"} {:key :lifetime :label "Lifetime"}]
+                                 :value @span
+                                 :on-change #(reset! span %)}]
+            (let [span @span
+                  emissions (apply
+                             merge-with #(merge-with + %1 %2)
+                             (map :emissions (vals (:plant solution))))
+                  ]
+              [:table.supply-solution-table
+               [:thead
+                [:tr
+                 [:th "Emission"]
+                 [:th.num "Quantity"]
+                 [:th.num "Cost"]]
+                
+                (let [unit-denominator (case span :yearly "/yr" :lifetime " total")]
+                  [:tr {:style {:font-size :0.8em}}
+                   [:td]
+                   [:th.num "g" unit-denominator]
+                   [:th.num "¤" unit-denominator]])]
+               [:tbody
+                (for [e candidate/emissions-types]
+                  [:tr {:key e}
+                   [:th (candidate/emissions-labels e)]
+                   [:td.num (format/si-number (-> emissions
+                                                  (get e)
+                                                  (get (case span
+                                                         :yearly :annual-emission
+                                                         :lifetime :total-emission))))]
+                   [:td.num (format/si-number (-> emissions
+                                                  (get e)
+                                                  (get (case span
+                                                         :yearly :annual-cost
+                                                         :lifetime :total-cost))
+                                                  ))]
+                   ]
+                  )
+                ]])])]
+        
 
-        [summary-details
-         "Debug problem"
-         [pprint-pre (::solution/supply-problem @doc)]
-         ]
+        ;; [summary-details
+        ;;  "Debug problem"
+        ;;  [pprint-pre (::solution/supply-problem @doc)]
+        ;;  ]
 
-        [summary-details
-         "Debug solution"
-         [pprint-pre (::solution/supply-solution @doc)]
-         ]
+
+        ;; [summary-details
+        ;;  "Debug solution"
+        ;;  [pprint-pre (::solution/supply-solution @doc)]
+        ;;  ]
+
 
         ]])))
 
