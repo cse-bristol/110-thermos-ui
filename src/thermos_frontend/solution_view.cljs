@@ -471,14 +471,16 @@
                         alts)))
 
          alt-emissions
-         (for [[alt alts] by-alt]
-           [alt
-            (into {}
-                  (for [e candidate/emissions-types]
-                    [e
-                     {:t (/ (sum-alt e alts :kg) 1000)
-                      :cost (sum-alt e alts opex-mode)}]))])
+         (into {}
+               (for [[alt alts] by-alt]
+                 [alt
+                  (into {}
+                        (for [e candidate/emissions-types]
+                          [e
+                           {:t (/ (sum-alt e alts :kg) 1000)
+                            :cost (sum-alt e alts opex-mode)}]))]))
 
+         
          total-alt-emissions
          (apply merge-with + (vals alt-emissions))
 
