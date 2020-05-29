@@ -95,6 +95,11 @@
 
 (def emissions-types [:co2 :pm25 :nox])
 
+(def emissions-labels
+  {:co2 [:span "CO" [:sub "2"]]
+   :pm25 [:span "PM" [:sub "2.5"]]
+   :nox [:span "NO" [:sub "x"]]})
+
 (def emissions-factor-scales
   {:co2  1000.0    ;; grams
    :pm25 1000000.0 ;; milligrams
