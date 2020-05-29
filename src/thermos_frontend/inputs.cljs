@@ -159,7 +159,7 @@
       (fn [_ [_ {value :value}]] (paint value))
       })))
 
-(defn parsed [{:keys [parse render on-change on-blur value]
+(defn parsed [{:keys [parse render on-change on-blur on-key-down value]
                :or   {render identity parse identity}
                :as   attrs}]
   (let [raw-value    (reagent/atom (render value))
@@ -169,7 +169,8 @@
       (fn [{:keys [parse render on-change on-blur]
             :or {render identity parse identity}
             :as attrs}]
-        (let [attrs (dissoc attrs :parse :render :on-change :on-blur :value)]
+        (let [attrs (dissoc attrs :parse :render :on-change :on-blur :value
+                            :on-key-down)]
           [:input.input
            (merge
             {:value @raw-value
@@ -186,7 +187,10 @@
                (reset! raw-value (render @parsed-value))
                ;; not sure about change of meaning for on-blur
                (when on-blur (on-blur e @parsed-value)))}
-            
+            (when on-key-down
+              {:on-key-down
+               (fn [e]
+                 (on-key-down e @parsed-value))})
             attrs)
            ])
         )
