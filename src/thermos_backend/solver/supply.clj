@@ -119,9 +119,9 @@
          :discount-rate     (:discount-rate objective-params 0.0)
          :accounting-period (:accounting-period objective-params 1)
 
-         :co2-price  (-> doc ::document/emissions-cost :co2)
-         :nox-price  (-> doc ::document/emissions-cost :nox)
-         :pm25-price (-> doc ::document/emissions-cost :pm25)
+         :co2-price  (-> doc ::document/emissions-cost (:co2 0.0))
+         :nox-price  (-> doc ::document/emissions-cost (:nox 0.0))
+         :pm25-price (-> doc ::document/emissions-cost (:pm25 0.0))
          
          :profile input-profile
 
