@@ -158,36 +158,36 @@
                               key
                               ]
                        :or {scale 1}}]
-  `[:div {:style {:display               :grid
-                  :grid-template-columns ~(str "max-content " (s/join " " (repeat columns "2em")))}}
-    ~@(doall
-       (for [[row-id data] data
-             :let          [cell-values (cell-values data)]]
-         (list
-          [:div {:key row-id} [:div {:style {:width :10em}}
-                               (row-label row-id data)]]
-          (for [i (range columns)]
-            [:div {:key i}
-             [inputs/parsed {:type        :text
-                             :style       {:width :100%}
-                             :parse       (fn [val]
-                                            (let [val (js/parseFloat val)]
-                                              (when (js/isFinite val) val)))
-                             :on-blur     (fn [e val] (on-change
-                                                       row-id i
-                                                       (/ val scale)))
-                             :on-key-down (fn [e val]
-                                            (when (= (.-key e) "=")
-                                              (dotimes [i columns]
-                                                (on-change row-id i (/ val scale)))
-                                              (.preventDefault e)))
+  [:<>
+   [:div {:style {:display               :grid
+                  :grid-template-columns (str "max-content " (s/join " " (repeat columns "2.5em")))}}
+    (doall
+     (for [[row-id data] data
+           :let          [cell-values (cell-values data)]]
+       (list
+        [:div {:key row-id :style {:width :10em}}
+         (row-label row-id data)]
+        (for [i (range columns)]
+          [inputs/parsed {:type        :text
+                          :key i
+                          :style       {:width :100% :border :none :border-radius 0}
+                          :parse       (fn [val]
+                                         (let [val (js/parseFloat val)]
+                                           (when (js/isFinite val) val)))
+                          :on-blur     (fn [e val] (on-change
+                                                    row-id i
+                                                    (/ val scale)))
+                          :on-key-down (fn [e val]
+                                         (when (= (.-key e) "=")
+                                           (dotimes [i columns]
+                                             (on-change row-id i (/ val scale)))
+                                           (.preventDefault e)))
 
-                             :placeholder (* scale (get cell-values i 0))
-                             :value       (* scale (get cell-values i 0))}]
-             ]))))
-    ~(when on-add-row
-       [add-tab-button {:placeholder "Name"
-                        :on-add-tab  on-add-row}])])
+                          :placeholder (* scale (get cell-values i 0))
+                          :value       (* scale (get cell-values i 0))}]))))]
+   (when on-add-row
+     [add-tab-button {:placeholder "Name"
+                      :on-add-tab  on-add-row}])])
 
 (defn profiles-parameters [doc]
   (reagent/with-let [day-types         (reagent/cursor doc [::supply/day-types])
@@ -220,7 +220,8 @@
                              syms/delete]
                             
                             [:input {:value     (:name x)
-                                     :style     {:flex-shrink 1 :flex-grow 1 :width 1}
+                                     :style     {:flex-shrink 1 :flex-grow 1 :width 1
+                                                 :border-radius 0 :border :none}
                                      :on-change #(swap! fuels assoc-in [fuel-id :name]
                                                         (.. % -target -value))}]]
                            )
@@ -256,7 +257,9 @@
                              syms/delete]
                             
                             [:input {:value     (:name x)
-                                     :style     {:flex-shrink 1 :flex-grow 1 :width 1}
+                                     :style     {:flex-shrink 1 :flex-grow 1 :width 1
+                                                 :border-radius 0 :border :none}
+                                     
                                      :on-change #(swap! heat-profiles assoc-in [profile-id :name]
                                                         (.. % -target -value))}]]
                            )
