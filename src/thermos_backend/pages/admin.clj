@@ -26,14 +26,13 @@
    (for [[q tasks] (group-by :queue-name queues)]
      [:div.card
       [:details
-       [:summary
-        [:div.flex-cols
-         [:h1.flex-grow q " tasks"]
-         [:a {:href (str "clean-queue/" q)} "clean up"]
-         " • "
-         [:a {:href (str "clean-queue/" q "?purge=1")} "purge"]]]
+       [:summary.flex-cols
+        [:h1.flex-grow q " tasks"]
+        [:a {:href (str "clean-queue/" q)} "clean up"]
+        " • "
+        [:a {:href (str "clean-queue/" q "?purge=1")} "purge"]]
        
-       [:table
+       [:table {:style {:width "100%"}}
         [:thead [:tr [:th "ID"] [:th "State"] [:th "Queued"] [:th "Updated"]]]
         
         [:tbody
