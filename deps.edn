@@ -1,148 +1,102 @@
-{:paths ["src" "resources"]
+{:paths ["src" "resources"],
  :mvn/repos
- {"boundless" {:url "https://repo.boundlessgeo.com/main"}
-  "central" {:url "https://repo1.maven.org/maven2/"}
-  "clojars" {:url "https://clojars.org/repo"}
-  ;; this is required for a transitive dependency onto xml-commons-resolver
-  "geotools" {:url "https://download.osgeo.org/webdav/geotools/"}
-  }
+ {"boundless" {:url "https://repo.boundlessgeo.com/main"},
+  "central" {:url "https://repo1.maven.org/maven2/"},
+  "clojars" {:url "https://clojars.org/repo"},
+  "geotools" {:url "https://download.osgeo.org/webdav/geotools/"}},
  :aliases
- {:jar {:extra-paths ["target/resources" "target/classes"]}
-
-  :dev ;; these are dependencies required to run dev.clj, which
-       ;; provides a dev environment.
-  {:extra-paths ["build-src" "target/resources"]
-
-   :main-opts ["-m" "build.core"]
-
+ {:jar {:extra-paths ["target/resources" "target/classes"]},
+  :local-deps
+  {:extra-deps
+   {thermos/importer {:local/root "../thermos-importer"},
+    cse/clj-lp {:local/root ../clj-lp},
+    thermos/models {:local/root "../thermos-models"}}},
+  :dev
+  {:extra-paths ["build-src" "target/resources"],
+   :main-opts ["-m" "build.core"],
    :extra-deps
-   {badigeon/badigeon
-    {:git/url "https://github.com/EwenG/badigeon.git"
-     :sha "dca97f9680a6ea204a2504c4414cafc4ba182a83"
-     :tag "0.0.6"}
-
-    ring/ring-devel               {:mvn/version "1.7.1"}
-
-    org.clojure/tools.cli         {:mvn/version "0.4.2"}
-    proto-repl                    {:mvn/version "0.3.1"}
-    nrepl/nrepl                   {:mvn/version "0.6.0"}
-    org.clojure/tools.namespace   {:mvn/version "0.2.11"}
-    cider/cider-nrepl             {:mvn/version "0.25.0-SNAPSHOT"}
-    refactor-nrepl/refactor-nrepl {:mvn/version "2.5.0"}
-
-    deraen/less4clj {:mvn/version "0.7.0-SNAPSHOT"}
-    ;; github/deraen-less4clj
-
-    ;; {:git/url
-    ;;  "https://github.com/Deraen/less4clj.git"
-    ;;  :sha
-    ;;  "002ec3f66b27a4bf71c3e795309c0296ab35aa18"}
-
-
-    ;; it would be nice to use figwheel main here, but we can't
-    ;; because it would force a clojurescript version bump and we
-    ;; depend on an outdated clojurescript feature for AMD modules.
-    cider/piggieback
-    {:mvn/version "0.4.2"
-     :exclusions  [com.google.javascript/closure-compiler]}
-    figwheel-sidecar
-    {:mvn/version "0.5.19"
-     :exclusions  [com.google.javascript/closure-compiler]}}}
-
+   {ring/ring-devel {:mvn/version "1.7.1"},
+    org.clojure/tools.cli {:mvn/version "0.4.2"},
+    figwheel-sidecar/figwheel-sidecar
+    {:mvn/version "0.5.19", :exclusions [com.google.javascript/closure-compiler]},
+    org.clojure/tools.namespace {:mvn/version "0.2.11"},
+    refactor-nrepl/refactor-nrepl {:mvn/version "2.5.0"},
+    cider/cider-nrepl {:mvn/version "0.25.0-SNAPSHOT"},
+    proto-repl/proto-repl {:mvn/version "0.3.1"},
+    nrepl/nrepl {:mvn/version "0.6.0"},
+    badigeon/badigeon
+    {:git/url "https://github.com/EwenG/badigeon.git",
+     :sha "dca97f9680a6ea204a2504c4414cafc4ba182a83",
+     :tag "0.0.6"},
+    cider/piggieback {:mvn/version "0.4.2", :exclusions [com.google.javascript/closure-compiler]},
+    deraen/less4clj {:mvn/version "0.7.0-SNAPSHOT"}}},
   :client
-  {:override-deps
-   ;; our code only works with this version, because
-   ;; we depend on some AMD modules, which have been
-   ;; broken by CLJS-2375.
-   {org.clojure/clojurescript {:mvn/version "1.10.597"}}
+  {:override-deps {org.clojure/clojurescript {:mvn/version "1.10.597"}},
    :extra-deps
-   {
-    org.clojure/clojurescript {:mvn/version "1.10.597"}
-    
-    cljsjs/leaflet {:mvn/version "1.2.0-0"}
-;;    cljsjs/jsts {:mvn/version "1.6.0-0"}
-    cljsjs/rbush {:mvn/version "2.0.1-0"}
-    cljsjs/react-virtualized {:mvn/version "9.11.1-1"
-                              :exclusions [cljsjs/react cljsjs/react-dom]}
-    cljsjs/leaflet-draw {:mvn/version "0.4.12-0"}
-    reagent {:mvn/version "0.8.1"}
-    re-com {:mvn/version "2.4.0"}
-    sablono {:mvn/version "0.8.5"}
-    
-    com.cognitect/transit-cljs {:mvn/version "0.8.256"}
-    }
-   }
-
+   {cljsjs/leaflet {:mvn/version "1.2.0-0"},
+    sablono/sablono {:mvn/version "0.8.5"},
+    com.cognitect/transit-cljs {:mvn/version "0.8.256"},
+    org.clojure/clojurescript {:mvn/version "1.10.597"},
+    cljsjs/react-virtualized
+    {:mvn/version "9.11.1-1", :exclusions [cljsjs/react cljsjs/react-dom]},
+    re-com/re-com {:mvn/version "2.4.0"},
+    cljsjs/rbush {:mvn/version "2.0.1-0"},
+    reagent/reagent {:mvn/version "0.8.1"},
+    cljsjs/leaflet-draw {:mvn/version "0.4.12-0"}}},
   :server
   {:extra-deps
-   {org.clojure/tools.cli         {:mvn/version "0.4.2"}
-    clojure-term-colors {:mvn/version "0.1.0"}
-    compojure {:mvn/version "1.6.1"}
-    ring/ring-core {:mvn/version "1.7.1"}
-    ring/ring-defaults {:mvn/version "0.3.2"}
-    ring/ring-json {:mvn/version "0.4.0"}
-    ring/ring-ssl {:mvn/version "0.3.0"}
-    org.clojure/tools.logging {:mvn/version "0.4.1"}
-    log4j/log4j {:mvn/version "1.2.17"
-                 :exclusions [javax.mail/mail
-                              javax.jms/jms
-                              com.sun.jmdk/jmxtools
-                              com.sun.jmx/jmxri]
-                 }
-    org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"}
-
-    org.clojure/java.jdbc {:mvn/version "0.7.5"}
-    org.postgresql/postgresql {:mvn/version "9.4.1212.jre7"}
-    hiccup {:mvn/version "2.0.0-alpha1"}
-    digest {:mvn/version "1.4.6"}
-    honeysql {:mvn/version "0.9.4"}
-    nilenso/honeysql-postgres {:mvn/version "0.2.3"}
-    resauce {:mvn/version "0.1.0"}
-    org.clojure/data.json {:mvn/version "0.2.6"}
-    http-kit {:mvn/version "2.2.0"}
-    ring-logger {:mvn/version "1.0.0"}
-    funcool/clojure.jdbc {:mvn/version "0.9.0"}
-    hikari-cp {:mvn/version "1.2.4"}
-    org.clojure/data.csv {:mvn/version "0.1.4"}
-    aysylu/loom {:mvn/version "1.0.1"}
-    org.tobereplaced/nio.file {:mvn/version "0.4.0"}
-    org.apache.commons/commons-math3 {:mvn/version "3.6.1"}
-    javax.servlet/servlet-api {:mvn/version "2.5" :scope "test"}
-
-    mount {:mvn/version "0.1.15"}
-
-    thermos-importer {:local/root "libs/thermos-importer"}
-
-    ;; TODO fix later
-    thermos-models {:local/root "../thermos-models"}
-
-    buddy/buddy-hashers {:mvn/version "1.3.0"}
-
-    com.draines/postal {:mvn/version "2.0.2"}
-
-    com.cognitect/transit-clj {:mvn/version "0.8.313"}
-
-    metosin/muuntaja {:mvn/version "0.6.3"}
-
-    clucie {:mvn/version "0.4.2"}
-
-    enlive {:mvn/version "1.1.6"}
-
-    org.apache.lucene/lucene-highlighter {:mvn/version "7.5.0"}
-
-    bidi {:mvn/version "2.1.6"}
-    }}}
- 
+   {org.clojure/data.json {:mvn/version "0.2.6"},
+    com.draines/postal {:mvn/version "2.0.2"},
+    org.clojure/tools.logging {:mvn/version "0.4.1"},
+    metosin/muuntaja {:mvn/version "0.6.3"},
+    org.clojure/tools.cli {:mvn/version "0.4.2"},
+    compojure/compojure {:mvn/version "1.6.1"},
+    ring/ring-ssl {:mvn/version "0.3.0"},
+    funcool/clojure.jdbc {:mvn/version "0.9.0"},
+    org.apache.commons/commons-math3 {:mvn/version "3.6.1"},
+    ring/ring-defaults {:mvn/version "0.3.2"},
+    digest/digest {:mvn/version "1.4.6"},
+    thermos/models
+    {:git/url "ssh://git@github.com/cse-bristol/110-thermos-models.git",
+     :tag "HEAD",
+     :sha "85dcc60fc9878eef00b3c30d6ee825860d4fd5da"},
+    clucie/clucie {:mvn/version "0.4.2"},
+    honeysql/honeysql {:mvn/version "0.9.4"},
+    ring/ring-json {:mvn/version "0.4.0"},
+    aysylu/loom {:mvn/version "1.0.1"},
+    org.postgresql/postgresql {:mvn/version "9.4.1212.jre7"},
+    thermos/importer
+    {:git/url "ssh://git@github.com/cse-bristol/110-thermos-importer.git",
+     :tag "HEAD",
+     :sha "67dac8b2ba8194bc2399bdbe29a2709bfa1b1867"},
+    clojure-term-colors/clojure-term-colors {:mvn/version "0.1.0"},
+    org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"},
+    nilenso/honeysql-postgres {:mvn/version "0.2.3"},
+    buddy/buddy-hashers {:mvn/version "1.3.0"},
+    enlive/enlive {:mvn/version "1.1.6"},
+    hiccup/hiccup {:mvn/version "2.0.0-alpha1"},
+    org.clojure/data.csv {:mvn/version "0.1.4"},
+    com.cognitect/transit-clj {:mvn/version "0.8.313"},
+    org.clojure/java.jdbc {:mvn/version "0.7.5"},
+    resauce/resauce {:mvn/version "0.1.0"},
+    org.apache.lucene/lucene-highlighter {:mvn/version "7.5.0"},
+    hikari-cp/hikari-cp {:mvn/version "1.2.4"},
+    javax.servlet/servlet-api {:mvn/version "2.5", :scope "test"},
+    mount/mount {:mvn/version "0.1.15"},
+    bidi/bidi {:mvn/version "2.1.6"},
+    ring-logger/ring-logger {:mvn/version "1.0.0"},
+    log4j/log4j
+    {:mvn/version "1.2.17",
+     :exclusions [javax.mail/mail javax.jms/jms com.sun.jmdk/jmxtools com.sun.jmx/jmxri]},
+    org.tobereplaced/nio.file {:mvn/version "0.4.0"},
+    ring/ring-core {:mvn/version "1.7.1"},
+    http-kit/http-kit {:mvn/version "2.2.0"}}}},
  :deps
- {org.clojure/clojure {:mvn/version "1.10.1"}
-  org.clojure/core.async {:mvn/version "0.3.443"}
-  org.clojure/tools.reader {:mvn/version "1.3.0"}
-  net.cgrand/macrovich {:mvn/version "0.2.1"}
-  com.rpl/specter {:mvn/version "1.1.2"}
-  rum {:mvn/version "0.11.3"}
-  cljs-ajax {:mvn/version "0.8.0"
-             :exclusions [commons-logging/commons-logging]}
-  metosin/spec-tools {:mvn/version "0.10.1"}
-  }
- 
- }
+ {org.clojure/clojure {:mvn/version "1.10.1"},
+  org.clojure/core.async {:mvn/version "0.3.443"},
+  org.clojure/tools.reader {:mvn/version "1.3.0"},
+  net.cgrand/macrovich {:mvn/version "0.2.1"},
+  com.rpl/specter {:mvn/version "1.1.2"},
+  rum/rum {:mvn/version "0.11.3"},
+  cljs-ajax/cljs-ajax {:mvn/version "0.8.0", :exclusions [commons-logging/commons-logging]},
+  metosin/spec-tools {:mvn/version "0.10.1"}}}
