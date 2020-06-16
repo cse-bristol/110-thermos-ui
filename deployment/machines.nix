@@ -31,7 +31,10 @@
           mkdir -p $out/bin
           makeWrapper $src $out/bin/get-lidar --prefix PATH : ${pkgs.lib.makeBinPath [pkgs.gdal pkgs.jq pkgs.curl pkgs.findutils pkgs.unzip]}
         '';
-      })
+      }
+
+      (pkgs.callPackage ./scip.nix {})
+      )
     ];
 
     networking.firewall.allowedTCPPorts = [ 80 ];
@@ -108,22 +111,11 @@
       wantedBy = ["multi-user.target"];
       after = ["enable-postgis.service"];
       requires = ["enable-postgis.service"];
-      path = (pkgs.callPackage ./model/path.nix {});
       script =
-      let
-      model-path = ./model;
-      run-solver = pkgs.writeScript "run-solver"
-          ''
-          #! ${pkgs.bash}/bin/bash
-          exec 1> >(${pkgs.utillinux}/bin/logger -s -t solver) 2>&1
-          python ${model-path}/main.py "$1" "$2"
-          '';
-      in
       ''
         export SOLVER_COUNT=16
         export DISABLE_CACHE=false
         export PG_HOST=127.0.0.1
-        export SOLVER_COMMAND=${run-solver}
         export SMTP_HOST=smtp.hosts.co.uk
         export SMTP_PORT=25
         export SMTP_TLS=true
