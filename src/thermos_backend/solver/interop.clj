@@ -295,8 +295,8 @@
                                                     :connection-capex
                                                     fixed-connection)))
      
-     "value/kwh" (float (finance/objective-value instance :heat-revenue unit-charge))
-     "value/kwp" (float (- (finance/objective-value instance :heat-revenue capacity-charge)
+     :value%kwh (float (finance/objective-value instance :heat-revenue unit-charge))
+     :value%kwp (float (- (finance/objective-value instance :heat-revenue capacity-charge)
                            (finance/objective-value instance :connection-capex variable-connection)))}))
 
 (defn- insulation-max-area [measure candidate]
@@ -332,9 +332,9 @@
                  :cost      (finance/objective-value instance
                                                      :insulation-capex
                                                      (::measure/fixed-cost measure 0))
-                 "cost/kwh" (finance/objective-value instance
-                                                     :insulation-capex
-                                                     cost-per-kwh)
+                 :cost%kwh (finance/objective-value instance
+                                                    :insulation-capex
+                                                    cost-per-kwh)
                  :minimum   (if (::document/force-insulation instance) maximum-kwh-saved 0)
                  :maximum   maximum-kwh-saved})))
           (filter identity))}))
@@ -361,14 +361,14 @@
 
 
               ;; we pay for fuel for the counterfactual
-              "cost/kwh" (+
+              :cost%kwh (+
                           (finance/objective-value instance capex-type
                                                    (annual-kwh->kw
                                                     (::supply/capex-per-mean-kw alternative 0)))
                           (finance/objective-value instance :alternative-opex
                                                    (::supply/cost-per-kwh alternative 0)))
               
-              "cost/kwp"
+              :cost%kwp
               ;; we pay opex for the CF unless in network-only mode.
               (+ (finance/objective-value instance :alternative-opex
                                           (::supply/opex-per-kwp alternative 0))
@@ -447,8 +447,8 @@
     
     {:capacity-kw (float (::supply/capacity-kwp  candidate 0))
      :cost        (float fixed-cost)
-     "cost/kwh"   (float effective-heat-cost)
-     "cost/kwp"   (float (+ capex-per-kwp opex-per-kwp))
+     :cost%kwh    (float effective-heat-cost)
+     :cost%kwp    (float (+ capex-per-kwp opex-per-kwp))
      
      :emissions   emissions-factors}))
 
@@ -482,8 +482,8 @@
 
     {:i (first edge) :j (second edge)
      :length    length
-     "cost/m"   (float (finance/objective-value instance cost-type fixed-cost))
-     "cost/kwm" (float (finance/objective-value instance cost-type variable-cost))
+     :cost%m    (float (finance/objective-value instance cost-type fixed-cost))
+     :cost%kwm (float (finance/objective-value instance cost-type variable-cost))
      :bounds bounds
      :required (boolean (attr/attr net-graph edge :required))}))
 
@@ -537,7 +537,7 @@
                    (::document/return-temperature instance)
                    (::document/ground-temperature instance))]
        {:kwp  (map (comp float first) losses)
-        "w/m" (map (comp float second) losses)})
+        :w%m  (map (comp float second) losses)})
 
      ;; global emissions costs and limits
      :emissions
