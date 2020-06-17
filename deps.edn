@@ -9,7 +9,7 @@
   :local-deps
   {:extra-deps
    {thermos/importer {:local/root "../thermos-importer"},
-    cse/clj-lp {:local/root ../clj-lp},
+    cse/clj-lp {:local/root "../clj-lp"},
     thermos/models {:local/root "../thermos-models"}}},
   :dev
   {:extra-paths ["build-src" "target/resources"],
