@@ -4,40 +4,44 @@ The THERMOS web interface.
 
 Builds using scripts in build-src.
 
-* System dependencies
+* How to build
 
-The application uses two external components
+- For development
+  
+  1. You need a postgis server to run against.
+     There is a nix expression to set one up in [[./dev/pg-server.nix]]
+  2. You need a JDK
+  3. You need clojure command line tools
 
-- A postgres / postgis database
-- The model solver
+  Then you can run
 
-Nix expressions for creating a postgis server are in ~dev/pg-server.nix~.
-The solver is checked out as a submodule in ~deployment/model~.
-Nix expressions for a deployment system are in ~deployment~.
+  #+BEGIN_EXAMPLE sh
+  clojure -Adev:server:client dev
+  #+END_EXAMPLE
+
+  or
+  
+  #+BEGIN_EXAMPLE sh
+  clojure -Adev:server:client dev --emacs
+  #+END_EXAMPLE
+
+  if you want to develop in emacs with cider.
+
+  If you want to hack on the dependencies locally as well, you can check them out into ../, and do
+
+  #+BEGIN_EXAMPLE sh
+  clojure -Adev:server:client:local-deps dev
+  #+END_EXAMPLE
+
+- For production
+  
+  #+BEGIN_EXAMPLE sh
+  clojure -Adev:server:client jar
+  #+END_EXAMPLE
+
+  Should spit out a jar in target/
 
 * Configuration
 
 The application has a few config settings, defaults in ~resources/config.edn~.
 These are settable through the environment.
-
-* Tooling
-
-We had leiningen, and then we had boot, which were both a pain as things got more complicated.
-Now there's some simple clojure programs in ~build-src~ which do the compilation or development.
-
-They are a bit longer than equivalent ~build.boot~ but also easier to make work.
-
-To run for development you can invoke
-
-clojure -Adev:server:client dev
-
-and to build a combined jar you can invoke
-
-clojure -Adev:server:client jar
-
-* Notes
-
-We cannot upgrade the clojurescript compiler without reviewing other JS dependencies.
-Any later version of cljs (actually of google closure) has removed the feature for processing AMD modules into CommonJS modules, which we need.
-
-
