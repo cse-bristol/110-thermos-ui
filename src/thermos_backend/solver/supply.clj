@@ -74,12 +74,14 @@
                        ;; and these are the target values for the combined curve
                        (::solution/output-kwh supply 0)
                        (::solution/capacity-kw supply 0))
+
+        substations     (::supply/substations doc)
         
         ;; this gives us the load-profile for the plant
         ;; which we now need to merge with fuel profiles
         ;; to get the final input for the supply model
         ;; that has the form
-        
+
         ;; {day => {frequency, [heat demand], [grid offer], fuel {:price, :co2 etc}}}
         input-profile
         (into
@@ -91,6 +93,11 @@
              :divisions   d
              :heat-demand (de-sparsify (:values (get plant-load day-type)) d)
              :grid-offer  (de-sparsify (get grid-offer day-type) d)
+             :substation-load-kw
+             (into
+              {}
+              (for [[substation-id {:keys [load-kw]}] substations]
+                [substation-id (de-sparsify (get load-kw day-type) d)]))
              ;; fuel type in the document goes
              ;; {fuel id => {:values => {day type => [vals]}}}
              ;; but we want {day type => {:fuel => {fuel id => [vals]}}}
@@ -108,7 +115,7 @@
         
         plant-options   (::supply/plants doc)
         storage-options (::supply/storages doc)
-        substations     (::supply/substations doc)
+
 
         objective-params (::supply/objective doc)
         

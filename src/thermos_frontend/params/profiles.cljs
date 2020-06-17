@@ -195,6 +195,7 @@
 
                      heat-profiles (reagent/cursor doc [::supply/heat-profiles])
                      fuels         (reagent/cursor doc [::supply/fuels])
+                     substations   (reagent/cursor doc [::supply/substations])
 
                      grid-offer    (reagent/cursor doc [::supply/grid-offer])
                      
@@ -243,6 +244,28 @@
                                :nox   (zeroes)
                                }))
 
+                     substation-load-block
+                     (fn [{:keys [today]}]
+                       [tabular-block
+                        {:columns (:divisions (get @day-types today) 1)
+                         :scale (/ 1000.0)
+                         :data @substations
+                         :row-label
+                         (fn [sub-id sub-data]
+                           (:name sub-data (str "Substation " sub-id)))
+                         :cell-values
+                         (fn [sub-data]
+                           (get (:load-kw sub-data) today))
+                         :on-change
+                         (fn [sub-id hh val]
+                           (swap! substations
+                                  assoc-in-v
+                                  [sub-id :load-kw today hh] val))
+                         }
+                        
+                        ]
+                       )
+                     
                      heat-profile-block
                      (fn [{:keys [today]}]
                        [tabular-block
@@ -347,6 +370,12 @@
         [fuel-block {:key :pm25 :today today
                      :scale (candidate/emissions-factor-scales :pm25)
                      }]
+
+
+        (when (seq @substations)
+          [:<>
+           [:h1.card-header {:style {:margin-top :1em}} "Substation load — MW"]
+           [substation-load-block {:today today}]])
         
         ])
      ]))
