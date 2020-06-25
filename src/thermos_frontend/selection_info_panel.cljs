@@ -213,8 +213,12 @@
                                 (cond
                                   (or (= x "network") (= x "impossible"))
                                   x
+                                  
+                                  (= x "no") "no"
+                                  
                                   (.endsWith x "(existing)")
                                   "no"
+                                  
                                   true "individual")]))
                   ]
                  ["Coincidence" nil (num ::solution/diversity rmean "%" 100)]
