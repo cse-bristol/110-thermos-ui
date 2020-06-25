@@ -1,4 +1,15 @@
-[{:title "14th April 2020"
+[{:title "24th June 2020"
+  :changes
+  [{:title "Supply model"
+    :summary
+    [:div "THERMOS now includes a network supply model, which can model heat supply in more detail."]}
+
+   {:title "Required paths"
+    :summary
+    [:div "Required paths now have some meaning to the optimiser. "
+     "It is still possible that a required path will not be included in a solution, if the alternative chosen is cheaper including the cost of digging up the required path."]}]}
+ 
+ {:title "14th April 2020"
   :changes [{:title "Model improvements"
              :summary
              [:ul
