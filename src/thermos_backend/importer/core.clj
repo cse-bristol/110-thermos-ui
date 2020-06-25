@@ -7,6 +7,7 @@
             [clojure.set :as set]
             [clojure.java.io :as io]
             [org.tobereplaced.nio.file :as nio]
+            [mount.core :refer [defstate]]
 
             [thermos-importer.geoio :as geoio]
             [thermos-importer.overpass :as overpass]
@@ -150,6 +151,7 @@
                   (with-open [r (io/reader file)]
                     (first (csv/read-csv r :separator \tab))))})))))
 
-(queue/consume :imports (config :importer-count 4) run-import-and-store)
-
+(defstate consumer
+  :start
+  (queue/consume :imports (config :importer-count 4) run-import-and-store))
 
