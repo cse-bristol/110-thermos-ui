@@ -37,7 +37,7 @@
        (map (fn [[k v]] [(keywordize k) v]))
        (into {})))
 
-(defn- read-strings [config defaults]
+(defn- read-strings [defaults config]
   (reduce-kv
    (fn [a k v]
      (if (and (string? v)
