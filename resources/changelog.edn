@@ -7,7 +7,12 @@
    {:title "Required paths"
     :summary
     [:div "Required paths now have some meaning to the optimiser. "
-     "It is still possible that a required path will not be included in a solution, if the alternative chosen is cheaper including the cost of digging up the required path."]}]}
+     "It is still possible that a required path will not be included in a solution, if the alternative chosen is cheaper including the cost of digging up the required path."]}
+
+   {:title "Category & Address editing"
+    :summary [:div "You can now change the category and name/address for things on the map through the candidate editor (the " [:b "e"] " key)."]
+    }
+   ]}
  
  {:title "14th April 2020"
   :changes [{:title "Model improvements"
