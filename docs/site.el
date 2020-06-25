@@ -91,6 +91,8 @@ attributes are not supported \(see `org-export-read-attribute')."
          )))
   (org-publish-project "docs" t))
 
+(kill-emacs)
+
 (when nil
   (let ((org-export-with-date nil)
         (org-latex-packages-alist
