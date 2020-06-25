@@ -12,6 +12,8 @@
             [thermos-frontend.editor-state :as state]
             [thermos-frontend.inputs :as inputs]
             [thermos-frontend.format :as format]
+            [thermos-frontend.util :refer [target-value]]
+            [clojure.string :as string]
 
             [reagent.core :as reagent]
             [clojure.set :as set]))
@@ -308,6 +310,64 @@
              ]))]
         ])]))
 
+(defn- category-editor [candidates state]
+  (reagent/with-let [group-by-key (reagent/cursor state [:group-by])
+                     *values (reagent/cursor state [:values])
+                     group-by-options
+                     (assoc group-by-options
+                            ::candidate/type
+                            "Type")
+                     ]
+    [:div
+     (when (seq (rest candidates))
+       [:div [:b "Edit candidates by "]
+        [inputs/select {:value-atom group-by-key :values group-by-options
+                        }]])
+
+     (let [group-by-key @group-by-key]
+       [:table.table.table--alternating {:style {:max-height :400px :overflow-y :auto}}
+        [:thead
+         [:tr
+          [:th (group-by-options group-by-key)]
+          [:th "New Category"]
+          [:th "New Name"]]]
+        
+        [:tbody
+         (let [values @*values
+               values (get values group-by-key)]
+           (for [[k cands] (group-by group-by-key candidates)]
+             [:tr {:key (or k "nil")}
+              [:td (or k (nil-value-label group-by-key))]
+              [:td [inputs/text {:style {:width :100%}
+                                 :placeholder
+                                 (-> values (get k) :category :placeholder)
+                                 :value
+                                 (-> values (get k) :category :value)
+                                 :on-change
+                                 #(swap! *values
+                                         assoc-in
+                                         [group-by-key k :category :value]
+                                         (target-value %))
+                                 
+                                 }]]
+              [:td [inputs/text {:style {:width :100%}
+                                 :placeholder
+                                 (-> values (get k) :name :placeholder)
+                                 :value
+                                 (-> values (get k) :name :value)
+                                 :on-change
+                                 #(swap! *values
+                                         assoc-in
+                                         [group-by-key k :name :value]
+                                         (target-value %))
+                                 }]]
+              ]
+             ))]
+        ])
+     ]
+    )
+  )
+
 (defn- mean [vals]
   (if (empty? vals)
     0
@@ -389,6 +449,54 @@
 
                   (into {}))])
           (into {}))}))
+
+(defn- initial-category-state [candidates]
+  {:group-by ::candidate/subtype
+   :values
+   (->> (for [k (keys group-by-options)]
+          [k (->> candidates
+                  (group-by k)
+                  (map (fn [[k v]]
+                         [k {:category {:placeholder
+                                        (->> v
+                                             (map ::candidate/subtype)
+                                             (remove string/blank?)
+                                             (set)
+                                             (string/join ", "))
+                                        
+                                        }
+                             :name {:placeholder
+                                    (->> v
+                                         (map ::candidate/name)
+                                         (remove string/blank?)
+                                         (set)
+                                         (string/join ", "))}
+                             }]))
+                  (into {})
+                  )])
+        (into {}))})
+
+(defn- apply-category-state  [document category-state candidate-ids]
+  (let [{group :group-by values :values} category-state
+        values (get values group)]
+    (document/map-candidates
+     document
+
+     (fn [candidate]
+       (let [group (group candidate)
+             {{new-category :value} :category
+              {new-name :value} :name}
+             (get values group)]
+         (cond-> candidate
+           new-category
+           (assoc ::candidate/subtype new-category
+                  ::candidate/modified true)
+
+           new-name
+           (assoc ::candidate/name new-name
+                  ::candidate/modified true))))
+
+     candidate-ids)))
 
 (defn- apply-path-state [document path-state path-ids]
   (let [{group :group-by values :values} path-state]
@@ -596,6 +704,8 @@
                      alternatives (sort-by first (::document/alternatives @document))
                      min-pipe-diameter (* 1000
                                           (::document/minimum-pipe-diameter document 0.02))
+
+                     category-state (reagent/atom (initial-category-state candidates))
                      ]
 
     [:div.popover-dialog.popover-dialog--wide
@@ -633,7 +743,12 @@
               
               ~(when (seq paths)
                  [:paths "Paths"
-                  [path-editor civils min-pipe-diameter path-state paths]])]
+                  [path-editor civils min-pipe-diameter path-state paths]])
+
+              ~[:category "Names & Categories"
+                [category-editor candidates category-state]
+                ]
+              ]
             )]
        (if (seq (rest tabs))
          (reagent/with-let [active-tab (reagent/atom (first (first tabs)))]
@@ -665,6 +780,9 @@
                                       (apply-demand-state     @demand-state     (map ::candidate/id buildings))
                                       (apply-tariff-state     @tariff-state     (map ::candidate/id buildings))
                                       (apply-technology-state @technology-state (map ::candidate/id buildings))
+                                      (apply-category-state @category-state
+                                                            (map ::candidate/id candidates))
+                                      
                                       
                                       
                                       ))
