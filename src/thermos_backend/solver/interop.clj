@@ -1139,7 +1139,8 @@
     (solve label instance :remove-temporary-files remove-temporary-files)
 
     (catch Throwable ex
-      (log/error "Uncaught exception solving network problem" ex)
+      (util/dump-error ex "Error running network problem"
+                       :type "network" :data instance)
       (-> instance
           (document/remove-solution)
           (assoc ::solution/state :uncaught-error

@@ -8,7 +8,7 @@
             [thermos-specs.supply :as supply]
             [lp.scip :as scip]
             [clojure.tools.logging :as log]
-            [thermos-util :as util]))
+            [thermos-backend.util :refer [dump-error]]))
 
 (defn- de-sparsify [values divisions]
   {:pre [(or (map? values)
@@ -157,7 +157,8 @@
   (try
     (solve label doc)
     (catch Throwable ex
-      (log/error "Uncaught exception solving supply problem" ex)
+      (dump-error ex "Error solving supply problem"
+                  :type "supply" :data doc)
       (-> doc
           (dissoc ::solution/supply-solution)
           (assoc ::solution/supply-solution

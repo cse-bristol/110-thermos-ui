@@ -27,4 +27,6 @@
  :base-url ""
 
  :restart-running-jobs false
+
+ :error-dumps "error-dumps"
  }
