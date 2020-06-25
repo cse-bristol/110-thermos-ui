@@ -8,7 +8,6 @@
             [thermos-specs.supply :as supply]
             [lp.scip :as scip]
             [clojure.tools.logging :as log]
-
             [thermos-util :as util]))
 
 (defn- de-sparsify [values divisions]
@@ -16,7 +15,6 @@
              (nil? values)
              (list? values)
              (vector? values))]}
-  
   (cond
     (map? values)
     (vec (for [i (range divisions)] (get values i 0)))
@@ -39,7 +37,8 @@
                 (vals (::document/candidates doc)))
 
         demands  (filter candidate/is-connected? solution-buildings)
-        supplies (filter candidate/supply-in-solution? solution-buildings)        
+        supplies (filter candidate/supply-in-solution? solution-buildings)
+        
         mode     (document/mode doc)
         
         supply (first supplies)
@@ -49,7 +48,8 @@
         fuels         (::supply/fuels doc)
         grid-offer    (::supply/grid-offer doc)
         
-        default-profile-id (document/minimum-key heat-profiles)
+        default-profile-id (or (::supply/default-profile doc)
+                               (document/minimum-key heat-profiles))
         
         ;; we have load profiles across buildings, which we want to
         ;; merge

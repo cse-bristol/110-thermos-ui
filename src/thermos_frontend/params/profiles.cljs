@@ -198,6 +198,7 @@
                      substations   (reagent/cursor doc [::supply/substations])
 
                      grid-offer    (reagent/cursor doc [::supply/grid-offer])
+                     default-profile (reagent/cursor doc [::supply/default-profile])
                      
                      zeroes (fn [] ;; a block of zeroes suitable for current day types
                               (let [day-types @day-types]
@@ -300,6 +301,16 @@
                      ]
     
     [:div.card.flex-grow.parameters-component
+     [:h1.card-header "Default profile"]
+     [:div "This profile will be used for buildings where you have not set a profile: "
+      [inputs/select {:values
+                      (for [[profile-id {name :name}] @heat-profiles]
+                        [profile-id name])
+                      :value (or @default-profile (min (keys @heat-profiles)))
+                      :on-change #(reset! default-profile %)
+                      }]
+      ]
+     
      [:h1.card-header "Day types"]
      [day-type-tabs
       {:day-types @day-types :selected @selected-day-type

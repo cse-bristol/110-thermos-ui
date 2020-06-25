@@ -188,6 +188,8 @@
                        sr/MAP-VALS
                        ::profile-id
                        (sr/pred= profile-id)]
+                      sr/NONE)
+           (sr/setval [::default-profile (sr/pred= profile-id)]
                       sr/NONE))))
 
 (defn remove-day-type [d day-type-id]

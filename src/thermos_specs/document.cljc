@@ -275,10 +275,10 @@
     "Market"
     (or (::tariff/name (tariff-for-id doc tariff-id)) "None")))
 
-(defn profile-name [doc profile-id & {:keys [default-profile]}]
+(defn profile-name [doc profile-id]
   (let [heat-profiles (::supply/heat-profiles doc)
         default-profile
-        (or default-profile
+        (or (::supply/default-profile doc)
             (minimum-key heat-profiles))]
     (:name (or (get heat-profiles profile-id)
                (get heat-profiles default-profile)))))
