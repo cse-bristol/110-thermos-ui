@@ -216,7 +216,8 @@
   jobs posted on the queue."
   ([queue-name consumer] (consume queue-name 10 consumer))
   ([queue-name capacity consumer]
-   (swap! consumers assoc queue-name {:consumer consumer :capacity capacity})))
+   (when-not (zero? capacity)
+     (swap! consumers assoc queue-name {:consumer consumer :capacity capacity}))))
 
 (defn enqueue [queue-name args]
   (-> (insert-into :jobs)

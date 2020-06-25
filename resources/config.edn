@@ -8,8 +8,9 @@
  :web-server-max-age 600
  :web-server-max-body 800
 
- :solver-count 4
-
+ :solver-count 10
+ :importer-count 4
+ 
  :import-directory "import-work"
  :lidar-directory "lidar"
 
@@ -24,5 +25,5 @@
 
  :base-url ""
 
- :restart-running-jobs true
+ :restart-running-jobs false
  }

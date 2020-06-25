@@ -2,6 +2,7 @@
   (:require [thermos-backend.solver.interop :as interop]
             [thermos-backend.solver.supply :as supply-solver]
             [thermos-backend.db.projects :as projects]
+            [thermos-backend.config :refer [config]]
             [clojure.edn :as edn]
             [thermos-backend.queue :as queue]
             [mount.core :refer [defstate]]
@@ -49,4 +50,6 @@
 
 (defstate queue-consumer
   :start
-  (queue/consume :problems consume-problem))
+  (queue/consume :problems
+                 (:solver-count config 4)
+                 consume-problem))
