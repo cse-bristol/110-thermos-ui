@@ -22,7 +22,8 @@
 (defn- category-row [document valuefn candidates & {:keys [add-classes]}]
   (let [by-value (group-by valuefn candidates)
         chips (remove nil?
-                      (for [[value candidates] by-value]
+                      (for [value (sort (keys by-value))
+                            :let [candidates (get by-value value)]]
                         (when (and value (not-empty candidates))
                           [tag/component
                            {:key value
