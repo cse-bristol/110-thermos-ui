@@ -3,20 +3,19 @@
 @tag-colour: @theme-darker-blue;
 
 .tag {
-  display: inline-block;
-  font-size: 0.9em;
-  font-weight: 600;
-  line-height: 1.6em;
-  height: 2em;
-  padding: 0 6px;
-  border-radius: 15px;
-  color: #555;
-  background: #bbb;
-  margin: 4px;
-  position: relative;
-  max-width: 100%;
-
-
+    display: flex;
+    flex-direction:column;
+    font-size: 0.9em;
+    font-weight: 600;
+    line-height: 1.6em;
+    height: 2em;
+    padding: 0 6px;
+    border-radius: 15px;
+    color: #555;
+    background: #bbb;
+    margin: 4px;
+    position: relative;
+    max-width: 100%;
 }
 
 .tag.constraint.optional {
@@ -63,14 +62,14 @@
 
 .tag__body {
   padding: 0.2em 0.2em;
-  display: inline-block;
+//  display: inline-block;
   margin: 0 20px 0 30px;
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
   height: 2em;
   line-height: 1.6em;
-  max-width: calc(~"100% - 50px");
+//  max-width: calc(~"100% - 50px");
   cursor: pointer;
   &:hover {
     color: #292929;
