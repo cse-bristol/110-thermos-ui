@@ -701,6 +701,8 @@
                 (update :buildings geoio/update-features :add-areas add-areas)))
           
           (catch Exception e
-            (log/error e "Error during import: ")
+            (util/dump-error
+             e "Error during import"
+             :type "import" :data {:parameters parameters :map-id map-id})
             (throw e) ;; so the job gets marked failed
             ))))))
