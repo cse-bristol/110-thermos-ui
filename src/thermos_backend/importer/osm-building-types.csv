@@ -19,7 +19,7 @@ landuse,,
 
 (defn- remap-building-type
   "OSM has quite a fine-grained classification using lots of key/value pairs.
-  We just have a single classification field, which we want to make consistent.
+  We just have a single category field, which we want to make consistent.
 
   For now, we have a list of rules in the adjacent osm-building-types.csv.
   Each row in there gives a single tag/value pair, which produces a single subtype.

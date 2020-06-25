@@ -783,7 +783,7 @@
     :doc
     [:span "An identifier - these are stored on the roads in the database and visible in downloaded GIS files."]}
    
-   {:value :subtype :label "Classification (text)"
+   {:value :subtype :label "Category (text)"
     :doc
     [:span "Text describing the type of road; this can be whatever you want, and is visible in the network editor."]}
 
@@ -873,7 +873,7 @@
     :doc
     [:span "An identifier - these are stored on the buildings in the database and visible in downloaded GIS files."]}
    
-   {:value :subtype :label "Classification (text)"
+   {:value :subtype :label "Category (text)"
     :doc
     [:span "Text describing the type of building; this can be whatever you want, and is visible in the network editor."]}
 

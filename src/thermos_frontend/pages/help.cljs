@@ -138,7 +138,7 @@
             [:td {:style {:width :100px}} "Type"]
             [:td " Demand, supply or path. By default, all candidates which are buildings are deemed to be ‘demand’, although the user can switch this to ‘supply’ by right-clicking on the building in the map and selecting ‘supply point(s)’. This is denoted by white hatched lines within the building polygon. In a similar way, buildings classed as ‘supply’ can be switched back to ‘demand’. Note that the term ‘path’ usually refers to a residential street or connector i.e. connection routes between buildings."]]
            [:tr
-            [:td "Classification"]
+            [:td "Category"]
             [:td "Residential, retail, commercial offices, industrial, building connection + many others)."]]
            [:tr
             [:td "Constraint"]
@@ -181,7 +181,7 @@
             [:td "(Only for buildings). "
              "Estimates the peak demand (Wp) for each candidate building."]]]]
          [:p
-          "The selected candidates shown in the Candidate Selection Form can be further filtered by selecting or removing the individual sub-groups shown in the above list. For example, where multiple ‘Classifications‘ are shown (e.g. residential, industrial and retail), clicking on the word ‘residential’ will then select this candidate sub-group and remove all others. Alternatively, clicking on the cross in any candidate sub-group will remove it from the selection. "]
+          "The selected candidates shown in the Candidate Selection Form can be further filtered by selecting or removing the individual sub-groups shown in the above list. For example, where multiple ‘Categories‘ are shown (e.g. residential, industrial and retail), clicking on the word ‘residential’ will then select this candidate sub-group and remove all others. Alternatively, clicking on the cross in any candidate sub-group will remove it from the selection. "]
 
          [:h4 "Table of Network Candidates"]
          [:p

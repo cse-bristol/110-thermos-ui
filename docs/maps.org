@@ -127,10 +127,10 @@ The first step here is to create GIS files which contain the data you want in a 
 So, for example, to import your GIS data you might want to:
 
 - Find a GIS file of building outline polygons for the buildings in the area
-- Create a building classification column in that file, so that each building has a descriptive classification that you are happy with
+- Create a building category column in that file, so that each building has a descriptive category that you are happy with
 - Create a known demand column in that file, if you know the demand for some buildings, and enter the known demands in kWh/yr
 - Create a height column in that file, if you know building heights, entering them in metres
-- Create a separate benchmarks file in your spreadsheet program, giving benchmark terms for each classification that you want to apply a benchmark for. Save this out as a comma- or tab- separated file.
+- Create a separate benchmarks file in your spreadsheet program, giving benchmark terms for each category that you want to apply a benchmark for. Save this out as a comma- or tab- separated file.
 
 Preparing data like this can be quite time consuming - good GIS tools are very helpful for this kind of work. We recommend [[https://www.qgis.org/][qgis]] as a free GIS that is reasonably easy to use, and [[https://spatialite.org/][Spatialite]] as a slightly more complicated tool which is useful for automating the curation of data if you know a bit of SQL.
 
@@ -225,7 +225,7 @@ There are three conditions a building can be in with respect to the paths:
    In this case, the path is split into two where it enters and exits the building, and each of those ends is considered to be connected to the building.
 3. The building doesn't touch any paths in the input.
 
-   In this case, the application will introduce a new path to try and connect the building to an existing path. These extra paths are the ones given the classification /Connector/ in the map.
+   In this case, the application will introduce a new path to try and connect the building to an existing path. These extra paths are the ones given the category /Connector/ in the map.
 
    At the moment this is done by finding the closest existing path to the building, and then drawing the shortest straight line between the two. This will sometimes split the existing path, introducing a new junction.
 

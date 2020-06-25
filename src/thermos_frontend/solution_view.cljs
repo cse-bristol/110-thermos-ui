@@ -303,7 +303,7 @@
          [:li.tabs__page {:key :demands :class (when (= @active-tab :demands) "tabs__page--active")}
           [:table.table.table--hover {:style {:max-width :900px}}
            [unit-header
-            ["Classification"]
+            ["Category"]
             ["Count"]
             ["Capacity" "W"]
             ["Demand" "Wh/yr"]

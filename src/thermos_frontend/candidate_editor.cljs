@@ -23,7 +23,7 @@
 ;; should be scenario global.
 
 (def group-by-options {::candidate/name "Name"
-                       ::candidate/subtype "Classification"
+                       ::candidate/subtype "Category"
                        ::candidate/type "Nothing"})
 
 (def nil-value-label {::candidate/name "None"

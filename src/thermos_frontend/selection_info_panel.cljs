@@ -102,7 +102,7 @@
        [:div.selection-table
         (for [[row-name class contents]
               [["Type" sc-class (cat ::candidate/type nil)]
-               ["Classification" sc-class (cat ::candidate/subtype "Unclassified")]
+               ["Category" sc-class (cat ::candidate/subtype "Unclassified")]
                ["Constraint" sc-class (cat ::candidate/inclusion "Forbidden"
                                            :add-classes
                                            (fn [x] ["constraint" (name x)]))]
