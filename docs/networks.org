@@ -160,7 +160,7 @@ You can edit the cost parameters for paths in a similar way: select some paths, 
 
 Changes to these parameters belong to the network problem and do not affect the underlying map, so if you create a new problem in the same map it will not contain changes made in this way.
 
-The meaning of these parameters is described [[file:parameters.org::*Facts%20about%20pipes][here]].
+The meaning of these parameters is described [[file:parameters.org::*Facts about pipes][here]].
 
 *** Editing supply parameters
 
@@ -168,7 +168,7 @@ You can convert a building into a supply location, or edit an existing supply lo
 
 [[./img/network/edit-supply.png]]
 
-These parameters are described [[file:parameters.org::*Heat%20supply][here]].
+These parameters are described [[file:parameters.org::*Heat supply][here]].
 
 *** Keyboard shortcuts
 
