@@ -75,7 +75,7 @@ This is done in two stages:
    [[file:img/profile-shaping.png]]
    #+CAPTION: How the profile shaping parameter α can be used to flatten or sharpen a normalised shape so that it has more or less area-under-curve. Larger α pushes all but the peak towards zero, whereas greater α pulls all points up towards 1.
 
-   The required value of α is determined numerically, allowing the construction of a per-building a load profile which has a peak & average demand that reflect the values seen by the network model.
+   The required value of α is determined numerically, allowing the construction of a per-building load profile which has a peak & average demand that reflect the values seen by the network model.
 
 2. Next, for the supply, we sum all the load profiles for the buildings, and then repeat the profile deformation process so that the resulting peak and average demand equal the values predicted by the network model for the supply point.
 
@@ -127,7 +127,7 @@ Fuel costs are incurred by plant when it operates; for each plant, in every time
 Emissions costs are similar, except with an additional time-varying emissions factor for the fuel:
 
 \[
-\sum_{t\in T, e \in Eq} \frac{\text{output}_t}{\text{efficiency}} \times \text{factor}_{t,e} \times \text{weight}_t \times \text{unit cost}_e
+\sum_{t\in T, e \in E} \frac{\text{output}_t}{\text{efficiency}} \times \text{factor}_{t,e} \times \text{weight}_t \times \text{unit cost}_e
 \]
 
 where $e$ is an emissions type (CO_2, NO_X, ...) from the set of modelled emissions types $E$

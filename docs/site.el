@@ -1,6 +1,7 @@
 (require 'org)
 
 (defun y-or-n-p (&rest) t)
+(setq org-confirm-babel-evaluate nil)
 
 (defun org-latex--skip-video (o link info)
   (let* ((path (let ((raw-path (org-element-property :path link)))
