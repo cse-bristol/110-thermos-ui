@@ -85,6 +85,8 @@
       
       2 {:name   "Flat"
          :demand (flat 1.0)}}
+
+     :thermos-specs.supply/default-profile 0
      
      :thermos-specs.supply/fuels
      {0 {:name  "Electricity"
