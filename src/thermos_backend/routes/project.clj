@@ -122,7 +122,7 @@
   (auth/verify [:modify :project project-id]
     (let [files (if (vector? file) file [file])
           ident (str (java.util.UUID/randomUUID))
-          target-dir (io/file (:import-directory config) ident)]
+          target-dir (io/file (config :import-directory) ident)]
       
       (.mkdirs target-dir)
 

@@ -4,9 +4,10 @@
  :pg-db "thermos"
  :force-migrate false
  
- :web-server-port "8080"
+ :web-server-port 8080
  :web-server-max-age 600
  :web-server-max-body 800
+ :web-server-enabled true
 
  :solver-count 10
  :importer-count 4

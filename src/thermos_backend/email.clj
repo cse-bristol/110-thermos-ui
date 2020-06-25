@@ -11,20 +11,20 @@
 (defn- send-message [message progress]
   (let [smtp-config
         (cond-> {}
-          (:smtp-host config)
-          (assoc :host (:smtp-host config))
-          (:smtp-port config)
-          (assoc :port (Integer/parseInt (:smtp-port config)))
+          (config :smtp-host)
+          (assoc :host (config :smtp-host))
+          (config :smtp-port)
+          (assoc :port (config :smtp-port))
           (:smtp-user config)
-          (assoc :user (:smtp-user config))
+          (assoc :user (config :smtp-user))
           (:smtp-password config)
-          (assoc :pass (:smtp-password config))
+          (assoc :pass (config :smtp-password))
           (:smtp-ssl config)
-          (assoc :ssl (= "true" (:smtp-ssl config)))
+          (assoc :ssl (config :smtp-ssl))
           (:smtp-tls config)
-          (assoc :tls (= "true" (:smtp-tls config))))
+          (assoc :tls (config :smtp-tls)))
         
-        message (assoc message :from (:smtp-from-address config))]
+        message (assoc message :from (config :smtp-from-address))]
     
     (try (postal/send-message smtp-config message)
          (catch Exception e
@@ -36,7 +36,7 @@
 (queue/consume :emails send-message)
 
 (defn- format-token [token]
-  (str (:base-url config) "/token/" token))
+  (str (config :base-url) "/token/" token))
 
 (defn send-password-reset-token [user token]
   (queue-message
@@ -89,5 +89,5 @@
 You are receiving this message because you have an account on THERMOS.
 You change your settings at %s/settings to unsubscribe from any message like this."
                   message
-                  (:base-url config))}))
+                  (config :base-url))}))
 

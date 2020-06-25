@@ -51,5 +51,5 @@
 (defstate queue-consumer
   :start
   (queue/consume :problems
-                 (:solver-count config 4)
+                 (config :solver-count 4)
                  consume-problem))

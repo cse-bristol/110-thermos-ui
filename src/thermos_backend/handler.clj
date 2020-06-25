@@ -37,7 +37,7 @@
             (when-let [response (handler request)]
               (cache-control/no-store response))))
 
-      (let [max-age (Integer/parseInt (config :web-server-max-age))]
+      (let [max-age (config :web-server-max-age)]
         (fn [request]
           (when-let [response (handler request)]
             (cache-control/public response :max-age max-age)))))))
