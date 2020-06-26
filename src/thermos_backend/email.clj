@@ -4,7 +4,8 @@
             [thermos-backend.config :refer [config]]
             [clojure.tools.logging :as log]
             [thermos-backend.queue :as queue]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [mount.core :refer [defstate]]))
 
 ;; emails are processed on the queue - no idea if this is good
 
@@ -33,7 +34,10 @@
 (defn- queue-message [message]
   (queue/enqueue :emails message))
 
-(queue/consume :emails send-message)
+(defstate mail-queue
+  :start
+  (when (config :smtp-enabled)
+    (queue/consume :emails send-message)))
 
 (defn- format-token [token]
   (str (config :base-url) "/token/" token))

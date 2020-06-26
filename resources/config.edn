@@ -9,24 +9,23 @@
  :web-server-max-body 800
  :web-server-enabled true
 
- :solver-count 10
- :importer-count 4
- 
- :import-directory "import-work"
- :lidar-directory "lidar"
-
  :smtp-host ""
  :smtp-port 25
  :smtp-tls true
  :smtp-ssl false
-
  :smtp-user ""
  :smtp-password ""
  :smtp-from-address ""
+ :smtp-enabled true
 
  :base-url ""
 
  :restart-running-jobs false
 
+ :solver-count 10
+ :importer-count 4
+ 
+ :import-directory "import-work"
+ :lidar-directory "lidar"
  :error-dumps "error-dumps"
  }
