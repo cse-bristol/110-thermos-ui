@@ -265,7 +265,7 @@
   (if (= :market tariff-id)
     tariff-id
     (let [tariffs (::tariffs doc)]
-      (when tariffs
+      (when (seq tariffs)
         (or (get tariffs tariff-id)
             (get tariffs
                  (reduce min (keys tariffs))))))))
@@ -302,7 +302,7 @@
 
 (defn connection-cost-for-id [doc connection-cost-id]
   (let [connection-costs (::connection-costs doc)]
-    (when connection-costs
+    (when (seq connection-costs)
       (or (get connection-costs connection-cost-id)
           (get connection-costs
                (reduce min (keys connection-costs)))))))
