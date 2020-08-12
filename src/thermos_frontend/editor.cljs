@@ -38,7 +38,8 @@
             [goog.math :refer [Size]]
             [goog.functions :refer [debounce]]
             [thermos-frontend.util :refer [target-value]]
-            
+
+            [thermos-frontend.flow]
 
             [re-com.core :as rc]))
 
@@ -61,7 +62,7 @@
           (toaster/show! [:div.toaster.toaster--success "Project saved"]))))))
 
 
-(defn map-page [doc]
+(defn map-page [doc flow]
   (r/with-let [h-split-pos (r/cursor doc
                                      [::view/view-state
                                       ::view/map-page-h-split]
@@ -86,14 +87,14 @@
                      :initial-split (or @h-split-pos 60)
                      :on-split-change #(reset! h-split-pos %)
                      :margin "0"
-                     :panel-1 [:div.map-container [map/component doc]
+                     :panel-1 [:div.map-container [map/component doc flow]
                                [view-control/component doc]]
-                     :panel-2 [selection-info-panel/component doc]
+                     :panel-2 [selection-info-panel/component flow]
 
                      ]
            :panel-2 [:div
                      {:style {:width :100%}}
-                     [network-candidates-panel/component doc]
+                     [network-candidates-panel/component flow]
                      ]
            
            ])
@@ -297,7 +298,7 @@
 
         (cond
           (= selected-tab :candidates)
-          [map-page state/state]
+          [map-page state/state state/flow]
 
           (= selected-tab :parameters)
           [objective/objective-parameters state/state]

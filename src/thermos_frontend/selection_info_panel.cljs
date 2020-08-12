@@ -15,11 +15,13 @@
             [thermos-frontend.format :refer [si-number local-format]]
             [thermos-util :refer [annual-kwh->kw]]
             [thermos-frontend.format :as format]
-            [thermos-frontend.inputs :as inputs]))
+            [thermos-frontend.inputs :as inputs]
+            [thermos-frontend.flow :as flow]
+            ))
 
 (declare component)
 
-(defn- category-row [document valuefn candidates & {:keys [add-classes]}]
+(defn- category-row [flow valuefn candidates & {:keys [add-classes]}]
   (let [by-value (group-by valuefn candidates)
         chips (remove nil?
                       (for [value (sort (keys by-value))
@@ -32,25 +34,26 @@
                             :count (count candidates)
                             :body value
                             :close true
-                            :on-select #(state/edit! document
-                                                     operations/select-candidates
-                                                     (map ::candidate/id candidates)
-                                                     :replace)
-                            :on-close #(state/edit! document
-                                                    operations/deselect-candidates
-                                                    (map ::candidate/id candidates))
+                            :on-select #(flow/fire!
+                                         flow
+                                         [:select-ids (map ::candidate/id candidates)])
+                            
+                            :on-close #(flow/fire!
+                                        flow
+                                        [operations/deselect-candidates
+                                         (map ::candidate/id candidates)])
                             }])))
         ]
     chips))
 
 (defn component
   "The panel in the bottom right which displays some information about the currently selected candidates."
-  [document]
-  (reagent/with-let [capital-mode (reagent/atom :principal)
-                     model-mode   (reagent/track #(document/mode @document))
-                     ]
-
-    (let [model-mode @model-mode
+  [flow]
+  (reagent/with-let [capital-mode (reagent/atom :principal)]
+    (let [model-mode @(flow/view* flow document/mode)
+          has-solution @(flow/view* flow document/has-solution?)
+          selected-candidates @(flow/view* flow operations/selected-candidates)
+          document flow
           
           mode-name (case model-mode :cooling "Cold" "Heat")
 
@@ -70,12 +73,9 @@
                                   (candidate/peak-demand % model-mode))
                        nil)
           
-          has-solution (document/has-solution? @document)
-          selected-candidates (operations/selected-candidates @document)
-          
           sc-class "selection-table-cell--tag-container"
           cat (fn [k u & {:keys [add-classes]}]
-                (category-row document #(or (k %) u) selected-candidates
+                (category-row flow #(or (k %) u) selected-candidates
                               :add-classes add-classes))
 
           num (fn [k agg unit & [scale]]

@@ -2,6 +2,9 @@
   (:require [clojure.string :as string]
             [clojure.test :as test]))
 
+(defn count-if [coll pred]
+  (reduce (fn [a v] (if (pred v) (inc a) a)) 0 coll))
+
 (defn assoc-by
   "Given a sequence `s` and a function `f`, returns a map from (f x) to
   x for each x in s. If there are multiple x in s with same (f x), the
