@@ -17,6 +17,7 @@
 
             [thermos-frontend.operations :as operations]
             [thermos-frontend.flow :as flow]
+            [thermos-frontend.events :as events]
             ))
 
 (defonce save-state
@@ -69,34 +70,10 @@
            :east  (:x-max bounds)
            :west  (:x-min bounds)}))))))
 
-(defmulti ui-event
-  (fn [_ event]
-    (if
-      (keyword? (first event))
-      (first event)
-      ::apply)))
-
-(defmethod ui-event ::apply
-  [state [f & args]]
-  (apply f state args))
-
-(defmethod ui-event :select-all
-  [state _]
-  (operations/select-all-candidates state))
-
-(defmethod ui-event :select-ids
-  [state [_ ids method]]
-  (operations/select-candidates state ids (or method :replace)))
-
-(defmethod ui-event :default
-  [state e]
-  (println "UNKNOWN UI EVENT:" e)
-  state)
-
 (def flow
   (flow/create-root
    {:state state
-    :handler ui-event}))
+    :handler events/handle}))
 
 (set! js/thermos_initial_state nil)
 

@@ -37,8 +37,52 @@
       {}
       (for [e candidate/emissions-types]
         [e (reagent/cursor document [::document/pumping-emissions e])]))
+
+
+     costs-table
+     (reagent/atom
+      {:diameter        [30  50  150 200 400 500 800]
+       :mechanical-cost [100 200 300 400 600 800 900]
+       :civil-cost   {0 {:name "Soft" :cost [100 200 300 400 600 800 900]}
+                      1 {:name "Hard" :cost [150 250 400 500 600 804 900]}}
+       
+       }
+      )
      ]
     [:div
+     [:div.card
+      [:b "Pipe costs"]
+      [:table
+       [:thead
+        [:tr
+         [:th "NB (mm)"]
+         [:th "Capacity (kWp)"]
+         [:th "Losses (kWh/m.yr)"]
+         [:th "Pipe cost (¤/m)"]
+         (for [[cid cc] (:civil-cost @costs-table)]
+           [:th [inputs/text {:value (:name cc)}] " (¤/m)"])
+         ]
+        ]
+       [:tbody
+        (for [[i dia] (map-indexed vector (:diameter @costs-table))]
+          [:tr {:key i}
+           [:td [inputs/number {:value dia :min 10 :max 3000}]]
+           [:td "x"]
+           [:td "x"]
+           [:td [inputs/number {:value (nth (:mechanical-cost @costs-table) i)
+                                :min 0 :max 1000
+                                }]]
+           (for [[cid cc] (:civil-cost @costs-table)]
+             [:td [inputs/number {:value (nth (:cost cc) i)
+                                  :min 0 :max 1000
+                                  }]]
+             )
+           ]
+          )
+        ]
+       ]
+      ]
+
      [:div.card
       [:b "Temperatures and limits"]
       [:p "These parameters affect pipe heat losses and the relationship between diameter and power delivered."]
@@ -88,82 +132,6 @@
            " "
            (name e))))]]
      
-     [:div.card
-      [:b "Mechanical engineering costs"]
-      [:p "These parameters apply to every pipe, and cover the cost of buying the flow and return pipes, welding etc."]
-      [:div "Calculate mechanical engineering costs as "
-       [inputs/number {:value-atom mechanical-fixed :min 0 :max 5000 :step 1}]
-       "¤/m + ("
-       [inputs/number {:value-atom mechanical-variable :min 0 :max 5000 :step 0.1}]
-       "× ⌀/m)"
-       [:sup [inputs/number {:value-atom mechanical-exponent :min 0 :max 3 :step 0.01}]]
-       "/m"]]
-
-     [:div.card
-      [:div {:style {:display :flex :flex-direction :row}}
-       [:b "Civil engineering costs"]
-       [:button.button
-        {:style {:margin-left :auto}
-         :on-click
-         #(swap! civil-costs
-                 (fn [c]
-                   (let [id (inc (reduce max -1 (keys c)))]
-                     (assoc c id
-                            {::path/civil-cost-id id
-                             ::path/civil-cost-name (str "Category " (inc id))
-                             ::path/fixed-cost 0
-                             ::path/variable-cost 0}))))}
-
-        symbols/plus " Add"]
-       ]
-      [:p "These parameters can be different for each bit of pipe, and cover the cost of digging a hole, installing pipework, and back-filling."]
-      [:p "You can set the civil engineering cost category for a pipe from the map page by selecting the path and pressing " [:b "e"] ", or by right-clicking on it."]
-      (if (seq @civil-costs)
-        [:div
-         [:p "Calculate civil engineering costs as "
-          [:em "fixed cost"]
-          "¤/m + ("
-          [:em "variable cost"]
-          "× ⌀/m)"
-          [:sup [inputs/number {:value-atom civil-exponent :min 0 :max 3 :step 0.01}]]
-          "/m"]
-         
-         [:table {:style {:width :100%}}
-          [:thead
-           [:tr
-            [:th "Category"]
-            [:th "Fixed cost"]
-            [:th "Variable cost"]
-            [:th]]]
-          [:tbody
-           (for [id (sort (keys @civil-costs))]
-             [:tr {:key id}
-              [:td [inputs/text
-                    {:value (get-in @civil-costs [id ::path/civil-cost-name])
-                     :on-change #(swap! civil-costs assoc-in [id ::path/civil-cost-name] (target-value %))
-                     :placeholder "Name" :style {:width :100%}}]]
-              [:td [inputs/number {:style {:width :100%}
-                                   :value (get-in @civil-costs [id ::path/fixed-cost])
-                                   :minimum 0
-                                   :maximum 5000
-                                   :on-change #(swap! civil-costs assoc-in [id ::path/fixed-cost] %)
-                                   }]]
-              [:td [inputs/number {:style {:width :100%}
-                                   :value (get-in @civil-costs [id ::path/variable-cost])
-                                   :on-change #(swap! civil-costs assoc-in [id ::path/variable-cost] %)
-                                   :minimum 0
-                                   :step 0.1
-                                   :maximum 5000
-                                   }]]
-              [:td [:button.button
-                    {:on-click #(swap! document document/remove-civils id)}
-                    symbols/dustbin]]
-              ])
-           ]
-          ]]
-        [:p "At the moment you have no civil engineering costs defined, so pipes will only have mechanical engineering costs. To define some costs, click 'Add'."]
-        )
-      
-      ]
+     
      ])
   )
