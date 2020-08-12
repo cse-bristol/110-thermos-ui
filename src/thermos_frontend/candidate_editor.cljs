@@ -204,6 +204,8 @@
           (when-not group-by-nothing
             [:th (group-by-options group-by-key)])
           [:th.align-right "Count"]
+          
+          [:th "Connections"]
           [:th {:style {:min-width :140px}} "Demand " (if benchmarks [:small "(kWh/m2 yr)"] [:small "(MWh/yr)"])]
           [:th "Peak " (if benchmarks [:small "(kW/m2)"] [:small "(kW)"])]
           [:th.has-tt {:title "This affects the supply model, not the network model."} "Profile"]
@@ -219,6 +221,19 @@
                 [:td (or k (nil-value-label group-by-key))])
               [:td.align-right (count cands)]
 
+              [:td [inputs/check-number
+                    {:key :connection-count
+                     :max 1000
+                     :min 1
+                     :step 1
+                     :style {:max-width :5em}
+                     :value-atom
+                     (reagent/cursor values [group-by-key k :connection-count :value])
+                     :check-atom
+                     (reagent/cursor values [group-by-key k :connection-count :check])
+                     }
+                    ]]
+              
               [:td [inputs/check-number
                     {:key demand-key
                      :max 1000
@@ -419,6 +434,7 @@
                            [k (merge
                                {:demand {:value (mean (map annual-demand v))}
                                 :tariff (unset? (map ::tariff/id v))
+                                :connection-count {:value (int (mean (map ::demand/connection-count v)))}
                                 :profile (unset? (map ::supply/profile-id v))
                                 :connection-cost (unset? (map ::tariff/cc-id v))
                                 :peak-demand {:value (mean (map peak-demand v))}
@@ -554,6 +570,7 @@
 
              {set-peak :check peak-value :value} (:peak-demand values)
              {set-demand :check demand-value :value} (:demand values)
+             {set-cc :check cc-value :value} (:connection-count values)
 
              peak-value   (if bench
                             (* (:peak-benchmark values) (::candidate/area building))
@@ -572,11 +589,13 @@
            set-demand              (assoc annual-demand demand-value)
            set-peak                (assoc peak-demand peak-value)
            set-profile             (assoc ::supply/profile-id profile)
+           set-cc                  (assoc ::demand/connection-count cc-value)
 
            ;; ensure we don't delete it since we edited it
            (or set-demand
                set-peak
-               set-profile)
+               set-profile
+               set-cc)
            (assoc ::candidate/modified true))))
      building-ids)))
 
