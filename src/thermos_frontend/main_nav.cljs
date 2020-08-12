@@ -11,6 +11,7 @@
     on-run :on-run
     unsaved :unsaved?
     hamburger :hamburger
+    read-only :read-only
     }]
   (reagent/with-let [name-text (reagent/atom name)
                      optimise-clicked (reagent/atom false)
@@ -34,55 +35,58 @@
                      :align-items :center
                      :flex 1}}
       [:h1 {:style {:margin-right :0.5em}} "THERMOS"]
-      [:input.text-input.main-nav__file-name-input
-       {:type :text :placeholder "Untitled"
-        :on-change #(reset! name-text (.. % -target -value))
-        :style {:flex 1}
-        :value @name-text
-        :ref (fn [e]
-               (reset! element e)
-               (when e
-                 (.addEventListener
-                  e "keypress"
-                  (fn [e] (.stopPropagation e))
-                  false)
-                 (when-not @name-text (.focus e))))
-        }]
+      (if read-only
+        [:b @name-text]
+        [:input.text-input.main-nav__file-name-input
+         {:type :text :placeholder "Untitled"
+          :on-change #(reset! name-text (.. % -target -value))
+          :style {:flex 1}
+          :value @name-text
+          :ref (fn [e]
+                 (reset! element e)
+                 (when e
+                   (.addEventListener
+                    e "keypress"
+                    (fn [e] (.stopPropagation e))
+                    false)
+                   (when-not @name-text (.focus e))))
+          }])
       ]
-
-     (if-not @optimise-clicked
-       [:span {:key :a :style {:display :flex :margin-left :auto}}
-        (when unsaved
-          [:button.button.button--outline.button--save-button
+     
+     (when-not read-only
+       (if-not @optimise-clicked
+         [:span {:key :a :style {:display :flex :margin-left :auto}}
+          (when unsaved
+            [:button.button.button--outline.button--save-button
+             {:style {:background "none" :border "none"}
+              :on-click #(with-name on-save)}
+             "Save"
+             ])
+          [:button.button.button--outline
            {:style {:background "none" :border "none"}
-            :on-click #(with-name on-save)}
-           "Save"
-           ])
-        [:button.button.button--outline
-         {:style {:background "none" :border "none"}
-          :on-click #(with-name click-optimise)}
-         "Optimise ▸"]]
+            :on-click #(with-name click-optimise)}
+           "Optimise ▸"]]
 
-       [:span.fade-in {:key :b :style {:display :flex :margin-left :auto}
-               :on-mouse-leave #(reset! optimise-clicked false)
-               }
-        [:button.button.button--outline
-         {:style {:background "none" :border "none"}
-          :on-click #(do
-                       (reset! optimise-clicked false)
-                       (on-run @name-text :network))}
-         "Network"]
-        [:button.button.button--outline
-         {:style {:background "none" :border "none"}
-          :on-click #(do (reset! optimise-clicked false)
-                         (on-run @name-text :supply))}
-         "Supply"]
-        [:button.button.button--outline
-         {:style {:background "none" :border "none"}
-          :on-click #(do (reset! optimise-clicked false)
-                         (on-run @name-text :both))}
-         "Both"]
-        
-        ]
-       )
+         [:span.fade-in {:key :b :style {:display :flex :margin-left :auto}
+                         :on-mouse-leave #(reset! optimise-clicked false)
+                         }
+          [:button.button.button--outline
+           {:style {:background "none" :border "none"}
+            :on-click #(do
+                         (reset! optimise-clicked false)
+                         (on-run @name-text :network))}
+           "Network"]
+          [:button.button.button--outline
+           {:style {:background "none" :border "none"}
+            :on-click #(do (reset! optimise-clicked false)
+                           (on-run @name-text :supply))}
+           "Supply"]
+          [:button.button.button--outline
+           {:style {:background "none" :border "none"}
+            :on-click #(do (reset! optimise-clicked false)
+                           (on-run @name-text :both))}
+           "Both"]
+          
+          ]
+         ))
      ]))
