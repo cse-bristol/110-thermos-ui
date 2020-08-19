@@ -5,7 +5,7 @@
 (def heat-capacity 4.18)
 (def diameter-step 0.01)
 
-(defn- kw-per-m ^double
+(defn kw-per-m ^double
   [^double diameter
    ^double delta-t
    ^double density]
@@ -154,7 +154,7 @@
    [95.0  0.96189]
    [100.0 0.95835]])
 
-(defn- water-density ^double [^double t]
+(defn water-density ^double [^double t]
   (* 1000 (linear-evaluate density-curve t)))
 
 (def ^{:arglists '([t-flow t-return min-dia max-dia])}
@@ -202,7 +202,7 @@
            (Math/pow (* mechanical-var dia-m) mechanical-expt)
            (Math/pow (* civil-var dia-m) civil-expt)))))))
 
-(defn heat-loss-w-per-kwpm ^double [^double delta-t ^double diameter]
+(defn heat-loss-w-per-m ^double [^double delta-t ^double diameter]
   (* delta-t
      (if (zero? diameter) 0 (+ (* 0.16807 (Math/log diameter)) 0.85684))))
 
@@ -218,5 +218,4 @@
   (let [sign (if (< flow return) -1.0 1.0)
         delta-t (* sign (- (/ (+ flow return) 2.0) ground))]
     (for [[kw dia] power-curve]
-      [kw (heat-loss-w-per-kwpm delta-t dia)])))
-
+      [kw (heat-loss-w-per-m delta-t dia)])))
