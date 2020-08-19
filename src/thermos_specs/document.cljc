@@ -396,3 +396,15 @@
   (if (is-cooling? doc)
     :cooling
     :heating))
+
+(defn delta-t [doc]
+  (Math/abs (- (::flow-temperature doc) (::return-temperature doc))))
+
+(defn mean-temperature [doc]
+  (/ (+ (::flow-temperature doc) (::return-temperature doc))
+     2.0))
+
+(defn delta-ground [doc]
+  (Math/abs
+   (- (mean-temperature doc)
+      (::ground-temperature doc))))
