@@ -307,7 +307,7 @@
           [tariff-parameters/tariff-parameters state/state]
 
           (= selected-tab :pipe-costs)
-          [pipe-parameters/pipe-parameters state/state]
+          [pipe-parameters/pipe-parameters state/state state/flow]
 
           (= selected-tab :insulation)
           [insulation/insulation-parameters state/state]

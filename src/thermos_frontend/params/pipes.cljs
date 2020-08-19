@@ -5,7 +5,13 @@
             [thermos-frontend.inputs :as inputs]
             [reagent.core :as reagent]
             [thermos-frontend.util :refer [target-value]]
-            [thermos-pages.symbols :as symbols]))
+            [thermos-pages.symbols :as symbols]
+            [thermos-frontend.flow :as f]
+            [thermos-util.pipes :as pipe-calcs]
+            [thermos-util :refer [kw->annual-kwh]]
+
+            [clojure.set :as set]
+            [thermos-frontend.format :as format]))
 
 ;; editor for pipe parameters
 ;; until we look at fixed costs for pipes, we are going to have:
@@ -14,7 +20,303 @@
 
 ;; it'd be nice to have some little graphs
 
-(defn pipe-parameters [document]
+(defn- match-indices [dia-index new-dias]
+  (let [new-dias      (set new-dias)
+        old-dias      (set (vals dia-index))
+        missing       (set/difference new-dias old-dias)
+        extra         (set/difference old-dias new-dias)
+        spare-indices (remove (set (map dia-index new-dias))
+                              (iterate dec -1))
+        ]
+    (loop [out      {}
+           new-dias new-dias
+           ix       spare-indices
+           ]
+
+      (let [[h & t]  new-dias]
+        (cond
+          (not h)
+          out
+          
+          (contains? old-dias h)
+          (let [i (dia-index h)]
+            (recur
+             (assoc out h i i h)
+             t ix))
+
+          true
+          (let [i (first ix)]
+            (recur
+             (assoc out h i i h)
+             t (rest ix))))))))
+
+
+
+(defn- pipe-costs-table [flow]
+  ;; this bit is a horrible thing to provide a stable rownumber for each row
+  ;; in the face of changing diameters.
+
+  ;; it ought to work, maybe maybe.
+  (reagent/with-let [indexed-table
+                     (let [dia-index (atom {})]
+                       (reagent/track
+                        #(let [pipe-costs @(f/view* flow ::document/pipe-costs)
+                               indices
+                               (swap! dia-index match-indices
+                                      (keys (:rows pipe-costs)))]
+                           (update
+                            pipe-costs
+                            :rows
+                            (fn [rows]
+                              (->>
+                               (for [[dia a] rows]
+                                 [(indices dia)
+                                  (assoc a :diameter dia)])
+                               (into {}))
+                              )))))]
+    (let [{:keys [civils rows]} @indexed-table
+          
+          delta-t     @(f/view* flow document/delta-t)
+          density     (pipe-calcs/water-density @(f/view* flow document/mean-temperature))
+          delta-ground @(f/view* flow document/delta-ground)]
+
+      [:div.card
+       [:h1.card-header "Pipe costs"]
+       [:table
+        [:thead
+         [:tr
+          [:th "NB"]
+          [:th "Capacity"]
+          [:th "Losses"]
+          [:th "Pipe cost"]
+          (when-not (empty? civils)
+            [:th {:col-span (count civils)} "Dig cost (¤/m)"])
+          [:th]
+          ]
+         [:tr
+          [:th "mm"]
+          [:th "Wp"]
+          [:th "kWh/m.yr"]
+          [:th "¤/m"]
+          (for [[cid cc] civils]
+            [:th {:key cid}
+             [:div {:style {:display :flex
+                            :max-width :6em}}
+              [inputs/text {:style
+                            {:flex-grow 1
+                             :font-weight :normal
+                             :flex-shrink 1
+                             :width 1
+                             }
+
+                            :class "square-right"
+                            :value cc
+                            :placeholder "Cost name"
+                            :on-change
+                            (fn [el]
+                              (f/fire!
+                               flow
+                               [:pipe/rename-civils
+                                cid (-> el .-target .-value)]))
+                            }]
+              [:button.button.button--outline.square-left
+               {:style {:padding 0 :border-left :none
+                        :height :30px
+                        }
+                :title "Remove column"
+                :on-click
+                #(f/fire!
+                  flow
+                  [:pipe/remove-civils cid])}
+               symbols/delete]]]
+            )
+          [:th]
+          ]
+         ]
+        [:tbody
+         (for [[ix costs] (sort-by (comp :diameter second) rows)
+               :let [dia (:diameter costs)]]
+           [:tr {:key ix}
+            
+            
+            [:td [inputs/number {:value dia :min 10 :max 3000
+                                 :style {:max-width :5em}
+                                 :on-blur
+                                 (fn [v]
+                                   (f/fire!
+                                    flow [:pipe/change-diameter dia v]))
+                                 }]]
+            [:td
+             [inputs/parsed
+              {:class "input number-input"
+               :parse
+               (fn [x]
+                 (if (= "" x) :empty
+                     (format/parse-si-number x)))
+               
+               :render
+               (fn [x]
+                 (if (= :empty x)
+                   nil
+                   (format/si-number x)))
+               
+               :value (:capacity-kwp costs)
+               :style {:max-width :5em}
+               :on-change
+               (fn [v]
+                 (f/fire!
+                  flow [:pipe/change-capacity dia
+                        (if (= :empty v) nil v)]))
+               
+               :placeholder
+               (format/si-number
+                (* 1000.0
+                   (pipe-calcs/kw-per-m
+                    (/ dia 1000.0)
+                    delta-t
+                    density)))}]]
+            
+            [:td [inputs/number {:style {:max-width :5em}
+                                 :value
+                                 (:losses-kwh costs)
+
+                                 :empty-value [nil nil]
+                                 
+                                 :placeholder
+                                 (Math/round
+                                  (kw->annual-kwh
+                                   (/ (pipe-calcs/heat-loss-w-per-m
+                                       delta-ground
+                                       (/ dia 1000.0))
+                                      1000.0)))
+                                 
+                                 :max 10000
+                                 :min 1
+
+                                 :on-change
+                                 (fn [v]
+                                   (f/fire!
+                                    flow [:pipe/change-losses dia v]))
+                                 
+                                 }]
+             ]
+            ;; mech cost
+            [:td [inputs/number {:style {:max-width :6em}
+                                 :value (:pipe costs)
+                                 :min 0 :max 1000
+                                 :on-change
+                                 (fn [v]
+                                   (f/fire!
+                                    flow [:pipe/change-cost dia v]))
+                                 }]]
+            (for [[cid cc] civils]
+              [:td {:key cid}
+               [inputs/number {:style {:max-width :6em}
+                               :value (get costs cid)
+                               :min 0 :max 1000
+                               :on-change
+                               (fn [v]
+                                 (f/fire!
+                                  flow [:pipe/change-civil-cost dia cid v]))
+                               }]]
+              )
+            
+            [:td
+             [:button.button.button--circular.button--outline
+              {:on-click #(f/fire! flow [:pipe/remove-diameter dia])
+               :title "Remove row"}
+              symbols/delete]]
+            ]
+           )
+        
+         ]
+        ]
+       [:div
+        [:button.button
+         {:on-click
+          #(let [max-dia (reduce max (map :diameter (vals rows)))]
+             (f/fire!
+              flow
+              [:pipe/add-diameter (+ max-dia 50)])
+             
+             )
+          }
+         "Add diameter"]
+        [:button.button
+         {:on-click
+          #(f/fire! flow [:pipe/add-civils (str "Cost "
+                                                (inc (count civils)))])
+          
+          }
+         "Add dig costs"]
+        ]
+       ]))
+  )
+
+(defn cost-model [flow]
+  
+  (reagent/with-let [model (reagent/atom :hot-water)]
+    [:div.card
+     [:h1.card-header "Capacity & loss model"]
+     [:div
+      [:label {:style {:font-size :1.5em}}
+       [:input {:type :radio :checked (= :hot-water @model)
+                :on-change #(reset! model :hot-water)
+                :value "cost-model"
+                }]
+       "Hot water"]
+      (when (= :hot-water @model)
+        [:div {:style {:margin-left :2em
+                       :margin-top :1em
+                       :display :grid
+                       :grid-template-columns "10em 5em auto"
+                       :gap :0.2em
+                       }}
+         [:label "Flow temperature: "]
+         [inputs/number]
+         [:label "℃"]
+         
+         [:label "Return temperature:"]
+         [inputs/number]
+         [:label "℃"]
+
+         [:label "Ground temperature:"]
+         [inputs/number]
+         [:label "℃"]
+         ])
+      ]
+     [:div
+      [:label {:style {:font-size :1.5em}}
+       [:input {:type :radio
+                :value "cost-model"
+                :checked (= :saturated-steam @model)
+                :on-change #(reset! model :saturated-steam)
+                }]
+       "Saturated steam"]
+      (when (= :saturated-steam @model)
+        [:div {:style {:margin-left :2em
+                       :margin-top :1em
+                       :display :grid
+                       :grid-template-columns "10em 5em auto"
+                       :gap :0.2em
+                       }}
+         [:label "Steam pressure: "]
+         [inputs/number]
+         [:label "bar g"]
+         
+         [:label "Flow rate: "]
+         [inputs/number]
+         [:label "m/s"]
+
+         [:label "Ground temperature:"]
+         [inputs/number]
+         [:label "℃"]
+
+         ])
+      ]
+     ]))
+
+(defn pipe-parameters [document flow]
   (reagent/with-let
     [mechanical-exponent (reagent/cursor document [::document/mechanical-cost-exponent])
      mechanical-fixed (reagent/cursor document [::document/mechanical-cost-per-m])
@@ -37,78 +339,37 @@
       {}
       (for [e candidate/emissions-types]
         [e (reagent/cursor document [::document/pumping-emissions e])]))
-
-
-     costs-table
-     (reagent/atom
-      {:diameter        [30  50  150 200 400 500 800]
-       :mechanical-cost [100 200 300 400 600 800 900]
-       :civil-cost   {0 {:name "Soft" :cost [100 200 300 400 600 800 900]}
-                      1 {:name "Hard" :cost [150 250 400 500 600 804 900]}}
-       
-       }
-      )
      ]
     [:div
-     [:div.card
-      [:b "Pipe costs"]
-      [:table
-       [:thead
-        [:tr
-         [:th "NB (mm)"]
-         [:th "Capacity (kWp)"]
-         [:th "Losses (kWh/m.yr)"]
-         [:th "Pipe cost (¤/m)"]
-         (for [[cid cc] (:civil-cost @costs-table)]
-           [:th [inputs/text {:value (:name cc)}] " (¤/m)"])
-         ]
-        ]
-       [:tbody
-        (for [[i dia] (map-indexed vector (:diameter @costs-table))]
-          [:tr {:key i}
-           [:td [inputs/number {:value dia :min 10 :max 3000}]]
-           [:td "x"]
-           [:td "x"]
-           [:td [inputs/number {:value (nth (:mechanical-cost @costs-table) i)
-                                :min 0 :max 1000
-                                }]]
-           (for [[cid cc] (:civil-cost @costs-table)]
-             [:td [inputs/number {:value (nth (:cost cc) i)
-                                  :min 0 :max 1000
-                                  }]]
-             )
-           ]
-          )
-        ]
-       ]
-      ]
+     [pipe-costs-table flow]
+     [cost-model flow]
+     ;; [:div.card
+     ;;  [:b "Temperatures and limits"]
+     ;;  [:p "These parameters affect pipe heat losses and the relationship between diameter and power delivered."]
 
-     [:div.card
-      [:b "Temperatures and limits"]
-      [:p "These parameters affect pipe heat losses and the relationship between diameter and power delivered."]
+     ;;  [:p "Use a flow temperature of "
+     ;;   [inputs/number {:value-atom flow-temperature :min 0 :max 100 :step 1}]
+     ;;   "°C, "
+     ;;   "a return temperature of "
+     ;;   [inputs/number {:value-atom return-temperature :min 0 :max 100 :step 1}]
+     ;;   "°C, and "
+     ;;   "an average ground temperature of "
+     ;;   [inputs/number {:value-atom ground-temperature :min 0 :max 20 :step 1}]
+     ;;   "°C."
+     ;;   " Allow pipes between "
+     ;;   [inputs/number {:value-atom min-pipe-dia
+     ;;                   :min 0 :max 2000 :step 1 :scale 1000.0}] "mm and "
 
-      [:p "Use a flow temperature of "
-       [inputs/number {:value-atom flow-temperature :min 0 :max 100 :step 1}]
-       "°C, "
-       "a return temperature of "
-       [inputs/number {:value-atom return-temperature :min 0 :max 100 :step 1}]
-       "°C, and "
-       "an average ground temperature of "
-       [inputs/number {:value-atom ground-temperature :min 0 :max 20 :step 1}]
-       "°C."
-       " Allow pipes between "
-       [inputs/number {:value-atom min-pipe-dia
-                       :min 0 :max 2000 :step 1 :scale 1000.0}] "mm and "
-
-       [inputs/number {:value-atom max-pipe-dia
-                       :min 0 :max 2000 :step 1 :scale 1000.0}] "mm."
+     ;;   [inputs/number {:value-atom max-pipe-dia
+     ;;                   :min 0 :max 2000 :step 1 :scale 1000.0}] "mm."
        
-       ]
+     ;;   ]
       
-      ]
+     ;;  ]
+
 
      [:div.card
-      [:b "Pumping costs"]
+      [:h1.card-header "Pumping costs"]
       [:p
        "Pumping costs are taken to be a proportion of the system output. "
        "In a heat network they offset supply output. "
@@ -122,7 +383,7 @@
        (interpose
         ", "
         (for [e candidate/emissions-types]
-          (list
+          [:<> {:key e}
            [inputs/number {:value-atom (pumping-emissions-atoms e)
                            :min 0 :max 1000 :step 1
                            :scale (candidate/emissions-factor-scales e)
@@ -130,7 +391,7 @@
            " "
            (candidate/emissions-factor-units e)
            " "
-           (name e))))]]
+           (name e)]))]]
      
      
      ])
