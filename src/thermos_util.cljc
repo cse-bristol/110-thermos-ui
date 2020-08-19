@@ -138,3 +138,8 @@
        (str minutes-part "m, ") "")
      seconds-part "s")))
 
+(defn next-id [m]
+  (inc (reduce max -1 (keys m))))
+
+(defn assoc-id [m v]
+  (assoc m (next-id m) v))
