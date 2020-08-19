@@ -25,5 +25,3 @@
   [state e]
   (println "UNKNOWN UI EVENT:" e)
   state)
-
-(load "pipe")
