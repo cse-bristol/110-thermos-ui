@@ -252,26 +252,26 @@
             [:li [:a {:href "/"} "THERMOS home page"]]
             ]]])
 
-       (when-not (preload/get-value :read-only)
-         [main-nav/component
-          {:on-save #(do-save % nil)
-           :on-run  do-save
+       [main-nav/component
+        {:read-only (preload/get-value :read-only)
+         :on-save #(do-save % nil)
+         :on-run  do-save
 
-           :hamburger
-           [:button.hamburger
-            {:on-click #(swap! *show-menu not)
-             :class (when (state/is-running?) "spin-around")
-             :style (merge
-                     {:background :none
-                      :border :none}
+         :hamburger
+         [:button.hamburger
+          {:on-click #(swap! *show-menu not)
+           :class (when (state/is-running?) "spin-around")
+           :style (merge
+                   {:background :none
+                    :border :none}
 
-                     (when @*is-cooling
-                       {:transform "scaleY(-1)"}))
-             }
-            theme/icon]
+                   (when @*is-cooling
+                     {:transform "scaleY(-1)"}))
+           }
+          theme/icon]
 
-           :name (preload/get-value :name)
-           :unsaved? (state/needs-save?)}])
+         :name (preload/get-value :name)
+         :unsaved? (state/needs-save?)}]
 
        (cond
          (state/is-running?)
@@ -346,12 +346,13 @@
   (r/render [main-page] (.getElementById js/document "app"))
 
   ;; Warn the user they have unsaved changes if they try to leave the page.
-  (.addEventListener js/window "beforeunload"
-                     (fn [e]
-                       (when (state/needs-save?)
-                         (let [msg "You have unsaved changes. Are you sure you want to leave the page?"]
-                           (set! e.returnValue msg)
-                           msg))))
+  (when-not (preload/get-value :read-only)
+    (.addEventListener js/window "beforeunload"
+                       (fn [e]
+                         (when (state/needs-save?)
+                           (let [msg "You have unsaved changes. Are you sure you want to leave the page?"]
+                             (set! e.returnValue msg)
+                             msg)))))
   ;; unfortunately react event propagation seems to be weird
   ;; if we put the listener on the editor container, it doesn't
   ;; get the key events it should.
