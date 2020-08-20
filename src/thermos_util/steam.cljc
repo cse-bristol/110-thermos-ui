@@ -36,7 +36,7 @@
             frac       (/ (- pressure p2) (- p p2))]
         (interpolate-maps below above frac)))))
 
-(defn pipe-capacity [MPa m%s dia-m]
+(defn pipe-capacity-kw [MPa m%s dia-m]
   (let [ssp      (saturated-steam-properties MPa)
         density  (/ (:vg ssp)) ;; this is kg/m3
         enthalpy (:hfg ssp)    ;; kJ/kg

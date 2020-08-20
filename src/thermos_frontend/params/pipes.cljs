@@ -9,7 +9,7 @@
             [thermos-frontend.flow :as f]
             [thermos-util.pipes :as pipe-calcs]
             [thermos-util :refer [kw->annual-kwh]]
-
+            [thermos-util.steam :as steam-calcs]
             [clojure.set :as set]
             [thermos-frontend.format :as format]))
 
@@ -75,10 +75,44 @@
                                (into {}))
                               )))))]
     (let [{:keys [civils rows]} @indexed-table
+          medium      @(f/view* flow ::document/medium :hot-water)
           
-          delta-t     @(f/view* flow document/delta-t)
-          density     (pipe-calcs/water-density @(f/view* flow document/mean-temperature))
-          delta-ground @(f/view* flow document/delta-ground)]
+
+          pipe-capacity-kw
+          (case medium
+            :hot-water
+            (let [delta-t     @(f/view* flow document/delta-t)
+                  density     (pipe-calcs/water-density @(f/view* flow document/mean-temperature))]
+              (fn [dia-mm]
+                (pipe-calcs/kw-per-m
+                 (/ dia-mm 1000.0)
+                 delta-t
+                 density)))
+
+            :saturated-steam
+            (let [steam-pressure @(f/view* flow ::document/steam-pressure)
+                  steam-velocity @(f/view* flow ::document/steam-velocity)]
+              (fn [dia-mm]
+                (steam-calcs/pipe-capacity-kw
+                 steam-pressure steam-velocity (/ dia-mm 1000.0)))))
+
+          pipe-losses-kwh
+          (case medium
+            :hot-water
+            (let [delta-ground @(f/view* flow document/delta-ground)]
+              (fn [dia-mm]
+                (Math/round
+                 (kw->annual-kwh
+                  (/ (pipe-calcs/heat-loss-w-per-m
+                      delta-ground
+                      (/ dia-mm 1000.0))
+                     1000.0)))
+                ))
+            :saturated-steam
+            (fn [dia-mm] 0) ;; TODO
+            )
+          
+          ]
 
       [:div.card
        [:h1.card-header "Pipe costs"]
@@ -170,11 +204,7 @@
                
                :placeholder
                (format/si-number
-                (* 1000.0
-                   (pipe-calcs/kw-per-m
-                    (/ dia 1000.0)
-                    delta-t
-                    density)))}]]
+                (* 1000.0 (pipe-capacity-kw dia)))}]]
             
             [:td [inputs/number {:style {:max-width :5em}
                                  :value
@@ -183,12 +213,7 @@
                                  :empty-value [nil nil]
                                  
                                  :placeholder
-                                 (Math/round
-                                  (kw->annual-kwh
-                                   (/ (pipe-calcs/heat-loss-w-per-m
-                                       delta-ground
-                                       (/ dia 1000.0))
-                                      1000.0)))
+                                 (pipe-losses-kwh dia)
                                  
                                  :max 10000
                                  :min 1
@@ -253,66 +278,135 @@
        ]))
   )
 
+(defn- bar-g->MPa [bar-g]
+  ;; 1 bar = 100kpa, so 0.1bar = 1MPa
+  ;; 1 bar-g = 2 bar (in atmosphere)
+  (* (+ bar-g 1.0) 0.1))
+
+(defn- MPa->bar-g [MPa]
+  (- (* 10 MPa) 1.0))
+
 (defn cost-model [flow]
-  
-  (reagent/with-let [model (reagent/atom :hot-water)]
+  (let [medium         @(f/view* flow ::document/medium :hot-water)]
     [:div.card
      [:h1.card-header "Capacity & loss model"]
-     [:div
-      [:label {:style {:font-size :1.5em}}
-       [:input {:type :radio :checked (= :hot-water @model)
-                :on-change #(reset! model :hot-water)
-                :value "cost-model"
-                }]
-       "Hot water"]
-      (when (= :hot-water @model)
-        [:div {:style {:margin-left :2em
-                       :margin-top :1em
-                       :display :grid
-                       :grid-template-columns "10em 5em auto"
-                       :gap :0.2em
-                       }}
-         [:label "Flow temperature: "]
-         [inputs/number]
-         [:label "℃"]
+     [:div.flex-cols
+      [:div
+       [:div
+        [:label {:style {:font-size :1.5em}}
+         [:input {:type      :radio :checked (= :hot-water medium)
+                  :on-change #(f/fire! flow [:pipe/change-medium :hot-water])
+                  :value     "cost-model"
+                  }]
+         "Hot water"]
+        
+        
+        ]
+       
+       
+       [:div
+        [:label {:style {:font-size :1.5em}}
+         [:input {:type      :radio
+                  :value     "cost-model"
+                  :checked   (= :saturated-steam medium)
+                  :on-change #(f/fire! flow [:pipe/change-medium :saturated-steam])
+                  }]
+         "Saturated steam"]
+
+        (case medium
+          :hot-water
+          [:div {:style {:margin-left           :2em
+                         :margin-top            :1em
+                         :display               :grid
+                         :grid-template-columns "10em 5em auto"
+                         :gap                   :0.2em
+                         }}
+           [:label "Flow temperature: "]
+           [inputs/number
+            {:value @(f/view* flow ::document/flow-temperature)
+             :on-change #(f/fire! flow [:pipe/change-flow-temperature %])}
+            ]
+           [:label "℃"]
+           
+           [:label "Return temperature:"]
+           [inputs/number
+            {:value     @(f/view* flow ::document/return-temperature)
+             :on-change #(f/fire! flow [:pipe/change-return-temperature %])
+             }]
+           [:label "℃"]
+
+           [:label "Ground temperature:"]
+           [inputs/number
+            {:value @(f/view* flow ::document/ground-temperature)
+             :on-change #(f/fire! flow [:pipe/change-ground-temperature %])}]
+           [:label "℃"]
+           ]
+
+          :saturated-steam
+          [:div {:style {:margin-left           :2em
+                         :margin-top            :1em
+                         :display               :grid
+                         :grid-template-columns "10em 5em auto"
+                         :gap                   :0.2em
+                         }}
+           [:label "Steam pressure: "]
+           [inputs/number {:value (MPa->bar-g @(f/view* flow ::document/steam-pressure))
+                           :on-change #(f/fire! flow [:pipe/change-steam-pressure (bar-g->MPa %)])}]
+           [:label
+            {:style {:white-space :nowrap}}
+            "bar g"]
+           
+           [:label "Velocity: "]
+           [inputs/number {:value @(f/view* flow ::document/steam-velocity)
+                           :on-change #(f/fire! flow [:pipe/change-steam-velocity %])
+                           }
+            ]
+           [:label "m/s"]
+
+           [:label "Ground temperature:"]
+           [inputs/number {:value @(f/view* flow ::document/ground-temperature)
+                           :on-change #(f/fire! flow [:pipe/change-ground-temperature %])}
+            ]
+           [:label "℃"]
+
+           ]
+
+          [:div "Unknown medium!"]
+          )
+        
+        ]]
+
+      [:div {:style {:margin-left :2em :font-size :1.1em}}
+       (case medium
+         :hot-water
+         [:<>
+          [:p
+           "Pipe capacity is calculated from diameter using "
+           [:a {:target "help"
+                :href "/help/calculations.html#pipe-diameter-calc"}
+            "recommended flow rates for the diameter"]
+           ", the specific heat of water, and the flow/return difference."
+           ]
+          [:p
+           "Heat losses are calculated from diameter using "
+           [:a {:target "help"
+                :href "/help/calculations.html#pipe-heat-losses"} "this model"] "."
+           ]]
+         :saturated-steam
+         [:<>
+          [:p
+           "Pipe capacity is calculated from diameter and velocity using the "
+           "specific enthalpy of vaporisation & density for saturated steam "
+           "at the given pressure."]
+          [:p
+           "Heat losses are calculated by some other method"
+           ]
+          ]
+
+         [:p "Unexpected medium: " medium]
          
-         [:label "Return temperature:"]
-         [inputs/number]
-         [:label "℃"]
-
-         [:label "Ground temperature:"]
-         [inputs/number]
-         [:label "℃"]
-         ])
-      ]
-     [:div
-      [:label {:style {:font-size :1.5em}}
-       [:input {:type :radio
-                :value "cost-model"
-                :checked (= :saturated-steam @model)
-                :on-change #(reset! model :saturated-steam)
-                }]
-       "Saturated steam"]
-      (when (= :saturated-steam @model)
-        [:div {:style {:margin-left :2em
-                       :margin-top :1em
-                       :display :grid
-                       :grid-template-columns "10em 5em auto"
-                       :gap :0.2em
-                       }}
-         [:label "Steam pressure: "]
-         [inputs/number]
-         [:label "bar g"]
-         
-         [:label "Flow rate: "]
-         [inputs/number]
-         [:label "m/s"]
-
-         [:label "Ground temperature:"]
-         [inputs/number]
-         [:label "℃"]
-
-         ])
+         )
+       ]
       ]
      ]))
 
