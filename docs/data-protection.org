@@ -77,3 +77,20 @@ We have no interest in holding onto your data so we can wring money out of you, 
 At the moment there is no button to delete your user account, but we can delete it for you if you drop us a line.
 Later we will probably put in a button to do this, the only reason we haven't is that we're busy people.
 You can delete projects, maps, and networks. When you do this, they are genuinely deleted in an unrecoverable way.
+* Acknowledgements
+Publication of any results which have involved the use of the THERMOS
+tool is done entirely at the user's risk and with regard to the above
+terms. Such work or results should include an acknowledgement as follows:
+
+#+BEGIN_QUOTE
+This work was done using THERMOS (Thermal Energy Resource Modelling
+and Optimisation System). THERMOS is an EU Horizon 2020 funded
+research project (grant agreement No 723636) coordinated by the Centre
+for Sustainable Energy.
+
+THERMOS provides heat network data and modelling tools in a
+user-friendly open-source application which makes network
+planning faster, easier, and more cost effective.
+
+For more on THERMOS please visit https://www.thermos-project.eu/.
+#+END_QUOTE
