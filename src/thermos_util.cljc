@@ -59,6 +59,12 @@
                  (catch NumberFormatException e)))
     (number? v) (int v)))
 
+(defn parse-double [v]
+  (and (string? v)
+       #?(:cljs (let [x (js/parseFloat v)]
+                  (and x (js/isFinite x) x))
+          :clj (try (Double/parseDouble v)
+                    (catch NumberFormatException e)))))
 
 (let [comma-number #"^\s*\d+,\d+\s*$"]
   (defn as-double
@@ -73,14 +79,10 @@
     [v]
     (cond
       (string? v)
-      (let [v (if (re-matches comma-number v)
-                (string/replace v \, \.)
-                v
-                )]
-        #?(:cljs (let [x (js/parseFloat v)]
-                   (and x (js/isFinite x) x))
-           :clj (try (Double/parseDouble v)
-                     (catch NumberFormatException e))))
+      (parse-double
+       (if (re-matches comma-number v)
+         (string/replace v \, \.)
+         v))
       
       (number? v) (double v))))
 

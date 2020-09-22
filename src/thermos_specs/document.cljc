@@ -11,7 +11,9 @@
             [clojure.string :as str]
             [clojure.walk :refer [prewalk]]
             [com.rpl.specter :as sr :refer-macros [transform setval]]
-            [clojure.test :as test]))
+            [clojure.test :as test]
+            [spec-tools.data-spec :as ds]
+            ))
 
 (s/def ::document
   (s/keys :req [::candidates
@@ -34,27 +36,20 @@
                 ::return-temperature
                 ::ground-temperature
 
-                ::mechanical-cost-per-m
-                ::mechanical-cost-per-m2
-
-                ::mechanical-cost-exponent
-                ::civil-cost-exponent
-
                 ::tariffs
-
-                ::civil-costs
 
                 ::insulation
                 ::alternatives
 
                 ::maximum-supply-sites
 
-                ::maximum-pipe-diameter
-                ::minimum-pipe-diameter
-
                 ::pumping-overhead
                 ::pumping-cost-per-kwh
                 ::pumping-emissions
+
+
+                ::pipe-costs
+                ::medium
                 ]
           :opt [::solution/summary
                 ::deletions]))
@@ -71,15 +66,48 @@
   (s/every (fn [[id val]] (and (map? val)
                                (= id (key val)))) :kind map? :into {}))
 
+(s/def ::medium #{:hot-water :saturated-steam})
+
+(defn medium [doc] (::medium doc :hot-water)) ;; to give default value
+
+(comment
+  "example pipe costs"
+
+  {:rows
+   {50
+    {:capacity-kwp 1234
+     :losses-kwh 123
+     :pipe 100
+     0 200 ;; cost of hard dig/m
+     }
+    }
+
+   :civils ;; could set a default in here or outwith
+   {0 "Hard dig"}})
+
+
+(s/def ::pipe-costs
+  (ds/spec
+   ::pipe-costs
+
+   {:rows
+    {number? ;; diameter =>
+     {(ds/opt :capacity-kwp) number?
+      (ds/opt :losses-kwh) number?
+      (ds/req :pipe) number?
+      ;; plus civil-id => number?
+      }
+     
+     }
+    :civils
+    {int? string?} ;; the names only
+    }))
+
 (s/def ::deletions (s/* ::candidate/id))
 
 (s/def ::tariffs
   (s/and (redundant-key ::tariff/id)
          (s/map-of ::tariff/id ::tariff/tariff)))
-
-(s/def ::civil-costs
-  (s/and (redundant-key ::path/civil-cost-id)
-         (s/map-of ::path/civil-cost-id ::path/civil-cost)))
 
 (s/def ::candidates
   (s/and
@@ -226,31 +254,25 @@
 (defn minimum-key [m]
   (when-let [keys (seq (keys m))] (reduce min keys)))
 
-(defn civil-cost-for-id [doc cost-id]
-  (let [costs (::civil-costs doc)]
-    (or (get costs cost-id)
-        (get costs (minimum-key costs)))))
-
 (defn civil-cost-name [doc cost-id]
-  (or (::path/civil-cost-name
-       (civil-cost-for-id doc cost-id)
-       (str "Civil cost " cost-id))
-      "None"))
+  (-> doc ::pipe-costs :civils (get cost-id "None")))
 
 (defn path-cost [path document]
   (if (::path/exists path)
     0
-    (let [cost (civil-cost-for-id document (::path/civil-cost-id path))]
-      (path/cost
-       path
-       (::path/fixed-cost cost)
-       (::path/variable-cost cost)
-       (::civil-cost-exponent document)
-       
-       (::mechanical-cost-per-m document)
-       (::mechanical-cost-per-m2 document)
-       (::mechanical-cost-exponent document)
-       10))))
+    (let [cost-id (::path/civil-cost-id path)
+          length  (::path/length path 0)
+          rows    (:rows (::pipe-costs document))
+          dia     (when (seq rows) (reduce min (keys rows)))
+
+          row     (get rows dia)
+          
+          cost-per-m (+ (get row :pipe 0)
+                        (get row cost-id 0))
+          ]
+
+      (* cost-per-m length)
+      )))
 
 (defn is-runnable?
   "Tells you if the document might be runnable.
@@ -328,13 +350,6 @@
             sr/NONE
             ))))
 
-(defn remove-civils [doc cost-id]
-  (-> doc
-      (update ::civil-costs dissoc cost-id)
-      (->> (sr/setval
-            [::candidates sr/MAP-VALS ::path/civil-cost-id (sr/pred= cost-id)]
-            sr/NONE))))
-
 (s/def ::insulation
   (s/and
    (redundant-key ::measure/id)
@@ -401,10 +416,14 @@
   (Math/abs (- (::flow-temperature doc) (::return-temperature doc))))
 
 (defn mean-temperature [doc]
-  (/ (+ (::flow-temperature doc) (::return-temperature doc))
+  (/ (+ (::flow-temperature doc 90) (::return-temperature doc 60))
      2.0))
 
 (defn delta-ground [doc]
   (Math/abs
    (- (mean-temperature doc)
       (::ground-temperature doc))))
+
+(defn steam-pressure [doc] (::steam-pressure doc))
+(defn steam-velocity [doc] (::steam-velocity doc))
+

@@ -27,6 +27,7 @@
                                   safe-div]]
             [thermos-util.finance :as finance]
             [thermos-util.pipes :as pipes]
+            
             [clojure.walk :refer [postwalk]]
 
             [thermos-specs.tariff :as tariff]
@@ -87,27 +88,13 @@
                           net-graph
                           buildings)
 
-        ;; tag all the edges with their path IDs and cost parameters
+        ;; tag all the edges with their path IDs, for summarise later
         net-graph (reduce (fn [g p]
                             
                             (-> g
-                                ;; the variable and fixed cost
-                                ;; parameters are merged into the path
-                                ;; by code later on. Within a normal
-                                ;; candidate they would be a reference
-                                ;; to something in the document.
-
                                 (attr/add-attr (::path/start p) (::path/end p)
-                                               :ids #{(::candidate/id p)})
-
-                                (attr/add-attr (::path/start p)
-                                               (::path/end p)
-                                               :exists (::path/exists p))
-                                
-                                (attr/add-attr (::path/start p) (::path/end p)
-                                               :variable-cost (::path/variable-cost p 0))
-                                (attr/add-attr (::path/start p) (::path/end p)
-                                               :fixed-cost (::path/fixed-cost p 0))))
+                                               :ids #{(::candidate/id p)})))
+                          
                           net-graph
                           paths)
 
@@ -119,24 +106,9 @@
                             (graph/edges net-graph)))
                    :delete-self-edges)
 
-        combinable-costs?
-        (fn [net-graph v]
-          (let [[e1 e2] (graph/out-edges net-graph v)
-                variable-cost-1 (or (attr/attr net-graph e1 :variable-cost) 0)
-                variable-cost-2 (or (attr/attr net-graph e2 :variable-cost) 0)
-                length-1 (or (attr/attr net-graph e1 :length) 0)
-                length-2 (or (attr/attr net-graph e2 :length) 0)]
-            (or (= variable-cost-1 variable-cost-2)
-                (zero? variable-cost-1)
-                (zero? variable-cost-2)
-                (zero? length-1)
-                (zero? length-2))))
-        
         collapsible? (fn [net-graph node]
                        (and (not (attr/attr net-graph node :real-vertex))
-                            (= 2 (graph/out-degree net-graph node))
-                            (combinable-costs? net-graph node)))
-        
+                            (= 2 (graph/out-degree net-graph node))))
 
         collapse-junction
         ;; this is a function to take a graph and delete a node,
@@ -216,15 +188,17 @@
              (map #(vector (::candidate/id %) %))
              (into {}))
 
-        combine-cost
-        (fn [path-ids cost]
-          (let [lengths (map (comp ::path/length paths) path-ids)
-                costs   (map (comp cost paths) path-ids)
-                total-l (reduce + lengths)
-                total-c (reduce + (map * lengths costs))]
-            (if (zero? total-c)
-              0.0
-              (/ total-c total-l))))
+        length-by-civils
+        (fn [path-ids]
+          (reduce
+           (fn [acc id]
+             (let [path     (paths id)
+                   length   (::path/length path 0)
+                   civil-id (::path/civil-cost-id path)
+                   ]
+               (assoc acc civil-id (+ length (get acc civil-id 0)))))
+           {}
+           path-ids))
         
         total-value
         (fn [path-ids value]
@@ -234,7 +208,7 @@
         total-requirement
         (fn [path-ids]
           (let [requirements (map (comp ::candidate/inclusion paths) path-ids)
-                result (if (some #{:required} requirements)
+                result       (if (some #{:required} requirements)
                          true false)]
             result))
 
@@ -251,8 +225,8 @@
                   (-> (attr/add-attr e :length (total-value path-ids ::path/length))
                       (attr/add-attr e :required (total-requirement path-ids))
                       (attr/add-attr e :max-dia (total-max-dia path-ids))
-                      (attr/add-attr e :fixed-cost (combine-cost path-ids ::path/fixed-cost))
-                      (attr/add-attr e :variable-cost (combine-cost path-ids ::path/variable-cost))))))
+                      (attr/add-attr e :civil-costs (length-by-civils path-ids))
+                      ))))
             
             net-graph (graph/edges net-graph))))
 
@@ -452,23 +426,28 @@
      
      :emissions   emissions-factors}))
 
-(defn- edge-terms [instance cost-function bounds net-graph edge]
+(defn- edge-terms [instance
+                   pipe-curves
+                   bounds net-graph edge]
   (let [length (or (attr/attr net-graph edge :length) 0)
 
         [fixed-cost variable-cost]
         (if (zero? length) [0 0] ;; zero length path has no cost, and is probably a virtual connecty thing
-            (let [{[[lf lb] [uf ub]] :mean} bounds]
-              (cost-function (if (zero? (min lf lb))
-                               (max lf lb)
-                               (min lf lb))
-                             (max uf ub)
-                             (or (attr/attr net-graph edge :fixed-cost)
-                                 (log/error "Missing fixed cost for" edge)
-                                 0)
-                             
-                             (or (attr/attr net-graph edge :variable-cost)
-                                 (log/error "Missing variable cost for" edge)
-                                 0))))
+            (let [{[[lf uf] [lb ub]] :peak} bounds]
+              ;; wait now I have multiplied by length^2
+              
+              (pipes/linear-cost
+               pipe-curves
+
+               (attr/attr net-graph edge :civil-costs)
+               length
+               
+               (if (zero? (min lf lb))
+                 (max lf lb)
+                 (min lf lb))
+               
+               (max uf ub)
+               )))
 
         cost-type (if (attr/attr net-graph edge :exists)
                     :existing-pipe-capex
@@ -480,46 +459,46 @@
                  (attr/attr net-graph edge :ids)
                  "has no recorded length"))
 
-    {:i (first edge) :j (second edge)
-     :length    length
-     :cost%m    (float (finance/objective-value instance cost-type fixed-cost))
+    {:i        (first edge) :j (second edge)
+     :length   length
+     :cost%m   (float (finance/objective-value instance cost-type fixed-cost))
      :cost%kwm (float (finance/objective-value instance cost-type variable-cost))
-     :bounds bounds
+     :bounds   bounds
      :required (boolean (attr/attr net-graph edge :required))}))
 
-(defn- instance->json [instance net-graph power-curve market]
+(defn- instance->json [instance net-graph pipe-curves market]
   (let [candidates     (::document/candidates instance)
 
         mode (document/mode instance)
-        
-        edge-bounds (do
-                      (log/info "Computing flow bounds...")
-                      (bounds/edge-bounds
-                       net-graph
-                       :capacity (memoize (comp #(::supply/capacity-kwp % 0) candidates))
-                       :demand
-                       (memoize (fn [id]
-                                  (-> (get candidates id)
-                                      (candidate/annual-demand mode)
-                                      (or 0.0)
-                                      (annual-kwh->kw))))
-                       :peak-demand
-                       (memoize (fn [id]
-                                  (-> (get candidates id)
-                                      (candidate/peak-demand mode)
-                                      (or 0.0))))
-                       
-                       :edge-max (let [inverse-power-curve (vec (map (comp vec reverse) power-curve))
-                                       global-max (first (last power-curve))]
-                                   (memoize
-                                    (fn [i j]
-                                      (min
-                                       global-max
-                                       (or (when-let [max-dia (attr/attr net-graph [i j] :max-dia)]
-                                             (pipes/linear-evaluate inverse-power-curve max-dia))
-                                           global-max)))))
-                       
-                       :size (comp #(::connection-count % 1) candidates)))
+
+        edge-bounds
+        (do
+          (log/info "Computing flow bounds...")
+          (bounds/edge-bounds
+           net-graph
+           :capacity (memoize (comp #(::supply/capacity-kwp % 0) candidates))
+           :demand
+           (memoize (fn [id]
+                      (-> (get candidates id)
+                          (candidate/annual-demand mode)
+                          (or 0.0)
+                          (annual-kwh->kw))))
+           :peak-demand
+           (memoize (fn [id]
+                      (-> (get candidates id)
+                          (candidate/peak-demand mode)
+                          (or 0.0))))
+           
+           :edge-max (let [global-max (pipes/max-kw pipe-curves)]
+                       (memoize
+                        (fn [i j]
+                          (min
+                           global-max
+                           (or (when-let [max-dia (attr/attr net-graph [i j] :max-dia)]
+                                 (pipes/dia->kw pipe-curves max-dia))
+                               global-max)))))
+           
+           :size (comp #(::connection-count % 1) candidates)))
 
         
         _ (log/info "Computed flow bounds")
@@ -531,11 +510,7 @@
      :supply-limit    (when-let [l (::document/maximum-supply-sites instance)] (int l))
      
      :pipe-losses
-     (let [losses (pipes/heat-loss-curve
-                   power-curve
-                   (::document/flow-temperature instance)
-                   (::document/return-temperature instance)
-                   (::document/ground-temperature instance))]
+     (let [losses (pipes/heat-loss-curve pipe-curves)]
        {:kwp  (map (comp float first) losses)
         :w%m  (map (comp float second) losses)})
 
@@ -568,24 +543,10 @@
            (assoc :supply (supply-terms instance candidate)))))
      
      :edges
-     (let [mech-A (::document/mechanical-cost-per-m instance 0.0)
-           mech-B (::document/mechanical-cost-per-m2 instance 0.0)
-           mech-C (::document/mechanical-cost-exponent instance 1.0)
-
-           civil-C (::document/civil-cost-exponent instance 1.0)
-
-           cost-function
-           (fn [kw-min kw-max civil-fixed civil-var]
-             (pipes/linear-cost-per-kw
-              power-curve
-              kw-min kw-max
-              mech-A mech-B mech-C
-              civil-fixed civil-var civil-C))]
-       
-       (for [edge (->> (graph/edges net-graph)
-                       (map (comp vec sort))
-                       (set))]
-         (edge-terms instance cost-function (get edge-bounds edge) net-graph edge)))}))
+     (for [edge (->> (graph/edges net-graph)
+                     (map (comp vec sort))
+                     (set))]
+       (edge-terms instance pipe-curves (get edge-bounds edge) net-graph edge))}))
 
 (defn- index-by [f vs]
   (reduce #(assoc %1 (f %2) %2) {} vs))
@@ -662,7 +623,7 @@
                 ::supply/id (::supply/id alternative)
                 ::supply/name (::supply/name alternative)})))))
 
-(defn- merge-solution [instance net-graph power-curve market result-json]
+(defn- merge-solution [instance net-graph pipe-curves market result-json]
   (let [state (keyword (:state result-json))
         
         solution-vertices (into {}
@@ -815,19 +776,20 @@
         (fn [e]
           (let [solution-edge (solution-edges (::candidate/id e))
                 candidate-length (::path/length e)
-                input-length (or (attr/attr net-graph [(:i solution-edge) (:j solution-edge)] :length) candidate-length)
+                input-length (or
+                              (attr/attr net-graph [(:i solution-edge) (:j solution-edge)] :length)
+                              candidate-length)
                 length-factor (safe-div candidate-length input-length)
-                diameter-mm (* (pipes/linear-evaluate power-curve (:capacity-kw solution-edge)) 1000.0)
+                diameter-mm   (pipes/solved-diameter pipe-curves
+                                                     (:capacity-kw solution-edge))
 
                 civil-cost-id (::path/civil-cost-id e)
 
-                principal
-                (let [{civil-fixed ::path/fixed-cost civil-variable ::path/variable-cost}
-                      (document/civil-cost-for-id instance civil-cost-id)]
-                  (path/cost e
-                             civil-fixed civil-variable civil-exponent
-                             mechanical-fixed mechanical-variable mechanical-exponent
-                             diameter-mm))
+                principal     (* candidate-length
+                                 (pipes/solved-principal
+                                  pipe-curves
+                                  civil-cost-id
+                                  (:capacity-kw solution-edge)))
 
                 capex-type
                 (if (::path/exists e)
@@ -998,16 +960,7 @@
 
         included-candidates (->> (::document/candidates instance)
                                  (vals)
-                                 (filter candidate/is-included?)
-                                 ;; we also merge in the mechanical
-                                 ;; engineering cost data for every
-                                 ;; path, as that makes things easier.
-
-                                 (map #(cond-> %
-                                         (candidate/is-path? %)
-                                         (merge (document/civil-cost-for-id instance (::path/civil-cost-id %)))
-                                         )))
-
+                                 (filter candidate/is-included?))
         
         net-graph (simplify-topology included-candidates)
         net-graph (summarise-attributes net-graph included-candidates)
@@ -1057,15 +1010,11 @@
           (mark-unreachable net-graph included-candidates))
       
       :else
-      (let [power-curve (pipes/power-curve (::document/flow-temperature instance)
-                                           (::document/return-temperature instance)
-                                           (::document/minimum-pipe-diameter instance 0.02)
-                                           (::document/maximum-pipe-diameter instance 1.0))
-
+      (let [pipe-curves (pipes/curves instance)
             
             market (make-market-decisions instance)
 
-            input-json (instance->json instance net-graph power-curve market)
+            input-json (instance->json instance net-graph pipe-curves market)
             
             bad-numbers (find-bad-numbers input-json)
             
@@ -1117,7 +1066,7 @@
                    ::solution/state (:state result)
                    ::solution/message (:message result)
                    ::solution/runtime (safe-div (- end-time start-time) 1000.0))
-                  (merge-solution net-graph power-curve market result)
+                  (merge-solution net-graph pipe-curves market result)
                   (mark-unreachable net-graph included-candidates))
               ]
 

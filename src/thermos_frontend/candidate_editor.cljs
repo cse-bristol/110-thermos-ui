@@ -317,9 +317,7 @@
                                  }]]
              [:td [inputs/select
                    {:value-atom (reagent/cursor values [group-by-key k :civil-cost])
-                    :values `[[:unset "Unchanged"]
-                              ~@(for [[id c] civils]
-                                  [id (::path/civil-cost-name c)])]
+                    :values `[[:unset "Unchanged"] ~@civils]
                     }
                    ]]
              ]))]
@@ -718,7 +716,7 @@
                        [id n])
                      
                      connection-costs (sort-by first (::document/connection-costs @document))
-                     civils (sort-by first (::document/civil-costs @document))
+                     civils (sort-by first (:civils (::document/pipe-costs @document)))
                      insulation (sort-by first (::document/insulation @document))
                      alternatives (sort-by first (::document/alternatives @document))
                      min-pipe-diameter (* 1000

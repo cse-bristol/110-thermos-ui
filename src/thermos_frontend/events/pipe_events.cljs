@@ -1,4 +1,4 @@
-(ns thermos-frontend.events.pipe
+(ns thermos-frontend.events.pipe-events
   (:require [thermos-frontend.events.core :refer [handle]]
             [thermos-specs.document :as document]
             [thermos-specs.path :as path]

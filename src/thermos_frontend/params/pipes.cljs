@@ -13,13 +13,6 @@
             [clojure.set :as set]
             [thermos-frontend.format :as format]))
 
-;; editor for pipe parameters
-;; until we look at fixed costs for pipes, we are going to have:
-;; mechanical engineering costs
-;; civil engineering cost sets
-
-;; it'd be nice to have some little graphs
-
 (defn- match-indices [dia-index new-dias]
   (let [new-dias      (set new-dias)
         old-dias      (set (vals dia-index))
@@ -50,8 +43,6 @@
              (assoc out h i i h)
              t (rest ix))))))))
 
-
-
 (defn- pipe-costs-table [flow]
   ;; this bit is a horrible thing to provide a stable rownumber for each row
   ;; in the face of changing diameters.
@@ -75,44 +66,8 @@
                                (into {}))
                               )))))]
     (let [{:keys [civils rows]} @indexed-table
-          medium      @(f/view* flow ::document/medium :hot-water)
-          
 
-          pipe-capacity-kw
-          (case medium
-            :hot-water
-            (let [delta-t     @(f/view* flow document/delta-t)
-                  density     (pipe-calcs/water-density @(f/view* flow document/mean-temperature))]
-              (fn [dia-mm]
-                (pipe-calcs/kw-per-m
-                 (/ dia-mm 1000.0)
-                 delta-t
-                 density)))
-
-            :saturated-steam
-            (let [steam-pressure @(f/view* flow ::document/steam-pressure)
-                  steam-velocity @(f/view* flow ::document/steam-velocity)]
-              (fn [dia-mm]
-                (steam-calcs/pipe-capacity-kw
-                 steam-pressure steam-velocity (/ dia-mm 1000.0)))))
-
-          pipe-losses-kwh
-          (case medium
-            :hot-water
-            (let [delta-ground @(f/view* flow document/delta-ground)]
-              (fn [dia-mm]
-                (Math/round
-                 (kw->annual-kwh
-                  (/ (pipe-calcs/heat-loss-w-per-m
-                      delta-ground
-                      (/ dia-mm 1000.0))
-                     1000.0)))
-                ))
-            :saturated-steam
-            (fn [dia-mm] 0) ;; TODO
-            )
-          
-          ]
+          pipe-parameters    @(f/view* flow pipe-calcs/select-parameters)]
 
       [:div.card
        [:h1.card-header "Pipe costs"]
@@ -171,8 +126,6 @@
          (for [[ix costs] (sort-by (comp :diameter second) rows)
                :let [dia (:diameter costs)]]
            [:tr {:key ix}
-            
-            
             [:td [inputs/number {:value dia :min 10 :max 3000
                                  :style {:max-width :5em}
                                  :on-blur
@@ -204,7 +157,7 @@
                
                :placeholder
                (format/si-number
-                (* 1000.0 (pipe-capacity-kw dia)))}]]
+                (* 1000.0 (pipe-calcs/power-for-diameter pipe-parameters dia)))}]]
             
             [:td [inputs/number {:style {:max-width :5em}
                                  :value
@@ -213,7 +166,7 @@
                                  :empty-value [nil nil]
                                  
                                  :placeholder
-                                 (pipe-losses-kwh dia)
+                                 (pipe-calcs/losses-for-diameter pipe-parameters dia)
                                  
                                  :max 10000
                                  :min 1
@@ -259,7 +212,7 @@
        [:div
         [:button.button
          {:on-click
-          #(let [max-dia (reduce max (map :diameter (vals rows)))]
+          #(let [max-dia (reduce max 0 (map :diameter (vals rows)))]
              (f/fire!
               flow
               [:pipe/add-diameter (+ max-dia 50)])
@@ -300,7 +253,6 @@
                   }]
          "Hot water"]
         
-        
         ]
        
        
@@ -315,7 +267,8 @@
 
         (case medium
           :hot-water
-          [:div {:style {:margin-left           :2em
+          [:div {:key :hot-water-controls
+                 :style {:margin-left           :2em
                          :margin-top            :1em
                          :display               :grid
                          :grid-template-columns "10em 5em auto"
@@ -343,7 +296,8 @@
            ]
 
           :saturated-steam
-          [:div {:style {:margin-left           :2em
+          [:div {:key :steam-controls
+                 :style {:margin-left           :2em
                          :margin-top            :1em
                          :display               :grid
                          :grid-template-columns "10em 5em auto"
@@ -399,7 +353,10 @@
            "specific enthalpy of vaporisation & density for saturated steam "
            "at the given pressure."]
           [:p
-           "Heat losses are calculated by some other method"
+           "Heat losses are calculated by some other method. "
+           ]
+          [:p
+           "Note that the default pipe costs are for hot water pipes, not steam pipes."
            ]
           ]
 
