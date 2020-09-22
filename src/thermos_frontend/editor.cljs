@@ -33,15 +33,15 @@
 
             [clojure.pprint :refer [pprint]]
             [clojure.string :as s]
-            [goog.ui.SplitPane :refer [SplitPane Component]]
+
             [goog.events :refer [listen]]
             [goog.math :refer [Size]]
             [goog.functions :refer [debounce]]
             [thermos-frontend.util :refer [target-value]]
 
             [thermos-frontend.flow]
-
-            [re-com.core :as rc]))
+            [thermos-frontend.splitter :refer [splitter]]
+            ))
 
 (enable-console-print!)
 
@@ -74,58 +74,33 @@
                v-splitter-element (atom nil)
                v-splitter-dblclick-listener (atom nil)]
 
-    
-    [(r/create-class
-       {:reagent-render
-        (fn []
-          [rc/v-split
-           :style {:height :100%}
-           :initial-split (or @v-split-pos 75)
-           :on-split-change #(reset! v-split-pos %)
-           :margin "0"
-           :panel-1 [rc/h-split
-                     :initial-split (or @h-split-pos 60)
-                     :on-split-change #(reset! h-split-pos %)
-                     :margin "0"
-                     :panel-1 [:div.map-container [map/component doc flow]
-                               [view-control/component doc]]
-                     :panel-2 [selection-info-panel/component flow]
+    [splitter
+     {:axis :h
+      :split (or @v-split-pos 75)
+      :on-split-change #(reset! v-split-pos %)
+      
+      :top
+      [splitter
+       {:axis :v
+        :split (or @h-split-pos 60)
+        :on-split-change #(reset! h-split-pos %)
+        :left
+        [:div.map-container
+         [map/component doc flow]
+         [view-control/component doc]]
+        
+        :right
+        [selection-info-panel/component flow]
+        }]
 
-                     ]
-           :panel-2 [:div
-                     {:style {:width :100%}}
-                     [network-candidates-panel/component flow]
-                     ]
-           
-           ])
-        :component-did-mount
-        (fn [arg]
-          (let [vsplitter (.querySelector js/document ".re-v-split-splitter")
-                listener
-                (.addEventListener
-                 vsplitter "dblclick"
-                 (fn [e]
-                   (let [container (.querySelector js/document ".rc-v-split")
-                         container-height (.-offsetHeight container)
-                         new-bottom-pane-height 0 ;; having the headers at the bottom looks weird
-
-                         ;; (/ 4000 container-height) ;; 40px as % of container
-                         new-top-pane-height (- 100 new-bottom-pane-height)
-                         bottom-pane (.querySelector js/document ".re-v-split-bottom")
-                         top-pane (.querySelector js/document ".re-v-split-top")]
-                     (set! (.. top-pane -style -flex) (str new-top-pane-height " 1 0px"))
-                     (set! (.. bottom-pane -style -flex) (str new-bottom-pane-height " 1 0px"))
-                     (reset! v-split-pos new-top-pane-height))))]
-            ;; Set these atoms so we can grab them to remove the listener when the
-            ;; component is unmounted
-            (reset! v-splitter-element vsplitter)
-            (reset! v-splitter-dblclick-listener listener)))
-
-        :component-will-unmount
-        (fn []
-          ;; Remove the double click event listener
-          (.removeEventListener @v-splitter-element "dblclick" @v-splitter-dblclick-listener))
-        })]))
+      :bottom
+      [:div
+       {:style {:width :100%}}
+       [network-candidates-panel/component flow]
+       ]
+      }
+     ]
+    ))
 
 (defn main-page []
   (r/with-let [*selected-tab (r/cursor state/state [::view/view-state ::view/selected-tab])
