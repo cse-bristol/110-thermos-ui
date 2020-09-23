@@ -41,6 +41,7 @@
 
             [thermos-frontend.flow]
             [thermos-frontend.splitter :refer [splitter]]
+            [thermos-backend.content-migrations.messages :as migration-messages]
             ))
 
 (enable-console-print!)
@@ -72,33 +73,70 @@
                                       ::view/map-page-v-split]
                                      )
                v-splitter-element (atom nil)
-               v-splitter-dblclick-listener (atom nil)]
+               v-splitter-dblclick-listener (atom nil)
+               ]
+    [:<>
+     
+     [splitter
+      {:axis :h
+       :split (or @v-split-pos 75)
+       :on-split-change #(reset! v-split-pos %)
+       
+       :top
+       [splitter
+        {:axis :v
+         :split (or @h-split-pos 60)
+         :on-split-change #(reset! h-split-pos %)
+         :left
+         [:div.map-container
+          [map/component doc flow]
+          [view-control/component doc]]
+         
+         :right
+         [selection-info-panel/component flow]
+         }]
 
-    [splitter
-     {:axis :h
-      :split (or @v-split-pos 75)
-      :on-split-change #(reset! v-split-pos %)
-      
-      :top
-      [splitter
-       {:axis :v
-        :split (or @h-split-pos 60)
-        :on-split-change #(reset! h-split-pos %)
-        :left
-        [:div.map-container
-         [map/component doc flow]
-         [view-control/component doc]]
+       :bottom
+       [:div
+        {:style {:width :100%}}
+        [network-candidates-panel/component flow]
+        ]
+       }
+      ]
+
+     (when-let [messages
+                (seq @(thermos-frontend.flow/view* flow ::document/migration-messages))]
+       [:div {:style {:position :fixed :top 0 :left :0 :width :100% :height :100%
+                      :z-index 2000
+                      :display :flex :flex-direction :column
+                      :background "rgb(1,1,1,0.5)"
+                      }}
+        [:div.card {:style {:margin-top :auto
+                            :margin-bottom :auto
+                            :margin-left :auto
+                            :margin-right :auto
+                            :max-height :50%
+                            :max-width :75%
+                            }}
+         [:h1.card-header "Changes have been made to this problem"]
+         [:p "THERMOS has been updated since this problem was saved, and the following changes have been made:"]
+
+         [:div {:style {:overflow :auto}}
+          (for [msg messages]
+            [:div {:key msg}
+             (migration-messages/messages msg)])]
+
+         [:div {:style {:display :flex}}
+          [:button.button 
+           {:style {:margin-left :auto}
+            :on-click #(thermos-frontend.flow/fire! flow
+                        [dissoc ::document/migration-messages])}
+           
+           "OK"]]
+         ]
         
-        :right
-        [selection-info-panel/component flow]
-        }]
-
-      :bottom
-      [:div
-       {:style {:width :100%}}
-       [network-candidates-panel/component flow]
-       ]
-      }
+        ]
+       )
      ]
     ))
 

@@ -188,9 +188,13 @@
       (as-> %
           (cond-> %
             (and include-content
-                 (< (:version %) piecewise/current-version))
+                 (< (:version % 0) piecewise/current-version))
             (update :content
-                    (comp pr-str piecewise/migrate edn/read-string))))
+                    (fn [s]
+                      (-> (edn/read-string s)
+                          (piecewise/migrate (:version % 0))
+                          (pr-str)))
+                    )))
       
       (update :state keyword)))
 

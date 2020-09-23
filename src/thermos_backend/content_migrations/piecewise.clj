@@ -20,10 +20,10 @@
 (def migrations [tabulate-pipe-parameters])
 (def current-version (count migrations))
 
-(defn migrate [problem]
+(defn migrate [problem from-version]
   (-> (reduce
        (fn [problem m] (m problem))
        problem
-       (drop version migrations))))
+       (drop from-version migrations))))
 
 

@@ -61,29 +61,25 @@
     ))
 
 (defn tabulate-pipe-parameters [document]
-  (let [table (generate-costs-for-old-parameters document)]
-    (cond-> document
-      (not (contains? document ::document/pipe-costs))
-      (-> 
-         (assoc ::document/pipe-costs table)
-         (dissoc ::document/civil-costs
-                 ::document/civil-cost-exponent
-                 ::document/mechanical-cost-exponent
-                 ::document/mechanical-cost-per-m
-                 ::document/mechanical-cost-per-m2
-                 ::document/maximum-pipe-diameter
-                 ::document/minimum-pipe-diameter)
+  (cond-> document
+    (not (contains? document ::document/pipe-costs))
+    (-> 
+     (assoc ::document/pipe-costs (generate-costs-for-old-parameters document))
+     (dissoc ::document/civil-costs
+             ::document/civil-cost-exponent
+             ::document/mechanical-cost-exponent
+             ::document/mechanical-cost-per-m
+             ::document/mechanical-cost-per-m2
+             ::document/maximum-pipe-diameter
+             ::document/minimum-pipe-diameter)
 
-         (assoc ::document/steam-pressure 1.6
-                ::document/steam-velocity 20.0
-                ::document/medium :hot-water)
+     (assoc ::document/steam-pressure 1.6
+            ::document/steam-velocity 20.0
+            ::document/medium :hot-water)
 
-         (update ::document/messages
-                 conj
-                 [:div
-                  [:h1 "Pipe parameters converted to tabular form"]
-                  [:p
-                   "Existing pipe cost parameters have been replaced with a tabular representation. "
-                   "Since the model now rounds up pipes to the nearest whole diameter, re-running the model will produce a different result."]])
+     (update ::document/migration-messages
+             conj
+             :update-pipe-parameters
+             )
 
-         ))))
+     )))
