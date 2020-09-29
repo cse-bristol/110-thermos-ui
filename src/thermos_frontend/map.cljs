@@ -77,12 +77,18 @@
     "https:///stamen-tiles-{s}.a.ssl.fastly.net/toner-background/{z}/{x}/{y}.png"
     (clj->js {:subdomains "abcd"
               :minZoom 0
-              :maxZoom 20}))
+              :maxZoom 20
+              :attribution
+              "Map tiles by <a target=_blank href=\"http://stamen.com/\">Stamen Design</a>, under <a target=_blank href=\"http://creativecommons.org/licenses/by/3.0\">CC BY 3.0</a>. Data by <a target=_blank href=\"http://openstreetmap.org/\">OpenStreetMap</a>, under <a target=_blank href=\"http://creativecommons.org/licenses/by-sa/3.0\">CC BY SA</a>."
+              }))
 
    :satellite
    (js/L.tileLayer
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-    (clj->js {}))})
+    (clj->js {:minZoom 0 :maxZoom 21
+              :attribution
+              "Imagery by <a target=_blank href=\"https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer\">Esri, Maxar, Earthstar Geographics, CNES/Airbus DS, USDA FSA, USGS, Aerogrid, IGN, IGP, and the GIS User Community</a>"
+              }))})
 
 (def basemap-names
   {:none "None"
@@ -95,14 +101,14 @@
    "../d/{z}/{x}/{y}.png"
    (clj->js {:opacity 0.6
              :minZoom 12
-             :maxZoom 20})))
+             :maxZoom 21})))
 
 (def cold-density-layer
   (js/L.tileLayer
    "../cd/{z}/{x}/{y}.png"
    (clj->js {:opacity 0.6
              :minZoom 12
-             :maxZoom 20})))
+             :maxZoom 21})))
 
 (def labels-layer
   (js/L.tileLayer
@@ -115,7 +121,7 @@
   "Make a leaflet control when this component is being put on screen"
   [document flow watches map-node component]
   (let [map-node @map-node
-
+        
         edit!  (fn [f & a] (apply state/edit! document f a))
         track! (fn [f & a]
                  (let [watch (apply reagent/track! f a)]
@@ -139,15 +145,15 @@
         candidates-layer (candidates-layer flow document
                                            {:tileSize 256
                                             :minZoom 15
-                                            :maxZoom 20})
+                                            :maxZoom 21})
 
         connector-layer (connector-layer {:tileSize 256
                                           :minZoom 15
-                                          :maxZoom 20})
+                                          :maxZoom 21})
         
         demand-tool-layer (demand-tool-layer {:tileSize 256
                                               :minZoom 15
-                                              :maxZoom 20})
+                                              :maxZoom 21})
 
         draw-control (draw-control {:position :topleft
                                     :draw {:polyline false
@@ -256,15 +262,14 @@
              (+ (Math/pow (- (.-lat zz) (.-lat oo)) 2)
                 (Math/pow (- (.-lng zz) (.-lng oo)) 2)))
             ))
+        
+        ]
 
-        ;; these next 3 are a bit of a hack which I could improve.
-        ;; poke-map-size! should get invoked when the splitters are moved
-        h-split-pos (reagent/cursor document [::view/view-state ::view/map-page-h-split])
-        v-split-pos (reagent/cursor document [::view/view-state ::view/map-page-v-split])
-        poke-map-size! #(let [_ @h-split-pos
-                              _ @v-split-pos]
-                          (.invalidateSize map))]
-    (track! poke-map-size!)
+    (-> (js/ResizeObserver.
+         (fn [evt]
+           (.invalidateSize map)))
+        (.observe map-node))
+    
     (track! show-bounding-box!)
     (track! show-map-layers!)
 
