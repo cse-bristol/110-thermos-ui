@@ -283,9 +283,7 @@
                   pipework-groups
                   (sort-by first
                            (group-by
-                            (juxt
-                             ::path/civil-cost-id
-                             #(Math/floor (/ (::solution/diameter-mm %) 10)))
+                            (juxt ::path/civil-cost-id ::solution/diameter-mm)
                             paths))]
               (list
                (doall
@@ -293,7 +291,7 @@
                   [pipework-row
                    {:key [civ sz]}
                    (document/civil-cost-name @parameters civ)
-                   (str (* 10 sz) "-" (* 10 (inc sz)))
+                   sz
                    paths]))
                (when (> (count pipework-groups) 1)
                  (pipework-row
@@ -640,7 +638,7 @@
      parameters
      (reagent/track
       #(-> document deref
-           (select-keys [::document/civil-costs
+           (select-keys [::document/pipe-costs
                          ::document/flow-temperature
                          ::document/return-temperature
 

@@ -117,7 +117,10 @@
                      (steam/heat-losses-kwh%m-yr steam-pressure dia))
                  })))))]
     
-    {:dia->kw
+    {:default-civils
+     (:default-civils (::document/pipe-costs doc))
+
+     :dia->kw
      (->> curve-data
           (map (juxt :diameter :capacity-kw))
           (sort)
@@ -186,6 +189,7 @@
   [curves length-by-civils total-length kw-min kw-max]
 
   (let [data (:data curves)
+        default-cost (:default-civils curves)
         
         cost-curve
         (for [[capacity costs] data]
@@ -195,7 +199,7 @@
               (+ acc
                  (* (/ length total-length)
                     (+ (get costs :pipe 0)
-                       (get costs cost-id 0)))))
+                       (get costs (or cost-id default-cost) 0)))))
             0
             length-by-civils)])]
     
@@ -215,10 +219,11 @@
   "Given a kwp, how much would a certain path cost per meter"
   [curves civil-id kwp]
 
-  (let [data    (:data curves)
+  (let [default-cost (:default-civils curves)
+        data    (:data curves)
         next-up (second (first (subseq data >= kwp)))]
     (+ (get next-up :pipe 0)
-       (get next-up civil-id 0))))
+       (get next-up (or civil-id default-cost) 0))))
 
 (defn solved-diameter [curves kwp]
   (let [data    (:data curves)

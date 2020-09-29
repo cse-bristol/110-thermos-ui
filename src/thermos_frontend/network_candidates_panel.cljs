@@ -47,12 +47,7 @@
         (let [params (f/view*
                       flow
                       select-keys
-                      [::document/mechanical-cost-per-m
-                       ::document/mechanical-cost-per-m2
-                       ::document/mechanical-cost-exponent
-                       ::document/civil-cost-exponent
-                       ::document/civil-costs
-                       ])]
+                      [::document/pipe-costs])]
           (fn [path]
             (document/path-cost path @params)))
         

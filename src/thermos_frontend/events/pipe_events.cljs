@@ -63,6 +63,7 @@
    (sr/multi-path
     [::document/pipe-costs
      (sr/multi-path
+      [:default-civils (sr/pred= cid) (sr/terminal-val sr/NONE)]
       [:civils cid (sr/terminal-val sr/NONE)]
       [:rows sr/MAP-VALS cid (sr/terminal-val sr/NONE)])]
     [::document/candidates sr/MAP-VALS
@@ -103,3 +104,7 @@
 (defmethod handle :pipe/change-steam-velocity
   [state [_ v]]
   (assoc state ::document/steam-velocity v))
+
+(defmethod handle :pipe/set-default-civils
+  [state [_ d]]
+  (assoc-in state [::document/pipe-costs :default-civils] d))

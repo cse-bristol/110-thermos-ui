@@ -101,6 +101,9 @@
      }
     :civils
     {int? string?} ;; the names only
+
+    :default-civils
+    (ds/maybe int?)
     }))
 
 (s/def ::deletions (s/* ::candidate/id))
@@ -255,14 +258,22 @@
   (when-let [keys (seq (keys m))] (reduce min keys)))
 
 (defn civil-cost-name [doc cost-id]
-  (-> doc ::pipe-costs :civils (get cost-id "None")))
+  (if cost-id
+    (-> doc ::pipe-costs :civils (get cost-id "Missing value!"))
+    (if-let [cost-id (:default-civils (::pipe-costs doc))]
+      (-> doc ::pipe-costs :civils (get cost-id "Missing value!")
+          (str " (default)"))
+      "None")))
 
 (defn path-cost [path document]
   (if (::path/exists path)
     0
-    (let [cost-id (::path/civil-cost-id path)
+    (let [default (:default-civils (::pipe-costs document))
+
+          cost-id (::path/civil-cost-id path default)
           length  (::path/length path 0)
           rows    (:rows (::pipe-costs document))
+
           dia     (when (seq rows) (reduce min (keys rows)))
 
           row     (get rows dia)

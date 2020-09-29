@@ -765,12 +765,6 @@
                   
                   
                   ))))
-
-        ;; in kw -> diameter
-        civil-exponent       (::document/civil-cost-exponent instance 1)
-        mechanical-fixed     (::document/mechanical-cost-per-m instance 0)
-        mechanical-variable  (::document/mechanical-cost-per-m2 instance 0)
-        mechanical-exponent  (::document/mechanical-cost-exponent instance 1)
         
         update-edge
         (fn [e]

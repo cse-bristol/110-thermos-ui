@@ -13,6 +13,10 @@
   [doc]
 
   (let [old-civils (::document/civil-costs doc)
+
+        old-default (when (seq old-civils)
+                      (reduce min (keys old-civils)))
+        
         old-mech-c (::document/mechanical-cost-per-m doc)
         old-mech-m (::document/mechanical-cost-per-m2 doc)
         old-mech-e (::document/mechanical-cost-exponent doc)
@@ -56,6 +60,7 @@
            (for [[id civ] old-civils] [id (::path/civil-cost-name
                                            civ
                                            (str "Civil cost " id))]))
+     :default-civils old-default
      
      }
     ))

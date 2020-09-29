@@ -104,39 +104,7 @@
        }
       ]
 
-     (when-let [messages
-                (seq @(thermos-frontend.flow/view* flow ::document/migration-messages))]
-       [:div {:style {:position :fixed :top 0 :left :0 :width :100% :height :100%
-                      :z-index 2000
-                      :display :flex :flex-direction :column
-                      :background "rgb(1,1,1,0.5)"
-                      }}
-        [:div.card {:style {:margin-top :auto
-                            :margin-bottom :auto
-                            :margin-left :auto
-                            :margin-right :auto
-                            :max-height :50%
-                            :max-width :75%
-                            }}
-         [:h1.card-header "Changes have been made to this problem"]
-         [:p "THERMOS has been updated since this problem was saved, and the following changes have been made:"]
-
-         [:div {:style {:overflow :auto}}
-          (for [msg messages]
-            [:div {:key msg}
-             (migration-messages/messages msg)])]
-
-         [:div {:style {:display :flex}}
-          [:button.button 
-           {:style {:margin-left :auto}
-            :on-click #(thermos-frontend.flow/fire! flow
-                        [dissoc ::document/migration-messages])}
-           
-           "OK"]]
-         ]
-        
-        ]
-       )
+     
      ]
     ))
 
@@ -348,7 +316,41 @@
 
           :else
           [:div "Unknown page!!! urgh!"])]
+       (when-let [messages
+                  (seq @(thermos-frontend.flow/view* state/flow
+                                                     ::document/migration-messages))]
+         [:div {:style {:position :fixed :top 0 :left :0 :width :100% :height :100%
+                        :z-index 2000
+                        :display :flex :flex-direction :column
+                        :background "rgb(1,1,1,0.5)"
+                        }}
+          [:div.card {:style {:margin-top :auto
+                              :margin-bottom :auto
+                              :margin-left :auto
+                              :margin-right :auto
+                              :max-height :50%
+                              :max-width :75%
+                              :overflow :auto
+                              }}
+           [:h1.card-header "Changes have been made to this problem"]
+           [:p "THERMOS has been updated since this problem was saved, and the following changes have been made:"]
 
+           [:div {:style {:overflow :auto}}
+            (for [msg messages]
+              [:div {:key msg}
+               (migration-messages/messages msg)])]
+
+           [:div {:style {:display :flex}}
+            [:button.button 
+             {:style {:margin-left :auto}
+              :on-click #(thermos-frontend.flow/fire! state/flow
+                                                      [dissoc ::document/migration-messages])}
+             
+             "OK"]]
+           ]
+          
+          ]
+         )
        [popover/component state/state]
        [toaster/component]]
       )))

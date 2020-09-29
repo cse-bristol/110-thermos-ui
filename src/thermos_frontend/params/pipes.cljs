@@ -65,7 +65,7 @@
                                   (assoc a :diameter dia)])
                                (into {}))
                               )))))]
-    (let [{:keys [civils rows]} @indexed-table
+    (let [{:keys [civils rows default-civils]} @indexed-table
 
           pipe-parameters    @(f/view* flow pipe-calcs/select-parameters)]
 
@@ -79,7 +79,7 @@
           [:th "Losses"]
           [:th "Pipe cost"]
           (when-not (empty? civils)
-            [:th {:col-span (count civils)} "Dig cost (¤/m)"])
+            [:th {:col-span (count civils)} "Civil cost (¤/m)"])
           [:th]
           ]
          [:tr
@@ -209,7 +209,7 @@
         
          ]
         ]
-       [:div
+       [:div {:style {:margin-top :1em}}
         [:button.button
          {:on-click
           #(let [max-dia (reduce max 0 (map :diameter (vals rows)))]
@@ -226,7 +226,15 @@
                                                 (inc (count civils)))])
           
           }
-         "Add dig costs"]
+         "Add civil costs"]
+
+        [:label {:style {:margin-left :1em}}
+         "Default civil costs: "
+         [inputs/select
+          {:value default-civils
+           :values (conj (vec civils) [nil "None"])
+           :on-change (fn [cid]
+                        (f/fire! flow [:pipe/set-default-civils cid]))}]]
         ]
        ]))
   )
@@ -369,16 +377,7 @@
 
 (defn pipe-parameters [document flow]
   (reagent/with-let
-    [mechanical-exponent (reagent/cursor document [::document/mechanical-cost-exponent])
-     mechanical-fixed (reagent/cursor document [::document/mechanical-cost-per-m])
-     mechanical-variable (reagent/cursor document [::document/mechanical-cost-per-m2])
-     civil-exponent (reagent/cursor document [::document/civil-cost-exponent])
-     civil-costs (reagent/cursor document [::document/civil-costs])
-
-     max-pipe-dia (reagent/cursor document [::document/maximum-pipe-diameter])
-     min-pipe-dia (reagent/cursor document [::document/minimum-pipe-diameter])
-     
-     flow-temperature (reagent/cursor document [::document/flow-temperature])
+    [flow-temperature (reagent/cursor document [::document/flow-temperature])
      return-temperature (reagent/cursor document [::document/return-temperature])
      ground-temperature (reagent/cursor document [::document/ground-temperature])
 

@@ -43,7 +43,8 @@
     700 {:pipe 3192, 2 817, 1 3937},
     400 {:pipe 1568, 2 498, 1 2161},
     80 {:pipe 237, 2 237, 1 705}},
-   :civils {2 "Soft", 1 "Hard"}})
+   :civils {2 "Soft", 1 "Hard"}
+   :default-civils 1})
 
 (def default-insulation {})
 
@@ -202,19 +203,9 @@
     ::document/npv-term 40
     ::document/npv-rate 0.03
 
-    ::document/maximum-pipe-diameter 2.0
-    ::document/minimum-pipe-diameter 0.02
-
-    ::document/civil-cost-exponent 1.1
-    ::document/mechanical-cost-exponent 1.3
-
-    ::document/mechanical-cost-per-m  50.0
-    ::document/mechanical-cost-per-m2 700.0
-
     ::document/flow-temperature 90.0
     ::document/return-temperature 60.0
     ::document/ground-temperature 8.0
-
 
     ::document/consider-insulation false
     ::document/consider-alternatives false
