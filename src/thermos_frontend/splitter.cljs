@@ -4,18 +4,32 @@
 (defn splitter [{:keys [left right top bottom
                         split axis on-split-change]
                  :or {axis :v}}]
-  (reagent/with-let [container (atom nil)]
+  (reagent/with-let [container (atom nil)
+                     dragging  (atom false)]
     (let [across (= axis :v)
 
           [folded split unfold-to]
           (if (vector? split)
-              [true 100 (first split)]
-              [false split 50])
+            [true 100 (first split)]
+            [false split 50])
           
           ]
       
       [:div
        {:ref #(reset! container %)
+        :on-drag-over
+        (fn [e] (when @dragging (.preventDefault e)))
+        :on-drop
+        (fn [%]
+          (when @dragging
+            (let [cr (.getBoundingClientRect @container)
+                  cx (.-clientX %)
+                  cy (.-clientY %)
+                  ]
+              (if across
+                (on-split-change (* 100 (/ (- cx (.-x cr)) (.-width cr))))
+                (on-split-change (* 100 (/ (- cy (.-y cr)) (.-height cr)))))))
+          )
         :style {:display :flex
                 :overflow :hidden
                 :height :100%
@@ -28,18 +42,8 @@
 
 
        [:div {:draggable true
-              :on-drag-end
-              #(let [cr (.getBoundingClientRect @container)
-                     cx (.-clientX %)
-                     cy (.-clientY %)
-                     ]
-                 
-                 (println (.-left cr) cx (.-width cr))
-                 (println (.-top cr) cy (.-height cr))
-                 (if across
-                   (on-split-change (* 100 (/ cx (.-width cr))))
-                   (on-split-change (* 100 (/ cy (.-height cr))))))
-              
+              :on-drag-start #(reset! dragging true)
+              :on-drag-end   #(reset! dragging false)
               :style
               (->
                {:background :#eee
@@ -66,12 +70,10 @@
           :draggable false 
 
           :on-click
-                  #(do
-                     (println "hey?")
-                     (if folded
-                      (on-split-change unfold-to)
-                      (on-split-change [split])
-                      ))}
+          #(if folded
+               (on-split-change unfold-to)
+               (on-split-change [split])
+               )}
          
          (if folded
            (if across "◀" "▲")
