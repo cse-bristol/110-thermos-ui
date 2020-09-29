@@ -31,8 +31,8 @@ This is the list of things to do with THERMOS as a whole system, although it is 
 * TODO A constraint on the number of supply locations included in a result
 * TODO Better run-log information
 * TODO Better handling of running out of time
-* TODO Show pipe sizes default to "on" in solution view
 * TODO Switch to solution view when recv. result
+* DONE Show pipe sizes default to "on" in solution view
 * DONE Kick map element when it is resized, with a resizeobserver
 * DONE [#A] Increase & check zoom limits
 * DONE Attribution statements for tiles

@@ -192,7 +192,7 @@
     ::view/view-state
     {::view/map-layers {::view/basemap-layer :satellite ::view/candidates-layer true}
      ::view/map-view ::view/constraints
-     ::view/show-pipe-diameters false}
+     ::view/show-pipe-diameters true}
 
     ::document/mip-gap 0.1
     ::document/maximum-runtime 0.5
