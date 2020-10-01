@@ -90,7 +90,10 @@
      :exclusions [javax.mail/mail javax.jms/jms com.sun.jmdk/jmxtools com.sun.jmx/jmxri]},
     org.tobereplaced/nio.file {:mvn/version "0.4.0"},
     ring/ring-core {:mvn/version "1.7.1"},
-    http-kit/http-kit {:mvn/version "2.2.0"}}}},
+    http-kit/http-kit {:mvn/version "2.2.0"}
+
+    dk.ative/docjure {:mvn/version "1.14.0"}
+    }}},
  :deps
  {org.clojure/clojure {:mvn/version "1.10.1"},
   org.clojure/core.async {:mvn/version "0.3.443"},
