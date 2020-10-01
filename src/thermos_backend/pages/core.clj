@@ -7,6 +7,7 @@
             [thermos-backend.routes.landing]
             [thermos-backend.routes.project]
             [thermos-backend.routes.admin]
+            [thermos-backend.routes.convert]
             
             [thermos-backend.auth :as auth]
             [thermos-backend.config :refer [config]]
@@ -50,4 +51,5 @@
   (bidi.ring/make-handler thermos-backend.routes.admin/admin-routes)
   (bidi.ring/make-handler thermos-backend.routes.landing/landing-routes)
   (bidi.ring/make-handler thermos-backend.routes.project/project-routes)
+  (bidi.ring/make-handler thermos-backend.routes.convert/converter-routes)
   )
