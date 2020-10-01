@@ -42,6 +42,9 @@
             [thermos-frontend.flow]
             [thermos-frontend.splitter :refer [splitter]]
             [thermos-backend.content-migrations.messages :as migration-messages]
+
+            [ajax.core :refer [POST]]
+            [ajax.protocols :refer [-body]]
             ))
 
 (enable-console-print!)
@@ -226,6 +229,47 @@
             [:li [:a {:href "/help/networks.html" :target "help"} "Network editor help"]]]
 
            ]
+
+          [:div.menu-block
+           [:h1 "Export Data"]
+           [:ul
+            [:li [:button.button--link-style
+                  {:on-click
+                   #(let [state (document/keep-interesting @state/state)]
+                      (POST "/convert/excel"
+                          {:params {:state state}
+                           :response-format
+                           {:type :blob :read -body}
+                           :handler
+                           (fn [blob]
+                             (let [a (js/document.createElement "a")]
+                               (set! (.-href a) (js/window.URL.createObjectURL blob))
+                               (set! (.-download a)
+                                     (str (preload/get-value :name) ".xlsx"))
+                               (.dispatchEvent a (js/MouseEvent. "click"))))}))
+                   
+                   }
+                  "Excel Spreadsheet"]]
+            [:li [:button.button--link-style
+                  {:on-click
+                   #(let [state (document/keep-interesting @state/state)]
+                      (POST "/convert/json"
+                          {:params {:state state}
+                           :response-format
+                           {:type :blob :read -body}
+
+                           :handler
+                           (fn [blob]
+                             (let [a (js/document.createElement "a")]
+                               (set! (.-href a) (js/window.URL.createObjectURL blob))
+                               (set! (.-download a)
+                                     (str (preload/get-value :name) ".json"))
+                               (.dispatchEvent a (js/MouseEvent. "click"))))}))
+                   }
+                  "Geojson"]]
+            ]
+           ]
+
           [:div.menu-block
            [:h1 "Project"]
            [:ul
