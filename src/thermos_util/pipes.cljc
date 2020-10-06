@@ -175,6 +175,15 @@
 
   (:heat-loss-curve curves))
 
+(defn curve-rows
+  "Return the rows information in curves. This is like the :rows in ::document/pipe-costs
+  except that
+  - the losses and capacity are filled in for rows where that data is missing.
+  - it's a seq of maps, and the maps have :diameter, rather than being a map from diameter.
+  "
+  [curves]
+  (sort-by :diameter (vals (:data curves))))
+
 (defn linear-cost
   "Give the linearised approximate cost function for something with
   given civil cost and power range.
