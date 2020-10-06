@@ -29,6 +29,13 @@
       (cache-control/no-store)))
 
 (def converter-routes
+  "Routes for converting a problem to other types.
+
+  These require no access control because the application POSTS up the
+  problem data, and the response is the spreadsheet/json/etc, so if
+  someone hits the route they have to have the data already in some
+  form.
+  "
   ["/convert"
    [["/excel" problem-to-excel]
     ["/json" problem-to-json]]])
