@@ -74,7 +74,9 @@
   (when-let [^double demand (annual-demand candidate mode)]
     (pos? demand)))
 
-(defn has-supply? [candidate]
+(defn has-supply?
+  "True if a building could be a supply location. To see whether it was used, see `supply-in-solution?`"
+  [candidate]
   (when-let [^double cap (::supply/capacity-kwp candidate)]
     (pos? cap)))
 
