@@ -45,7 +45,8 @@
 
             [ajax.core :refer [POST]]
             [ajax.protocols :refer [-body]]
-            ))
+
+            [thermos-pages.symbols :as symbols]))
 
 (enable-console-print!)
 
@@ -249,7 +250,7 @@
                                (.dispatchEvent a (js/MouseEvent. "click"))))}))
                    
                    }
-                  "Excel Spreadsheet"]]
+                  symbols/download " Excel Spreadsheet"]]
             [:li [:button.button--link-style
                   {:on-click
                    #(let [state (document/keep-interesting @state/state)]
@@ -266,7 +267,7 @@
                                      (str (preload/get-value :name) ".json"))
                                (.dispatchEvent a (js/MouseEvent. "click"))))}))
                    }
-                  "Geojson"]]
+                  symbols/download " Geojson"]]
             ]
            ]
 
