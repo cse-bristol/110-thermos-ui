@@ -102,6 +102,11 @@
    :pm25 [:span "PM" [:sub "2.5"]]
    :nox [:span "NO" [:sub "x"]]})
 
+(def text-emissions-labels
+  {:co2 "CO₂"
+   :pm25 "PM₂₅"
+   :nox "NOₓ"})
+
 (def emissions-factor-scales
   {:co2  1000.0    ;; grams
    :pm25 1000000.0 ;; milligrams
