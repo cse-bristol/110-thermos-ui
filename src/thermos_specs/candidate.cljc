@@ -125,3 +125,21 @@
        (:counterfactual (::solution/alternative candidate))))
 
 
+(defn solution-description
+  "A textual description of what has happened to a candidate, if there
+  is a solution"
+  [candidate]
+  (cond
+    (is-connected? candidate) "network"
+    (got-alternative? candidate)
+    (-> candidate
+        (::solution/alternative)
+        (::supply/name))
+
+    (got-counterfactual? candidate)
+    (-> candidate
+        (::solution/alternative)
+        (::supply/name)
+        (str " (existing)"))
+    
+    (unreachable? candidate) "impossible"))

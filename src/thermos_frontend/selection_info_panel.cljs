@@ -191,20 +191,7 @@
         (when has-solution
           (for [[row-name class contents]
                 [["In solution" sc-class
-                  (cat #(cond
-                          (candidate/is-connected? %) "network"
-                          (candidate/got-alternative? %)
-                          (-> %
-                              (::solution/alternative)
-                              (::supply/name))
-
-                          (candidate/got-counterfactual? %)
-                          (-> %
-                              (::solution/alternative)
-                              (::supply/name)
-                              (str " (existing)"))
-                          
-                          (candidate/unreachable? %) "impossible")
+                  (cat #(candidate/solution-description %)
                        
                        "no"
                        :add-classes
