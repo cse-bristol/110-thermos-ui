@@ -33,7 +33,9 @@
   (into
    [(mapv :name columns)]
    (map
-    (fn [row] (mapv (fn [{:keys [key]}] (key row)) columns))
+    (fn [row] (mapv (fn [{:keys [key]}] (try (key row)
+                                             (catch Exception e
+                                               (str "ERR" (.getMessage e))))) columns))
     rows)))
 
 (defn style-header-row [sheet header-style]
