@@ -236,43 +236,19 @@ To make both of these things work well, we need to have good <i>bounds</i> on th
 <h3 id="org4f7c283"><span class="section-number-3">2.3</span> Linearised pipe costs</h3>
 <div class="outline-text-3" id="text-2-3">
 <p>
-Pipe costs are represented by equations of the form
+Pipe costs are drawn from a table relating diameter to power, heat losses, and pipe cost. This table describes a typically nonlinear relationship for each of these pairs, effectively as a piecewise-linear function.
 </p>
 
 <p>
-\[
-\text{length} \times (A + B \times (\oslash ^ {1.1}) + C \times (\oslash ^ {1.3}))
-\]
+The values in the table for power and heat losses are either user-input, or derived using <a href="calculations.html#pipe-diameter-calc">equations given here</a>. Costs are always user-entered.
 </p>
 
 <p>
-However, the MILP works in terms of power, rather than diameter (it decides on the capacity for pipes in terms of power flow), so we must first convert this equation into one which relates a flow of heat to a cost. 
+The MILP works in terms of power, rather than diameter (it decides on the capacity for pipes in terms of power flow), so we must first convert this equation into one which relates a flow of heat to a cost. 
 </p>
 
 <p>
-THERMOS does this using a relation between delivered power and diameter:
-</p>
-
-<p>
-\[
-p(d) = (-0.4834 + 4.7617 × (d ^ {0.3701})) \times \delta_t \times \rho \times c
-\]
-</p>
-
-<p>
-where \(d\) is the diameter, \(\delta_t\) the temperature difference,  \(\rho\) the density and \(c\) the specific heat capacity. This relation is an approximation; the real hydraulic behaviour is complicated and not modelled in THERMOS.
-</p>
-
-<p>
-Anyhow, using this relation we are able to numerically generate a pipe cost function which relates kW of power to the pipe's cost per meter.
-</p>
-
-<p>
-This function is non-linear, and also not monotonically increasing<sup><a id="fnr.2" class="footref" href="#fn.2">2</a></sup>, which makes it hard to efficiently approximate within a MILP. 
-</p>
-
-<p>
-In THERMOS, we make a linear approximation to this function for each place where a pipe could go; the approximation's terms are chosen to minimise the square error resulting from using it. 
+In THERMOS, we make a further linear approximation to the piecewise linear function the pipe paramters table describes. For each place where a pipe could go, the approximation's terms are chosen to minimise the square error resulting from using it. 
 </p>
 
 <p>
@@ -997,14 +973,6 @@ and then finding \(u\) so that
 
 <div class="footdef"><sup><a id="fn.1" class="footnum" href="#fnr.1">1</a></sup> <div class="footpara"><p class="footpara">
 See <a href="https://en.wikipedia.org/wiki/Linear_programming#Integer_unknowns">https://en.wikipedia.org/wiki/Linear_programming#Integer_unknowns</a>
-</p></div></div>
-
-<div class="footdef"><sup><a id="fn.2" class="footnum" href="#fnr.2">2</a></sup> <div class="footpara"><p class="footpara">
-Monotonically increasing (where an increase is worse) nonlinear functions generally have efficient linear approximations, because a linear program given a piecewise linear approximation will 'use up' the lower (and hence better) pieces before it uses up the worse ones.
-</p>
-
-<p class="footpara">
-Decreasing functions can only be piecewise approximated using more complicated gadgets, because some constraints and extra integer variables are needed to prevent the solution taking 'economies of scale' from the curve when it hasn't gone to the scale needed.
 </p></div></div>
 
 
