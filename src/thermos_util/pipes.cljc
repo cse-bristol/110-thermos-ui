@@ -55,16 +55,18 @@
 
   This function is intended for spot calculations in the UI.
   For setting up the model, use curves below."
-  ^double [doc dia-mm]
+  [doc dia-mm]
   (case (document/medium doc)
     :hot-water
     (hw/heat-loss-w-per-m (document/delta-ground doc) (/ dia-mm 1000.0))
     
     :saturated-steam
-    0.0
-    
-    )
-  )
+    (try (steam/heat-losses-kwh%m-yr (document/steam-pressure doc) (/ dia-mm 1000.0))
+         #?(:cljs
+            (catch :default e))
+         #?(:clj
+            (catch Exception e))
+         )))
 
 (defn curves
   "Given a document, produce a blob of stuff that contains information
@@ -81,18 +83,18 @@
                 delta-g (document/delta-ground doc)]
             (vec
              (for [[dia row] (pipe-rows doc)
-                   :let [dia (/ dia 1000.0)]]
+                   :let [dia (/ dia 1000.0)
+                         capacity-kw (or (:capacity-kw row)
+                                         (hw/kw-per-m dia delta-t t-bar))
+                         losses-kwh  (or (:losses-kwh row)
+                                         (hw/heat-loss-w-per-m delta-g dia))]
+                   :when (and capacity-kw losses-kwh)]
                (merge
                 row
                 {:diameter dia
-                 
-                 :capacity-kw
-                 (or (:capacity-kw row)
-                     (hw/kw-per-m dia delta-t t-bar))
-
-                 :losses-kwh
-                 (or (:losses-kwh row)
-                     (hw/heat-loss-w-per-m delta-g dia))}))))
+                 :capacity-kw capacity-kw
+                 :losses-kwh losses-kwh
+                 }))))
           
           
           :saturated-steam
@@ -100,21 +102,30 @@
                 steam-velocity (document/steam-velocity doc)]
             (vec
              (for [[dia row] (pipe-rows doc)
-                   :let [dia (/ dia 1000.0)]]
+                   :let [dia (/ dia 1000.0)
+                         capacity-kw (or (:capacity-kw row)
+                                         (try
+                                           (steam/pipe-capacity-kw
+                                            steam-pressure steam-velocity
+                                            dia)
+                                           (catch #?(:cljs :default :clj Exception) e))
+                                         )
+                         losses-kwh  (or (:losses-kwh row)
+                                         (try
+                                           (steam/heat-losses-kwh%m-yr steam-pressure dia)
+                                           (catch #?(:cljs :default :clj Exception) e)))
+                         ]
+                   :when (and capacity-kw losses-kwh)]
                (merge
                 row
 
-                {:capacity-kw
-                 (or (:capacity-kw row)
-                     (steam/pipe-capacity-kw
-                      steam-pressure steam-velocity
-                      dia))
+                {:capacity-kw capacity-kw
+                 
                  
                  :diameter dia
 
-                 :losses-kwh
-                 (or (:losses-kwh row)
-                     (steam/heat-losses-kwh%m-yr steam-pressure dia))
+                 :losses-kwh losses-kwh
+                 
                  })))))]
     
     {:default-civils
