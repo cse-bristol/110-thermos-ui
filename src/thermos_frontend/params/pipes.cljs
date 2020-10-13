@@ -159,24 +159,30 @@
                (format/si-number
                 (* 1000.0 (pipe-calcs/power-for-diameter pipe-parameters dia)))}]]
             
-            [:td [inputs/number {:style {:max-width :5em}
-                                 :value
-                                 (:losses-kwh costs)
+            [:td (let [default-loss (pipe-calcs/losses-for-diameter pipe-parameters dia)
+                       given-loss (:losses-kwh costs)]
+                   [inputs/number {:style {:max-width :5em
+                                           :border (when-not (or given-loss default-loss)
+                                                     "2px red solid")
+                                           }
+                                   :value
+                                   given-loss
 
-                                 :empty-value [nil nil]
-                                 
-                                 :placeholder
-                                 (pipe-calcs/losses-for-diameter pipe-parameters dia)
-                                 
-                                 :max 10000
-                                 :min 1
+                                   :empty-value [nil nil]
+                                   
+                                   :placeholder default-loss
+                                   :pattern  (when-not default-loss ".+")
+                                   :required (when-not default-loss true)
+                                   
+                                   :max 10000
+                                   :min 1
 
-                                 :on-change
-                                 (fn [v]
-                                   (f/fire!
-                                    flow [:pipe/change-losses dia v]))
-                                 
-                                 }]
+                                   :on-change
+                                   (fn [v]
+                                     (f/fire!
+                                      flow [:pipe/change-losses dia v]))
+                                   
+                                   }])
              ]
             ;; mech cost
             [:td [inputs/number {:style {:max-width :6em}
@@ -361,7 +367,10 @@
            "specific enthalpy of vaporisation & density for saturated steam "
            "at the given pressure."]
           [:p
-           "Heat losses are calculated by some other method. "
+           "Heat losses are calculated by interpolating from a table for unlagged pipes, "
+           "and then applying an insulation factor for 50mm insulation. "
+           "These tables only cover diameters from 15-150mm diameter; you will have to manually "
+           "enter losses for diameters outside this range, or they will be ignored by the model."
            ]
           [:p
            "Note that the default pipe costs are for hot water pipes, not steam pipes."
