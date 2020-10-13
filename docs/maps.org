@@ -97,7 +97,6 @@ The first step here is to create GIS files which contain the data you want in a 
    - A building internal floor area in m^2
    - A demand benchmark, expressed as a constant term in kWh/yr, and a variable term in kWh/(yr × m^2)
    - A peak-to-base ratio, as a dimensionless factor
-   - For roads, the [[file:parameters.org::#civil-costs][civil engineering cost terms]]
    - A category (as text)
    - A name/address (as text)
    - An identifier (as text)

@@ -94,37 +94,11 @@ The mechanical engineering costs are a simplification reflecting the costs for p
 - The cost of buying the pipe from a manufacturer
 - The cost of welding the pipe together on site
 
-Mechanical costs for a flor and return pipe in a hole of length $l$ metres and diameter $d$ are computed using the equation:
+You can specify these costs for each pipe diameter in the pipe costs table.
 
-$$
-c_m = l * (A + (B \times d)^{1.3})
-$$
+For a hot water system the cost entered should be per meter of /both flow and return pipe/ - these are assumed always to be laid together.
 
-$l$ here is the length of the trench dug on the road, so $2l$ metres of pipe will be installed for flow and return.
-
-This equation is based on an empirical relationship in observed data. These values are set in the network editor in the options page, and apply to all the pipes in a particular network design.
-
-#+CAPTION: Where to edit the mechanical cost parameters in the network editor.
-[[./img/parameters/edit-mech-cost.png]]
-
-Reasonable values are $A = 50$ and $B = 700$, but you may wish to produce your own figures for this. If this model is too complicated for the evidence you have available, you can set $A$ and $B$ to zero, and use just the civil costs.
-
-
-#+BEGIN_SRC gnuplot :exports results :file img/parameters/mechanical-cost.png
-reset
-set title "Diameter vs mechanicals cost with default parameters"
-
-set xlabel "Diameter (m)"
-set ylabel "Mechanicals (¤/m)"
-set xrange [0:0.8]
-
-mechanicals(d) = 50 + (700*d)**1.3
-
-plot mechanicals(x)
-#+END_SRC
-
-#+RESULTS:
-[[file:img/parameters/mechanical-cost.png]]
+For a saturated steam system, the cost entered should be per meter of flow pipe. No return pipe is assumed, as the energy is delivered by condensation at the consumer.
 
 ** Civil engineering costs
 :PROPERTIES:
@@ -137,55 +111,7 @@ The civil engineering costs are a simplification reflecting the costs for pipewo
 - The cost of suspending traffic
 - The cost of suspending parking
 
-Like the mechanical engineering costs, the civil costs are calculated using an equation
-
-$$
-c_c = l \times (A + (B \times d)^{1.1})
-$$
-
-Again, $l$ here is the length of the trench dug on the road, so $2l$ metres of pipe will be installed for flow and return.
-
-The difference is that the $A$ and $B$ values can vary for each individual bit of road in the network, and the exponent is smaller. This reflects the empirical observation that civil engineering costs do not grow as rapidly with the diameter of pipe that has to be installed.
-
-The $A$ and $B$ values can be set for all the roads in a map in the map creation wizard:
-
-#+CAPTION: Where to set default civil cost parameters
-[[./img/parameters/edit-civ-cost-map.png]]
-
-If you are preparing your own GIS data, they can be set on the individual roads in a map using the field settings the map creation wizard.
-In the network editor, you can change the value on any individual road through the right click menu.
-
-#+ATTR_HTML: :autoplay true :loop true :controls :true
-#+CAPTION: Editing civil costs on paths in a network problem
-[[./img/parameters/edit-path-costs.webm]]
-
-Sensible values for the civils parameters in the UK are
-
-| Location | Surface |  $A$ | $B$ |
-|----------+---------+------+-----|
-| Urban    | Hard    | 1200 | 500 |
-| Urban    | Soft    |  450 |   0 |
-| Suburban | Hard    |  850 | 200 |
-| Suburban | Soft    |  100 |   0 |
-
-#+BEGIN_SRC gnuplot :exports results :file img/parameters/civil-cost.png
-reset
-set title "Diameter vs civils and mechanicals costs"
-
-set xlabel "Diameter (m)"
-set ylabel "Cost (¤/m)"
-set xrange [0:0.8]
-
-hard_urban(d)    = 1200 + (500 * d)**1.1
-soft_urban(d)    = 450  + (0 * d)**1.1
-hard_suburban(d) = 850 + (500 * d)**1.1
-soft_suburban(d) = 100 + (0 * d)**1.1
-
-plot mechanicals(x), hard_urban(x), soft_urban(x), hard_suburban(x), soft_suburban(x)
-#+END_SRC
-
-#+RESULTS:
-[[file:img/parameters/mechanical-cost.png]]
+Like the mechanical engineering costs, the civil costs are user inputs entered into the pipe costs table.
 
 ** Flow, return, and ground temperatures
 

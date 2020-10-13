@@ -71,7 +71,11 @@ In principle, if there are several supplies in the system, or several pipes conn
 
 Although the model works with pipes' capacity to deliver power, prices and heat losses are determined by the pipe diameter.
 
-The peak power requirement is converted into a diameter by using a standard velocity curve
+You can enter your own figures for the capacity and heat losses at a given diameter.
+
+If you don't enter capacity or heat loss values, they are computed for you from the diameter.
+
+For hot water pipes, the peak power requirement is converted into a diameter by using a standard velocity curve
 
 $$
 v = -0.4834 + 4.7617 × (⌀ ^ {0.3701})
@@ -83,6 +87,8 @@ Because of this, the model can represent different flow/return temperature regim
 
 At the moment the model does not choose from a list of pipe sizes, so will select sizes of pipe that are not practical to purchase. This is because constraining the model to select particular sizes substantially increases the time to solve problems.
 
+For steam pipes, the pipe capacity for a given diameter is computed by looking in a table that gives the specific enthalpy of saturated steam at the specified steam pressure. This is then combined with the flow rate and pipe diameter to calculate how much energy is delivered by condensing steam flowing at the given rate.
+
 ** Pipe cost
 
 Pipe cost is split into two parts, both functions of the pipe diameter.
@@ -91,25 +97,13 @@ Pipe cost is split into two parts, both functions of the pipe diameter.
 
   These represent the cost of buying the pipe, welding and so on.
 
-  Mechanical costs are assumed to take the form
-
-  $A+(⌀ × B)^{1.3}$
-
-  with $A$ and $B$ as parameters that vary between cities or scenarios, but not between roads.
-
 - Civil engineering costs
 
   These represent the cost of digging and filling the hole, closing roads and so on.
 
-  Civil engineering costs are assumed to take the form
+  For example, a road with a hard surface will cost more to dig up.
 
-  $A+(⌀ × B)^{1.1}$
-
-  with $A$ and $B$ as parameters that can vary between road segments (reflecting the different cost of digging things up). 
-
-  For example, a road with a hard surface will cost more to dig up, and so will have greater $A$ and $B$ values than one with a soft surface.
-
-These functions are combined with the power / diameter relationship to produce a power / cost relationship for each road.
+These values are combined with the power / diameter relationship to produce a power / cost relationship for each road.
 
 Although the resulting shape will be non-linear, the model computes bounds on the power that a given pipe can deliver in any solution and then approximates the this non-linear function as a linear one. 
 
@@ -122,11 +116,15 @@ This approximation reduces the fidelity of the cost calculation, but makes the p
 
 Heat losses are also determined by pipe diameter, along with the flow temperature in the pipe and the ground temperature.
 
-The losses associated with particular diameter are calculated using the empirical formula:
+In hot water pipes, the losses associated with particular diameter are calculated using the empirical formula:
 
 $$
 \delta_t × (0.16805 × \ln(⌀) + 0.85684)
 $$
+
+For steam pipes, "basic" losses are taken from a table relating delta-T between inside and outside for an unlagged steel pipe to heat losses. The delta-T is found using the steam pressure, via the table of standard properties for saturated steam.
+
+This basic loss is then reduced using an insulation factor drawn from another table, for a standard 50mm of lagging.
 
 * Operating conditions
 
@@ -141,8 +139,8 @@ Heat production incurs a cost per unit, and heat delivered creates revenue per u
 - Financial cost terms
   - Capital costs
     - Pipe costs
-      - Mechanical cost/m, calculated as $A+(B×⌀)^1.3$
-      - Civil cost/m, calculated as $A+(B×⌀)^1.1$
+      - Mechanical cost/m, a user input by pipe diameter
+      - Civil cost/m, a user input by pipe diameter
     - Supply costs
       - Fixed cost, incurred if supply is used
       - Capacity cost, incurred per unit capacity that is provisioned
@@ -281,7 +279,7 @@ Using this graph we can read off the required diameter for each pipe segment bas
 
 Now we have diameters for the pipes we can work out their heat losses and costs.
 
-Let's say that we have the following cost parameters:
+Let's say that we have entered costs which follow these rules:
 
 - Mechanical costs of 50 + (700 × ⌀)^{1.3} per metre
 - Civil costs of 350 + (700  × ⌀)^{1.1} per metre for paths a-e
@@ -289,7 +287,6 @@ Let's say that we have the following cost parameters:
 
 | Pipe | Diameter (m) | Mechanical/m       | Civil/m             | Length (m) | Total    |
 |------+--------------+--------------------+---------------------+------------+----------|
-|      |              | 50 + (700×⌀)^{1.3} | 350 + (700×⌀)^{1.1} |            |          |
 | a,b  |          0.2 | ¤666               | ¤579                |        100 | ¤124,603 |
 | c    |         0.25 | ¤874               | ¤643                |         10 | ¤15,174  |
 | d,e  |          0.4 | ¤1,568             | ¤841                |         60 | ¤138,467 |
