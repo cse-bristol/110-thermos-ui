@@ -81,6 +81,16 @@
                [::document/pipe-costs :rows dia]
                dissoc :capacity-kwp)))
 
+(defmethod handle :pipe/change-losses
+  [state [_ dia losses-kwh]]
+  (if (number? losses-kwh)
+    (assoc-in state
+              [::document/pipe-costs :rows dia :losses-kwh]
+              losses-kwh)
+    (update-in state
+               [::document/pipe-costs :rows dia]
+               dissoc :losses-kwh)))
+
 (defmethod handle :pipe/change-flow-temperature
   [state [_ t]]
   (assoc state ::document/flow-temperature t))
