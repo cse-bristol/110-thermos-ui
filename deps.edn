@@ -33,7 +33,8 @@
   :client
   {:override-deps {org.clojure/clojurescript {:mvn/version "1.10.597"}},
    :extra-deps
-   {cljsjs/leaflet {:mvn/version "1.2.0-0"},
+   {org.clojure/data.csv {:mvn/version "0.1.4"},
+    cljsjs/leaflet {:mvn/version "1.2.0-0"},
     sablono/sablono {:mvn/version "0.8.5"},
     com.cognitect/transit-cljs {:mvn/version "0.8.256"},
     org.clojure/clojurescript {:mvn/version "1.10.597"},
