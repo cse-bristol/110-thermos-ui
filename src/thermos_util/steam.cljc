@@ -1,7 +1,11 @@
 (ns thermos-util.steam
   (:require [clojure.string :as string]
             [thermos-util :refer [assoc-by parse-double kw->annual-kwh]]
-            [com.rpl.specter :as sr])
+            [com.rpl.specter :as sr]
+            #?@(:clj
+                [[clojure.data.csv]
+                 [clojure.java.io]]))
+  
   #?(:cljs (:require-macros [thermos-util.steam :refer [load-csv]])))
 
 ;; steam table data is loaded by a macro at compile time
