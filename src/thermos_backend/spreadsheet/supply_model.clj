@@ -8,8 +8,10 @@
             [thermos-specs.path :as path]
             [thermos-specs.supply :as supply]
             [thermos-util.pipes :as pipes]
-            [thermos-specs.measure :as measure]))
+            [thermos-specs.measure :as measure]
+            [clojure.string :as string]))
 
+(defn *100 [x] (and x (* 100.0 x)))
 
 (defn output-solution [ss doc]
   ss)
@@ -101,9 +103,95 @@
         ss)
       )))
 
+(defn output-technologies [ss doc]
+  (let [fuels             (::supply/fuels doc)
+        substations       (::supply/substations doc)
+        input-plants      (::supply/plants doc)
+        input-storage     (::supply/storages doc)
+        
+        solution          (::solution/supply-solution doc)
+        plant-decisions   (:plant solution)
+        storage-decisions (:storage solution)]
+    (-> ss
+        (sheet/add-tab
+         "Supply Plant"
+         (into
+          [{:name "Name" :key (comp :name second)}
+           {:name "Lifetime" :key (comp :lifetime second)}
+           {:name "Fuel" :key (comp :name fuels :fuel second)}
+           {:name "Capacity" :key (comp :capacity-kwp second)}
+           {:name "CHP?" :key (comp :chp second)}
+           {:name "Heat Efficiency" :key (comp *100 :heat-efficiency second)}
+           {:name "Power Efficiency" :key (comp *100 :power-efficiency second)}
+           {:name "Fixed Capex" :key (comp :fixed :capital-cost second)}
+           {:name "Capex/kWp" :key (comp :per-kwp :capital-cost second)}
+           {:name "Capex/kWh" :key (comp :per-kwh :capital-cost second)}
+           {:name "Fixed Opex" :key (comp :fixed  :operating-cost second)}
+           {:name "Opex/kWp" :key  (comp :per-kwp :operating-cost second)}
+           {:name "Opex/kWh" :key  (comp :per-kwh :operating-cost second)}
+           {:name "Substation" :key (comp :name substations :substation second)}]
+
+          (when solution
+            `[~{:name "Build?" :key (comp :build plant-decisions first)}
+              ~{:name "Built capacity" :key (comp :capacity-kw plant-decisions first)}
+              ~{:name "Output kWh/yr" :key (comp :output-kwh plant-decisions first)}
+              ~@(for [k [:lifetime-cost :present-cost :total-cost]]
+                  {:name (string/capitalize (.replace (name k) "-" " "))
+                   :key  (comp k :capital-cost plant-decisions first)})
+              ~@(for [k [:annual-cost :present-cost :total-cost]
+                      f [:operating-cost :fuel-cost :grid-revenue]
+                      ]
+                  {:name
+                   (str
+                    (string/capitalize (.replace (name f) "-" " "))
+                    " "
+                    (string/capitalize (.replace (name k) "-" " ")))
+                   :key  (comp k f plant-decisions first)})
+              ~@(for [k [:annual-cost :present-cost :total-cost
+                         :annual-emission :total-emission]
+                      f [:co2 :nox :pm25]
+                      ]
+                  {:name
+                   (str
+                    (candidate/text-emissions-labels f)
+                    " "
+                    (string/capitalize (.replace (name k) "-" " ")))
+                   :key  (comp k f :emissions plant-decisions first)})
+             ]
+            )
+          )
+         input-plants
+         )
+
+        (sheet/add-tab
+         "Supply Storage"
+         (into
+          [{:name "Name" :key (comp :name second)}
+           {:name "Lifetime" :key (comp :lifetime second)}
+           {:name "Capacity (kWh)" :key (comp :capacity-kwh second)}
+           {:name "Capacity (kWp)" :key (comp :capacity-kwp second)}
+           {:name "Efficiency" :key (comp *100 :efficiency second)}
+           {:name "Fixed Capex" :key (comp :fixed :capital-cost second)}
+           {:name "Capex/kWp" :key (comp :per-kwp :capital-cost second)}
+           {:name "Capex/kWh" :key (comp :per-kwh :capital-cost second)}
+           ]
+          (when solution
+            `[~{:name "Build capacity (kWh)" :key (comp :capacity-kwh storage-decisions first)}
+              ~{:name "Build capacity (kWp)" :key (comp :capacity-kw storage-decisions first)}
+              ~@(for [k [:lifetime-cost :present-cost :total-cost]]
+                  {:name (string/capitalize (.replace (name k) "-" " "))
+                   :key  (comp k :capital-cost storage-decisions first)}
+                  )
+             ]
+            )
+          )
+         input-storage)
+
+        )))
 
 (defn output-problem [ss doc]
   (-> ss
+      (output-technologies doc)
       (output-profiles doc)
       ))
 
