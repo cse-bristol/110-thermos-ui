@@ -33,9 +33,10 @@
   (into
    [(mapv :name columns)]
    (map
-    (fn [row] (mapv (fn [{:keys [key]}] (try (key row)
-                                             (catch Exception e
-                                               (str "ERR" (.getMessage e))))) columns))
+    (fn [row] (mapv (fn [{:keys [key]}]
+                      (try (key row)
+                           (catch Exception e
+                             (str "ERR" (.getMessage e))))) columns))
     rows)))
 
 (defn style-header-row [sheet header-style]
@@ -46,32 +47,14 @@
   (let [wb (XSSFWorkbook.)
         header-style (dj/create-cell-style! wb {:font {:bold true}})
         
-        wb (try (reduce
-                 (fn [wb tab]
-                   (let [sheet (dj/add-sheet! wb (:name tab))]
-                     (dj/add-rows! sheet (make-rows tab))
-                     (style-header-row sheet header-style)
-                     wb))
-                 wb
-                 ss)
-                (catch Exception e
-                  (.printStackTrace e)
-                  )
-                )]
+        wb (reduce
+            (fn [wb tab]
+              (let [sheet (dj/add-sheet! wb (:name tab))]
+                (dj/add-rows! sheet (make-rows tab))
+                (style-header-row sheet header-style)
+                wb))
+            wb
+            ss)]
     (dj/save-workbook-into-stream! out wb)))
 
-(comment
 
-  (with-open [o (io/output-stream (io/file "/home/hinton/tmp/out.xlsx"))]
-    (-> (empty-spreadsheet)
-        (add-tab "Stuff"
-                 [{:name "Column 1" :key :a}
-                  {:name "Column 2" :key :b}]
-
-                 [{:a 1 :b 2}
-                  {:a 3 :b 4}]
-                 )
-        (write-to-stream o)
-        )
-    )
-  )

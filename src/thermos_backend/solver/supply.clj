@@ -54,6 +54,11 @@
         ;; we have load profiles across buildings, which we want to
         ;; merge
 
+        demand-loads (for [c demands]
+                       {:profile (or (::supply/profile-id c) default-profile-id)
+                        :kwh     (candidate/annual-demand c mode)
+                        :kwp     (candidate/peak-demand c mode)})
+
         plant-load (profiles/combine-buildings
                        day-types
                        ;; we only need id=>values for heat profiles
@@ -66,10 +71,7 @@
                        
 
                        ;; for each building we just need profile id, kwh, kwp
-                       (for [c demands]
-                         {:profile (::supply/profile-id c default-profile-id)
-                          :kwh     (candidate/annual-demand c mode)
-                          :kwp     (candidate/peak-demand c mode)})
+                       demand-loads
 
                        ;; and these are the target values for the combined curve
                        (::solution/output-kwh supply 0)
