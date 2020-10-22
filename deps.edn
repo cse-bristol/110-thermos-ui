@@ -1,6 +1,6 @@
 {:paths ["src" "resources"],
  :mvn/repos
- {"boundless" {:url "https://repo.boundlessgeo.com/main"},
+ {"OSGeo" {:url "https://repo.osgeo.org/repository/release"},
   "central" {:url "https://repo1.maven.org/maven2/"},
   "clojars" {:url "https://clojars.org/repo"},
   "geotools" {:url "https://download.osgeo.org/webdav/geotools/"}},
@@ -43,7 +43,28 @@
     re-com/re-com {:mvn/version "2.4.0"},
     cljsjs/rbush {:mvn/version "2.0.1-0"},
     reagent/reagent {:mvn/version "0.8.1"},
-    cljsjs/leaflet-draw {:mvn/version "0.4.12-0"}}},
+    cljsjs/leaflet-draw {:mvn/version "0.4.12-0"}
+
+    rum/rum {:mvn/version "0.11.3"},
+    cljs-ajax/cljs-ajax {:mvn/version "0.8.0", :exclusions [commons-logging/commons-logging]},
+    }},
+  :heatmap-tool
+  {:extra-deps
+   {org.clojure/tools.cli {:mvn/version "0.4.2"},
+    thermos/importer
+    {:git/url "ssh://git@github.com/cse-bristol/110-thermos-importer.git",
+     :tag "HEAD",
+     :sha "67dac8b2ba8194bc2399bdbe29a2709bfa1b1867"}
+    org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"},
+    log4j/log4j
+    {:mvn/version "1.2.17",
+     :exclusions [javax.mail/mail javax.jms/jms com.sun.jmdk/jmxtools com.sun.jmx/jmxri]}
+
+    org.tobereplaced/nio.file {:mvn/version "0.4.0"},
+    mount/mount {:mvn/version "0.1.15"},
+    }
+   
+   }
   :server
   {:extra-deps
    {org.clojure/data.json {:mvn/version "0.2.6"},
@@ -94,6 +115,9 @@
     http-kit/http-kit {:mvn/version "2.2.0"}
 
     dk.ative/docjure {:mvn/version "1.14.0"}
+
+    rum/rum {:mvn/version "0.11.3"},
+    cljs-ajax/cljs-ajax {:mvn/version "0.8.0", :exclusions [commons-logging/commons-logging]},
     }}},
  :deps
  {org.clojure/clojure {:mvn/version "1.10.1"},
@@ -101,6 +125,5 @@
   org.clojure/tools.reader {:mvn/version "1.3.0"},
   net.cgrand/macrovich {:mvn/version "0.2.1"},
   com.rpl/specter {:mvn/version "1.1.2"},
-  rum/rum {:mvn/version "0.11.3"},
-  cljs-ajax/cljs-ajax {:mvn/version "0.8.0", :exclusions [commons-logging/commons-logging]},
+  
   metosin/spec-tools {:mvn/version "0.10.1"}}}
