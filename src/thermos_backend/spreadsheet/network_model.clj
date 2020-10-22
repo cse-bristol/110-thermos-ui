@@ -5,13 +5,13 @@
             [thermos-specs.candidate :as candidate]
             [thermos-specs.demand :as demand]
             [thermos-specs.tariff :as tariff]
-
-            
-
             [thermos-specs.solution :as solution]
             [thermos-specs.path :as path]
             [thermos-specs.supply :as supply]
-            [thermos-util.pipes :as pipes]))
+            [thermos-util.pipes :as pipes]
+            [thermos-specs.measure :as measure]))
+
+(def *100 (partial * 100.0))
 
 (defn cost-columns [type prefix key]
   (case type
@@ -51,7 +51,7 @@
                  is-market (= :market (::tariff/id %))
                  has-market-value (::solution/market-rate %)]
              (if (and is-market has-market-value)
-               (str name " (" (* has-market-value 100.0) " c/kWh)")
+               (str name " (" (*100 has-market-value) " c/kWh)")
                name))}
     { :name "Connection cost name"
      :key #(document/connection-cost-name doc (::tariff/cc-id %))}
@@ -99,8 +99,7 @@
              (concat
               base-cols
               [{:name "Maximum capacity (kW)" :key ::supply/capacity-kwp}
-               {:name "Heat price (c/kWh)" :key (comp (partial * 100)
-                                                    ::supply/cost-per-kwh)}
+               {:name "Heat price (c/kWh)" :key (comp *100 ::supply/cost-per-kwh)}
 
                {:name "Fixed capital cost (¤)" :key ::supply/fixed-cost}
                {:name "Capital cost (¤/kWp)" :key ::supply/capex-per-kwp}
@@ -160,12 +159,14 @@
      curve-rows
      )))
 
+
+
 (defn output-network-parameters [ss doc]
   (-> ss
       (sheet/add-tab
        "Tariffs"
        [{:name "Tariff name" :key ::tariff/name}
-        {:name "Unit rate (c/¤)" :key (comp (partial * 100.0) ::tariff/unit-charge)}
+        {:name "Unit rate (c/¤)" :key (comp *100 ::tariff/unit-charge)}
         {:name "Capacity charge (¤/kWp)" :key ::tariff/capacity-charge}
         {:name "Standing charge (¤)" :key ::tariff/standing-charge}]
        (vals (::document/tariffs doc)))
@@ -184,7 +185,7 @@
          {:name "Fixed cost (¤)" :key ::supply/fixed-cost}
          {:name "Capacity cost (¤/kWp)" :key ::supply/capex-per-kwp}
          {:name "Operating cost (¤/kWp.yr)" :key ::supply/opex-per-kwp}
-         {:name "Fuel price (c/kWh)" :key (comp (partial * 100.0) ::supply/cost-per-kwh)}
+         {:name "Fuel price (c/kWh)" :key (comp *100 ::supply/cost-per-kwh)}
          ]
         (for [e candidate/emissions-types]
           {:name (str (candidate/text-emissions-labels e)
@@ -196,6 +197,17 @@
           ))
        
        (vals (::document/alternatives doc)))
+
+      (sheet/add-tab
+       "Insulation"
+       [{:name "Name" :key ::measure/name}
+        {:name "Fixed cost" :key ::measure/fixed-cost}
+        {:name "Cost / m2" :key ::measure/cost-per-m2}
+        {:name "Maximum reduction %" :key (comp *100 ::measure/maximum-effect)}
+        {:name "Maximum area %" :key (comp *100 ::measure/maximum-area)}
+        {:name "Surface" :key (comp name ::measure/surface)}]
+       (vals (::document/insulation doc)))
+      
       
       (output-pipe-costs doc)
       
@@ -203,10 +215,50 @@
        "Other parameters"
        [{:name "Parameter" :key first}
         {:name "Value" :key second}]
-       
-       [
 
-        ]
+       `[~["Medium" (name (document/medium doc))]
+
+         ~@(if (= :hot-water (document/medium doc))
+             [["Flow temperature"   (::document/flow-temperature doc)]
+              ["Return temperature"   (::document/return-temperature doc)]
+              ["Ground temperature"   (::document/ground-temperature doc)]]
+             [["Steam pressure (MPa)" (document/steam-pressure doc)]
+              ["Steam velocity (m/s)" (document/steam-velocity doc)]])
+
+          ~["Pumping overhead" (*100 (::document/pumping-overhead doc 0))]
+          ~["Pumping cost/kWh" (::document/pumping-cost-per-kwh doc 0)]
+
+         ~@(for [[e f] (::pumping-emissions doc)]
+             [(str "Pumping "
+                   (candidate/text-emissions-labels e)
+                   " ("
+                   (candidate/emissions-factor-units e)
+                   ")")
+              (* (or f 0) (candidate/emissions-factor-scales e))])
+
+         ~@(for [e candidate/emissions-types]
+             [(str (candidate/text-emissions-labels e) " cost")
+              (::document/emissions-cost e 0)])
+
+         ~@(for [e candidate/emissions-types]
+             [(str (candidate/text-emissions-labels e) " limit")
+              (when (:enabled (::document/emissions-limit e))
+                (:value (::document/emissions-limit e)))])
+         
+         
+         ~["Objective" (name (::document/objective doc))]
+         ~["Consider alternative systems" (::document/consider-alternatives doc)]
+         ~["Consider insulation" (::document/consider-insulation doc)]
+         
+         ~["NPV Term" (::document/npv-term doc)]
+         ~["NPV Rate" (*100 (::document/npv-rate doc))]
+
+         ~["Loan Term" (::document/loan-term doc)]
+         ~["Loan Rate" (*100 (::document/loan-rate doc))]
+         
+         ~["MIP Gap" (::document/mip-gap doc)]
+         ~["Max runtime" (::document/maximum-runtime doc)]
+         ]
        )
       
       )
