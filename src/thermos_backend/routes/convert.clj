@@ -13,8 +13,15 @@
 (defn problem-to-excel [{{state :state} :body-params}]
   (-> (rio/piped-input-stream
        (fn [out]
-         (-> (xl/to-spreadsheet state)
-             (xlc/write-to-stream out))
+         (try 
+           (-> (xl/to-spreadsheet state)
+               (xlc/write-to-stream out))
+           (catch Exception e
+             (println "While outputting spreadsheet!")
+             (clojure.stacktrace/print-throwable e)
+             (.printStackTrace e)
+             ))
+         
          (.flush out)
          ))
       (response/response)
