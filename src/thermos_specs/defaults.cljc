@@ -207,6 +207,10 @@
     ::document/return-temperature 60.0
     ::document/ground-temperature 8.0
 
+    ::document/steam-pressure 1.6
+    ::document/steam-velocity 20.0
+    ::document/medium :hot-water
+    
     ::document/consider-insulation false
     ::document/consider-alternatives false
     ::document/objective :network
