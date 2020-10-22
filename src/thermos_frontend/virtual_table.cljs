@@ -39,7 +39,7 @@
                                  items)))]
     ;; and now the actual component
     (let [[sort-col sort-dir] @sort-order
-          items (sort! items)]
+          items (vec (sort! items))]
 
       [:> js/ReactVirtualized.AutoSizer
        (fn [dims]
