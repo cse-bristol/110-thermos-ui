@@ -22,15 +22,15 @@
                         :step 0.1
                         :disabled (not (:annualize @params))}]]
    [:td
-    (->> 100
-         (finance/objective-capex-value (assoc @doc ::document/npv-rate 0) @params false)
-         (:present)
-         (format/si-number))]
+    (->>
+     (finance/objective-capex-value (assoc @doc ::document/npv-rate 0) @params 100 false)
+     (:present)
+     (format/si-number))]
    [:td
-    (->> 100
-         (finance/objective-capex-value @doc @params false)
-         (:present)
-         (format/si-number))]])
+    (->> 
+     (finance/objective-capex-value @doc @params 100 false)
+     (:present)
+     (format/si-number))]])
 
 
 (defn objective-parameters [document]
