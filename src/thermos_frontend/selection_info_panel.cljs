@@ -76,8 +76,8 @@
 (defonce collapsed-rows (reagent/atom {}))
 
 (defn- chips-row [flow selection title value
-                  & {:keys [collapsed add-classes nil-value]}]
-  (reagent/with-let [collapsed (or collapsed (reagent/cursor collapsed-rows [value]))]
+                  & {:keys [add-classes nil-value]}]
+  (reagent/with-let [collapsed (reagent/cursor collapsed-rows [value])]
     (let [by-value (dissoc (group-by (if nil-value
                                 #(or (value %) nil-value)
                                 value)
@@ -93,7 +93,7 @@
                           :class (when-not @collapsed "rotate-90")
                           } "▶"]) " " title]
          (if (and (> n-groups 1) @collapsed)
-           [:div (str n-groups " categories hidden")]
+           [:div {:style {:padding :0.2em}} (str n-groups " groups")]
            (let [groups (sort (keys by-value))]
              (remove
               nil?
