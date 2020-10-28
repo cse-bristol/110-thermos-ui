@@ -3,10 +3,14 @@
 
 This is the list of things to do with THERMOS as a whole system, although it is in the UI repository.
 
-* TODO [#A] Steam modelling
+* DONE [#A] Steam modelling
 - [X] Implement power/diameter relationship
-- [ ] Implement diameter/losses relationship
-** TODO Need to know about heat losses for steam pipes
+- [X] Implement diameter/losses relationship
+
+  Marc says to just multiply the heat loss by the insulation factor,
+  so it's an impedance of some sort.
+- [X] Bounds checking in the UI for diameter
+** TODO Update documentation
 * DONE [#A] Discrete pipe sizes
 - [X] Do something about default dig cost
 - [X] Make migration box go on top of everything, not just map
@@ -18,10 +22,11 @@ This is the list of things to do with THERMOS as a whole system, although it is 
 - [X] Fix reporting to report on exact pipe sizes
 - [X] Remove references to old stuff
 - [X] Migrate old scenarios to have a table rather than equations
-
-* TODO [#A] Highlight modified objects
-* TODO [#A] Output reporting information to spreadsheets
+** DONE Update documentation
+* DONE [#A] Output reporting information to spreadsheets
+* DONE [#A] Highlight modified objects
 * TODO [#A] Publish with an open-source license
+Me to write something about attribution requirement.
 * TODO Uploadable LIDAR for projects
 * TODO Improved table view
 * TODO Degree day link up
@@ -32,6 +37,27 @@ This is the list of things to do with THERMOS as a whole system, although it is 
 * TODO Better run-log information
 * TODO Better handling of running out of time
 * TODO Switch to solution view when recv. result
+* TODO Nerf standard users, make special users
+   - To prevent overuse of storage space:
+     - Each project shall have a last access date
+     - When a project hasn't been looked at for N days, there will be a warning
+     - When a project hasn't been looked at for N+x days, it gets deleted
+
+   - User accounts
+     - No login for N days, warning, N+x delete
+
+   - Compute limits
+     - Maximum runtime upper bound
+     - Rate limit on jobs run
+     - Rate limit on maps created
+     - Maximum runtime per day?
+     - Max uploaded GIS file feature count
+* TODO Capital costs box in objective page is not showing PV etc.       :bug:
+* TODO Anti-forgery tokens are off                                      :bug:
+As part of this, could use the effects system in flow.
+* TODO Individual system capacity NaN?                                  :bug:
+http://localhost:8080/project/5/map/20/net/1190
+* TODO Unreachable detection doesn't know heat can't flow through a building :bug:
 * DONE Show pipe sizes default to "on" in solution view
 * DONE Kick map element when it is resized, with a resizeobserver
 * DONE [#A] Increase & check zoom limits
