@@ -36,6 +36,7 @@
             [clojure.string :as string]
 
             [thermos.opt.net.core :as net-model]
+            [thermos-backend.solver.logcap :as logcap]
             )
   
   (:import [java.io StringWriter]))
@@ -1075,21 +1076,27 @@
           solved-instance)))
     ))
 
-
-
 (defn try-solve [label instance & {:keys [remove-temporary-files]}]
-  (try
-    (solve label instance :remove-temporary-files remove-temporary-files)
+  (let [log-writer (java.io.StringWriter.)]
+    (try
+      
+      (let [solution
+            (logcap/with-log-into log-writer
+              (solve label instance :remove-temporary-files remove-temporary-files))]
+        (assoc solution ::solution/log (.toString log-writer)))
 
-    (catch Throwable ex
-      (util/dump-error ex "Error running network problem"
-                       :type "network" :data instance)
-      (-> instance
-          (document/remove-solution)
-          (assoc ::solution/state :uncaught-error
-                 ::solution/log   (with-out-str
-                                    (clojure.stacktrace/print-throwable ex)
-                                    (println "---")
-                                    (clojure.stacktrace/print-cause-trace ex)))))))
+      (catch Throwable ex
+        (util/dump-error ex "Error running network problem"
+                         :type "network" :data instance)
+        (-> instance
+            (document/remove-solution)
+            (assoc ::solution/state :uncaught-error
+                   ::solution/log
+                   (with-out-str
+                     (println (.toString log-writer))
+                     (println "---")
+                     (clojure.stacktrace/print-throwable ex)
+                     (println "---")
+                     (clojure.stacktrace/print-cause-trace ex))))))))
 
 
