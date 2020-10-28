@@ -4,7 +4,12 @@
             [thermos-specs.supply :as supply]
             [thermos-specs.view :as view]
             [thermos-specs.path :as path]
-            [thermos-specs.tariff :as tariff]))
+            [thermos-specs.tariff :as tariff])
+  #?(:cljs (:require-macros [thermos-specs.defaults :refer [current-version]])))
+
+#?(:clj
+   (defmacro current-version []
+     (count @(requiring-resolve 'thermos-backend.content-migrations.piecewise/migrations))))
 
 (def default-emissions {})
 
@@ -15,16 +20,31 @@
                 :unit-charge 0.05
                 :capacity-charge 0}})
 
-(def default-civil-costs
-  {2 #::path {:civil-cost-id 2
-               :civil-cost-name "Soft"
-               :fixed-cost 200
-               :variable-cost 200}
-
-   1 #::path {:civil-cost-id 1
-               :civil-cost-name "Hard"
-               :fixed-cost 500
-               :variable-cost 750}})
+(def default-pipe-costs
+  {:rows
+   {1000.0 {:pipe 5046, 2 1180, 1 5965},
+    65 {:pipe 193, 2 228, 1 656},
+    20 {:pipe 81, 2 206, 1 534},
+    300 {:pipe 1094, 2 405, 1 1642},
+    450 {:pipe 1819, 2 547, 1 2435},
+    50 {:pipe 152, 2 220, 1 611},
+    32 {:pipe 107, 2 211, 1 562},
+    40 {:pipe 126, 2 215, 1 583},
+    600 {:pipe 2622, 2 705, 1 3313},
+    500 {:pipe 2079, 2 598, 1 2719},
+    150 {:pipe 474, 2 283, 1 964},
+    100 {:pipe 300, 2 249, 1 774},
+    800 {:pipe 3788, 2 933, 1 4589},
+    250 {:pipe 874, 2 362, 1 1401},
+    25 {:pipe 91, 2 208, 1 545},
+    125 {:pipe 385, 2 266, 1 866},
+    200 {:pipe 667, 2 321, 1 1174},
+    900 {:pipe 4407, 2 1055, 1 5265},
+    700 {:pipe 3192, 2 817, 1 3937},
+    400 {:pipe 1568, 2 498, 1 2161},
+    80 {:pipe 237, 2 237, 1 705}},
+   :civils {2 "Soft", 1 "Hard"}
+   :default-civils 1})
 
 (def default-insulation {})
 
@@ -167,10 +187,12 @@
 
 (def default-document
   (merge
-   {::view/view-state
+   {::document/version (current-version)
+
+    ::view/view-state
     {::view/map-layers {::view/basemap-layer :satellite ::view/candidates-layer true}
      ::view/map-view ::view/constraints
-     ::view/show-pipe-diameters false}
+     ::view/show-pipe-diameters true}
 
     ::document/mip-gap 0.1
     ::document/maximum-runtime 0.5
@@ -181,25 +203,20 @@
     ::document/npv-term 40
     ::document/npv-rate 0.03
 
-    ::document/maximum-pipe-diameter 2.0
-    ::document/minimum-pipe-diameter 0.02
-
-    ::document/civil-cost-exponent 1.1
-    ::document/mechanical-cost-exponent 1.3
-
-    ::document/mechanical-cost-per-m  50.0
-    ::document/mechanical-cost-per-m2 700.0
-
     ::document/flow-temperature 90.0
     ::document/return-temperature 60.0
     ::document/ground-temperature 8.0
 
+    ::document/steam-pressure 1.6
+    ::document/steam-velocity 20.0
+    ::document/medium :hot-water
+    
     ::document/consider-insulation false
     ::document/consider-alternatives false
     ::document/objective :network
 
     ::document/tariffs default-tariffs
-    ::document/civil-costs default-civil-costs
+    ::document/pipe-costs default-pipe-costs
     ::document/insulation default-insulation
     ::document/alternatives default-alternatives
 

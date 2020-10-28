@@ -33,6 +33,8 @@
             [goog.ui.SplitPane :refer [Component]]
             [goog.events :refer [listen]]
             [goog.functions :refer [debounce]]
+
+            [thermos-frontend.flow :as flow]
             ))
 
 ;; the map component
@@ -55,14 +57,14 @@
 (defn component
   "Draw a cartographic map for the given `document`, which should be a reagent atom
   containing a document map"
-  [document]
+  [document flow]
   (let [watches (atom [])
         map-node (atom nil)
         ]
     (reagent/create-class
      {:reagent-render (fn [document]
                         [:div.map {:ref (partial reset! map-node)}])
-      :component-did-mount    (partial mount document watches map-node)
+      :component-did-mount    (partial mount document flow watches map-node)
       :component-will-unmount (partial unmount watches)
       })))
 
@@ -75,12 +77,18 @@
     "https:///stamen-tiles-{s}.a.ssl.fastly.net/toner-background/{z}/{x}/{y}.png"
     (clj->js {:subdomains "abcd"
               :minZoom 0
-              :maxZoom 20}))
+              :maxZoom 20
+              :attribution
+              "Map tiles by <a target=_blank href=\"http://stamen.com/\">Stamen Design</a>, under <a target=_blank href=\"http://creativecommons.org/licenses/by/3.0\">CC BY 3.0</a>. Data by <a target=_blank href=\"http://openstreetmap.org/\">OpenStreetMap</a>, under <a target=_blank href=\"http://creativecommons.org/licenses/by-sa/3.0\">CC BY SA</a>."
+              }))
 
    :satellite
    (js/L.tileLayer
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-    (clj->js {}))})
+    (clj->js {:minZoom 0 :maxZoom 21
+              :attribution
+              "Imagery by <a target=_blank href=\"https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer\">Esri, Maxar, Earthstar Geographics, CNES/Airbus DS, USDA FSA, USGS, Aerogrid, IGN, IGP, and the GIS User Community</a>"
+              }))})
 
 (def basemap-names
   {:none "None"
@@ -93,14 +101,14 @@
    "../d/{z}/{x}/{y}.png"
    (clj->js {:opacity 0.6
              :minZoom 12
-             :maxZoom 20})))
+             :maxZoom 21})))
 
 (def cold-density-layer
   (js/L.tileLayer
    "../cd/{z}/{x}/{y}.png"
    (clj->js {:opacity 0.6
              :minZoom 12
-             :maxZoom 20})))
+             :maxZoom 21})))
 
 (def labels-layer
   (js/L.tileLayer
@@ -111,9 +119,9 @@
 
 (defn mount
   "Make a leaflet control when this component is being put on screen"
-  [document watches map-node component]
+  [document flow watches map-node component]
   (let [map-node @map-node
-
+        
         edit!  (fn [f & a] (apply state/edit! document f a))
         track! (fn [f & a]
                  (let [watch (apply reagent/track! f a)]
@@ -134,18 +142,18 @@
         ;; to the server for tile data, so if the tilesize changes, effectively
         ;; the meaning of the zoom, or equivalently the x and y changes too.
         ;; Halve this => increase zoom by 1 in queries below.
-        candidates-layer (candidates-layer document
+        candidates-layer (candidates-layer flow document
                                            {:tileSize 256
                                             :minZoom 15
-                                            :maxZoom 20})
+                                            :maxZoom 21})
 
         connector-layer (connector-layer {:tileSize 256
                                           :minZoom 15
-                                          :maxZoom 20})
+                                          :maxZoom 21})
         
         demand-tool-layer (demand-tool-layer {:tileSize 256
                                               :minZoom 15
-                                              :maxZoom 20})
+                                              :maxZoom 21})
 
         draw-control (draw-control {:position :topleft
                                     :draw {:polyline false
@@ -254,15 +262,14 @@
              (+ (Math/pow (- (.-lat zz) (.-lat oo)) 2)
                 (Math/pow (- (.-lng zz) (.-lng oo)) 2)))
             ))
+        
+        ]
 
-        ;; these next 3 are a bit of a hack which I could improve.
-        ;; poke-map-size! should get invoked when the splitters are moved
-        h-split-pos (reagent/cursor document [::view/view-state ::view/map-page-h-split])
-        v-split-pos (reagent/cursor document [::view/view-state ::view/map-page-v-split])
-        poke-map-size! #(let [_ @h-split-pos
-                              _ @v-split-pos]
-                          (.invalidateSize map))]
-    (track! poke-map-size!)
+    (-> (js/ResizeObserver.
+         (fn [evt]
+           (.invalidateSize map)))
+        (.observe map-node))
+    
     (track! show-bounding-box!)
     (track! show-map-layers!)
 
@@ -423,24 +430,42 @@
   (doseq [watch @watches] (watch))
   (reset! watches nil))
 
-(defn candidates-layer [doc args]
-  (let [just-candidates
-        (reagent/cursor doc [::document/candidates])
+;; so the rubbish thin ghere is no way to use a subscription within
+;; another one - can I improve that somehow
+(defn- filtered-candidates-ids [doc]
+  (set (map ::candidate/id @(flow/view* doc operations/get-filtered-candidates))))
 
+(defn- any-filters? [flow]
+  (not (empty? @(flow/view* flow operations/get-all-table-filters))))
+
+(defn- tile-candidates-ids [flow bbox]
+  (-> (flow/view*
+       flow select-keys
+       [::spatial/spatial-index ::spatial/update-counter])
+
+      ;; the projection above will make this fire a bit less often
+      
+      (deref)
+      (spatial/find-candidates-ids-in-bbox bbox)))
+
+(defn candidates-layer [flow doc args]
+  (let [just-candidates
+        (flow/view* flow ::document/candidates)
+        
         solution
-        (reagent/track #(document/has-solution? @doc))
+        (flow/view* flow document/has-solution?)
 
         filtered-candidates-ids
-        (reagent/track #(set (map ::candidate/id (operations/get-filtered-candidates @doc))))
+        (flow/view flow filtered-candidates-ids)
 
         showing-forbidden?
-        (reagent/track #(operations/showing-forbidden? @doc))
+        (flow/view* flow operations/showing-forbidden?)
 
         any-filters?
-        (reagent/track #(not (empty? (operations/get-all-table-filters @doc))))
+        (flow/view flow any-filters?)
 
-        map-view (reagent/cursor doc [::view/view-state ::view/map-view])
-        show-diameters? (reagent/cursor doc [::view/view-state ::view/show-pipe-diameters])
+        map-view        (flow/view* flow get-in [::view/view-state ::view/map-view])
+        show-diameters? (flow/view* flow get-in [::view/view-state ::view/show-pipe-diameters])
 
         min-max-diameters
         (reagent/track
@@ -452,24 +477,23 @@
              []
              (keep ::soln/diameter-mm (vals @just-candidates)))))
         ]
+    
 
     (reactive-layer/create
      :internal-id "candidates-layer"
      :constructor-args args
      :paint-tile
      (fn [canvas coords layer bbox]
-       (let [just-index (spatial/index-atom doc)
-
-             ;; contains just the IDs of candidates in this box
+       (let [;; contains just the IDs of candidates in this box
              tile-candidates-ids
-             (reagent/track
-              #(spatial/find-candidates-ids-in-bbox @just-index bbox))
+             (flow/view flow tile-candidates-ids bbox)
 
              tile-contents
              (reagent/track
               (fn []
                 (let [just-candidates     @just-candidates
                       tile-candidates-ids @tile-candidates-ids
+
                       showing-forbidden?  @showing-forbidden?
                       any-filters?        @any-filters?
                       tile-candidates (if showing-forbidden?
@@ -478,6 +502,7 @@
                                                  (when (candidate/is-included? c) c))
                                               tile-candidates-ids))
                       ]
+                  
                   (if any-filters?
                     (let [filtered-candidates-ids @filtered-candidates-ids]
                       (map #(assoc % :filtered (not (filtered-candidates-ids (::candidate/id %)))) tile-candidates))

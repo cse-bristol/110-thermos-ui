@@ -74,7 +74,9 @@
   (when-let [^double demand (annual-demand candidate mode)]
     (pos? demand)))
 
-(defn has-supply? [candidate]
+(defn has-supply?
+  "True if a building could be a supply location. To see whether it was used, see `supply-in-solution?`"
+  [candidate]
   (when-let [^double cap (::supply/capacity-kwp candidate)]
     (pos? cap)))
 
@@ -99,6 +101,11 @@
   {:co2 [:span "CO" [:sub "2"]]
    :pm25 [:span "PM" [:sub "2.5"]]
    :nox [:span "NO" [:sub "x"]]})
+
+(def text-emissions-labels
+  {:co2 "CO₂"
+   :pm25 "PM₂₅"
+   :nox "NOₓ"})
 
 (def emissions-factor-scales
   {:co2  1000.0    ;; grams
@@ -125,3 +132,21 @@
        (:counterfactual (::solution/alternative candidate))))
 
 
+(defn solution-description
+  "A textual description of what has happened to a candidate, if there
+  is a solution"
+  [candidate]
+  (cond
+    (is-connected? candidate) "network"
+    (got-alternative? candidate)
+    (-> candidate
+        (::solution/alternative)
+        (::supply/name))
+
+    (got-counterfactual? candidate)
+    (-> candidate
+        (::solution/alternative)
+        (::supply/name)
+        (str " (existing)"))
+    
+    (unreachable? candidate) "impossible"))

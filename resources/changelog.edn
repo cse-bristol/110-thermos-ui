@@ -1,4 +1,32 @@
-[{:title "24th June 2020"
+[{:title "27th October 2020"
+  :changes
+  [{:title "Steam networks"
+    :summary
+    [:div "The model now has power & heat loss estimation functions for saturated steam. "
+     "You can change the network medium to saturated steam in the pipe costs page. "]}
+   {:title "Discrete pipe sizes"
+    :summary
+    [:div "The pipe cost model is now expressed as a table, which you can see on the pipe costs page. "
+     "You can now specify the diameter, power, losses and costs for a range of pipe sizes. "
+     "The optimiser solution is now rounded up to the nearest pipe size from this table."]}
+   {:title "Spreadsheet output"
+    :summary
+    [:div
+     "You can now download detailed outputs as a spreadsheet, to do your own reporting. "
+     "Spreadsheet download can be found in the pop-out menu in the network editor."]}
+   {:title "UI Improvements"
+    :summary
+    [:ul
+     [:li "You can now zoom the map in further."]
+     [:li "The info panel now has a row to tell you if you have edited a given candidate."]
+     [:li "The solution view in the map defaults to showing the pipe size."]
+     [:li "The splitters in the map part of the editor now have a button to minimize them."]
+     [:li "The changelog notification has been made more obnoxious."]
+     ]}
+   ]
+  }
+
+ {:title "24th June 2020"
   :changes
   [{:title "Supply model"
     :summary

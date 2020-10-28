@@ -15,283 +15,292 @@
             [thermos-frontend.format :refer [si-number local-format]]
             [thermos-util :refer [annual-kwh->kw]]
             [thermos-frontend.format :as format]
-            [thermos-frontend.inputs :as inputs]))
+            [thermos-frontend.inputs :as inputs]
+            [thermos-frontend.flow :as flow]
+            ))
 
 (declare component)
 
-(defn- category-row [document valuefn candidates & {:keys [add-classes]}]
-  (let [by-value (group-by valuefn candidates)
-        chips (remove nil?
-                      (for [value (sort (keys by-value))
-                            :let [candidates (get by-value value)]]
-                        (when (and value (not-empty candidates))
-                          [tag/component
-                           {:key value
-                            :class (when add-classes (add-classes value))
-                            
-                            :count (count candidates)
-                            :body value
-                            :close true
-                            :on-select #(state/edit! document
-                                                     operations/select-candidates
-                                                     (map ::candidate/id candidates)
-                                                     :replace)
-                            :on-close #(state/edit! document
-                                                    operations/deselect-candidates
-                                                    (map ::candidate/id candidates))
-                            }])))
+(defn stats-loop [values]
+  (loop [vmin ##Inf
+         vmax ##-Inf
+         vsum 0
+         vcount 0
+         values values]
+    (if (empty? values)
+      [vmin vmax vsum vcount]
+      (let [[x & values] values]
+        (recur
+         (min vmin x)
+         (max vmax x)
+         (+ vsum x)
+         (inc vcount)
+         values)))))
+
+(defn- row [title body & {:keys [extra-class]}]
+  [:div.selection-table__row
+   [:div.selection-table__cell.selection-table__cell--first-col
+    title]
+   [:div.selection-table__cell.selection-table__cell--second-col
+    {:class extra-class}
+    body]])
+
+(defn- number-row [selection title value &
+                   {:keys [unit summary scale tooltip]
+                    :or {unit "" summary :sum}}]
+  (let [values (keep (if scale (fn [x] (when-let [x (value x)] (* scale x))) value)
+                     selection)]
+    (when-not (empty? values)
+      (let [[vmin vmax vsum vcount] (stats-loop values)
+            vmean (/ vsum vcount)]
+        [row
+         (if tooltip
+           [:span.has-tt {:title tooltip} title]
+           title)
+         [:span
+          (when (> vcount 1)
+            {:class "has-tt"
+             :title (str "Range: " (si-number vmin) unit " — " (si-number vmax) unit
+                         (case summary
+                           (:min :max :sum) (str ", Mean: " (si-number vmean) unit)
+                           ""))})
+          (si-number
+           (case summary
+             :sum vsum
+             :min vmin
+             :max vmax
+             :mean vmean
+             :count vcount))
+          unit]]))))
+
+(defonce collapsed-rows (reagent/atom {}))
+
+(defn- chips-row [flow selection title value
+                  & {:keys [add-classes nil-value]}]
+  (reagent/with-let [collapsed (reagent/cursor collapsed-rows [value])]
+    (let [by-value (dissoc (group-by (if nil-value
+                                #(or (value %) nil-value)
+                                value)
+                                     selection)
+                           nil)
+          n-groups (count by-value)]
+      
+      (when-not (zero? n-groups)
+        [row
+         [:span (when (> n-groups 1)
+                  [:span {:style {:cursor :pointer :display :inline-block}
+                          :on-click #(swap! collapsed not)
+                          :class (when-not @collapsed "rotate-90")
+                          } "▶"]) " " title]
+         (if (and (> n-groups 1) @collapsed)
+           [:div {:style {:padding :0.2em}} (str n-groups " groups")]
+           (let [groups (sort (keys by-value))]
+             (remove
+              nil?
+              (for [value groups :let [candidates (get by-value value)]]
+                (when (and value (not-empty candidates))
+                  [tag/component
+                   {:key value
+                    :class (when add-classes (add-classes value))
+                    
+                    :count (count candidates)
+                    :body value
+                    :close true
+                    :on-select #(flow/fire!
+                                 flow
+                                 [:select-ids (map ::candidate/id candidates)])
+                    
+                    :on-close #(flow/fire!
+                                flow
+                                [operations/deselect-candidates
+                                 (map ::candidate/id candidates)])
+                    }])))
+             ))
+         :extra-class "selection-table-cell--tag-container"
+         ]))))
+
+(defn linear-density-row [selection model-mode]
+  (let [total-kwh (reduce + 0 (keep
+                               #(or (::solution/kwh %) (candidate/annual-demand % model-mode))
+                               selection))
+        total-m   (when (and total-kwh
+                             (pos? total-kwh))
+                    (reduce + 0 (keep ::path/length selection)))]
+    (when (and total-kwh total-m
+               (pos? total-kwh)
+               (pos? total-m))
+      [row
+       [:span.has-tt
+        {:title
+         "Linear density of the selected objects. If you want to see the linear density of a solution, select only the things in the solution."}
+        "Lin. density"]
+       [:span (si-number (* 1000 (/ total-kwh total-m))) "Wh/m"]])))
+
+;; TODO these maybe too slow?
+
+(defn- building-tariff-name [doc x]
+  (when (candidate/is-building? x)
+    (document/tariff-name doc (::tariff/id x))))
+
+(defn- building-profile-name [doc x]
+  (when (candidate/is-building? x)
+    (document/profile-name doc (::supply/profile-id x))))
+
+(defn- path-civil-cost-name [doc x]
+  (when (candidate/is-path? x)
+    (document/civil-cost-name doc (::path/civil-cost-id x))))
+
+(defn- base-cost [determinants model-mode x]
+  (case (::candidate/type x)
+      :path (document/path-cost x determinants) ;; args wrong way around so no workio
+      :building (tariff/connection-cost
+                 (document/connection-cost-for-id determinants (::tariff/cc-id x))
+                 (candidate/annual-demand x model-mode)
+                 (candidate/peak-demand x model-mode))
+      nil))
+
+(defn- solution-row-classes [x]
+  ["solution"
+   (cond
+     (or (= x "network") (= x "impossible"))
+     x
+     
+     (= x "no") "no"
+     
+     (.endsWith x "(existing)")
+     "no"
+     
+     true "individual")])
+
+(defn- cost-row [selection]
+  (reagent/with-let [*capital-mode (reagent/atom :principal)]
+    (let [capital-mode @*capital-mode]
+      [number-row
+       selection
+       
+       [:span.has-tt
+        {:title "This includes network supply, connection costs, insulation costs and individual system costs. Principal is the capital cost only, for a single purchase. PV capex is the discounted total capital cost, including finance and re-purchasing, which is what the optimisation uses. Summed capex is the un-discounted equivalent."}
+        [inputs/select
+         {:style
+          {:background :none
+           :border :none
+           :padding 0
+           :margin-top 0
+           :margin-bottom 0
+           :margin-right 0
+           :width :auto
+           :height :auto
+           :border-radius 0
+           :margin-left "-4px"
+           :display :inline}
+          :value-atom *capital-mode
+          :values
+          {:principal "Principal"
+           :present   "PV Capex"
+           :total     "Σ Capex"}
+          }]
+        
         ]
-    chips))
+
+       #(let [p  (capital-mode (::solution/pipe-capex %))
+              cc (capital-mode (::solution/connection-capex %))
+              sc (capital-mode (::solution/supply-capex %))
+              ac (capital-mode (::solution/alternative %))
+              ics (keep capital-mode (::solution/insulation %))
+              ic (when (seq ics) (reduce + 0 ics))
+              ]
+          (when (or p cc sc ac ic)
+            (+ p cc sc ac ic)))
+
+       :units "¤"])))
+
+(defn- losses-row [selection]
+  (let [losses (keep ::solution/losses-kwh selection)
+        lengths (keep ::path/length selection)
+        total-kwh (reduce + 0 losses)
+        total-length (reduce + 0 lengths)
+        ]
+    (when (pos? total-length)
+      [row
+       "Losses"
+       [:span
+        (si-number (* 1000 total-kwh)) "Wh/yr"
+        ", "
+        (si-number
+         (/ (* 1000 (annual-kwh->kw total-kwh)) total-length))
+        "W/m"]])))
+
 
 (defn component
   "The panel in the bottom right which displays some information about the currently selected candidates."
-  [document]
-  (reagent/with-let [capital-mode (reagent/atom :principal)
-                     model-mode   (reagent/track #(document/mode @document))
-                     ]
-
-    (let [model-mode @model-mode
-          
+  [flow]
+  
+  (reagent/with-let [collapsed (reagent/atom {})]
+    (let [selection @(flow/view* flow operations/selected-candidates)
+          has-solution @(flow/view* flow document/has-solution?)
+          model-mode @(flow/view* flow document/mode)
           mode-name (case model-mode :cooling "Cold" "Heat")
-
-          rsum (partial reduce +)
-          rmax (partial reduce max)
-          rmin (partial reduce min)
-          rmean #(/ (rsum %) (count %))
-
-          ;; TODO all these @document below will be rerendering this
-          ;; bit when we drag or whatever, which is clearly silly
-          
-          base-cost #(case (::candidate/type %)
-                       :path (document/path-cost % @document)
-                       :building (tariff/connection-cost
-                                  (document/connection-cost-for-id @document (::tariff/cc-id %))
-                                  (candidate/annual-demand % model-mode)
-                                  (candidate/peak-demand % model-mode))
-                       nil)
-          
-          has-solution (document/has-solution? @document)
-          selected-candidates (operations/selected-candidates @document)
-          
-          sc-class "selection-table-cell--tag-container"
-          cat (fn [k u & {:keys [add-classes]}]
-                (category-row document #(or (k %) u) selected-candidates
-                              :add-classes add-classes))
-
-          num (fn [k agg unit & [scale]]
-                (let [scale (or scale 1)
-                      vals (remove nil? (map k selected-candidates))]
-                  (when-not (empty? vals)
-                    [:span
-                     (when (seq (rest vals))
-                       {:class :has-tt
-                        :title (str
-                                "Range: "
-                                (si-number (* scale (reduce min vals))) unit
-                                " — "
-                                (si-number (* scale (reduce max vals))) unit)})
-                     (si-number (* scale (agg vals))) unit]
-                    )))
+          cost-factors @(flow/view* flow select-keys
+                                    [::document/pipe-costs
+                                     ::document/connection-costs])
+          doc @flow ;; this means we will re-render all the time.
           ]
+      
       [:div.component--selection-info
        [:header.selection-header
-        (str
-         (count selected-candidates)
-         (if (= 1 (count selected-candidates)) " candidate" " candidates")
-         " selected")]
+        (cond (empty? selection)
+              "No selection"
+              (empty? (rest selection)) "One candidate selected"
+              :else (str (count selection) " candidates selected"))]
 
-       [:div.selection-table
-        (for [[row-name class contents]
-              [["Type" sc-class (cat ::candidate/type nil)]
-               ["Category" sc-class (cat ::candidate/subtype "Unclassified")]
-               ["Constraint" sc-class (cat ::candidate/inclusion "Forbidden"
-                                           :add-classes
-                                           (fn [x] ["constraint" (name x)]))]
-               
-               ["Name" sc-class (cat ::candidate/name "None")]
-               [[:span "Tariff " [:span
-                                  {:on-click #(swap! document view/switch-to-tariffs)
-                                   :style {:cursor :pointer }
-                                   }
-                                  "👁"]]
-                sc-class
-                (cat
-                 (fn [x]
-                   (when (candidate/is-building? x)
-                     (document/tariff-name @document (::tariff/id x))))
-                 nil)]
+       (let [chips-row (partial chips-row flow selection)
+             number-row (partial number-row selection)
+             base-cost (partial base-cost doc model-mode)
+             ]
+         [:div.selection-table
+          [chips-row "Type" ::candidate/type]
+          [chips-row "Category" ::candidate/subtype
+           :nil-value "Unclassified"]
+          [chips-row "Constraint" ::candidate/inclusion
+           :nil-value "Forbidden" :add-classes (fn [x] ["constraint" (name x)])]
+          [chips-row "Name" ::candidate/name
+           :nil-value "None"]
+          [chips-row "Tariff" (partial building-tariff-name doc)]
+          [chips-row "Edited" (comp {false "no" true "yes" nil "no"} ::candidate/modified)]
+          [chips-row "Profile" (partial building-profile-name doc)]
+          [number-row "Market rate" ::solution/market-rate
+           :summary :mean :unit "c/kWh" :scale 100]
+          [chips-row "Civils" (partial path-civil-cost-name doc)]
+          [number-row "Length" ::path/length :unit "m"]
+          [number-row "Base cost" base-cost :unit "¤"
+           :tooltip (str "For buildings this is the connection cost. "
+                         "For paths it is the cost of the smallest pipe.")]
 
-               ["Profile"
-                sc-class
-                (cat
-                 (fn [x]
-                   (when (candidate/is-building? x)
-                     (document/profile-name @document (::supply/profile-id x))))
-                 nil)
-                ]
+          [number-row (str mode-name " demand") #(candidate/annual-demand % model-mode)
+           :unit "Wh/yr" :scale 1000]
+          
+          [number-row (str mode-name " peak") #(candidate/peak-demand % model-mode)
+           :unit "Wp" :scale 1000]
 
-               [[:span.has-tt
-                 {:title
-                  "For buildings on the market tariff, this is the unit rate offered. For multiple selection, it is the mean value."}
-                 "Market rate"] nil
-                (num ::solution/market-rate rmean "c/kWh" 100)]
+          [linear-density-row selection model-mode]
 
-               [[:span "Civils " [:span
-                                  {:on-click #(swap! document view/switch-to-pipe-costs)
-                                   :style {:cursor :pointer}}
-                                  "👁"]]
-                
-                sc-class (cat
-                          (fn [x]
-                            (when (candidate/is-path? x)
-                              (document/civil-cost-name
-                               @document
-                               (::path/civil-cost-id x))))
-                          nil)]
-               
-               ["Length" nil (num ::path/length  rsum "m")]
-               [[:span.has-tt
-                 {:title
-                  (str "For buildings this is the connection cost. "
-                       "For paths it is the cost of a 10mm pipe.")}
-                 "Base cost"] nil (num base-cost   rsum "¤")]
-               
-               [(str mode-name " demand") nil (num
-                                               #(candidate/annual-demand % model-mode)
-                                               rsum "Wh/yr" 1000)]
-               [(str mode-name " peak") nil   (num
-                                               #(candidate/peak-demand % model-mode)
-                                               rsum "Wp" 1000)]
+          (when has-solution
+            [:<>
+             [chips-row "In solution" candidate/solution-description
+              :nil-value "no" :add-classes solution-row-classes]
+             [number-row "Coincidence" ::solution/diversity
+              :summary :mean :unit "%" :scale 100]
+             [number-row "Capacity" ::solution/capacity-kw
+              :summary :max :unit "W" :scale 1000]
+             [number-row "Diameter" ::solution/diameter-mm
+              :summary :max :unit "m" :scale 0.001]
 
-               [[:span.has-tt
-                 {:title
-                  "Linear density of the selected objects. If you want to see the linear density of a solution, select only the things in the solution."}
-                 "Lin. density"]
-                nil
-                (let [total-kwh (reduce + 0 (keep
-                                             #(or (::solution/kwh %)
-                                                  (candidate/annual-demand % model-mode))
-                                             selected-candidates))
-                      total-m   (when (and total-kwh
-                                           (pos? total-kwh))
-                                  (reduce + 0 (keep ::path/length selected-candidates)))]
-                  (when (and total-kwh total-m
-                             (pos? total-kwh)
-                             (pos? total-m))
-                    [:span (si-number (* 1000 (/ total-kwh total-m))) "Wh/m"]))]
-               ]]
-
-          (when-not (empty? contents)
-            [:div.selection-table__row {:key row-name}
-             [:div.selection-table__cell.selection-table__cell--first-col row-name]
-             [:div.selection-table__cell.selection-table__cell--second-col
-              {:class class}
-              contents]])
-          )
-        (when has-solution
-          (for [[row-name class contents]
-                [["In solution" sc-class
-                  (cat #(cond
-                          (candidate/is-connected? %) "network"
-                          (candidate/got-alternative? %)
-                          (-> %
-                              (::solution/alternative)
-                              (::supply/name))
-
-                          (candidate/got-counterfactual? %)
-                          (-> %
-                              (::solution/alternative)
-                              (::supply/name)
-                              (str " (existing)"))
-                          
-                          (candidate/unreachable? %) "impossible")
-                       
-                       "no"
-                       :add-classes
-                       ;; TODO this is a bit ugly right now
-                       (fn [x] ["solution"
-                                (cond
-                                  (or (= x "network") (= x "impossible"))
-                                  x
-                                  
-                                  (= x "no") "no"
-                                  
-                                  (.endsWith x "(existing)")
-                                  "no"
-                                  
-                                  true "individual")]))
-                  ]
-                 ["Coincidence" nil (num ::solution/diversity rmean "%" 100)]
-                 ["Capacity"    nil (num ::solution/capacity-kw rmax "W" 1000)]
-                 ["Diameter"    nil (num ::solution/diameter-mm rmax "m" 0.001)]
-
-                 [[:span.has-tt
-                   {:title "This includes network supply, connection costs, insulation costs and individual system costs. Principal is the capital cost only, for a single purchase. PV capex is the discounted total capital cost, including finance and re-purchasing, which is what the optimisation uses. Summed capex is the un-discounted equivalent."}
-                   [inputs/select
-                    {:style
-                     {:background :none
-                      :border :none
-                      :padding 0
-                      :margin-top 0
-                      :margin-bottom 0
-                      :margin-right 0
-                      :width :auto
-                      :height :auto
-                      :border-radius 0
-                      :margin-left "-4px"
-                      :display :inline}
-                     :value-atom capital-mode
-                     :values
-                     {:principal "Principal"
-                      :present   "PV Capex"
-                      :total     "Σ Capex"}
-                     }]
-                   
-                   ]
-                  nil
-                  (num #(let [capital-mode @capital-mode
-                              p  (capital-mode (::solution/pipe-capex %))
-                              cc (capital-mode (::solution/connection-capex %))
-                              sc (capital-mode (::solution/supply-capex %))
-                              ac (capital-mode (::solution/alternative %))
-                              ics (keep capital-mode (::solution/insulation %))
-                              ic (when (seq ics) (reduce + 0 ics))
-                              ]
-                          (when (or p cc sc ac ic)
-                            (+ p cc sc ac ic)))
-                       rsum "¤")
-                  ]
-
-                 ["Revenue" nil (num (comp :annual ::solution/heat-revenue) rsum "¤/yr")]
-                 ["Losses"
-                  nil
-                  (let [annual (num ::solution/losses-kwh rsum "Wh/yr" 1000)]
-                    (when (seq annual)
-                      (let [total-kwh
-                            (reduce + 0 (keep ::solution/losses-kwh
-                                              selected-candidates))
-
-                            total-length
-                            (reduce + 0 (keep
-                                         #(when (::solution/losses-kwh %)
-                                            (::path/length %))
-                                         selected-candidates))]
-                        [:span annual ", "
-                         (si-number
-                          (/ (* 1000 (annual-kwh->kw total-kwh)) total-length))
-                         "W/m"
-                         ])))
-                  ]
-                 ]]
-            (when-not (empty? contents)
-              [:div.selection-table__row {:key row-name}
-               [:div.selection-table__cell.selection-table__cell--first-col row-name]
-               [:div.selection-table__cell.selection-table__cell--second-col
-                {:class class}
-                contents]])
-            ))
-        ]
-       ])))
-
+             [cost-row selection]
+             
+             [number-row "Revenue" (comp :annual ::solution/heat-revenue)
+              :unit "¤/yr"]
+             
+             [losses-row selection]
+             ])])])))
 
 

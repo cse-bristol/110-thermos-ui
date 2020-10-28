@@ -33,14 +33,20 @@
 
             [clojure.pprint :refer [pprint]]
             [clojure.string :as s]
-            [goog.ui.SplitPane :refer [SplitPane Component]]
+
             [goog.events :refer [listen]]
             [goog.math :refer [Size]]
             [goog.functions :refer [debounce]]
             [thermos-frontend.util :refer [target-value]]
-            
 
-            [re-com.core :as rc]))
+            [thermos-frontend.flow]
+            [thermos-frontend.splitter :refer [splitter]]
+            [thermos-backend.content-migrations.messages :as migration-messages]
+
+            [ajax.core :refer [POST]]
+            [ajax.protocols :refer [-body]]
+
+            [thermos-pages.symbols :as symbols]))
 
 (enable-console-print!)
 
@@ -61,7 +67,7 @@
           (toaster/show! [:div.toaster.toaster--success "Project saved"]))))))
 
 
-(defn map-page [doc]
+(defn map-page [doc flow]
   (r/with-let [h-split-pos (r/cursor doc
                                      [::view/view-state
                                       ::view/map-page-h-split]
@@ -71,60 +77,40 @@
                                       ::view/map-page-v-split]
                                      )
                v-splitter-element (atom nil)
-               v-splitter-dblclick-listener (atom nil)]
+               v-splitter-dblclick-listener (atom nil)
+               ]
+    [:<>
+     
+     [splitter
+      {:axis :h
+       :split (or @v-split-pos 75)
+       :on-split-change #(reset! v-split-pos %)
+       
+       :top
+       [splitter
+        {:axis :v
+         :split (or @h-split-pos 60)
+         :on-split-change #(reset! h-split-pos %)
+         :left
+         [:div.map-container
+          [map/component doc flow]
+          [view-control/component doc]]
+         
+         :right
+         [selection-info-panel/component flow]
+         }]
 
-    
-    [(r/create-class
-       {:reagent-render
-        (fn []
-          [rc/v-split
-           :style {:height :100%}
-           :initial-split (or @v-split-pos 75)
-           :on-split-change #(reset! v-split-pos %)
-           :margin "0"
-           :panel-1 [rc/h-split
-                     :initial-split (or @h-split-pos 60)
-                     :on-split-change #(reset! h-split-pos %)
-                     :margin "0"
-                     :panel-1 [:div.map-container [map/component doc]
-                               [view-control/component doc]]
-                     :panel-2 [selection-info-panel/component doc]
+       :bottom
+       [:div
+        {:style {:width :100%}}
+        [network-candidates-panel/component flow]
+        ]
+       }
+      ]
 
-                     ]
-           :panel-2 [:div
-                     {:style {:width :100%}}
-                     [network-candidates-panel/component doc]
-                     ]
-           
-           ])
-        :component-did-mount
-        (fn [arg]
-          (let [vsplitter (.querySelector js/document ".re-v-split-splitter")
-                listener
-                (.addEventListener
-                 vsplitter "dblclick"
-                 (fn [e]
-                   (let [container (.querySelector js/document ".rc-v-split")
-                         container-height (.-offsetHeight container)
-                         new-bottom-pane-height 0 ;; having the headers at the bottom looks weird
-
-                         ;; (/ 4000 container-height) ;; 40px as % of container
-                         new-top-pane-height (- 100 new-bottom-pane-height)
-                         bottom-pane (.querySelector js/document ".re-v-split-bottom")
-                         top-pane (.querySelector js/document ".re-v-split-top")]
-                     (set! (.. top-pane -style -flex) (str new-top-pane-height " 1 0px"))
-                     (set! (.. bottom-pane -style -flex) (str new-bottom-pane-height " 1 0px"))
-                     (reset! v-split-pos new-top-pane-height))))]
-            ;; Set these atoms so we can grab them to remove the listener when the
-            ;; component is unmounted
-            (reset! v-splitter-element vsplitter)
-            (reset! v-splitter-dblclick-listener listener)))
-
-        :component-will-unmount
-        (fn []
-          ;; Remove the double click event listener
-          (.removeEventListener @v-splitter-element "dblclick" @v-splitter-dblclick-listener))
-        })]))
+     
+     ]
+    ))
 
 (defn main-page []
   (r/with-let [*selected-tab (r/cursor state/state [::view/view-state ::view/selected-tab])
@@ -244,6 +230,47 @@
             [:li [:a {:href "/help/networks.html" :target "help"} "Network editor help"]]]
 
            ]
+
+          [:div.menu-block
+           [:h1 "Export Data"]
+           [:ul
+            [:li [:button.button--link-style
+                  {:on-click
+                   #(let [state (document/keep-interesting @state/state)]
+                      (POST "/convert/excel"
+                          {:params {:state state}
+                           :response-format
+                           {:type :blob :read -body}
+                           :handler
+                           (fn [blob]
+                             (let [a (js/document.createElement "a")]
+                               (set! (.-href a) (js/window.URL.createObjectURL blob))
+                               (set! (.-download a)
+                                     (str (preload/get-value :name) ".xlsx"))
+                               (.dispatchEvent a (js/MouseEvent. "click"))))}))
+                   
+                   }
+                  symbols/download " Excel Spreadsheet"]]
+            [:li [:button.button--link-style
+                  {:on-click
+                   #(let [state (document/keep-interesting @state/state)]
+                      (POST "/convert/json"
+                          {:params {:state state}
+                           :response-format
+                           {:type :blob :read -body}
+
+                           :handler
+                           (fn [blob]
+                             (let [a (js/document.createElement "a")]
+                               (set! (.-href a) (js/window.URL.createObjectURL blob))
+                               (set! (.-download a)
+                                     (str (preload/get-value :name) ".json"))
+                               (.dispatchEvent a (js/MouseEvent. "click"))))}))
+                   }
+                  symbols/download " Geojson"]]
+            ]
+           ]
+
           [:div.menu-block
            [:h1 "Project"]
            [:ul
@@ -297,7 +324,7 @@
 
         (cond
           (= selected-tab :candidates)
-          [map-page state/state]
+          [map-page state/state state/flow]
 
           (= selected-tab :parameters)
           [objective/objective-parameters state/state]
@@ -306,7 +333,7 @@
           [tariff-parameters/tariff-parameters state/state]
 
           (= selected-tab :pipe-costs)
-          [pipe-parameters/pipe-parameters state/state]
+          [pipe-parameters/pipe-parameters state/state state/flow]
 
           (= selected-tab :insulation)
           [insulation/insulation-parameters state/state]
@@ -334,7 +361,41 @@
 
           :else
           [:div "Unknown page!!! urgh!"])]
+       (when-let [messages
+                  (seq @(thermos-frontend.flow/view* state/flow
+                                                     ::document/migration-messages))]
+         [:div {:style {:position :fixed :top 0 :left :0 :width :100% :height :100%
+                        :z-index 2000
+                        :display :flex :flex-direction :column
+                        :background "rgb(1,1,1,0.5)"
+                        }}
+          [:div.card {:style {:margin-top :auto
+                              :margin-bottom :auto
+                              :margin-left :auto
+                              :margin-right :auto
+                              :max-height :50%
+                              :max-width :75%
+                              :overflow :auto
+                              }}
+           [:h1.card-header "Changes have been made to this problem"]
+           [:p "THERMOS has been updated since this problem was saved, and the following changes have been made:"]
 
+           [:div {:style {:overflow :auto}}
+            (for [msg messages]
+              [:div {:key msg}
+               (migration-messages/messages msg)])]
+
+           [:div {:style {:display :flex}}
+            [:button.button 
+             {:style {:margin-left :auto}
+              :on-click #(thermos-frontend.flow/fire! state/flow
+                                                      [dissoc ::document/migration-messages])}
+             
+             "OK"]]
+           ]
+          
+          ]
+         )
        [popover/component state/state]
        [toaster/component]]
       )))

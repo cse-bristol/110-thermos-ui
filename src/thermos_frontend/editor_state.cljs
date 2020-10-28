@@ -15,7 +15,10 @@
             [thermos-frontend.preload :as preload]
             [reagent.core :as reagent :refer [atom]]
 
-            [thermos-frontend.operations :as operations]))
+            [thermos-frontend.operations :as operations]
+            [thermos-frontend.flow :as flow]
+            [thermos-frontend.events :as events]
+            ))
 
 (defonce save-state
   (let [[_ project-id map-id network-id]
@@ -66,6 +69,11 @@
            :south (:y-min bounds)
            :east  (:x-max bounds)
            :west  (:x-min bounds)}))))))
+
+(def flow
+  (flow/create-root
+   {:state state
+    :handler events/handle}))
 
 (set! js/thermos_initial_state nil)
 

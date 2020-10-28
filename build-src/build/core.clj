@@ -21,9 +21,11 @@
                 ))
 
       :cli-pkg (do (require 'build.pkg)
-                   ((resolve 'build.pkg/build-cli-tool)
-               
-                    ))
+                   ((resolve 'build.pkg/build-cli-tool)))
+
+      :heat-pkg (do (require 'build.pkg)
+                    ((resolve 'build.pkg/build-heatmap-only-tool)))
+      
       :dev (do
              (require 'build.dev)
              ((resolve 'build.dev/start-dev)

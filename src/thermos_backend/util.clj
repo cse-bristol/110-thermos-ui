@@ -3,6 +3,7 @@
             [clojure.java.io :as io]
             [thermos-backend.config :refer [config]]
             [clojure.tools.logging :as log]
+            [clojure.stacktrace]
             ))
 
 (defn create-temp-directory! [in-directory label]

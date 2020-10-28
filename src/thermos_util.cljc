@@ -2,6 +2,9 @@
   (:require [clojure.string :as string]
             [clojure.test :as test]))
 
+(defn count-if [coll pred]
+  (reduce (fn [a v] (if (pred v) (inc a) a)) 0 coll))
+
 (defn assoc-by
   "Given a sequence `s` and a function `f`, returns a map from (f x) to
   x for each x in s. If there are multiple x in s with same (f x), the
@@ -56,6 +59,12 @@
                  (catch NumberFormatException e)))
     (number? v) (int v)))
 
+(defn parse-double [v]
+  (and (string? v)
+       #?(:cljs (let [x (js/parseFloat v)]
+                  (and x (js/isFinite x) x))
+          :clj (try (Double/parseDouble v)
+                    (catch NumberFormatException e)))))
 
 (let [comma-number #"^\s*\d+,\d+\s*$"]
   (defn as-double
@@ -70,14 +79,10 @@
     [v]
     (cond
       (string? v)
-      (let [v (if (re-matches comma-number v)
-                (string/replace v \, \.)
-                v
-                )]
-        #?(:cljs (let [x (js/parseFloat v)]
-                   (and x (js/isFinite x) x))
-           :clj (try (Double/parseDouble v)
-                     (catch NumberFormatException e))))
+      (parse-double
+       (if (re-matches comma-number v)
+         (string/replace v \, \.)
+         v))
       
       (number? v) (double v))))
 
@@ -135,3 +140,8 @@
        (str minutes-part "m, ") "")
      seconds-part "s")))
 
+(defn next-id [m]
+  (inc (reduce max -1 (keys m))))
+
+(defn assoc-id [m v]
+  (assoc m (next-id m) v))

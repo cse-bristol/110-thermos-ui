@@ -2,6 +2,7 @@
   (:require [thermos-backend.db :as db]
             [thermos-backend.db.users :as users]
             [thermos-backend.db.json-functions :as json]
+            [thermos-backend.content-migrations.piecewise :as piecewise]
             [honeysql.helpers :as h]
             [honeysql-postgres.helpers :as p]
             [clojure.tools.logging :as log]
@@ -9,7 +10,8 @@
             [clojure.string :as string]
             [jdbc.core :as jdbc]
             [honeysql.core :as sql]
-            [com.rpl.specter :refer :all]))
+            [com.rpl.specter :refer :all]
+            [clojure.edn :as edn]))
 
 (defn- join-json [& fields]
   (sql/call
@@ -174,6 +176,7 @@
                 :networks.created
                 :networks.has-run
                 :networks.job-id
+                :networks.version
                 :ranked-jobs.state
                 :ranked-jobs.queue-position)
       (cond-> include-content
@@ -182,6 +185,17 @@
       (h/left-join :ranked-jobs [:= :networks.job-id :ranked-jobs.id])
       (h/where [:= :networks.id network-id])
       (db/fetch-one!)
+      (as-> %
+          (cond-> %
+            (and include-content
+                 (< (:version % 0) piecewise/current-version))
+            (update :content
+                    (fn [s]
+                      (-> (edn/read-string s)
+                          (piecewise/migrate (:version % 0))
+                          (pr-str)))
+                    )))
+      
       (update :state keyword)))
 
 (defn save-network! [user-id project-id map-id name content]
@@ -193,12 +207,13 @@
    :networks
    {:map-id map-id
     :name name
+    :version piecewise/current-version
     :user-id user-id
     :content content}))
 
 (defn add-solution! [network-id content]
   (-> (h/update :networks)
-      (h/sset {:content content :has-run true})
+      (h/sset {:content content :has-run true :version piecewise/current-version})
       (h/where [:= :id network-id])
       (db/execute!)))
 

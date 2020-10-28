@@ -9,7 +9,7 @@
     (map? obj)
     [:table {:style {:border "2px grey dotted" :margin :2px}}
      [:tbody
-      (for [k (sort (keys obj))
+      (for [k (sort-by str (keys obj))
             :let [v (get obj k)]]
         [:tr {:key (str k)}
          [:td [:b (debug-box- k)]]

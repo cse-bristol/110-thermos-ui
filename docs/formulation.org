@@ -81,27 +81,13 @@ To make both of these things work well, we need to have good /bounds/ on the hea
 
 ** Linearised pipe costs
 
-Pipe costs are represented by equations of the form
+Pipe costs are drawn from a table relating diameter to power, heat losses, and pipe cost. This table describes a typically nonlinear relationship for each of these pairs, effectively as a piecewise-linear function.
 
-$$
-\text{length} \times (A + B \times (\oslash ^ {1.1}) + C \times (\oslash ^ {1.3}))
-$$
+The values in the table for power and heat losses are either user-input, or derived using [[file:calculations.org::#pipe-diameter-calc][equations given here]]. Costs are always user-entered.
 
-However, the MILP works in terms of power, rather than diameter (it decides on the capacity for pipes in terms of power flow), so we must first convert this equation into one which relates a flow of heat to a cost. 
+The MILP works in terms of power, rather than diameter (it decides on the capacity for pipes in terms of power flow), so we must first convert this equation into one which relates a flow of heat to a cost. 
 
-THERMOS does this using a relation between delivered power and diameter:
-
-$$
-p(d) = (-0.4834 + 4.7617 × (d ^ {0.3701})) \times \delta_t \times \rho \times c
-$$
-
-where $d$ is the diameter, $\delta_t$ the temperature difference,  $\rho$ the density and $c$ the specific heat capacity. This relation is an approximation; the real hydraulic behaviour is complicated and not modelled in THERMOS.
-
-Anyhow, using this relation we are able to numerically generate a pipe cost function which relates kW of power to the pipe's cost per meter.
-
-This function is non-linear, and also not monotonically increasing[fn:2], which makes it hard to efficiently approximate within a MILP. 
-
-In THERMOS, we make a linear approximation to this function for each place where a pipe could go; the approximation's terms are chosen to minimise the square error resulting from using it. 
+In THERMOS, we make a further linear approximation to the piecewise linear function the pipe paramters table describes. For each place where a pipe could go, the approximation's terms are chosen to minimise the square error resulting from using it. 
 
 Because we have flow bounds for every potential pipe, we are able to restrict the range we are approximating to the range of powers that the pipe may be required to deliver, which also helps to keep the error down.
 

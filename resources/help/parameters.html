@@ -269,40 +269,16 @@ The mechanical engineering costs are a simplification reflecting the costs for p
 </ul>
 
 <p>
-Mechanical costs for a flor and return pipe in a hole of length \(l\) metres and diameter \(d\) are computed using the equation:
+You can specify these costs for each pipe diameter in the pipe costs table.
 </p>
 
 <p>
-\[
-c_m = l * (A + (B \times d)^{1.3})
-\]
+For a hot water system the cost entered should be per meter of <i>both flow and return pipe</i> - these are assumed always to be laid together.
 </p>
 
 <p>
-\(l\) here is the length of the trench dug on the road, so \(2l\) metres of pipe will be installed for flow and return.
+For a saturated steam system, the cost entered should be per meter of flow pipe. No return pipe is assumed, as the energy is delivered by condensation at the consumer.
 </p>
-
-<p>
-This equation is based on an empirical relationship in observed data. These values are set in the network editor in the options page, and apply to all the pipes in a particular network design.
-</p>
-
-
-<div class="figure">
-<p><img src="./img/parameters/edit-mech-cost.png" alt="edit-mech-cost.png" />
-</p>
-<p><span class="figure-number">Figure 1: </span>Where to edit the mechanical cost parameters in the network editor.</p>
-</div>
-
-<p>
-Reasonable values are \(A = 50\) and \(B = 700\), but you may wish to produce your own figures for this. If this model is too complicated for the evidence you have available, you can set \(A\) and \(B\) to zero, and use just the civil costs.
-</p>
-
-
-
-<div class="figure">
-<p><img src="img/parameters/mechanical-cost.png" alt="mechanical-cost.png" />
-</p>
-</div>
 </div>
 </div>
 
@@ -320,106 +296,8 @@ The civil engineering costs are a simplification reflecting the costs for pipewo
 </ul>
 
 <p>
-Like the mechanical engineering costs, the civil costs are calculated using an equation
+Like the mechanical engineering costs, the civil costs are user inputs entered into the pipe costs table.
 </p>
-
-<p>
-\[
-c_c = l \times (A + (B \times d)^{1.1})
-\]
-</p>
-
-<p>
-Again, \(l\) here is the length of the trench dug on the road, so \(2l\) metres of pipe will be installed for flow and return.
-</p>
-
-<p>
-The difference is that the \(A\) and \(B\) values can vary for each individual bit of road in the network, and the exponent is smaller. This reflects the empirical observation that civil engineering costs do not grow as rapidly with the diameter of pipe that has to be installed.
-</p>
-
-<p>
-The \(A\) and \(B\) values can be set for all the roads in a map in the map creation wizard:
-</p>
-
-
-<div class="figure">
-<p><img src="./img/parameters/edit-civ-cost-map.png" alt="edit-civ-cost-map.png" />
-</p>
-<p><span class="figure-number">Figure 3: </span>Where to set default civil cost parameters</p>
-</div>
-
-<p>
-If you are preparing your own GIS data, they can be set on the individual roads in a map using the field settings the map creation wizard.
-In the network editor, you can change the value on any individual road through the right click menu.
-</p>
-
-
-<div class="figure">
-<p><video src="./img/parameters/edit-path-costs.webm" autoplay="true" loop="true"><source /></video>
-</p>
-<p><span class="figure-number">Figure 4: </span>Editing civil costs on paths in a network problem</p>
-</div>
-
-<p>
-Sensible values for the civils parameters in the UK are
-</p>
-
-<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
-
-
-<colgroup>
-<col  class="org-left" />
-
-<col  class="org-left" />
-
-<col  class="org-right" />
-
-<col  class="org-right" />
-</colgroup>
-<thead>
-<tr>
-<th scope="col" class="org-left">Location</th>
-<th scope="col" class="org-left">Surface</th>
-<th scope="col" class="org-right">\(A\)</th>
-<th scope="col" class="org-right">\(B\)</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="org-left">Urban</td>
-<td class="org-left">Hard</td>
-<td class="org-right">1200</td>
-<td class="org-right">500</td>
-</tr>
-
-<tr>
-<td class="org-left">Urban</td>
-<td class="org-left">Soft</td>
-<td class="org-right">450</td>
-<td class="org-right">0</td>
-</tr>
-
-<tr>
-<td class="org-left">Suburban</td>
-<td class="org-left">Hard</td>
-<td class="org-right">850</td>
-<td class="org-right">200</td>
-</tr>
-
-<tr>
-<td class="org-left">Suburban</td>
-<td class="org-left">Soft</td>
-<td class="org-right">100</td>
-<td class="org-right">0</td>
-</tr>
-</tbody>
-</table>
-
-
-<div class="figure">
-<p><img src="img/parameters/mechanical-cost.png" alt="mechanical-cost.png" />
-</p>
-</div>
 </div>
 </div>
 
@@ -449,7 +327,7 @@ Heat supply parameters are all controlled by right clicking on a building:
 <div class="figure">
 <p><video src="./img/parameters/edit-supply-params.webm" autoplay="true" loop="true"><source /></video>
 </p>
-<p><span class="figure-number">Figure 6: </span>Editing heat supply parameters</p>
+<p><span class="figure-number">Figure 1: </span>Editing heat supply parameters</p>
 </div>
 </div>
 

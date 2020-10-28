@@ -1,7 +1,8 @@
 (ns thermos-frontend.inputs
   (:require [reagent.core :as reagent]
             [clojure.set :refer [map-invert]]
-            [thermos-frontend.util :refer [target-value]]))
+            [thermos-frontend.util :refer [target-value]]
+            [thermos-frontend.format :as format]))
 
 (defn text [{:keys [value-atom] :as ks
                :or {value-atom nil}}]
@@ -36,6 +37,7 @@
                     (.toFixed (* scale value) digits))
 
           on-change (or (:on-change ks) (when value-atom (partial reset! value-atom)))
+          on-blur   (:on-blur ks)
           parse (if (integer? step)
                   js/parseInt
                   js/parseFloat)
@@ -68,6 +70,25 @@
                       :else
                       (set! (.. element -value) s-value)))})
 
+              (when on-blur
+                {:on-blur
+                 #(let [s-val (target-value %)
+                        val (parse s-val)]
+                    (reset! is-blank (= "" s-val))
+                    (cond
+                      (and (= "" s-val) has-empty-value)
+                      (on-blur empty-value)
+                      
+                      (js/isFinite val)
+                      (on-blur (/ (parse val) scale))
+                      
+                      :else
+                      (.setCustomValidity @element "Not a number!"))
+                    
+                    )
+                 }
+                )
+              
               (when on-change
                 {:on-change
                  #(let [s-val (target-value %)
@@ -202,4 +223,3 @@
             (reset! parsed-value new-value)
             (reset! raw-value (render new-value)))
           ))})))
-
