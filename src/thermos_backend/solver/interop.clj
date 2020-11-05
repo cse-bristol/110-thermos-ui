@@ -363,6 +363,8 @@
     :count     (int     (::demand/connection-count candidate 1))}
    (demand-value-terms instance candidate market)
 
+   (when (::demand/group candidate) {:group (::demand/group candidate)})
+   
    ;; we only offer insulation & alternatives to the optimiser in system mode.
    (when (= :system (::document/objective instance :network))
      (insulation-definitions instance candidate))
