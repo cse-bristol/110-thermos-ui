@@ -450,20 +450,12 @@
    doc))
 
 (defn- next-group [doc]
-  #_(->> (::candidates doc)
-         (vals)
-         (keep ::demand/group)
-         (reduce max -1)
-         (inc))
-
-  (let [gids (->> (::candidates doc)
-                  (vals)
-                  (keep ::demand/group))
-        maxg (reduce max -1 gids)
-        nextg (inc maxg)]
-    (println gids "," maxg)
-    nextg
-    ))
+  (->> (::candidates doc)
+       (vals)
+       (keep ::demand/group)
+       (filter integer?) ;; we could have non-integer ids from elsewhere
+       (reduce max -1)
+       (inc)))
 
 (defn group-candidates
   "Given a document, change it so all the given candidates are in a
