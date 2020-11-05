@@ -6,6 +6,7 @@
             [cljsjs.leaflet-draw] ;; this modifies js/L.Control in-place
             [cljsjs.jsts :as jsts]
             [cljts.core :as jts]
+            [com.rpl.specter :as S]
 
             [thermos-frontend.io :as io]
             [thermos-frontend.operations :as operations]
@@ -35,7 +36,8 @@
             [goog.functions :refer [debounce]]
 
             [thermos-frontend.flow :as flow]
-            ))
+
+            [thermos-specs.demand :as demand]))
 
 ;; the map component
 
@@ -448,15 +450,45 @@
       (deref)
       (spatial/find-candidates-ids-in-bbox bbox)))
 
+(defn- selection-adjacent-by-group
+  "Given the document, return a set of all IDs which are in the same
+  group as any selected candidates"
+  [f]
+  (let [candidates @(flow/view* f ::document/candidates)
+
+        ;; a map from group-id to group member ids
+        groups     (->> (for [[id {g ::demand/group}] candidates
+                              :when g] [g id])
+                        (group-by first)
+                        (S/multi-transform
+                         [S/MAP-VALS (S/multi-path
+                                      [S/ALL (S/terminal second)]
+                                      (S/terminal set))]))
+
+        ]
+    (set
+     (for [[id {g ::demand/group
+                s ::candidate/selected}]
+           candidates
+           :when (and s g)
+           adj (groups g)]
+       adj))))
+
 (defn candidates-layer [flow doc args]
   (let [just-candidates
         (flow/view* flow ::document/candidates)
-        
+
+        adjacent-ids
+        (flow/view flow selection-adjacent-by-group)
+
         solution
         (flow/view* flow document/has-solution?)
 
         filtered-candidates-ids
         (flow/view flow filtered-candidates-ids)
+
+        selected-candidates-ids
+        (flow/view* flow operations/selected-candidates-ids)
 
         showing-forbidden?
         (flow/view* flow operations/showing-forbidden?)
@@ -491,22 +523,33 @@
              tile-contents
              (reagent/track
               (fn []
-                (let [just-candidates     @just-candidates
+                (let [adjacent-ids        @adjacent-ids
+                      just-candidates     @just-candidates
                       tile-candidates-ids @tile-candidates-ids
 
-                      showing-forbidden?  @showing-forbidden?
-                      any-filters?        @any-filters?
-                      tile-candidates (if showing-forbidden?
-                                        (keep just-candidates tile-candidates-ids)
-                                        (keep #(let [c (just-candidates %)]
-                                                 (when (candidate/is-included? c) c))
-                                              tile-candidates-ids))
+                      showing-forbidden? @showing-forbidden?
+                      any-filters?       @any-filters?
+                      tile-candidates    (if showing-forbidden?
+                                           (keep just-candidates tile-candidates-ids)
+                                           (keep #(let [c (just-candidates %)]
+                                                    (when (candidate/is-included? c) c))
+                                                 tile-candidates-ids))
+
+                      any-adjacent? (not-empty adjacent-ids)
                       ]
-                  
-                  (if any-filters?
-                    (let [filtered-candidates-ids @filtered-candidates-ids]
-                      (map #(assoc % :filtered (not (filtered-candidates-ids (::candidate/id %)))) tile-candidates))
-                    tile-candidates))))
+
+                  (cond-> tile-candidates
+                    any-filters?
+                    (->> (map (let [f @filtered-candidates-ids]
+                                #(assoc % :filtered (not (f (::candidate/id %)))))))
+
+                    any-adjacent?
+                    (->> (map (fn [c]
+                                (cond-> c
+                                  (contains? adjacent-ids (::candidate/id c))
+                                  (assoc :in-selected-group true))
+                                ))))
+                  )))
              ]
          ;; we return our tracks for later disposal
          (list (reagent/track!
@@ -517,7 +560,12 @@
                (reagent/track!
                 (fn []
                   (tile/render-tile
-                   @solution @tile-contents canvas layer (or @map-view ::view/constraints) (and @show-diameters? @min-max-diameters))
+                   @solution
+                   @tile-contents
+                   canvas
+                   layer
+                   (or @map-view ::view/constraints)
+                   (and @show-diameters? @min-max-diameters))
                   )))
          )))))
 

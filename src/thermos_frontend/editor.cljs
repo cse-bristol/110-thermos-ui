@@ -416,8 +416,12 @@
   ;; unfortunately react event propagation seems to be weird
   ;; if we put the listener on the editor container, it doesn't
   ;; get the key events it should.
-  (js/document.addEventListener "keypress" keys/handle-keypress))
+  )
 
+(defonce keyhandler
+  (js/document.addEventListener
+   "keypress"
+   keys/handle-keypress))
 
 ;; (state/load-document! @document-identity mount-root)
 (mount-root)

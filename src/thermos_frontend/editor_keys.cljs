@@ -51,6 +51,7 @@
                     (operations/get-filtered-candidates @state/state))
                :xor))
 
+
 (defn- show-pprint-thing []
   (popover/open! [:div.popover-dialog
                   {:style {:max-width :80vw}}
@@ -76,5 +77,7 @@
         "e" (edit-demand-or-path!)
         "i" (show-pprint-thing)
         "j" connector-tool/toggle!
-        
+        "g" (state/fire-event! [:group-select-members])
+        "G" (state/fire-event! [:group-selection])
+        "U" (state/fire-event! [:ungroup-selection])
         :default))))

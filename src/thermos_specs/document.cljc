@@ -438,3 +438,103 @@
 (defn steam-pressure [doc] (::steam-pressure doc))
 (defn steam-velocity [doc] (::steam-velocity doc))
 
+(defn ungroup-candidates
+  "Clear the ::demand/group on all these candidates"
+  [doc candidates-ids]
+  (sr/setval
+   [::candidates
+    (sr/submap candidates-ids)
+    sr/MAP-VALS
+    ::demand/group]
+   sr/NONE
+   doc))
+
+(defn- next-group [doc]
+  #_(->> (::candidates doc)
+         (vals)
+         (keep ::demand/group)
+         (reduce max -1)
+         (inc))
+
+  (let [gids (->> (::candidates doc)
+                  (vals)
+                  (keep ::demand/group))
+        maxg (reduce max -1 gids)
+        nextg (inc maxg)]
+    (println gids "," maxg)
+    nextg
+    ))
+
+(defn group-candidates
+  "Given a document, change it so all the given candidates are in a
+  single group That means they all have the same ::demand/group value,
+  and no other candidates have that value."
+
+  {:test
+   #(do
+      (test/is
+       (-> {::candidates
+            {0 {} 1 {}
+             2 {} 3 {::demand/group 0}}}
+           (group-candidates (list 0 1))
+           (= {::candidates
+               {0 {::demand/group 1}
+                1 {::demand/group 1}
+                2 {} 3 {::demand/group 0}}})))
+      (test/is
+       (-> {::candidates
+            {0 {} 1 {}
+             2 {} 3 {}}}
+           (group-candidates (list 0 1))
+           (= {::candidates
+               {0 {::demand/group 0}
+                1 {::demand/group 0}
+                2 {} 3 {}}})))
+
+      (test/is
+       (-> {::candidates
+            {0 {::demand/group 0} 1 {::demand/group 0}}}
+           (group-candidates (list 0))
+           (= {::candidates
+               {0 {} 1 {::demand/group 0}}})))
+      )}
+
+  [doc candidates-ids]
+  (cond
+    (empty? candidates-ids)
+    doc
+
+    (empty? (rest candidates-ids))
+    (ungroup-candidates doc candidates-ids) ;; grouping 1 thing is the
+                                            ;; same as ungrouping it.
+    :else
+    (let [next-group (next-group doc)]
+      (sr/setval
+       [::candidates
+        (sr/submap candidates-ids)
+        sr/MAP-VALS
+        (sr/selected?
+         [(sr/must ::candidate/type) #{:building}] )
+        ::demand/group]
+       next-group
+       doc))))
+
+(defn select-group-members [doc]
+  (let [selected-groups (set (sr/select
+                              [::candidates sr/MAP-VALS
+                               (sr/pred ::candidate/selected)
+                               (sr/must ::demand/group)]
+                              doc))]
+    (sr/multi-transform
+
+     [::candidates sr/MAP-VALS
+      (sr/multi-path
+       [(sr/pred (comp selected-groups ::demand/group))
+        ::candidate/selected
+        (sr/terminal-val true)]
+       [(sr/pred (comp not selected-groups ::demand/group))
+        ::candidate/selected
+        (sr/terminal-val sr/NONE)]
+       )]
+
+     doc)))

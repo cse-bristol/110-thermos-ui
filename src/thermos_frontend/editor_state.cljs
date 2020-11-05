@@ -18,7 +18,8 @@
             [thermos-frontend.operations :as operations]
             [thermos-frontend.flow :as flow]
             [thermos-frontend.events :as events]
-            ))
+
+            [thermos-frontend.flow :as f]))
 
 (defonce save-state
   (let [[_ project-id map-id network-id]
@@ -74,6 +75,11 @@
   (flow/create-root
    {:state state
     :handler events/handle}))
+
+(defn fire-event!
+  "Handle event `e` on the next tick"
+  [e]
+  (flow/fire! flow e))
 
 (set! js/thermos_initial_state nil)
 
