@@ -1,4 +1,4 @@
-{stdenv, fetchurl, gmp, zlib, cmake, ipopt}:
+{stdenv, fetchurl, gmp, zlib, cmake, ipopt, bliss, pkgconfig, openblas, readline, gsl, cliquer, hmetis}:
 
 let
 
@@ -19,21 +19,13 @@ scip = stdenv.mkDerivation rec {
   
   src = scip-src;
   
-  buildInputs = [cmake gmp zlib ipopt];
+  buildInputs = [cmake gmp zlib ipopt bliss pkgconfig openblas readline gsl cliquer hmetis];
   configurePhase = ":";
   buildPhase =
   ''
-  pushd scip/interfaces/ampl
-  tar xf "${ampl-src}"
-  pushd solvers
-  make -f makefile.u CFLAGS='-w -O'
-  popd; popd
   mkdir build
   cd build
-  cmake .. -DCMAKE_INSTALL_PREFIX=$out
-  make scipampl
-  patchelf --set-rpath $out/lib bin/interfaces/ampl/scipampl
-  install -m755 -D bin/interfaces/ampl/scipampl $out/bin/scipampl
+  cmake .. -DCMAKE_INSTALL_PREFIX=$out -DIPOPT=on -DSYM=bliss -DBLISS_DIR=${bliss}
   '';
 };
 
