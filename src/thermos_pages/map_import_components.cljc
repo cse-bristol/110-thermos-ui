@@ -765,7 +765,7 @@
   [:div
    [:h1 "Set other parameters"]
 
-   [:div.flex-cols
+   [:div.flex-rows
     [:div.card.flex-grow
      [:h1 "Heating degree days"]
      [:div.flex-cols
@@ -775,6 +775,59 @@
                          :on-change #(swap! *form-state assoc :degree-days
                                             (as-int (.. % -target -value)))}] " °C × days"]
      [:p "The number of heating degree days per year in this location, relative to a 17° base temperature."]]
+
+    [:div.card.flex-grow
+     [:h1 "Automatic building groups"]
+     [:p "For buildings that have not been placed in a group, THERMOS can assign a group using the road they are connected to."]
+     (let [road-state (:roads @*form-state)]
+       (if (-> road-state :source (= :files))
+         [:div.flex-cols
+          [:label "Use field: "
+           (let [road-fields (mappable-columns road-state)
+                 nil-value "__nil__" ;; yuck, DOM strings.
+                 seg-id "__geo-id__"
+                 cur-value (:group-buildings road-state)
+                 cur-value (case cur-value
+                             nil nil-value
+                             :geo-id seg-id
+                             cur-value)
+                 ]
+             [:select {:value cur-value
+                       :on-change
+                       #(swap!
+                         *form-state
+                         assoc-in
+                         [:roads :group-buildings]
+                         (let [v (-> % .-target .-value)]
+                           (case v
+                             nil-value nil
+                             seg-id :geo-id
+                             v)))}
+              [:option {:value nil-value} "None - do not group"]
+              [:option {:value seg-id} "Road segment"]
+              ;; this is a bit shonky as we could have 2 files
+              ;; with differently named fields, or same named fields.
+              (for [[field files]
+                    (sort-by first (group-by second road-fields))]
+                [:option {:value field} field
+                 " (in "
+                 (string/join ", " (map first files))
+                 ")"])])]]
+         [:div
+          [:label [:input {:type :checkbox
+                           :checked (= :geo-id (:group-buildings road-state))
+                           :on-change
+                           #(swap!
+                             *form-state
+                             assoc-in
+                             [:roads :group-buildings]
+                             (if (-> % .-target .-checked)
+                               :geo-id nil))}]
+           "Use road segment to group buildings"]]
+         
+         ))
+     
+     ]
     ]
    ])
 
@@ -884,7 +937,13 @@
    {:value :residential :label "Residential (logical)"
     :doc
     [:span "A logical value, represented either as a boolean column, or the text values yes, no, true, false, 1 or 0. "
-     "If available, this will improve the quality of built-in regression model results. Otherwise, this is assumed to be true."]}])
+     "If available, this will improve the quality of built-in regression model results. Otherwise, this is assumed to be true."]}
+
+   {:value :group :label "Building group (any value)"
+    :doc
+    [:span "Any buildings which have the same value in this field (except null or an empty string) will be grouped together. "
+     "Buildings in a group must all be connected to a network at once, or not at all."]}
+   ])
 
 (rum/defc button-strip < rum/reactive rum/static [*form-state *current-page]
   (let [state (rum/react *form-state)
@@ -944,10 +1003,15 @@
        :road-data (geometry-data-page :roads form-state)
        :road-join (join-page (rum/cursor-in form-state [:roads :files])
                              (rum/cursor-in form-state [:roads :joins]))
-       :road-cols (field-selection-page
-                   (mappable-columns (:roads @form-state))
-                   road-fields
-                   (rum/cursor-in form-state [:roads :mapping]))
+       :road-cols
+       
+       (let [road-columns (mappable-columns (:roads @form-state))
+             ;; this is [[file column]]
+             ]
+         (field-selection-page
+          road-columns
+          road-fields
+          (rum/cursor-in form-state [:roads :mapping])))
 
        :other-parameters (other-parameters-page form-state)
 
@@ -964,7 +1028,7 @@
    :name ""
    :description ""
    :buildings {:source :osm :files {}}
-   :roads {:source :osm :files {}}
+   :roads {:source :osm :files {} :group-buildings nil}
    :degree-days 2000
    :default-fixed-civil-cost 350.0
    :default-variable-civil-cost 700.0})

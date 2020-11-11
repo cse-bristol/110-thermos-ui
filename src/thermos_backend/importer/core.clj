@@ -43,13 +43,12 @@
     (db/set-job-id! map-id job-id)))
 
 (defn add-to-database [state job]
-  (geoio/write-to
-   (:buildings state)
-   (io/file (:work-directory state) "buildings-out.json"))
-
-  (geoio/write-to
-   (:roads state)
-   (io/file (:work-directory state) "roads-out.json"))
+  ;; (geoio/write-to
+  ;;  (:buildings state)
+  ;;  (io/file (:work-directory state) "buildings-out.json"))
+  ;; (geoio/write-to
+  ;;  (:roads state)
+  ;;  (io/file (:work-directory state) "roads-out.json"))
 
   ;; these should already be in 4326???
   (let [buildings (geoio/reproject (:buildings state) "EPSG:4326")
@@ -76,7 +75,7 @@
      :srid 4326
      :format :wkt
      :buildings
-
+     
      (for [b (::geoio/features buildings)]
        {:geoid (::geoio/id b)
         :orig-id (or (:identity b) "unknown")
@@ -100,6 +99,8 @@
         :ground-area (:ground-area b)
         :roof-area   (:roof-area b)
         :height      (:height b)
+
+        :conn-group  (:group b)
         })
      
      :paths

@@ -87,20 +87,25 @@
        (catch Exception e
          
          (let [message (.getMessage e)
-               position (second (re-find #"Position: (\d+)" message))
-               ]
+               position (second (re-find #"Position: (\d+)" message))]
            (if position
-             (let [position (Integer/parseInt position)
-                   sql (first query)
-                   start (max 0 (- position 5))
-                   end (min (.length sql) (+ position 5))
-                   params (rest query)]
-               (log/error e "Exception executing query: "
-                          (str
-                           (.substring sql 0 start)
-                           (tc/on-white (tc/red (.substring sql start end)))
-                           (.substring sql end))
-                          (pr-str params)))
+             (try
+               (let [position (Integer/parseInt position)
+                     sql (first query)
+                     start (max 0 (- position 5))
+                     end (min (.length sql) (+ position 5))
+                     params (rest query)]
+                 (log/error e "Exception executing query: "
+                            (str
+                             (.substring sql 0 start)
+                             (tc/on-white (tc/red (.substring sql start end)))
+                             (.substring sql end))
+                            (pr-str params)))
+               (catch Exception e2
+                 (log/error e "Exception executing query, and then finding offset"
+                            query
+                            )))
+             
              (log/error e "Exception executing query: " (pr-str query))))
          
          (throw e))))))

@@ -141,6 +141,8 @@
 
       :building
       (assoc basics
+             ::demand/group            (o/get properties "conn-group")
+             
              ::candidate/wall-area     (o/get properties "wall-area" 0)
              ::candidate/ground-area   (o/get properties "ground-area" 0)
              ::candidate/roof-area     (o/get properties "ground-area" 0)

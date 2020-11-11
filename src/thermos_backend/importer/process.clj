@@ -234,16 +234,64 @@
 (defn run-peak-model [annual-demand]
   (+ peak-constant (* annual-demand peak-gradient)))
 
-(defn- topo [{roads :roads buildings :buildings :as state}]
+(defn- blank-string? [x] (and (string? x) (string/blank? x)))
+
+(defn- topo [{roads :roads buildings :buildings :as state} group-buildings]
   (let [crs (::geoio/crs roads)
 
         roads
         (topo/node-paths (::geoio/features roads))
-        
+
+        roads ;; if group-buildings is geo-id, we need to give the
+              ;; segments a unique ID within the map.
+        (if (= :geo-id group-buildings)
+          (map-indexed
+           (fn [i road] (assoc road ::noded-id i)) roads)
+          roads)
+
         [buildings roads]
-        (topo/add-connections crs (::geoio/features buildings) roads
-                              :connect-to-connectors false)
+        (topo/add-connections
+         crs (::geoio/features buildings) roads
+         :connect-to-connectors false
+         :copy-field
+         (when group-buildings
+           (let [source-field
+                 (if (= :geo-id group-buildings)
+                   ::noded-id ;; see above.
+                   group-buildings)
+                 target-field :road-group]
+             
+             [source-field target-field])))
+        
+        ;; If there is a user-specified :group, it wins over what :road-group
+        ;; got set to above. Otherwise we use :road-group as :group
+        buildings
+        (for [building buildings]
+          (let [group (:group building)
+                road-group (:road-group building)]
+            (if (and road-group (not group))
+              (assoc building :group road-group)
+              building)))
+
+        useful-groups
+        (->> buildings
+             (keep :group) ;; take groups
+             (reduce ;; count how many there are in each case
+              (fn [a g] (assoc a g (inc (get a g 0)))) {})
+             (keep (fn [[g n]]
+                     (when (and (> n 1)
+                                (not (nil? g))
+                                (not (blank-string? g)))
+                       g)
+                     )) ;; throw away singles, empty strings, etc
+             (map-indexed (fn [i g] [g i])) ;; relabel from 0 to n-1
+             (into {}))
+
+        ;; relabel the groups in our buildings
+        buildings (for [building buildings]
+                    (update building :group useful-groups))
         ]
+    (log/info (count (set (map :group buildings))) "building groups")
     (-> state
         (assoc-in [:roads     ::geoio/features] roads)
         (assoc-in [:buildings ::geoio/features] buildings))))
@@ -342,10 +390,13 @@
                   contents))))
       (.isFile file-or-directory) file-or-directory)))
 
-(defn- load-and-join [{files :files
-                       joins :joins
-                       mappings :mapping}
-                      legal-geometry-types]
+(defn- load-and-join
+  "Load some geometry data - `files` names the input files, `joins`
+  joins from tables to spatial data, and `mappings` gives the field mappings."
+  [{files :files
+    joins :joins
+    mappings :mapping}
+   legal-geometry-types]
   (let [files (for [[base {id :id}] files :when id]
                 [base (primary-file (io/file (config :import-directory) id))])
 
@@ -597,7 +648,7 @@
         ))))
 
 (defn merge-multi-polygons
-  "The inverse of `explode-multi-polygons`."
+  "The inverse of `explode-multi-polygons`, which see."
   [features]
   (->> features
        (group-by ::id)
@@ -633,8 +684,9 @@
         (pprint parameters)
         
         (try
-          (let [osm-buildings (-> parameters :buildings :source (= :osm))
-                osm-roads     (-> parameters :roads :source (= :osm))
+          (let [osm-buildings   (-> parameters :buildings :source (= :osm))
+                osm-roads       (-> parameters :roads :source (= :osm))
+                group-buildings (-> parameters :roads :group-buildings)
                 progress* (fn [x p m] (progress :message m :percent p :can-cancel true) x)
                 sqrt-degree-days (Math/sqrt (:degree-days parameters 2000.0))]
             (-> (cond-> {:work-directory work-directory}
@@ -695,7 +747,7 @@
                 (progress* 45 "De-duplicating geometry")
                 (dedup)
                 (progress* 50 "Noding paths and adding connectors")
-                (topo)
+                (topo group-buildings)
                 (progress* 80 "Adding map to database")
 
                 (update :buildings geoio/update-features :add-areas add-areas)))

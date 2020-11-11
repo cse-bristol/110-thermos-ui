@@ -68,7 +68,8 @@
   [:candidate-id :connection-id :demand-kwh-per-year :demand-kwp :connection-count :demand-source :peak-source
    :floor-area :height :wall-area :roof-area :ground-area
    :cooling-kwh-per-year
-   :cooling-kwp])
+   :cooling-kwp
+   :conn-group])
 
 (def paths-keys
   [:candidate-id :start-id :end-id :length])
@@ -79,6 +80,8 @@
   `alias` is the name of the temporary table, and `values` are the values, as you might pass to honeysql.helpers/values.
 
   If you write (helpers/with (data-values :some-data [...])) then you can join/select etc from :some-data in the rest of the query.
+
+  Unfortunately if all the values in a block are null the type will be inferred as string
   "
   [alias values]
   (let [all-keys (sort (reduce into #{} (for [v values] (keys v))))
@@ -152,12 +155,18 @@
                (data-values :building-data
                             (for [c block]
                               (-> c
-                                  (select-keys (remove #{:candidate-id}
-                                                       (concat candidates-keys buildings-keys)))
+                                  (select-keys
+                                   (remove #{:candidate-id}
+                                           (concat candidates-keys buildings-keys)))
                                   
                                   (update :connection-id
                                           #(sql-types/array
                                             (string/split % #",")))
+
+                                  ;; need to do this in case all null
+                                  (update :conn-group
+                                          #(sql-types/call :cast % :integer)
+                                          )
                                   
                                   (assoc :map-id map-id)
                                   (update :geometry #(geom-from-text % srid)))))
@@ -255,6 +264,7 @@
                       :cooling_kwp
                       :demand_source
                       :demand_kwp :connection_count :connection_ids
+                      :conn_group
                       :start_id :end_id :length
                       :floor_area :height :wall_area :roof_area :ground_area)
             (h/from :joined_candidates) ;; this view is defined in the migration SQL
