@@ -18,3 +18,12 @@ package.json
 solver-work/
 import-work/
 .cpcache/*
+/TODO.org_archive
+/.nrepl-history
+/.lsp/
+/.dir-locals.el
+/error-dumps/
+/eu-lidar/
+/lidar/
+/deployment/smtp-password
+/deployment/result
