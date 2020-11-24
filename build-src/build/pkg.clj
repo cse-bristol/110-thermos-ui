@@ -43,7 +43,7 @@
        (assoc build
               :preloads nil
               :infer-externs true
-                                        ;:optimizations :advanced
+              :optimizations :advanced
               :pretty-print true 
               :pseudo-names true)
        
