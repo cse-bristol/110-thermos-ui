@@ -6,7 +6,8 @@
  {:main thermos-frontend.pages.database-import
   :output-dir "target/resources/public/js/database_import.out"
   :output-to "target/resources/public/js/database_import.js"
-  :asset-path "/js/database_import.out"}
+  :asset-path "/js/database_import.out"
+  :externs ["externs/leaflet-extra.js"]}
  {:main thermos-frontend.pages.projects
   :output-dir "target/resources/public/js/projects.out"
   :output-to "target/resources/public/js/projects.js"

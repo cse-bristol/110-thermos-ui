@@ -93,8 +93,9 @@
          (.addControl map draw-control)
 
          (.on map (.. js/L.Draw -Event -CREATED)
-              #(on-draw-box (js->clj (.. % -layer toGeoJSON))))
-         
+              (fn [^js/L.Draw.Event e]
+                (on-draw-box (-> e .-layer (.toGeoJSON) (js->clj)))))
+                           
          (assoc state
                 ::map map
                 ::boundary boundary)))
@@ -106,13 +107,12 @@
      (fn-js [state]
        (let [{[{[lat0 lat1 lon0 lon1] :map-position
                 boundary-geojson :boundary-geojson}] :rum/args
-              boundary ::boundary
+              ^js/L.LayerGroup boundary ::boundary
               map ::map} state]
 
          (when-not (nil? lat0)
            (.invalidateSize map)
            (.fitBounds map (js/L.latLngBounds #js [lat0 lon0] #js [lat1 lon1])))
-         
          (.clearLayers boundary)
          (when boundary-geojson
            (.addData boundary (clj->js boundary-geojson))))

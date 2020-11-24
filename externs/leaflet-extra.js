@@ -10,3 +10,4 @@ L.GridLayer.getTileSize = function() {};
 L.map.flyToBounds = function(bounds) {};
 L.Map.flyToBounds = function(bounds) {};
 L.Layer.toGeoJSON = function() {};
+L.LayerGroup.clearLayers = function() {};
