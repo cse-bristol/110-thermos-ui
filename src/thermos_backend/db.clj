@@ -164,12 +164,13 @@
 ;; This should allow us to read json results transparently from the
 ;; database. It's useful in concert with the functions to_json and
 ;; json_agg etc, effectively returning subquery hierarchy in one go.
+(def ^:dynamic *json-key-fn* #(keyword (normalize-column-name %)))
 (extend-protocol proto/ISQLResultSetReadColumn
   PGobject
   (from-sql-type [pgobj conn metadata index]
     (cond-> (.getValue pgobj)
       (= "json" (.getType pgobj))
-      (json/read-str :key-fn #(keyword (normalize-column-name %))))))
+      (json/read-str :key-fn *json-key-fn*))))
 
 (extend-protocol proto/ISQLResultSetReadColumn
   org.postgresql.jdbc.PgArray
