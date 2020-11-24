@@ -75,7 +75,7 @@
 
             candidate
             {::candidate/type :building
-             ::candidate/subtype "Unknown"
+             ::candidate/user-fields {"Category" "User-created building"}
              ::candidate/id (jts/ghash geometry)
              ::candidate/geometry (jts/geom->json geometry)
              ::candidate/modified true

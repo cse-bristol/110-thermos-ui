@@ -143,7 +143,22 @@
                           (geoio/update-geometry
                            i
                            (.getExteriorRing geometry)))))))
-                 (map set-road-type))]
+                 (map set-road-type))
+
+            ;; the overpass query handler puts in :name and :subtype
+            ;; which we want to transfer into [:user-fields "Name"] and
+            ;; [:user-fields "Classification"]
+            copy-to-udf
+            (fn [features udfs]
+              (for [feature features]
+                (reduce-kv
+                 (fn [feature k v]
+                   (assoc-in feature [:user-fields v] (get feature k)))
+                 feature udfs)))
+
+            buildings (copy-to-udf {:name "Name" :subtype "Category"})
+            highways  (copy-to-udf {:name "Name" :subtype "Category"})
+            ]
 
         (cond-> state
           get-buildings
@@ -328,13 +343,21 @@
   [fields]
   (apply comp
          (for [[field-name field-purpose] fields]
-           (fn [x]
-             (let [val (get x field-name)]
-               (if (and val
-                        (or (not (string? val))
-                            (not (string/blank? val))))
-                 (assoc x field-purpose val)
-                 x))))))
+           ;; special case for :user-fields - these are stored in a
+           ;; blob together.
+           (if (= :user-fields field-purpose)
+             (fn [x]
+               (assoc-in x
+                         [:user-fields field-name]
+                         (get x field-name)))
+             
+             (fn [x]
+               (let [val (get x field-name)]
+                 (if (and val
+                          (or (not (string? val))
+                              (not (string/blank? val))))
+                   (assoc x field-purpose val)
+                   x)))))))
 
 (defn- compose-joins
   "Turns a list of joins and some tables into a function which runs the joins.

@@ -62,10 +62,11 @@
    (st/geomfromtext geom (sql/inline (int srid)))))
 
 (def candidates-keys
-  [:map-id :geoid :orig-id :name :type :geometry])
+  [:map-id :geoid :orig-id :user-fields :geometry])
 
 (def buildings-keys
-  [:candidate-id :connection-id :demand-kwh-per-year :demand-kwp :connection-count :demand-source :peak-source
+  [:candidate-id :connection-id :demand-kwh-per-year
+   :demand-kwp :connection-count :demand-source :peak-source
    :floor-area :height :wall-area :roof-area :ground-area
    :cooling-kwh-per-year
    :cooling-kwp
@@ -109,6 +110,8 @@
       `["(VALUES "
         ~@(flatten (interpose ", " (map all-values values)))
         ")"])]))
+
+(defn- to-jsonb [x] (sql-types/call :cast (json/write-str x) :jsonb))
 
 (defn insert-into-map!
   "Insert data into a map, possibly erasing what is already there.
@@ -165,8 +168,9 @@
 
                                   ;; need to do this in case all null
                                   (update :conn-group
-                                          #(sql-types/call :cast % :integer)
-                                          )
+                                          #(sql-types/call :cast % :integer))
+
+                                  (update :user-fields to-jsonb)
                                   
                                   (assoc :map-id map-id)
                                   (update :geometry #(geom-from-text % srid)))))
@@ -196,6 +200,8 @@
                                   (select-keys (remove #{:candidate-id}
                                                        (concat candidates-keys paths-keys)))
                                   (assoc :map-id map-id)
+                                  (update :user-fields to-jsonb)
+                                  
                                   (update :geometry #(geom-from-text % srid)))))
 
                [:new-candidates
@@ -258,7 +264,7 @@
 
 (defn get-polygon [map-id points]
   (let [query
-        (-> (h/select :id :name :type :geometry :is_building
+        (-> (h/select :id :user_fields :geometry :is_building
                       :demand_kwh_per_year
                       :cooling_kwh_per_year
                       :cooling_kwp
@@ -282,7 +288,7 @@
         query (sql/format query {:box box-string})
         ]
     (map tidy-fields
-         (db/fetch! query))))
+         (binding [db/*json-key-fn* identity] (db/fetch! query)))))
 
 (defn get-tile
   "Query out the vector data from the given webmercator tile
@@ -428,38 +434,39 @@
       (db/execute!)))
 
 (defn stream-features [map-id callback]
-  (db/with-connection [conn]
-    (jdbc/atomic conn
-      (with-open [cursor
-                  (-> (h/select :candidates.geoid :orig-id :name :type
-                                :connection-id
-                                :demand-kwh-per-year
-                                :demand-source
-                                :demand-kwp
-                                :cooling-kwh-per-year
-                                :cooling-kwp
-                                :connection-count
-                                [(sql/call :ST_AsGeoJson
-                                           :geometry) :geometry])
-                      (h/from :candidates)
-                      (h/join :buildings [:= :candidates.id :buildings.candidate-id])
-                      (h/where [:= :map-id map-id])
-                      (sql/format)
-                      (->> (jdbc/fetch-lazy conn)))]
-        (doseq [row (jdbc/cursor->lazyseq cursor)]
-          (callback row)))
-      
-      (with-open [cursor
-                  (-> (h/select :candidates.geoid :orig-id :name :type
-                                :start-id :end-id :length
-                                [(sql/call :ST_AsGeoJson
-                                           :geometry) :geometry])
-                      (h/from :candidates)
-                      (h/join :paths [:= :candidates.id :paths.candidate-id])
-                      (h/where [:= :map-id map-id])
-                      (sql/format)
-                      (->> (jdbc/fetch-lazy conn)))]
-        (doseq [row (jdbc/cursor->lazyseq cursor)]
-          (callback row)))
-      )))
+  (binding [db/*json-key-fn* identity]
+    (db/with-connection [conn]
+      (jdbc/atomic conn
+        (with-open [cursor
+                    (-> (h/select :candidates.geoid :orig-id :user-fields
+                                  :connection-id
+                                  :demand-kwh-per-year
+                                  :demand-source
+                                  :demand-kwp
+                                  :cooling-kwh-per-year
+                                  :cooling-kwp
+                                  :connection-count
+                                  [(sql/call :ST_AsGeoJson
+                                             :geometry) :geometry])
+                        (h/from :candidates)
+                        (h/join :buildings [:= :candidates.id :buildings.candidate-id])
+                        (h/where [:= :map-id map-id])
+                        (sql/format)
+                        (->> (jdbc/fetch-lazy conn)))]
+          (doseq [row (jdbc/cursor->lazyseq cursor)]
+            (callback row)))
+        
+        (with-open [cursor
+                    (-> (h/select :candidates.geoid :orig-id :user-fields
+                                  :start-id :end-id :length
+                                  [(sql/call :ST_AsGeoJson
+                                             :geometry) :geometry])
+                        (h/from :candidates)
+                        (h/join :paths [:= :candidates.id :paths.candidate-id])
+                        (h/where [:= :map-id map-id])
+                        (sql/format)
+                        (->> (jdbc/fetch-lazy conn)))]
+          (doseq [row (jdbc/cursor->lazyseq cursor)]
+            (callback row)))
+        ))))
 

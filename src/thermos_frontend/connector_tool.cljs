@@ -218,7 +218,7 @@
             
             spline-candidate
             {::candidate/type    :path
-             ::candidate/subtype "Connector"
+             ::candidate/user-fields {"Category" "Connector"}
              ::candidate/id       spline-id
              ::candidate/geometry spline-geojson
              ::candidate/modified true

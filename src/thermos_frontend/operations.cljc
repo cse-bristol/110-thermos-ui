@@ -226,15 +226,10 @@
   `value` should be the value you want to add to the filter, e.g. BS1 234 if filtering by postcode."
   [document filter-key value]
   (let [current-filter-set (or (get-table-filters document filter-key) #{})]
-    (case filter-key
-      ;; In the case of 'name' we are doing a text search, so just replace the value with the new string
-      ::candidate/name
-      (assoc-in document
-                [::view/view-state ::view/table-state ::view/filters filter-key] value)
-      ;; Default case, for the other fields which are all checkbox filters
-      (assoc-in document
-                [::view/view-state ::view/table-state ::view/filters filter-key]
-                (conj current-filter-set value)))))
+    ;; Default case, for the other fields which are all checkbox filters
+    (assoc-in document
+              [::view/view-state ::view/table-state ::view/filters filter-key]
+              (conj current-filter-set value))))
 
 (defn add-table-filter-values
   "As above but with set of values to add."
@@ -251,22 +246,15 @@
   `value` should be the value you want to remove from the filter, e.g. BS1 234 if filtering by postcode."
   [document filter-key value]
   (let [current-filter-set (or (get-table-filters document filter-key) #{})]
-    (case filter-key
-      ;; For `name` field just set the filter value to nil
-      ::candidate/name
-      (update-in document
-                [::view/view-state ::view/table-state ::view/filters]
-                dissoc filter-key)
-      ;; Default case, for the other fields which are all checkbox filters
-      (let [existing-value (get-in document [::view/view-state ::view/table-state ::view/filters filter-key])
-            new-value (if (false? value)
-                        (remove false? existing-value)
-                        (remove #{value} existing-value))
-            ]
-        (if (empty? new-value)
-          (update-in document [::view/view-state ::view/table-state ::view/filters] dissoc filter-key)
-          (assoc-in document [::view/view-state ::view/table-state ::view/filters filter-key] new-value)
-          )
+    ;; Default case, for the other fields which are all checkbox filters
+    (let [existing-value (get-in document [::view/view-state ::view/table-state ::view/filters filter-key])
+          new-value (if (false? value)
+                      (remove false? existing-value)
+                      (remove #{value} existing-value))
+          ]
+      (if (empty? new-value)
+        (update-in document [::view/view-state ::view/table-state ::view/filters] dissoc filter-key)
+        (assoc-in document [::view/view-state ::view/table-state ::view/filters filter-key] new-value)
         )
       )))
 

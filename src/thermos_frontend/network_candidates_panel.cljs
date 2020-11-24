@@ -100,9 +100,6 @@
                :flexShrink 0
                :flexGrow 0)
         
-        (assoc (col "Name" ::candidate/name "text" data-value)
-               :flexGrow 1
-               :width 80)
         (assoc (col "Wh/yr" demand-key "number"
                     #(when-let [v (data-value %)]
                        (si-number (* 1000 v))))
@@ -120,8 +117,6 @@
         
         (col "Type" ::candidate/type "checkbox" data-name)
         
-        (assoc (col "Class" ::candidate/subtype "checkbox" data-name)
-               :width 120)
         (when @solution
           {:label        "In?" :key ::solution/included
            :cellRenderer #(if (data-value %)

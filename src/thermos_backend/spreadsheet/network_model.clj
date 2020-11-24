@@ -34,15 +34,19 @@
   
   )
 
-(def candidate-columns
-  [{ :name "ID"                  :key ::candidate/id}
-   { :name "Category"            :key ::candidate/subtype}
-   { :name "Address"             :key ::candidate/name}
-   { :name "Constraint"  :key (comp name ::candidate/inclusion) }])
+(defn candidate-columns [doc]
+  (into [{ :name "ID"                  :key ::candidate/id}
+         { :name "Constraint"  :key (comp name ::candidate/inclusion) }]
+        (for [user-field
+              (sort (set (mapcat ::candidate/user-fields)
+                         (vals (::document/candidates doc))))]
+
+          {:name user-field
+           :key (fn [x] (get (::candidate/user-fields x) user-field))})))
 
 (defn building-columns [doc]
   (concat
-   candidate-columns
+   (candidate-columns doc)
    [{ :name "Annual demand (kWh)" :key ::demand/kwh              :format :double}
     { :name "Peak demand (kW)"    :key ::demand/kwp              :format :double}
     { :name "Demand model"        :key ::demand/source}
@@ -268,7 +272,7 @@
   (sheet/add-tab
    ss "Paths & pipes"
    (concat
-    candidate-columns
+    (candidate-columns doc)
     [{ :name "Length"              :key ::path/length}
      { :name "Civils"   :key #(document/civil-cost-name doc (::path/civil-cost-id %)) }]
     (when (document/has-solution? doc)

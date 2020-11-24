@@ -18,20 +18,23 @@
             [reagent.core :as reagent]
             [clojure.set :as set]))
 
-;; TODO: something to help clear overrides of global parameters
-;; applied in here
+(defn- nil-value-label [k] "None")
 
-;; TODO: decision about what things ought to be in the db and what
-;; should be scenario global.
+(defn- mean [vals]
+  (if (empty? vals)
+    0
+    (/ (reduce + vals) (float (count vals)))))
 
-(def group-by-options {::candidate/name "Name"
-                       ::candidate/subtype "Category"
-                       ::candidate/type "Nothing"})
+(defn- unset? [vals]
+  (if (apply = vals)
+    (first vals)
+    :unset))
 
-(def nil-value-label {::candidate/name "None"
-                      ::candidate/subtype "Unclassified"})
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; TARIFFS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn- tariff-editor [tariffs connection-costs state buildings]
+(defn- tariff-editor [group-by-options tariffs connection-costs state buildings]
   (reagent/with-let
     [group-by-key  (reagent/cursor state [:group-by])
      values        (reagent/cursor state [:values])]
@@ -90,7 +93,13 @@
               ])))]
         ])]))
 
-(defn- insulation-editor [insulation alternatives state buildings]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; INSULATION ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn- insulation-editor [group-by-options insulation alternatives state buildings]
   (reagent/with-let
     [group-by-key  (reagent/cursor state [:group-by])
      benchmarks    (reagent/cursor state [:benchmarks])
@@ -168,7 +177,13 @@
               ])))]
         ])]))
 
-(defn- demand-editor [profiles state buildings]
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; DEMAND EDITOR ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+(defn- demand-editor [group-by-options profiles state buildings]
   (reagent/with-let
     [group-by-key  (reagent/cursor state [:group-by])
      benchmarks    (reagent/cursor state [:benchmarks])
@@ -272,155 +287,13 @@
               ])))]
         ])]))
 
-(defn- path-editor [civils min-pipe-diameter state paths]
-  (reagent/with-let
-    [group-by-key (reagent/cursor state [:group-by])
-     values       (reagent/cursor state [:values])]
-    [:div
-     (when (seq (rest paths))
-       [:div
-        [:div [:b "Edit paths by "]
-         [inputs/select
-          {:value-atom group-by-key
-           :values group-by-options}]]])
 
-     (let [group-by-key @group-by-key
-           grouped (group-by group-by-key paths)]
-       [:table.table.table--alternating {:style {:max-height :400px :overflow-y :auto}}
-        [:thead
-         [:tr
-          [:th {:style {:width :100%}} (group-by-options group-by-key)]
-          [:th.align-right {:style {:min-width :120px :padding-right :25px}} "Length (m)"]
-          [:th.align-right "Maximum diameter (mm)"]
-          [:th.align-right "Exists"]
-          [:th.has-tt
-           {:title "You can set up civil engineering costs in the pipe costs page."}
-           "Civil cost"]]]
-
-        [:tbody
-         (doall
-          (for [[k cands] grouped]
-            [:tr {:key (or k "nil")}
-             [:td (or k (nil-value-label group-by-key))]
-             [:td.align-right {:style {:padding-right :25px}} (format/si-number (apply + (map ::path/length cands)))]
-             [:td [inputs/check-number
-                   {:max 5000
-                    :min min-pipe-diameter
-                    :step 1
-                    :scale 1000.0
-                    :empty-value [nil "∞"]
-                    :value-atom (reagent/cursor values [group-by-key k :max-diameter :value])
-                    :check-atom (reagent/cursor values [group-by-key k :max-diameter :check])}]]
-             
-             [:td [inputs/check {:value (get-in @values [group-by-key k :exists])
-                                 :on-change #(swap! values assoc-in [group-by-key k :exists] %)
-                                 }]]
-             [:td [inputs/select
-                   {:value-atom (reagent/cursor values [group-by-key k :civil-cost])
-                    :values `[[:unset "Unchanged"] ~@civils]
-                    }
-                   ]]
-             ]))]
-        ])]))
-
-(defn- category-editor [candidates state]
-  (reagent/with-let [group-by-key (reagent/cursor state [:group-by])
-                     *values (reagent/cursor state [:values])
-                     group-by-options
-                     (assoc group-by-options
-                            ::candidate/type
-                            "Type")
-                     ]
-    [:div
-     (when (seq (rest candidates))
-       [:div [:b "Edit candidates by "]
-        [inputs/select {:value-atom group-by-key :values group-by-options
-                        }]])
-
-     (let [group-by-key @group-by-key]
-       [:table.table.table--alternating {:style {:max-height :400px :overflow-y :auto}}
-        [:thead
-         [:tr
-          [:th (group-by-options group-by-key)]
-          [:th "New Category"]
-          [:th "New Name"]]]
-        
-        [:tbody
-         (let [values @*values
-               values (get values group-by-key)]
-           (for [[k cands] (group-by group-by-key candidates)]
-             [:tr {:key (or k "nil")}
-              [:td (or k (nil-value-label group-by-key))]
-              [:td [inputs/text {:style {:width :100%}
-                                 :placeholder
-                                 (-> values (get k) :category :placeholder)
-                                 :value
-                                 (-> values (get k) :category :value)
-                                 :on-change
-                                 #(swap! *values
-                                         assoc-in
-                                         [group-by-key k :category :value]
-                                         (target-value %))
-                                 
-                                 }]]
-              [:td [inputs/text {:style {:width :100%}
-                                 :placeholder
-                                 (-> values (get k) :name :placeholder)
-                                 :value
-                                 (-> values (get k) :name :value)
-                                 :on-change
-                                 #(swap! *values
-                                         assoc-in
-                                         [group-by-key k :name :value]
-                                         (target-value %))
-                                 }]]
-              ]
-             ))]
-        ])
-     ]
-    )
-  )
-
-(defn- mean [vals]
-  (if (empty? vals)
-    0
-    (/ (reduce + vals) (float (count vals)))))
-
-(defn- unset? [vals]
-  (if (apply = vals)
-    (first vals)
-    :unset))
-
-(defn- initial-path-state [paths]
-  {:group-by ::candidate/subtype
-   :values
-   (->> (for [k (keys group-by-options)]
-          [k (->> paths (group-by k)
-                  (map (fn [[k v]]
-                         [k {:max-diameter
-                             {:value (when-let [vals (seq (keep ::path/maximum-diameter v))]
-                                       (mean vals))
-                              :check false}
-                             :civil-cost
-                             (unset? (map ::path/civil-cost-id v))
-                             :exists
-                             (let [exists (keep ::path/exists v)]
-                               (cond
-                                 (empty? exists) false
-                                 (= (count exists)
-                                    (count v)) true
-                                 :else :indeterminate))}
-                          
-                          ]))
-                  (into {}))])
-        (into {}))})
-
-(defn- initial-building-state [buildings mode]
+(defn- initial-building-state [group-by-options buildings mode]
   (let [[annual-demand peak-demand]
         (case mode
           :cooling [::cooling/kwh ::cooling/kwp]
           [::demand/kwh ::demand/kwp])]
-    {:group-by ::candidate/subtype
+    {:group-by ::candidate/type
      :benchmarks false
      :values
      (->> (for [k (keys group-by-options)]
@@ -463,87 +336,6 @@
 
                   (into {}))])
           (into {}))}))
-
-(defn- initial-category-state [candidates]
-  {:group-by ::candidate/subtype
-   :values
-   (->> (for [k (keys group-by-options)]
-          [k (->> candidates
-                  (group-by k)
-                  (map (fn [[k v]]
-                         [k {:category {:placeholder
-                                        (->> v
-                                             (map ::candidate/subtype)
-                                             (remove string/blank?)
-                                             (set)
-                                             (string/join ", "))
-                                        
-                                        }
-                             :name {:placeholder
-                                    (->> v
-                                         (map ::candidate/name)
-                                         (remove string/blank?)
-                                         (set)
-                                         (string/join ", "))}
-                             }]))
-                  (into {})
-                  )])
-        (into {}))})
-
-(defn- apply-category-state  [document category-state candidate-ids]
-  (let [{group :group-by values :values} category-state
-        values (get values group)]
-    (document/map-candidates
-     document
-
-     (fn [candidate]
-       (let [group (group candidate)
-             {{new-category :value} :category
-              {new-name :value} :name}
-             (get values group)]
-         (cond-> candidate
-           new-category
-           (assoc ::candidate/subtype new-category
-                  ::candidate/modified true)
-
-           new-name
-           (assoc ::candidate/name new-name
-                  ::candidate/modified true))))
-
-     candidate-ids)))
-
-(defn- apply-path-state [document path-state path-ids]
-  (let [{group :group-by values :values} path-state]
-
-    (document/map-candidates
-     document
-     (fn [path]
-       (let [path-group (group path)
-             civil-cost-id (get-in values [group path-group :civil-cost])
-             exists (get-in values [group path-group :exists])
-
-             {max-dia :value check-dia :check}
-             (get-in values [group path-group :max-diameter])
-             ]
-         (cond-> path
-           (not= :unset civil-cost-id)
-           (assoc ::path/civil-cost-id civil-cost-id
-                  ::candidate/modified true)
-
-           (= true exists)
-           (assoc ::path/exists true)
-
-           (= false exists)
-           (dissoc ::path/exists)
-           
-           (and check-dia
-                (number? max-dia))
-           (assoc ::path/maximum-diameter max-dia)
-
-           (and check-dia
-                (nil? max-dia))
-           (dissoc ::path/maximum-diameter))))
-     path-ids)))
 
 (defn- apply-demand-state [document demand-state building-ids]
   (let [{group :group-by
@@ -596,6 +388,221 @@
                set-cc)
            (assoc ::candidate/modified true))))
      building-ids)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; PATH EDITOR ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- initial-path-state [group-by-options paths]
+  {:group-by ::candidate/type
+   :values
+   (->> (for [k (keys group-by-options)]
+          [k (->> paths (group-by k)
+                  (map (fn [[k v]]
+                         [k {:max-diameter
+                             {:value (when-let [vals (seq (keep ::path/maximum-diameter v))]
+                                       (mean vals))
+                              :check false}
+                             :civil-cost
+                             (unset? (map ::path/civil-cost-id v))
+                             :exists
+                             (let [exists (keep ::path/exists v)]
+                               (cond
+                                 (empty? exists) false
+                                 (= (count exists)
+                                    (count v)) true
+                                 :else :indeterminate))}
+                          
+                          ]))
+                  (into {}))])
+        (into {}))})
+
+(defn- apply-path-state [document path-state path-ids]
+  (let [{group :group-by values :values} path-state]
+
+    (document/map-candidates
+     document
+     (fn [path]
+       (let [path-group (group path)
+             civil-cost-id (get-in values [group path-group :civil-cost])
+             exists (get-in values [group path-group :exists])
+
+             {max-dia :value check-dia :check}
+             (get-in values [group path-group :max-diameter])
+             ]
+         (cond-> path
+           (not= :unset civil-cost-id)
+           (assoc ::path/civil-cost-id civil-cost-id
+                  ::candidate/modified true)
+
+           (= true exists)
+           (assoc ::path/exists true)
+
+           (= false exists)
+           (dissoc ::path/exists)
+           
+           (and check-dia
+                (number? max-dia))
+           (assoc ::path/maximum-diameter max-dia)
+
+           (and check-dia
+                (nil? max-dia))
+           (dissoc ::path/maximum-diameter))))
+     path-ids)))
+
+(defn- path-editor [group-by-options civils min-pipe-diameter state paths]
+  (reagent/with-let
+    [group-by-key (reagent/cursor state [:group-by])
+     values       (reagent/cursor state [:values])]
+    [:div
+     (when (seq (rest paths))
+       [:div
+        [:div [:b "Edit paths by "]
+         [inputs/select
+          {:value-atom group-by-key
+           :values group-by-options}]]])
+
+     (let [group-by-key @group-by-key
+           grouped (group-by group-by-key paths)]
+       [:table.table.table--alternating {:style {:max-height :400px :overflow-y :auto}}
+        [:thead
+         [:tr
+          [:th {:style {:width :100%}} (group-by-options group-by-key)]
+          [:th.align-right {:style {:min-width :120px :padding-right :25px}} "Length (m)"]
+          [:th.align-right "Maximum diameter (mm)"]
+          [:th.align-right "Exists"]
+          [:th.has-tt
+           {:title "You can set up civil engineering costs in the pipe costs page."}
+           "Civil cost"]]]
+
+        [:tbody
+         (doall
+          (for [[k cands] grouped]
+            [:tr {:key (or k "nil")}
+             [:td (or k (nil-value-label group-by-key))]
+             [:td.align-right {:style {:padding-right :25px}} (format/si-number (apply + (map ::path/length cands)))]
+             [:td [inputs/check-number
+                   {:max 5000
+                    :min min-pipe-diameter
+                    :step 1
+                    :scale 1000.0
+                    :empty-value [nil "∞"]
+                    :value-atom (reagent/cursor values [group-by-key k :max-diameter :value])
+                    :check-atom (reagent/cursor values [group-by-key k :max-diameter :check])}]]
+             
+             [:td [inputs/check {:value (get-in @values [group-by-key k :exists])
+                                 :on-change #(swap! values assoc-in [group-by-key k :exists] %)
+                                 }]]
+             [:td [inputs/select
+                   {:value-atom (reagent/cursor values [group-by-key k :civil-cost])
+                    :values `[[:unset "Unchanged"] ~@civils]
+                    }
+                   ]]
+             ]))]
+        ])]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;; USER DEFINED FIELD EDITOR ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- initial-category-state [group-by-options candidates]
+  {:group-by ::candidate/type
+   :user-fields []
+   :values
+   (->> (for [k (keys group-by-options)]
+          [k { ;; {(k candidate) => {index in user-fields => value}}
+              }])
+        (into {}))})
+
+(defn- apply-category-state  [document category-state candidate-ids]
+  (let [{group :group-by values :values
+         user-fields :user-fields} category-state
+        values (get values group)]
+    (document/map-candidates
+     document
+
+     (fn [candidate]
+       (let [group (group candidate)
+             new-values (get values group)]
+         (reduce-kv
+          (fn [candidate k v]
+            (let [field (some-> (nth user-fields k) (string/trim))
+                  v     (some-> v (string/trim))
+                  cur   (get (::candidate/user-fields candidate) field)]
+              (if (or (string/blank? field)
+                      (and (string/blank? v)
+                           (string/blank? cur)))
+                candidate
+                (-> candidate
+                    (update ::candidate/user-fields assoc field v)
+                    (assoc ::candidate/modified true)))))
+          candidate
+          new-values)))
+
+     candidate-ids)))
+
+(defn- category-editor [group-by-options candidates state]
+  (reagent/with-let [group-by-key (reagent/cursor state [:group-by])
+                     *values (reagent/cursor state [:values])
+                     group-by-options (assoc group-by-options
+                                             ::candidate/type
+                                             "Type")
+                     user-fields (sort (vals (dissoc group-by-options ::candidate/type)))
+
+                     columns (reagent/cursor state [:user-fields])
+                     ]
+    [:div
+     [:datalist#user-fields
+      (for [f user-fields] [:option {:key f :value f}])]
+     
+     (when (seq (rest candidates))
+       [:div [:b "Edit candidates by "]
+        [inputs/select {:value-atom group-by-key :values group-by-options
+                        }]])
+
+     (let [group-by-key @group-by-key]
+       [:table.table.table--alternating {:style {:max-height :400px :overflow-y :auto}}
+        [:thead
+         [:tr
+          [:th (group-by-options group-by-key)]
+          (doall
+           (for [[i v] (map-indexed vector @columns)]
+             [:th {:key i}
+              [:input.input {:list :user-fields
+                             :type :text
+                             :style {:width :100%}
+                             :value v
+                             :on-change #(swap! columns assoc i (-> % .-target .-value))
+                             }]
+              ]
+             ))
+          [:th [:button
+                {:on-click #(swap! columns conj "")}
+                "+"]]
+          ]]
+        
+        [:tbody
+         (let [values @*values
+               values (get values group-by-key)
+               columns @columns]
+           (for [[k cands] (group-by group-by-key candidates)]
+             [:tr {:key (or k "nil")}
+              [:td (or k (nil-value-label group-by-key))]
+              (for [[i v] (map-indexed vector columns)]
+                [:th {:key i}
+                 [:input.input
+                  {:type :text
+                   :style {:width :100%}
+                   :value (-> values (get k) (get i))
+                   :on-change #(swap! *values assoc-in
+                                      [group-by-key k i]
+                                      (-> % .-target .-value))
+                   }]])
+              [:td]]
+             ))]])]))
+
+
+
 
 (defn- apply-tariff-state [document tariff-state building-ids]
   (let [{group :group-by
@@ -695,6 +702,12 @@
 
      building-ids)))
 
+(defn- get-group-by-options [candidates]
+  (->
+   (set (mapcat (comp keys ::candidate/user-fields) candidates))
+   (->> (map (fn [k] [#(-> % ::candidate/user-fields (get k)) k])) (into {}))
+   (assoc ::candidate/type "Nothing")))
+
 (defn- candidate-editor [document candidate-ids]
   (reagent/with-let [mode (document/mode @document)
 
@@ -702,12 +715,16 @@
                      {buildings :building paths :path}
                      (group-by ::candidate/type candidates)
 
-                     bstate (initial-building-state buildings mode)
+                     building-groups (get-group-by-options buildings)
+                     path-groups (get-group-by-options paths)
+                     all-groups (get-group-by-options candidates)
+
+                     bstate (initial-building-state building-groups buildings mode)
                      demand-state (reagent/atom bstate)
                      tariff-state (reagent/atom bstate)
                      technology-state (reagent/atom bstate)
                      
-                     path-state   (reagent/atom (initial-path-state paths))
+                     path-state   (reagent/atom (initial-path-state path-groups paths))
                      tariffs (sort-by first (::document/tariffs @document))
 
                      profiles
@@ -722,7 +739,8 @@
                      min-pipe-diameter (* 1000
                                           (::document/minimum-pipe-diameter document 0.02))
 
-                     category-state (reagent/atom (initial-category-state candidates))
+                     category-state (reagent/atom (initial-category-state all-groups
+                                                                          candidates))
                      ]
 
     [:div.popover-dialog.popover-dialog--wide
@@ -738,11 +756,13 @@
             `[~@(when (seq buildings)
                   [[:demands "Demands"
                     [demand-editor
+                     building-groups
                      profiles
                      demand-state
                      buildings]]
                    [:tariff "Tariff & Connection Costs"
                     [tariff-editor
+                     building-groups
                      tariffs
                      connection-costs
                      tariff-state
@@ -750,6 +770,7 @@
                     ]
                    [:insulation "Insulation & Systems"
                     [insulation-editor
+                     building-groups
                      insulation
                      alternatives
                      technology-state
@@ -760,10 +781,10 @@
               
               ~(when (seq paths)
                  [:paths "Paths"
-                  [path-editor civils min-pipe-diameter path-state paths]])
+                  [path-editor path-groups civils min-pipe-diameter path-state paths]])
 
-              ~[:category "Names & Categories"
-                [category-editor candidates category-state]
+              ~[:category "Other Fields"
+                [category-editor all-groups candidates category-state]
                 ]
               ]
             )]

@@ -11,7 +11,7 @@
 
 (s/def ::candidate
   (s/and
-   (s/keys :req [::id ::type ::subtype ::name ::geometry ::selected ::inclusion]
+   (s/keys :req [::id ::type ::geometry ::selected ::inclusion]
            :opt [::solution/included
                  ::modified])
    (s/or :is-building ::building
@@ -37,8 +37,6 @@
 (s/def ::type #{:building :path})
 (s/def ::selected boolean?)
 (s/def ::id string?)
-(s/def ::subtype nil-or-string?)
-(s/def ::name nil-or-string?)
 (s/def ::inclusion #{:required :optional :forbidden})
 (s/def ::connections (s/* ::id))
 (s/def ::modified boolean?) ;; a modified candidate is one the user has changed

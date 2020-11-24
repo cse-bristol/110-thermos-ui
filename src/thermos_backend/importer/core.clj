@@ -62,7 +62,6 @@
 
     (let [features (concat buildings roads)
           features-by-id (group-by ::geoio/id features)]
-      
       (doseq [[id features] features-by-id]
         (when (> (count features) 1)
           (log/warn (count features)
@@ -79,9 +78,9 @@
      (for [b (::geoio/features buildings)]
        {:geoid (::geoio/id b)
         :orig-id (or (:identity b) "unknown")
-        :name (str (or (:name b) ""))
-        :type (str (or (:subtype  b) ""))
         :geometry (.toText (::geoio/geometry b))
+
+        :user-fields (:user-fields b {})
 
         :connection-id (str/join "," (::spatial/connects-to-node b))
         :demand-kwh-per-year (or (:annual-demand b) 0)
@@ -107,12 +106,11 @@
      (for [b (::geoio/features roads)]
        {:geoid (::geoio/id b)
         :orig-id (or (:identity b) "unknown")
-        :name (str (or (:name b) ""))
-        :type (str (or (:subtype b) ""))
         :geometry (.toText (::geoio/geometry b))
         :start-id (::geoio/id (::topo/start-node b))
         :end-id   (::geoio/id (::topo/end-node b))
         :length   (or (::topo/length b) 0)
+        :user-fields (:user-fields b {})
         })))
   )
 

@@ -17,7 +17,8 @@
             [thermos-frontend.format :as format]
             [thermos-frontend.inputs :as inputs]
             [thermos-frontend.flow :as flow]
-            ))
+
+            [clojure.string :as string]))
 
 (declare component)
 
@@ -77,7 +78,7 @@
 
 (defn- chips-row [flow selection title value
                   & {:keys [add-classes nil-value]}]
-  (reagent/with-let [collapsed (reagent/cursor collapsed-rows [value])]
+  (reagent/with-let [collapsed (reagent/cursor collapsed-rows [title])]
     (let [by-value (dissoc (group-by (if nil-value
                                 #(or (value %) nil-value)
                                 value)
@@ -94,7 +95,7 @@
                           } "▶"]) " " title]
          (if (and (> n-groups 1) @collapsed)
            [:div {:style {:padding :0.2em}} (str n-groups " groups")]
-           (let [groups (sort (keys by-value))]
+           (let [groups (sort-by str (keys by-value))]
              (remove
               nil?
               (for [value groups :let [candidates (get by-value value)]]
@@ -231,6 +232,16 @@
         "W/m"]])))
 
 
+(defn- custom-keys [root]
+  (let [selection @(flow/view* root operations/selected-candidates)]
+
+    (for [f (set (mapcat (comp keys ::candidate/user-fields) selection))]
+      [f :string])
+    
+    ))
+
+
+
 (defn component
   "The panel in the bottom right which displays some information about the currently selected candidates."
   [flow]
@@ -243,6 +254,8 @@
           cost-factors @(flow/view* flow select-keys
                                     [::document/pipe-costs
                                      ::document/connection-costs])
+
+          custom-keys (sort-by first @(flow/view flow custom-keys))
           doc @flow ;; this means we will re-render all the time.
           ]
       
@@ -259,12 +272,22 @@
              ]
          [:div.selection-table
           [chips-row "Type" ::candidate/type]
-          [chips-row "Category" ::candidate/subtype
-           :nil-value "Unclassified"]
+          
+          (for [[field type] custom-keys]
+            [:<> {:key field}
+             (case type
+               :number
+               [number-row field (fn [x] (-> x ::candidate/user-fields (get field)))]
+
+               
+               [chips-row field (fn [x]
+                                  (let [s (-> x ::candidate/user-fields (get field))]
+                                    (if (string/blank? s) nil s)))
+                
+                :nil-value "None"])])
+          
           [chips-row "Constraint" ::candidate/inclusion
            :nil-value "Forbidden" :add-classes (fn [x] ["constraint" (name x)])]
-          [chips-row "Name" ::candidate/name
-           :nil-value "None"]
           [chips-row "Tariff" (partial building-tariff-name doc)]
           [chips-row "Edited" (comp {false "no" true "yes" nil "no"} ::candidate/modified)]
           [chips-row "Profile" (partial building-profile-name doc)]

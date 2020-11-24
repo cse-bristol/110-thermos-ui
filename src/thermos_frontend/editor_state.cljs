@@ -121,17 +121,14 @@
 
         type (if (o/get properties "is-building" false)
                :building :path)
-        name (empty->nil (o/get properties "name"))
-        subtype (empty->nil (o/get properties "type"))
 
         basics {::candidate/id (o/get properties "id")
-                ::candidate/name name
                 ::candidate/type type
-                ::candidate/subtype subtype
                 ::candidate/geometry geometry
-                ::candidate/inclusion :forbidden}
+                ::candidate/inclusion :forbidden
+                ::candidate/user-fields (js->clj (o/get properties "user-fields" {}))}
         ]
-    
+
     (case type
       :path
       (assoc basics

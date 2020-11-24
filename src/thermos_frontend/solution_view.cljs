@@ -225,7 +225,8 @@
                       by-alt :by-alternative
                       demands :demands
                       insulated :insulated
-                      by-insulation :by-insulation}
+                      by-insulation :by-insulation
+                      user-field-names :user-field-names}
                      parameters]
   (reagent/with-let [active-tab (reagent/atom :pipework)]
     [:section
@@ -298,63 +299,82 @@
                   {:key :all}
                   [:b "All"] "" paths))))]]]
 
-         [:li.tabs__page {:key :demands :class (when (= @active-tab :demands) "tabs__page--active")}
-          [:table.table.table--hover {:style {:max-width :900px}}
-           [unit-header
-            ["Category"]
-            ["Count"]
-            ["Capacity" "W"]
-            ["Demand" "Wh/yr"]
-            ["Conn. cost" capex-label]
-            ["Revenue" opex-label]]
+         (reagent/with-let [user-field (reagent/atom (first user-field-names))]
+           [:li.tabs__page {:key :demands :class (when (= @active-tab :demands) "tabs__page--active")}
+            [:table.table.table--hover {:style {:max-width :900px}}
+             [unit-header
+              [[inputs/select {:value-atom user-field
+                               :values
+                               (for [n user-field-names] [n n])}]]
+              
+              ["Count"]
+              ["Capacity" "W"]
+              ["Demand" "Wh/yr"]
+              ["Conn. cost" capex-label]
+              ["Revenue" opex-label]]
 
-           [:tbody
-            (doall
-             (for [[class demands] (sort-by first (group-by ::candidate/subtype demands))
-                   :let [class (or class "Unclassified")]]
-               [:tr {:key class}
-                [:td class]
-                [:td.numeric (count demands)]
-                [:td.numeric (format/si-number
-                              (* 1000
-                                 (reduce + 0 (map
-                                              #(candidate/peak-demand % (document/mode @parameters))
-                                              demands))))]
-                [:td.numeric (format/si-number
-                              (* 1000
-                                 (reduce + 0 (map ::solution/kwh demands))))]
-                [:td.numeric (format/si-number
-                              (reduce + 0 (map (comp capex-mode ::solution/connection-capex) demands)))]
+             (let [user-field @user-field]
+               [:tbody
+                (doall
+                 (for [[class demands] (sort-by first (group-by
+                                                       (fn [x]
+                                                         (get (::candidate/user-fields x)
+                                                              user-field))
+                                                       demands)
+                                                )
+                       :let [class (or class "Unclassified")]]
+                   [:tr {:key class}
+                    [:td class]
+                    [:td.numeric (count demands)]
+                    [:td.numeric (format/si-number
+                                  (* 1000
+                                     (reduce + 0 (map
+                                                  #(candidate/peak-demand % (document/mode @parameters))
+                                                  demands))))]
+                    [:td.numeric (format/si-number
+                                  (* 1000
+                                     (reduce + 0 (map ::solution/kwh demands))))]
+                    [:td.numeric (format/si-number
+                                  (reduce + 0 (map (comp capex-mode ::solution/connection-capex) demands)))]
 
-                [:td.numeric (format/si-number
-                              (reduce + 0 (map (comp opex-mode ::solution/heat-revenue) demands)))]]))]]]
+                    [:td.numeric (format/si-number
+                                  (reduce + 0 (map (comp opex-mode ::solution/heat-revenue) demands)))]]))])]])
 
-         [:li.tabs__page {:key :supplies :class (when (= @active-tab :supplies) "tabs__page--active")}
-          [:table.table.table--hover {:style {:max-width :900px}}
-           [unit-header
-            ["Name"]
-            ["Capacity" "Wp"]
-            ["Output" "Wh/yr"]
-            ["Pumping" "Wh/yr"]
-            ["Capital" capex-label]
-            ["Capacity" opex-label]
-            ["Heat" opex-label]
-            ["Pumping" opex-label]
-            ["Coincidence" "%"]]
+         (reagent/with-let [user-field
+                            (reagent/atom
+                             (if (contains? (set user-field-names) "Name")
+                               "Name" ;; HACK
+                               (first user-field-names)))]
+           [:li.tabs__page {:key :supplies :class (when (= @active-tab :supplies) "tabs__page--active")}
+            [:table.table.table--hover {:style {:max-width :900px}}
+             [unit-header
+              [[inputs/select {:value-atom user-field
+                               :values
+                               (for [n user-field-names] [n n])}] ]
+              ["Capacity" "Wp"]
+              ["Output" "Wh/yr"]
+              ["Pumping" "Wh/yr"]
+              ["Capital" capex-label]
+              ["Capacity" opex-label]
+              ["Heat" opex-label]
+              ["Pumping" opex-label]
+              ["Coincidence" "%"]]
 
-           [:tbody
-            (doall
-             (for [s (sort-by ::candidate/name supplies)]
-               [:tr {:key (::candidate/id s)}
-                [:td (::candidate/name s)]
-                [:td.numeric (format/si-number (* 1000 (::solution/capacity-kw s)))]
-                [:td.numeric (format/si-number (* 1000 (::solution/output-kwh s)))]
-                [:td.numeric (format/si-number (* 1000 (::solution/pumping-kwh s)))]
-                [:td.numeric (format/si-number (capex-mode (::solution/supply-capex s)))]
-                [:td.numeric (format/si-number (opex-mode (::solution/supply-opex s)))]
-                [:td.numeric (format/si-number (opex-mode (::solution/heat-cost s)))]
-                [:td.numeric (format/si-number (opex-mode (::solution/pumping-cost s)))]
-                [:td.numeric (* 100 (::solution/diversity s))]]))]]]
+             [:tbody
+              (let [user-field @user-field
+                    get-user-field #(get (::candidate/user-fields %) user-field)]
+                (doall
+                 (for [s (sort-by get-user-field supplies)]
+                   [:tr {:key (::candidate/id s)}
+                    [:td (get-user-field s)]
+                    [:td.numeric (format/si-number (* 1000 (::solution/capacity-kw s)))]
+                    [:td.numeric (format/si-number (* 1000 (::solution/output-kwh s)))]
+                    [:td.numeric (format/si-number (* 1000 (::solution/pumping-kwh s)))]
+                    [:td.numeric (format/si-number (capex-mode (::solution/supply-capex s)))]
+                    [:td.numeric (format/si-number (opex-mode (::solution/supply-opex s)))]
+                    [:td.numeric (format/si-number (opex-mode (::solution/heat-cost s)))]
+                    [:td.numeric (format/si-number (opex-mode (::solution/pumping-cost s)))]
+                    [:td.numeric (* 100 (::solution/diversity s))]])))]]])
          ]])]))
 
 (defn- alternatives-card [{opex-mode :opex-mode
@@ -661,8 +681,9 @@
     (let [capex-mode @*capex-mode
           opex-mode  @*opex-mode
 
-
           solution-members @solution-members
+
+          user-field-names (sort (set (mapcat (comp keys ::candidate/user-fields) solution-members)))
 
           {paths :path
            buildings :building}
@@ -681,7 +702,8 @@
                (sort-by first))
 
           card-arguments
-          {:opex-mode opex-mode
+          {:user-field-names user-field-names
+           :opex-mode opex-mode
            :capex-mode capex-mode
            :opex-label
            (case opex-mode

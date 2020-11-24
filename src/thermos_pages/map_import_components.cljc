@@ -836,13 +836,9 @@
     :doc
     [:span "An identifier - these are stored on the roads in the database and visible in downloaded GIS files."]}
    
-   {:value :subtype :label "Category (text)"
+   {:value :user-fields :label "User-defined field (any)"
     :doc
-    [:span "Text describing the type of road; this can be whatever you want, and is visible in the network editor."]}
-
-   {:value :name :label "Name / address (text)"
-    :doc
-    [:span "The name or address of the road."]}
+    [:span "Any other field you want to keep, like a classification, address, etc."]}
    ])
 
 (def building-fields
@@ -925,14 +921,10 @@
    {:value :identity :label "Identity (text)"
     :doc
     [:span "An identifier - these are stored on the buildings in the database and visible in downloaded GIS files."]}
-   
-   {:value :subtype :label "Category (text)"
-    :doc
-    [:span "Text describing the type of building; this can be whatever you want, and is visible in the network editor."]}
 
-   {:value :name :label "Name / address (text)"
+   {:value :user-fields :label "User-defined field (any)"
     :doc
-    [:span "The name or address of the road."]}
+    [:span "Any other field you want to keep, like a classification, address, etc."]}
    
    {:value :residential :label "Residential (logical)"
     :doc

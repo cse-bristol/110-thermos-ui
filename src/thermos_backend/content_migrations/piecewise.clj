@@ -15,9 +15,11 @@
   (:require [thermos-specs.document :as document]
             [thermos-backend.content-migrations.tabulate-pipe-parameters
              :refer [tabulate-pipe-parameters]]
-            ))
 
-(def migrations [tabulate-pipe-parameters])
+            [thermos-backend.content-migrations.user-fields
+             :refer [move-user-fields]]))
+
+(def migrations [tabulate-pipe-parameters move-user-fields])
 (def current-version (count migrations))
 
 (defn migrate [problem from-version]
