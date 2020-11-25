@@ -54,7 +54,7 @@
     thermos/importer
     {:git/url "ssh://git@github.com/cse-bristol/110-thermos-importer.git",
      :tag "HEAD",
-     :sha "7f3b873afe291e8d1d35211bb274b82a90464b9a"}
+     :sha "41551cf1f1bbded8525778c70b61b6bb12404bac"}
     org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"},
     log4j/log4j
     {:mvn/version "1.2.17",
@@ -90,7 +90,7 @@
     thermos/importer
     {:git/url "ssh://git@github.com/cse-bristol/110-thermos-importer.git",
      :tag "HEAD",
-     :sha "7f3b873afe291e8d1d35211bb274b82a90464b9a"},
+     :sha "41551cf1f1bbded8525778c70b61b6bb12404bac"},
     clojure-term-colors/clojure-term-colors {:mvn/version "0.1.0"},
     org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"},
     nilenso/honeysql-postgres {:mvn/version "0.2.3"},
