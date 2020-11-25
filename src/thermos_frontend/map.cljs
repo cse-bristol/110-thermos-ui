@@ -146,7 +146,7 @@
         ;; Halve this => increase zoom by 1 in queries below.
         candidates-layer (candidates-layer flow document
                                            {:tileSize 256
-                                            :minZoom 15
+                                            :minZoom 13
                                             :maxZoom 21})
 
         connector-layer (connector-layer {:tileSize 256
