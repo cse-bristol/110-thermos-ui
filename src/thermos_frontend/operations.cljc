@@ -141,8 +141,11 @@
   [doc scheme])
 
 (defn insert-candidates
-  "Insert some candidates into a document map, but preserve
-  candidates which have user changes on them"
+  "Insert some candidates into a document map, but preserve candidates
+  which have user changes on them `new-candidates` should pairs of
+  candidate ID to a candidate or a delay - we will use force on it if
+  we want to keep it.
+  "
   [document new-candidates]
   
   (let [deletions (set (::document/deletions document))]
@@ -152,13 +155,10 @@
      (fn [current-candidates]
        (persistent!
         (reduce
-         (fn [candidates new-candidate]
-           (let [candidate-id (::candidate/id new-candidate)]
-             (if (get candidates candidate-id)
-               ;; look up new candidate's ID
-               ;; in the existing candidates.
-               candidates ;; If it already exists, don't change anything
-               (assoc! candidates candidate-id new-candidate))))
+         (fn [candidates [candidate-id new-candidate]]
+           (if (get candidates candidate-id)
+             candidates ;; If it already exists, don't change anything
+             (assoc! candidates candidate-id (force new-candidate))))
          (transient (or current-candidates {}))
          (remove (comp deletions ::candidate/id) new-candidates)))))))
 

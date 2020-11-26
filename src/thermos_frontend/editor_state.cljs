@@ -162,11 +162,22 @@
      ;; 1: convert each feature into a candidate map
 
      (let [features (o/get json "features")
-           candidates (into () (.map features feature->candidate))]
+           candidates
+           (into
+            ()
+            (.map features
+                  (fn [feature]
+                    [(-> feature
+                         (o/get "properties")
+                         (o/get "id"))
+
+                     (delay (feature->candidate feature))])))
+           ]
+       
        ;; 2: update the document to contain the new candidates
        (edit-geometry! document
-              operations/insert-candidates
-              candidates)))))
+                       operations/insert-candidates
+                       candidates)))))
 
 (declare poll!)
 
