@@ -25,6 +25,7 @@
             [thermos-frontend.params.supply-technologies :as supply-technologies]
             [thermos-frontend.params.supply-objective :as supply-objective]
             [thermos-frontend.supply-solution-view :as supply-solution-view]
+            [thermos-frontend.merge-upload :as merge-upload]
             
             [thermos-frontend.solution-view :as solution-view]
             [thermos-frontend.toaster :as toaster]
@@ -232,7 +233,7 @@
            ]
 
           [:div.menu-block
-           [:h1 "Export Data"]
+           [:h1 "Import / Export Data"]
            [:ul
             [:li [:button.button--link-style
                   {:on-click
@@ -251,6 +252,11 @@
                    
                    }
                   symbols/download " Excel Spreadsheet"]]
+
+            [:li [:button.button--link-style
+                  {:on-click merge-upload/do-upload}
+                  symbols/upload " Excel Spreadsheet"]]
+            
             [:li [:button.button--link-style
                   {:on-click
                    #(let [state (document/keep-interesting @state/state)]
@@ -267,10 +273,8 @@
                                      (str (preload/get-value :name) ".json"))
                                (.dispatchEvent a (js/MouseEvent. "click"))))}))
                    }
-                  symbols/download " Geojson"]]
-            ]
-           ]
-
+                  symbols/download " Geojson"]]]]
+          
           [:div.menu-block
            [:h1 "Project"]
            [:ul

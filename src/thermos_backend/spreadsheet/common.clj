@@ -15,7 +15,8 @@
   - :rows, a seq of things which will have columns' `:key`s applied to them
   "
   (:require [dk.ative.docjure.spreadsheet :as dj]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [clojure.string :as string])
   (:import  [org.apache.poi.xssf.usermodel XSSFWorkbook]))
 
 (defn empty-spreadsheet
@@ -57,4 +58,48 @@
             ss)]
     (dj/save-workbook-into-stream! out wb)))
 
+(defmethod dj/load-workbook java.io.File
+  [^java.io.File f] (dj/load-workbook (.getCanonicalPath f)))
 
+(defn strip-units [s] (and s (string? s) (string/replace s #" *\(.+$" "")))
+
+(defn to-keyword [s]
+  (let [s (str s)
+        s (string/lower-case s)
+        s (strip-units s)
+        s (and s (string/replace s "/" "-per-"))
+        s (and s (string/replace s #"[- _:]+" "-"))
+        s (and s (string/replace s "₂" "2"))
+        s (and s (string/replace s "₅" "5"))
+        s (and s (string/replace s "ₓ" "x"))
+        ]
+
+    (keyword s)))
+
+(defn sheet-to-maps
+  "Convert a sheet into a seq of maps.
+  Map keys are the column required-headers, downcased and dash-separated.
+  Values are per `dj/read-cell` so may include inst? and stuff."
+  [sheet]
+  (and sheet
+       (let [[header & rows]
+             (->> sheet
+                  (dj/row-seq)
+                  (map (fn [r] (map dj/read-cell (dj/cell-seq r)))))
+             header (map strip-units header)
+             key-header (map to-keyword header)
+             ]
+         {:header (zipmap key-header header)
+          :rows
+          (map-indexed
+           (fn [i r]
+             (assoc r :spreadsheet/row i))
+           (map zipmap (repeat key-header) rows))})))
+
+(defn read-to-tables [file]
+  (let [wb (dj/load-workbook file)]
+    (into
+     {}
+     (for [sheet (dj/sheet-seq wb)]
+       [(to-keyword (dj/sheet-name sheet))
+        (sheet-to-maps sheet)]))))

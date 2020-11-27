@@ -59,17 +59,7 @@
 
 (defmethod handle :pipe/remove-civils
   [state [_ cid]]
-  (sr/multi-transform
-   (sr/multi-path
-    [::document/pipe-costs
-     (sr/multi-path
-      [:default-civils (sr/pred= cid) (sr/terminal-val sr/NONE)]
-      [:civils cid (sr/terminal-val sr/NONE)]
-      [:rows sr/MAP-VALS cid (sr/terminal-val sr/NONE)])]
-    [::document/candidates sr/MAP-VALS
-     ::path/civil-cost-id (sr/pred= cid)
-     (sr/terminal-val sr/NONE)])
-   state))
+  (document/remove-civils state cid))
 
 (defmethod handle :pipe/change-capacity
   [state [_ dia capacity-kw]]

@@ -1,4 +1,5 @@
-(ns thermos-frontend.util)
+(ns thermos-frontend.util
+  (:require [ajax.core :refer [POST]]))
 
 (defn target-value [e]
   (.. e -target -value))
@@ -22,3 +23,17 @@
       (.select target))))
 
 
+(defn upload-file [url & {:keys [accept handler]}]
+  (let [file (js/document.createElement "input")]
+    (set! (.-type file) "file")
+    (when accept (set! (.-accept file) accept))
+    (set! (.-onchange file)
+          (fn [e]
+            (when-let [file (-> e .-target .-files (aget 0))]
+              (POST url
+                  {:body
+                   (doto (js/FormData.)
+                     (.append "file" file "input.xlsx"))
+                   :handler handler
+                   }))))
+    (.click file)))

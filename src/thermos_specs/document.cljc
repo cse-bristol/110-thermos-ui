@@ -530,3 +530,16 @@
        )]
 
      doc)))
+
+(defn remove-civils [doc cid]
+  (sr/multi-transform
+   (sr/multi-path
+    [::pipe-costs
+     (sr/multi-path
+      [:default-civils (sr/pred= cid) (sr/terminal-val sr/NONE)]
+      [:civils cid (sr/terminal-val sr/NONE)]
+      [:rows sr/MAP-VALS cid (sr/terminal-val sr/NONE)])]
+    [::candidates sr/MAP-VALS
+     ::path/civil-cost-id (sr/pred= cid)
+     (sr/terminal-val sr/NONE)])
+   doc))

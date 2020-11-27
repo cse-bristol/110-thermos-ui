@@ -9,7 +9,9 @@
             [thermos-specs.path :as path]
             [thermos-specs.supply :as supply]
             [thermos-util.pipes :as pipes]
-            [thermos-specs.measure :as measure]))
+            [thermos-specs.measure :as measure]
+            [clojure.set :as set]
+            [thermos-backend.spreadsheet.common :as common]))
 
 (def *100 (partial * 100.0))
 
@@ -38,8 +40,8 @@
   (into [{ :name "ID"                  :key ::candidate/id}
          { :name "Constraint"  :key (comp name ::candidate/inclusion) }]
         (for [user-field
-              (sort (set (mapcat ::candidate/user-fields)
-                         (vals (::document/candidates doc))))]
+              (sort (set (mapcat (comp keys ::candidate/user-fields)
+                                 (vals (::document/candidates doc)))))]
 
           {:name user-field
            :key (fn [x] (get (::candidate/user-fields x) user-field))})))
@@ -163,8 +165,6 @@
      curve-rows
      )))
 
-
-
 (defn output-network-parameters [ss doc]
   (-> ss
       (sheet/add-tab
@@ -240,15 +240,17 @@
                    ")")
               (* (or f 0) (candidate/emissions-factor-scales e))])
 
-         ~@(for [e candidate/emissions-types]
-             [(str (candidate/text-emissions-labels e) " cost")
-              (::document/emissions-cost e 0)])
+         ~@(let [prices (::document/emissions-cost doc)]
+             (for [e candidate/emissions-types
+                   :let [cost (get prices e)]
+                   :when cost]
+               [(str (candidate/text-emissions-labels e) " cost") cost]))
 
-         ~@(for [e candidate/emissions-types]
-             [(str (candidate/text-emissions-labels e) " limit")
-              (when (:enabled (::document/emissions-limit e))
-                (:value (::document/emissions-limit e)))])
-         
+         ~@(let [limits (::document/emissions-limit doc)]
+             (for [e candidate/emissions-types
+                   :let [{:keys [value enabled]} (get limits e )]]
+               [(str (candidate/text-emissions-labels e) " limit")
+                (when enabled value)]))
          
          ~["Objective" (name (::document/objective doc))]
          ~["Consider alternative systems" (::document/consider-alternatives doc)]
@@ -293,3 +295,164 @@
       (output-paths doc)
       (output-network-parameters doc)
       ))
+
+(defn index [entries & [id-key]]
+  (into {}
+        (map-indexed
+         (fn [i v] [i (cond-> v id-key (assoc id-key i))])
+         entries)))
+
+(defn input-from-spreadsheet
+  "Inverse function - takes a spreadsheet, as loaded by `common/read-to-tables`.
+
+  So far this ignores everything to do with supply model & candidates."
+  [ss]
+  (let [{:keys [tariffs
+                connection-costs
+                individual-systems
+                pipe-costs
+                insulation
+                other-parameters]} ss
+
+        parameters
+        (reduce
+         (fn [a {:keys [parameter value]}]
+           (assoc a (common/to-keyword parameter) value))
+         {} (:rows other-parameters))
+
+        copy-parameter
+        (fn [out-key in-key & {:keys [type convert]
+                               :or {type number? convert identity}}]
+          (when-let [v (get parameters out-key)] (when (type v) {in-key (convert v)})))
+        
+        ]
+
+    (merge
+     (copy-parameter :medium ::document/medium :type #{"hot-water" "saturated-steam"}
+                     :convert keyword)
+     (copy-parameter :flow-temperature ::document/flow-temperature)
+     (copy-parameter :return-temperature ::document/return-temperature)
+     (copy-parameter :ground-temperature ::document/ground-temperature)
+     (copy-parameter :steam-pressure ::document/steam-pressure)
+     (copy-parameter :steam-velocity ::document/steam-velocity)
+     (copy-parameter :pumping-overhead ::document/pumping-overhead)
+     (copy-parameter :pumping-cost-per-kwh ::document/pumping-cost-per-kwh)
+     (copy-parameter :objective ::document/objective
+                     :type #{"network" "whole-system"}
+                     :convert keyword)
+     (copy-parameter :consider-alternative-systems
+                     ::document/consider-alternatives
+                     :type boolean?)
+     (copy-parameter :consider-insulation
+                     ::document/consider-insulation
+                     :type boolean?)
+     
+     (copy-parameter :npv-term ::document/npv-term)
+     (copy-parameter :npv-rate ::document/npv-rate
+                     :type number? :convert #(/ % 100.0))
+     (copy-parameter :loan-term ::document/loan-term)
+     (copy-parameter :loan-rate ::document/loan-rate
+                     :type number? :convert #(/ % 100.0))
+     
+     (copy-parameter :mip-gap ::document/mip-gap)
+     (copy-parameter :max-runtime ::document/maximum-runtime)
+
+     {::document/pumping-emissions
+      (->>
+       (for [e candidate/emissions-types
+             :let [v (get parameters (keyword (str "pumping-" (name e))))]
+             :when (number? v)]
+         [e (/ v (candidate/emissions-factor-scales e))])
+       (into {}))}
+     
+     {::document/emissions-cost
+      (->>
+       (for [e candidate/emissions-types
+             :let [c (get parameters (keyword (name e) "-cost"))]
+             :when (number? c)]
+         [e c])
+       (into {}))}
+
+     {::document/emissions-limit
+      (->>
+       (for [e candidate/emissions-types
+             :let [c (get parameters (keyword (name e) "-limit"))]
+             :when (number? c)]
+         [e {:enabled true :limit c}])
+       (into {}))
+      }
+     
+     {::document/tariffs
+      (-> (for [{:keys [tariff-name unit-rate capacity-charge standing-charge]}
+                (:rows tariffs)]
+            #::tariff
+            {:name tariff-name
+             :standing-charge standing-charge
+             :unit-charge (/ unit-rate 100)
+             :capacity-charge capacity-charge})
+          (index ::tariff/id))
+      
+      ::document/connection-costs
+      (-> (for [{:keys [cost-name fixed-cost capacity-cost]}
+                (:rows connection-costs)]
+            #::tariff
+            {:name cost-name
+             :fixed-connection-cost fixed-cost
+             :variable-connection-cost capacity-cost})
+          (index ::tariff/cc-id))
+      
+      ::document/alternatives
+      (-> (for [{:keys [name fixed-cost capacity-cost operating-cost fuel-price
+                        co2 pm25 nox]}
+                (:rows individual-systems)]
+            #::supply
+            {:name name
+             :cost-per-kwh (* 100 fuel-price)
+             :capex-per-kwp capacity-cost
+             :opex-per-kwp operating-cost
+             :fixed-cost fixed-cost
+             :emissions
+             {:co2 co2 :pm25 pm25 :nox nox}})
+          (index ::supply/id))
+      
+      ::document/insulation
+      (-> (for [{:keys [name fixed-cost cost-per-m2
+                        maximum-reduction-% maximum-area-%
+                        surface]}
+                (:rows insulation)]
+            #::measure
+            {:name name
+             :fixed-cost fixed-cost
+             :cost-per-m2 cost-per-m2
+             :maximum-reduction (/ maximum-reduction-% 100.0)
+             :maximum-area (/ maximum-area-% 100.0)
+             :surface (keyword surface)})
+          (index ::measure/id))
+      
+      ::document/pipe-costs
+      (let [civils-keys (-> (:header pipe-costs)
+                            (dissoc :nb :capacity :losses :pipe-cost))
+            civils-ids   (index (set (vals civils-keys)))
+            inverse      (set/map-invert civils-ids)
+
+            civils-keys* (->> (for [[kwd s] civils-keys] [kwd (inverse s)])
+                              (into {}))
+            ]
+        {:civils civils-ids
+         :rows
+         (->>
+          (for [row (:rows pipe-costs)]
+            [(:nb row)
+             (let [basics
+                   (cond-> {:pipe (:pipe-cost row)}
+                     (:capacity row) (assoc :capacity-kw (:capacity row))
+                     (:losses row)   (assoc :losses-kwh (:losses row)))]
+
+               (reduce-kv
+                (fn [a civ-key civ-id]
+                  (let [cost (get row civ-key)]
+                    (cond-> a
+                      cost (assoc civ-id cost))))
+                basics
+                civils-keys*))])
+          (into {}))})})))

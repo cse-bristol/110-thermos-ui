@@ -10,23 +10,31 @@
 
 (def xl-content-type "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-(defn problem-to-excel [{{state :state} :body-params}]
-  (-> (rio/piped-input-stream
-       (fn [out]
-         (try 
-           (-> (xl/to-spreadsheet state)
-               (xlc/write-to-stream out))
-           (catch Exception e
-             (println "While outputting spreadsheet!")
-             (clojure.stacktrace/print-throwable e)
-             (.printStackTrace e)
-             ))
-         
-         (.flush out)
-         ))
-      (response/response)
-      (response/content-type xl-content-type)
-      (cache-control/no-store)))
+(defn problem-to-excel [{{state :state} :body-params
+                         {{file :tempfile} :file} :params
+                         :as request}]
+  (if file
+    ;; inverse
+    (-> (xl/from-spreadsheet file)
+        (response/response)
+        (cache-control/no-store))
+    
+    (-> (rio/piped-input-stream
+         (fn [out]
+           (try 
+             (-> (xl/to-spreadsheet state)
+                 (xlc/write-to-stream out))
+             (catch Exception e
+               (println "While outputting spreadsheet!")
+               (clojure.stacktrace/print-throwable e)
+               (.printStackTrace e)
+               ))
+           
+           (.flush out)
+           ))
+        (response/response)
+        (response/content-type xl-content-type)
+        (cache-control/no-store))))
 
 (defn problem-to-json [{{state :state} :body-params}]
   (-> (geojson-converter/network-problem->geojson state)
@@ -44,6 +52,6 @@
   form.
   "
   ["/convert"
-   [["/excel" problem-to-excel]
+   [["/excel" #'problem-to-excel]
     ["/json" problem-to-json]]])
 
