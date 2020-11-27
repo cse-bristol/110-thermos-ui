@@ -69,16 +69,17 @@
 (let [osm-lock (Object.)]
   (defn- query-osm [state parameters]
     (locking osm-lock
-      (let [get-roads     (-> parameters :roads :source (= :osm))
-            get-buildings (-> parameters :buildings :source (= :osm))
+      (let [get-buildings (-> parameters :geometry :source (= :osm))
+            get-roads     (or (-> parameters :roads :include-osm)
+                              get-buildings)
 
             query-area    (if get-buildings
                             (or
-                             (-> parameters :buildings :osm :osm-id)
+                             (-> parameters :geometry :osm :osm-id)
                              ;; this needs way: or rel: on it
 
                              ;; bounding box query
-                             (-> parameters :buildings :osm :boundary geojson-bounds))
+                             (-> parameters :geometry :osm :boundary geojson-bounds))
 
                             ;; we are only getting the roads, so we want
                             ;; to get bounds from the existing geometry
@@ -166,8 +167,16 @@
                  {::geoio/crs "EPSG:4326" ::geoio/features buildings})
 
           get-roads
-          (assoc :roads
-                 {::geoio/crs "EPSG:4326" ::geoio/features highways}))
+          (update :roads
+                  (fn [user-roads]
+                    {::geoio/crs "EPSG:4326"
+                     ::geoio/features
+                     (if user-roads
+                       (let [crs (::geoio/crs user-roads)
+                             feat (::geoio/features user-roads)
+                             rp (geoio/reprojector crs "EPSG:4326")]
+                         (concat highways (map rp feat)))
+                       highways)})))
         ))))
 
 (defn load-lidar-index []
@@ -707,8 +716,11 @@
         (pprint parameters)
         
         (try
-          (let [osm-buildings   (-> parameters :buildings :source (= :osm))
-                osm-roads       (-> parameters :roads :source (= :osm))
+          (let [geometry-source (-> parameters :geometry :source)
+                
+                osm-buildings   (= geometry-source :osm)
+                osm-roads       (or osm-buildings (-> parameters :roads :include-osm))
+                
                 group-buildings (-> parameters :roads :group-buildings)
                 progress* (fn [x p m] (progress :message m :percent p :can-cancel true) x)
                 sqrt-degree-days (Math/sqrt (:degree-days parameters 2000.0))]
@@ -716,12 +728,15 @@
                   ;; 1. Load any GIS files
                   (not osm-buildings)
                   (assoc :buildings
-                         (load-and-join (:buildings parameters)
+                         (load-and-join (merge (:geometry parameters)
+                                               (:buildings parameters))
                                         #{:multi-polygon :polygon :point}))
                   
 
-                  (not osm-roads)
-                  (assoc :roads (load-and-join (:roads parameters)
+                  ;; (not osm-roads)
+                  true ;; since osm-roads is now "load also"
+                  (assoc :roads (load-and-join (merge (:geometry parameters)
+                                                      (:roads parameters))
                                                #{:line-string :multi-line-string}))
                   
                   ;; 2. If we need some OSM stuff, load that

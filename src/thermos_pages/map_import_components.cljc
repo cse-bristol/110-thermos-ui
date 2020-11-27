@@ -236,16 +236,14 @@
        "Choose files to upload"] ", or drag files here"]]))
 
 (def validate-and-upload
-  (fn-js [{files :files ext :extensions} status legal-geometries]
+  (fn-js [{files :files ext :extensions} status]
     (let [ext (set (map string/lower-case ext))]
       (cond
         (not (or (ext ".shp")
                  (ext ".json")
                  (ext ".geojson")
                  (ext ".gpkg")
-                 (ext ".geopackage")
-                 (ext ".csv")
-                 (ext ".tab")))
+                 (ext ".geopackage")))
         (swap! status
                assoc
                :state :invalid
@@ -272,19 +270,10 @@
               {:body form-data
                :response-format :transit
                :handler
-               (fn [x]
-                 (let [geom-types (set (:geometry-types x))]
-                   (if (empty? (set/intersection geom-types legal-geometries))
-                     (swap! status assoc
-                            :state :invalid
-                            :message
-                            (str "File does not contain any suitable geometries. "
-                                 "It contains " geom-types ", but this stage requires "
-                                 legal-geometries
-                                 ))
-                     (swap! status
-                            merge
-                            (assoc x :state :uploaded)))))
+               (fn [{:keys [fields-by-type] :as x}]
+                 (swap! status
+                        merge
+                        (assoc x :state :uploaded)))
                
                :error-handler
                (fn [x]
@@ -306,7 +295,6 @@
                           :progress progress)))}))
         ))))
 
-
 (defn progress-bar-background [state progress]
   (case state
     :ready :white
@@ -317,10 +305,20 @@
     :invalid "#f44"
     :uploaded "#00ff7f"))
 
+(def building-geometry-type #{:polygon :point :multi-polygon})
+(def road-geometry-type #{:line-string :multi-line-string})
+
+(defn building-count [file]
+  (reduce + 0 (vals (select-keys (:count-by-type file) building-geometry-type))))
+
+(defn road-count [file]
+  (reduce + 0 (vals (select-keys (:count-by-type file) road-geometry-type))))
+
+
 (rum/defc file-uploader <
   rum/static
   rum/reactive
-  [{legal-geometries :legal-geometries} files]
+  [_ files]
   [:div
    (drag-drop-box
     {:on-files
@@ -345,7 +343,7 @@
          (doseq [[i f] @files]
            (when (= :ready (:state f))
                (let [status (rum/cursor-in files [i])]
-                 (validate-and-upload f status legal-geometries))))
+                 (validate-and-upload f status))))
          ))})
    
    (for [[i file] (rum/react files)]
@@ -364,6 +362,11 @@
                :padding :0.1em
                :margin :0.5em}}
         [:div.flex-cols base-name (interpose ", " extensions)
+         (when (= :uploaded state)
+           (let [b (building-count file)
+                 r (road-count file)]
+             [:span {:style {:margin-left :auto} } (str b) " buildings, " (str r) " roads"]))
+         
          [:span {:style {:margin-left :auto}} " "
           (if (= :uploading state)
             (spinner {:size 16})
@@ -387,58 +390,50 @@
   [{map-position ::map-position
     boundary-geojson ::boundary-geojson}
 
-   category
    form-state]
   
-  (let [*data-source (rum/cursor-in form-state [category :source])
-        *data-files (rum/cursor-in form-state [category :files])
-        *osm-position (rum/cursor-in form-state [category :osm])
-        *map-position (rum/cursor-in form-state [category :map-position])
+  (let [*osm-roads   (rum/cursor-in form-state [:roads :include-osm])
+        *data-source (rum/cursor-in form-state  [:geometry :source])
+        *data-files (rum/cursor-in form-state   [:geometry :files])
+        *osm-position (rum/cursor-in form-state [:geometry :osm])
+        *map-position (rum/cursor-in form-state [:geometry :map-position])
         
         data (rum/react *data-source)
-        category-name (case category
-                      :buildings "building"
-                      :roads "road")]
+        data-files (rum/react *data-files)
+        osm-roads (rum/react *osm-roads)
+        ]
     [:div
-     [:h1 "Choose " category-name " data"]
-     (case category
-       :buildings
-       [:p
+     [:h1 "Buildings and roads"]
+     [:p
         "Heat demands and supplies are associated with buildings in the map. "
         "You can acquire building data from OpenStreetMap, or you can upload your own GIS data."]
 
-       :roads
-       [:p "Potential heat pipe routes are associated with roads and paths in the map. "
-        "You can acquire roads and paths from OpenStreetMap, or you can upload your own GIS data."])
+     [:p "Potential heat pipe routes are associated with roads and paths in the map. "
+        "You can acquire roads and paths from OpenStreetMap, or you can upload your own GIS data."]
 
      [:div.card
       [:label [:input {:name :building-source :type :radio :value :osm
                        :checked (= :osm data)
                        :on-click #(reset! *data-source :osm)}]
-       [:h1 "Use OpenStreetMap " (string/capitalize category-name) "s"]]
+       [:h1 "Use OpenStreetMap for buildings and roads"]]
       (when (= :osm data)
-        (case category
-          :buildings
-          [:div
-           [:p "You can search for a named area in OpenStreetMap, or draw a box."]
-           (nominatim-searchbox
-            {:on-select (fn [place]
-                          (reset! *map-position (get place "boundingbox"))
-                          (when (#{"way" "relation"}
-                                 (get place "osm_type"))
-                            (reset! *osm-position
-                                    {:osm-id (str
-                                              (get place "osm_type")
-                                              ":"
-                                              (get place "osm_id"))
-                                     :boundary  (get place "geojson")})))})
-           (osm-map-box {:map-position (rum/react *map-position)
-                         :boundary-geojson (:boundary (rum/react *osm-position))
-                         :on-draw-box #(do (reset! *osm-position {:boundary %})
-                                           (reset! *map-position nil))})]
-          
-          :roads
-          [:p "Roads will be loaded from OpenStreetMap in the same area as your buildings."]))]
+        [:div
+         [:p "You can search for a named area in OpenStreetMap, or draw a box."]
+         (nominatim-searchbox
+          {:on-select (fn [place]
+                        (reset! *map-position (get place "boundingbox"))
+                        (when (#{"way" "relation"}
+                               (get place "osm_type"))
+                          (reset! *osm-position
+                                  {:osm-id (str
+                                            (get place "osm_type")
+                                            ":"
+                                            (get place "osm_id"))
+                                   :boundary  (get place "geojson")})))})
+         (osm-map-box {:map-position (rum/react *map-position)
+                       :boundary-geojson (:boundary (rum/react *osm-position))
+                       :on-draw-box #(do (reset! *osm-position {:boundary %})
+                                         (reset! *map-position nil))})])]
      
      [:div.card
       [:label [:input {:name :building-source :type :radio :value :files
@@ -448,7 +443,7 @@
        [:h1 "Upload GIS Files"]]
       (when (= :files data)
         [:div
-         [:p "You can upload " category-name " geometry in these formats:"]
+         [:p "You can upload geometry in these formats:"]
          [:ul
           [:li [:a {:href "http://geojson.org/" :target "_blank"} "GeoJSON"]]
           [:li [:a {:href "https://en.wikipedia.org/wiki/Shapefile" :target "_blank"} "ESRI Shapefile"]
@@ -456,140 +451,19 @@
            [:b ".shp"] ", " [:b ".dbf"] ", "
            [:b ".shx"] ", " [:b ".prj"] " and "
            [:b ".cpg"] " files!"]]
-         [:p "The feature geometry must be " (case category
-                                               :buildings [:span
-                                                           [:b "POLYGON"]
-                                                           " or "
-                                                           [:b "MULTIPOLYGON"]]
-                                               :roads [:span [:b "LINESTRING"] " or " [:b "MULTILINESTRING"]])
-          " type geometry. "
-          ]
-         [:p "You can also upload " [:b "csv"] " and " [:b "tsv"] " files to relate to your GIS data."]
          
-         (file-uploader {:legal-geometries
-                         (case category
-                           :buildings #{:polygon :point :multi-polygon}
-                           :roads #{:line-string :multi-line-string}
-                           #{})}
+         (file-uploader {} *data-files)
 
-                        *data-files)
-         ])]
+         [:div
+          (let [has-roads (some pos? (map road-count (vals data-files)))]
+            [:label [:input {:type :checkbox
+                             :disabled (not has-roads)
+                             :checked (or (not has-roads) osm-roads)
+                             :on-change #(swap! *osm-roads not)}]
+             "Also import roads from OpenStreetMap for the area covered by these files"])
+          
+          ]])]
      ]))
-
-(rum/defcs join-page <
-  rum/reactive rum/static
-  (rum/local {:gis-file nil :table-file nil :gis-column nil :table-column nil} ::bottom-row)
-  [{*bottom-row ::bottom-row} *files *joins]
-  
-  (let [files (rum/react *files)
-        joins (rum/react *joins)
-        gis-files (vec (filter (comp seq :geometry-types) (vals files)))
-        table-files (vec (filter #(and (not (seq (:geometry-types %)))
-                                       (seq (:keys %))) (vals files)))
-        bottom-row @*bottom-row]
-
-    ;; This next is to ensure that the options in the bottom row are set
-    ;; correctly. Unfortunately we end up running all this all the time :(
-    (let [{gis-file   :gis-file   table-file :table-file
-           gis-column :gis-column table-column :table-column} bottom-row
-          
-          change (cond-> {}
-                   (nil? gis-file)
-                   (assoc :gis-file (:base-name (first gis-files)))
-                   (nil? table-file)
-                   (assoc :table-file (:base-name (first table-files))))
-
-          {new-gis-file :gis-file new-table-file :table-file} change
-          
-          gis-file   (files (or gis-file new-gis-file))
-          table-file (files (or table-file new-table-file))
-          
-          change (cond-> change
-                   (not (contains? (:keys gis-file) gis-column))
-                   (assoc :gis-column (first (sort (:keys gis-file))))
-                   (not (contains? (:keys table-file) table-column))
-                   (assoc :table-column (first (sort (:keys table-file)))))]
-
-      (when (seq change)
-        (swap! *bottom-row merge change)))
-    
-    [:div
-     [:h1 "Join tabular data"]
-     [:p "You have uploaded some tables along with your geometry."]
-     [:p "If you want to use the columns from these tables, you need to relate (join) them to the geometry."]
-     [:p "Only simple 1:1 "
-      [:a {:href "https://en.wikipedia.org/wiki/Join_(SQL)"} "left joins"] " are supported. "
-      "For more complex joins we suggest using "
-      [:a {:href "https://www.gaia-gis.it/gaia-sins/"} "another" ] " "
-      [:a {:href "https://www.qgis.org/"} "tool" ] "."]
-
-     ;; for now only noddy joins
-     (let [current-gis-file (files (:gis-file @*bottom-row))
-           current-table-file (files (:table-file @*bottom-row))
-
-           current-gis-cols (sort (:keys current-gis-file))
-           current-table-cols (sort (:keys current-table-file))]
-       
-       [:table
-        [:thead
-         [:tr [:th "GIS file"] [:th "GIS column"] [:th "Table"] [:th "Table column"] [:th]]]
-        [:tbody
-         (for [[i join] (map-indexed vector joins)]
-           [:tr {:key i}
-            [:td (:gis-file join)]
-            [:td (:gis-column join)]
-            [:td (:table-file join)]
-            [:td (:table-column join)]
-            [:td [:button
-                  {:on-click #(swap! *joins disj join)}
-                  symbols/delete]]])
-         
-         [:tr
-          [:td
-           [:select {:style {:max-width :12em}
-                     :value (:gis-file @*bottom-row)
-                     :on-change (fn-js [e]
-                                  (swap! *bottom-row assoc
-                                         :gis-file (.. e -target -value)))}
-            (for [file gis-files]
-              [:option {:key (:base-name file)
-                        :value (:base-name file)}
-               (:base-name file)])]]
-
-          [:td
-           [:select {:style {:max-width :12em}
-                     :value (:gis-column @*bottom-row)
-                     :on-change #(swap! *bottom-row assoc
-                                        :gis-column (.. % -target -value))}
-            (for [col current-gis-cols]
-              [:option {:key col :value col} col])]]
-
-          [:td
-           [:select {:style {:max-width :12em}
-                     :value (:table-file @*bottom-row)
-                     :on-change (fn-js [e]
-                                  (swap! *bottom-row assoc
-                                         :table-file (.. e -target -value)))}
-            (for [file table-files]
-              [:option {:key (:base-name file)
-                        :value (:base-name file)}
-               (:base-name file)])]]
-          
-
-          [:td
-           [:select {:style {:max-width :12em}
-                     :value (:table-column @*bottom-row)
-                     :on-change #(swap! *bottom-row assoc
-                                        :table-column (.. % -target -value))}
-            (for [col current-table-cols]
-              [:option {:key col :value col} col])]]
-          [:td [:button
-                {:on-click
-                 (fn-js []
-                   (swap! *joins
-                          #(into #{} (conj %1 %2))
-                          @*bottom-row))}
-                "Join"]]]]])]))
 
 (rum/defc field-help-page [fields]
   [:div {:on-click (fn-js [] (close-dialog!))}
@@ -603,25 +477,64 @@
 
 (rum/defc field-selection-page <
   rum/reactive rum/static
-  [fields options *field-selection]
-  (let [field-selection *field-selection]
+  [label fields options *field-selection]
+  (let [field-selection (rum/react *field-selection)]
     [:div
-     [:h1 "Allocate fields "
-      [:button
-       {:on-click
-        (fn-js []
-          (show-dialog! (field-help-page options)))
-        :style
-        {:background :blue
-         :border :none
-         :text-align :center
-         :padding 0
-         :margin 0
-         :color :white
-         :border-radius :0.6em
-         :width :1.2em
-         :height :1.2em}}
-       "?"]]
+     [:div.flex-cols
+      [:h1 (str "Allocate fields for " label " ")
+       [:button
+        {:on-click
+         (fn-js []
+           (show-dialog! (field-help-page options)))
+         :style
+         {:background :blue
+          :border :none
+          :text-align :center
+          :padding 0
+          :margin 0
+          :color :white
+          :border-radius :0.6em
+          :width :1.2em
+          :height :1.2em}}
+        "?"]
+       ]
+      [:div {:style {:margin-left :auto}}
+       [:button.button
+        {:title "Control-click to guess harder"
+         :on-click
+         (fn [e]
+           (let [default (and (.-ctrlKey e) :user-fields)
+                 
+                 option-names
+                 (->>
+                  (for [option options]
+                    [(name (:value option)) (:value option)])
+                  (into {}))
+
+                 guess-option
+                 (fn [field-name]
+                   (or (-> field-name
+                           (string/trim)
+                           (string/lower-case)
+                           (string/replace #"[^a-z0-9]+" "-")
+                           (->> (get option-names)))
+                       default))
+                 
+                 result
+                 (reduce
+                  (fn [a [file field]]
+                    (if-let [option (guess-option field)]
+                      (assoc-in a [file field] option)
+                      a))
+                  {} fields)
+                 ]
+             (swap! *field-selection
+                    (fn [st] (merge-with (fn [a b] (merge b a)) st result)))
+             ))
+         }
+        "Guess"]
+       ]
+      ]
      
      [:div.flex-grid
       (for [[file fields] (group-by first fields)]
@@ -654,54 +567,34 @@
 (defn- all-columns [list-of-files]
   (->> list-of-files (mapcat :keys) (into #{})))
 
-(defn- mappable-columns [{files :files joins :joins}]
-  (let [gis-files   (filter (comp seq :geometry-types) (vals files))
-        table-files (remove (comp seq :geometry-types) (vals files))
-        joined-tables (set (map :table-file joins))
-        joined-tables (filter (comp joined-tables :base-name) table-files)]
-    (into #{}
-          (concat
-           (for [f gis-files key (:keys f)] [(:base-name f) key])
-           (for [f joined-tables key (:keys f)] [(:base-name f) key])))))
+(defn- mappable-columns [{files :files} geometry-types]
+  (->>
+   (for [[_ meta] files
+         g geometry-types
+         f (get (:fields-by-type meta) g)]
+     [(:base-name meta) f])
+   (into #{})
+   (sort)))
 
 (defn- next-page-map [form-state]
-  (let [using-building-files (-> form-state :buildings :source (= :files))
-        has-extra-columns (-> form-state :buildings :files vals all-columns not-empty)
-        has-joinable-files (and has-extra-columns
-                                (->>
-                                 form-state :buildings :files
-                                 vals
-                                 (mapcat :extensions)
-                                 (some #{".csv" ".tab" ".tsv"})))
+  (let [using-geometry-files (-> form-state :geometry :source (= :files))
 
         using-road-files (-> form-state :roads :source (= :files))
-        has-extra-road-columns (-> form-state :roads :files vals all-columns not-empty)
-        has-joinable-road-files (and has-extra-road-columns
-                                     (->>
-                                      form-state :roads :files
-                                      vals
-                                      (mapcat :extensions)
-                                      (some #{".csv" ".tab" ".tsv"})))
+
+        building-cols        (-> form-state :geometry (mappable-columns building-geometry-type))
+        road-cols            (-> form-state :geometry (mappable-columns road-geometry-type))
+        
         result
         (cond->
-            {:name :building-data
-             :building-data (cond
-                              (not using-building-files) :road-data
-                              has-joinable-files :building-join
-                              has-extra-columns :building-cols
-                              :else :road-data)
+            {:name :geometry
+             :geometry (if (and using-geometry-files (seq building-cols))
+                         :building-cols
+                         :other-parameters)
 
-             :road-data (cond
-                          (not using-road-files) :other-parameters
-                          has-joinable-files :road-join
-                          has-extra-columns :road-cols
-                          :else :other-parameters)}
+             }
           
-          has-joinable-files (assoc :building-join :building-cols)
-          has-extra-columns  (assoc :building-cols :road-data)
-
-          has-joinable-road-files (assoc :road-join :road-cols)
-          has-extra-road-columns (assoc :road-cols :other-parameters)
+          (and using-geometry-files (seq building-cols))  (assoc :building-cols :road-cols)
+          (and using-geometry-files (seq road-cols))      (assoc :road-cols :other-parameters)
           )
         ]
     result))
@@ -740,8 +633,8 @@
   (when (= :files (:source geo))
     (let [files (:files geo)]
       (cond
-        (not (some (comp seq :geometry-types) (vals files)))
-        ["Upload some GIS files to continue"]
+        (zero? (reduce + 0 (map building-count (vals files))))
+        ["Upload some GIS files with polygons or multipolygons to continue"]
 
         (some (comp #{:invalid :error} :state) (vals files))
         ["Remove any invalid files or failed uploads to continue"]
@@ -749,14 +642,13 @@
         (some (comp #{:uploading} :state) (vals files))
         ["Waiting for files to upload..."]))))
 
+
 (defn- page-requirements [form-state]
   (case (:current-page form-state)
     :name (when (string/blank? (:name form-state))
             ["Enter a name for your map"])
-    :building-data (concat (validate-files    (:buildings form-state))
-                           (validate-osm-area (:buildings form-state)))
-    :road-data     (validate-files    (:roads form-state))
-    
+    :geometry (concat (validate-files    (:geometry form-state))
+                      (validate-osm-area (:geometry form-state)))
     nil))
 
 
@@ -779,11 +671,13 @@
     [:div.card.flex-grow
      [:h1 "Automatic building groups"]
      [:p "For buildings that have not been placed in a group, THERMOS can assign a group using the road they are connected to."]
-     (let [road-state (:roads @*form-state)]
-       (if (-> road-state :source (= :files))
+     (let [form-state (rum/react *form-state)
+           geom-state (:geometry form-state)
+           road-state (:roads form-state)]
+       (if (-> geom-state :source (= :files))
          [:div.flex-cols
           [:label "Use field: "
-           (let [road-fields (mappable-columns road-state)
+           (let [road-fields (mappable-columns geom-state road-geometry-type)
                  nil-value "__nil__" ;; yuck, DOM strings.
                  seg-id "__geo-id__"
                  cur-value (:group-buildings road-state)
@@ -960,11 +854,11 @@
                           (POST "../new" ;; urgh yuck
                               {:params
                                (->> @*form-state
-                                    ;; :buildings :files and :roads :files
-                                    ;; values need their :files bit removing
-                                    ;; because :files are not encodable
-                                    (setval [:buildings :files MAP-VALS :files] NONE)
-                                    (setval [:roads :files MAP-VALS :files] NONE))
+                                    ;; :geometry :files ;; values need
+                                    ;; their :files bit removing
+                                    ;; because :files are not
+                                    ;; encodable
+                                    (setval [:geometry :files MAP-VALS :files] NONE))
                                
                                :handler (fn-js [e]
                                           (js/window.location.replace "../.."))}))
@@ -984,23 +878,25 @@
     [:div.card
      (case (or current-page :name)
        :name (name-page form-state)
-       :building-data (geometry-data-page :buildings form-state)
-       :building-join (join-page (rum/cursor-in form-state [:buildings :files])
-                                 (rum/cursor-in form-state [:buildings :joins]))
+       :geometry (geometry-data-page form-state)
+
        :building-cols (field-selection-page
-                       (mappable-columns (:buildings @form-state))
+                       "buildings"
+                       
+                       (mappable-columns (:geometry @form-state) building-geometry-type)
+
                        building-fields
                        (rum/cursor-in form-state [:buildings :mapping]))
        
        :road-data (geometry-data-page :roads form-state)
-       :road-join (join-page (rum/cursor-in form-state [:roads :files])
-                             (rum/cursor-in form-state [:roads :joins]))
+
        :road-cols
        
-       (let [road-columns (mappable-columns (:roads @form-state))
+       (let [road-columns (mappable-columns (:geometry @form-state) road-geometry-type)
              ;; this is [[file column]]
              ]
          (field-selection-page
+          "roads"
           road-columns
           road-fields
           (rum/cursor-in form-state [:roads :mapping])))
@@ -1012,15 +908,18 @@
        [:div "Not sure what has happened here. "
         "There is no page called " (str current-page)])
 
-     (button-strip form-state *current-page)]))
+     (button-strip form-state *current-page)
+     #_ (dump form-state)
+
+     ]))
 
 
 (def start-state
   {:current-page :name
    :name ""
    :description ""
-   :buildings {:source :osm :files {}}
-   :roads {:source :osm :files {} :group-buildings nil}
+   :geometry {:source :osm :files {}}
+   :roads    {:include-osm false :group-buildings nil}
    :degree-days 2000
    :default-fixed-civil-cost 350.0
    :default-variable-civil-cost 700.0})

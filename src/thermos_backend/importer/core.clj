@@ -134,11 +134,30 @@
         (cond
           (geoio/can-read? file)
           ;; get geospatial info
-          (let [{features ::geoio/features} (geoio/read-from file :key-transform identity) 
-                all-keys (into #{} (mapcat keys features))
-                geometry-types (into #{} (map ::geoio/type features))]
-            {:keys (set (filter string? all-keys))
-             :geometry-types geometry-types})
+          (let [{features ::geoio/features} (geoio/read-from file :key-transform identity)
+                ]
+            (loop [fields   {}
+                   counts   {}
+                   features features]
+              (if (empty? features)
+                {:fields-by-type fields :count-by-type  counts}
+
+                (let [[feature & features] features
+                      type   (::geoio/type feature)
+                      fs     (reduce-kv
+                              (fn [a k v] (if (and (string? k) (not (nil? v))) (conj a k) a))
+                              nil feature)
+                      ]
+                  (recur
+                   (if (contains? fields type)
+                     (update fields type into fs)
+                     (assoc fields type (set fs)))
+
+                   (if (contains? counts type)
+                     (update counts type inc)
+                     (assoc counts type 1))
+                   
+                   features)))))
           
           (= "csv" extension)
           {:keys (set
