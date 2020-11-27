@@ -799,10 +799,10 @@
                          assoc-in
                          [:roads :group-buildings]
                          (let [v (-> % .-target .-value)]
-                           (case v
-                             nil-value nil
-                             seg-id :geo-id
-                             v)))}
+                           (cond
+                             (= v nil-value) nil
+                             (= v seg-id) :geo-id
+                             :else v)))}
               [:option {:value nil-value} "None - do not group"]
               [:option {:value seg-id} "Road segment"]
               ;; this is a bit shonky as we could have 2 files
