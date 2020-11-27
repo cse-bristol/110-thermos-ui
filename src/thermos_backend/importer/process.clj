@@ -156,8 +156,8 @@
                    (assoc-in feature [:user-fields v] (get feature k)))
                  feature udfs)))
 
-            buildings (copy-to-udf {:name "Name" :subtype "Category"})
-            highways  (copy-to-udf {:name "Name" :subtype "Category"})
+            buildings (copy-to-udf buildings {:name "Name" :subtype "Category"})
+            highways  (copy-to-udf highways {:name "Name" :subtype "Category"})
             ]
 
         (cond-> state
