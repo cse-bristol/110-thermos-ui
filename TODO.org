@@ -3,28 +3,6 @@
 
 This is the list of things to do with THERMOS as a whole system, although it is in the UI repository.
 
-* DONE [#A] Steam modelling
-- [X] Implement power/diameter relationship
-- [X] Implement diameter/losses relationship
-
-  Marc says to just multiply the heat loss by the insulation factor,
-  so it's an impedance of some sort.
-- [X] Bounds checking in the UI for diameter
-** TODO Update documentation
-* DONE [#A] Discrete pipe sizes
-- [X] Do something about default dig cost
-- [X] Make migration box go on top of everything, not just map
-- [X] Pipe size table editor
-- [X] Fix model interop to have appropriate cost inputs
-- [X] Fix editor to use dig costs from new location
-- [X] Fix editor to reflect new pipe cost information
-- [X] Fix output processing to round up pipe sizes
-- [X] Fix reporting to report on exact pipe sizes
-- [X] Remove references to old stuff
-- [X] Migrate old scenarios to have a table rather than equations
-** DONE Update documentation
-* DONE [#A] Output reporting information to spreadsheets
-* DONE [#A] Highlight modified objects
 * TODO [#A] Publish with an open-source license
 Me to write something about attribution requirement.
 * TODO Uploadable LIDAR for projects
@@ -34,6 +12,7 @@ Me to write something about attribution requirement.
 * TODO A little model for supply emissions factors / fuel mix in network editor
 * TODO A way to reuse parameters between problems
 * TODO A constraint on the number of supply locations included in a result
+UI button for this really
 * TODO Better run-log information
 * TODO Better handling of running out of time
 * TODO Switch to solution view when recv. result
@@ -52,16 +31,19 @@ Me to write something about attribution requirement.
      - Rate limit on maps created
      - Maximum runtime per day?
      - Max uploaded GIS file feature count
-* TODO Capital costs box in objective page is not showing PV etc.       :bug:
 * TODO Anti-forgery tokens are off                                      :bug:
 As part of this, could use the effects system in flow.
 * TODO Individual system capacity NaN?                                  :bug:
 http://localhost:8080/project/5/map/20/net/1190
 * TODO Unreachable detection doesn't know heat can't flow through a building :bug:
-* DONE Show pipe sizes default to "on" in solution view
-* DONE Kick map element when it is resized, with a resizeobserver
-* DONE [#A] Increase & check zoom limits
-* DONE Attribution statements for tiles
-* DONE Backport any fixes to flow
-There is the effects system but not using that yet.
-* DONE Backport fixes to splitter
+* TODO The max diameter setting for pipes should maybe be constrained to one of the dias in the table?
+* TODO Rita's thermos supply model features
+- [ ] What are the bounds on the supply size & cost params - are they correct
+- [ ] Data import for profiles
+- [ ] Repn. of solar thermal, which has limited resource
+- [ ] Repn. of fuel costs for solar thermal
+* TODO TODO Look into bug bcb1d1bf-ed58-4526-9e3f-74acdb1b35a8      :thermos:
+* TODO Disable insulation/individual buttons unless in whole system mode
+* TODO Add note to insulation/individual systems pages re whole system
+* TODO Pipe cost page does not rerender when state changes?             :bug:
+* TODO Pipe cost page capacity column doesn't take effect?              :bug:
