@@ -124,7 +124,12 @@
                   {:value-atom (reagent/cursor plant-options [plant-option :fuel])
                    :values @fuel-options}]]
             [:td [inputs/check
-                  {:on-change #(swap! plant-options assoc-in [plant-option :chp] %)
+                  {:on-change #(swap! plant-options
+                                      update plant-option
+                                      (fn [x]
+                                        (cond-> (assoc x :chp %)
+                                          ;; make sure there is a power efficiency set if you turn on chp
+                                          % (assoc :power-efficiency (:power-efficiency x 0.75)))))
                    :value (-> params :chp)}]]
             [:td [inputs/number
                   {:value-atom (reagent/cursor plant-options [plant-option :capacity-kwp])
