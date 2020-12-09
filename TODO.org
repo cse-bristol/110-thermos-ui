@@ -3,20 +3,20 @@
 
 This is the list of things to do with THERMOS as a whole system, although it is in the UI repository.
 
-* TODO [#A] Publish with an open-source license
-Me to write something about attribution requirement.
-* TODO Uploadable LIDAR for projects
-* TODO Improved table view
-* TODO Degree day link up
-* TODO Supply location guesser button
-* TODO A little model for supply emissions factors / fuel mix in network editor
-* TODO A way to reuse parameters between problems
-* TODO A constraint on the number of supply locations included in a result
-UI button for this really
-* TODO Better run-log information
-* TODO Better handling of running out of time
-* TODO Switch to solution view when recv. result
-* TODO Nerf standard users, make special users
+* Features for project end
+** TODO Update documentation
+*** TODO User manual
+- 6d to fix user guide for whole thing
+*** TODO Demand model write-up
+*** TODO Network model write-up
+- 5d programming to help Steffen with validation
+- 2d writing; doesn't include writing up validation
+*** TODO Supply model write up
+- 3d writing
+** TODO Publish with an open-source license
+- 2d
+** TODO Nerf standard users, make special users
+   Maybe a week?
    - To prevent overuse of storage space:
      - Each project shall have a last access date
      - When a project hasn't been looked at for N days, there will be a warning
@@ -31,19 +31,110 @@ UI button for this really
      - Rate limit on maps created
      - Maximum runtime per day?
      - Max uploaded GIS file feature count
-* TODO Anti-forgery tokens are off                                      :bug:
-As part of this, could use the effects system in flow.
-* TODO Individual system capacity NaN?                                  :bug:
-http://localhost:8080/project/5/map/20/net/1190
-* TODO Unreachable detection doesn't know heat can't flow through a building :bug:
-* TODO The max diameter setting for pipes should maybe be constrained to one of the dias in the table?
-* TODO Rita's thermos supply model features
-- [ ] What are the bounds on the supply size & cost params - are they correct
+* Features from the extension list
+** TODO Defined network supply parameters
+People want to be able to say fuels with carbon factors.
+
+Practically, this means we need to define network supply technologies as well.
+
+Maybe this should tie in with the supply model technologies?
+
+This needs more work to define clearly.
+It is probably a fiddly chunk of work; implying:
+
+- Changes to data model
+- Some migration for existing problems
+- Work in interface between the model and the UI to use new data model
+- Work in spreadsheet input/output, same
+- Creation of new interface for editing this stuff
+- Update to user interface docs
+- Update to documentation describing network model
+
+A week if lucky?
+** TODO Loadable assumptions / templates
+- This is kind of in progress with the excel import
+- Perhaps 5-8 days work remain to add feedback on invalid spreadsheet, support for supply model parameters
+- Should these be manageable in-system somehow?
+** TODO LIDAR upload
+It should be possible for users to upload their own LIDAR data.
+
+It should be possible to see LIDAR coverage on the map.
+
+Question:
+- Is there still any "system level" LIDAR?
+
+Requires:
+- Lidar folder per project, against database ID
+- API for upload/download/list/extent
+- Plug folder into map import process
+- Delete folder on project deletion
+- Map layer rendering lidar extent for project
+
+- Maybe 5-6 days?
+** DONE Increasing zoom limit
+It should be possible to zoom in further. 
+
+We can increase the maximum zoom for the layers rendered by the application, which are the density map and the candidates display.
+
+We will need to see whether the imagery layers, provided by 3rd parties, are available at closer zoom levels or not.
+** DONE Highlighting modified buildings
+It should be possible to identify buildings which have been modified from their initial condition. Modified buildings should be marked in the table view and in the selection info panel on the right.
+** TODO Pipe upgrades
+If a problem contains a pipe marked as existing with a maximum capacity, the model should be able to choose to upgrade that pipe to a larger capacity.
+
+This should cost the same as installing a new pipe.
+
+At a minimum, this can be done just as a change within the model, where the UI knows little or nothing of it.
+
+Simple option of duplicating the path into free+limited / expensive+unlimited will have a pathological effect where we keep the old pipe and use a smaller new pipe, which is probably wrong, so the model needs to at least have an either/or constraint.
+
+Better option is probably to add another decision variable for upgrade which we use to turn off the upper bound on diameter, and turn on the full cost. Probably 2-3 days?
+** TODO Table view improvements
+Nobody uses the table view; it might be more useful if it contained more columns and was horizontally scrollable?.
+
+Could reuse the table gadget from planner for this.
+
+Probably would also do something to rejig the filtering code as it is not tidy.
+
+5 days?
+** TODO Something to guess a supply location
+It would be useful to have a button that will select an building that is in some way "central".
+
+A day?
+** TODO Degree day entry
+In the map import page, there should be a link to or, if possible direct integration with, a source of degree day information.
+
+Just put in a link - basically free
+* Other features
+** TODO Add note to insulation/individual systems pages re whole system; disable insulation/individual buttons unless in whole system mode
+No time
+** TODO Rita's thermos supply model features
+- [ ] What are the bounds on the supply size & cost params - are they correct / sane
 - [ ] Data import for profiles
 - [ ] Repn. of solar thermal, which has limited resource
 - [ ] Repn. of fuel costs for solar thermal
-* TODO TODO Look into bug bcb1d1bf-ed58-4526-9e3f-74acdb1b35a8      :thermos:
-* TODO Disable insulation/individual buttons unless in whole system mode
-* TODO Add note to insulation/individual systems pages re whole system
-* TODO Pipe cost page does not rerender when state changes?             :bug:
-* TODO Pipe cost page capacity column doesn't take effect?              :bug:
+** TODO Switch to solution view when recv. result
+** TODO Display for constraint on the number of supplies
+No time
+** TODO Improve data management pages
+- Make projects/maps have a predictable order
+- Display projects/maps using sortable tables; maybe in a single front page, in some kind of tree view
+
+Arbitrary time; probably ties in with some nonfunctional improvements
+* Known bugs
+All inestimable.
+** TODO Pipe cost page does not rerender when state changes?            :bug:
+** TODO Pipe cost page capacity column doesn't take effect?             :bug:
+** TODO TODO Look into bug bcb1d1bf-ed58-4526-9e3f-74acdb1b35a8     :thermos:
+** TODO Unreachable detection doesn't know heat can't flow through a building :bug:
+** TODO Individual system capacity NaN?                                 :bug:
+http://localhost:8080/project/5/map/20/net/1190
+* Nonfunctional improvements
+** TODO Vendor jsts, so we can update clojurescript
+** TODO Update clojurescript
+** TODO Rewrite the data mgmt ui to a reagent SPA?
+Ties in with making a better data mgmt ui
+** TODO Anti-forgery tokens are off
+** TODO Tidy up communication between editor and server
+** TODO Editor should use swap! for event handlers
+** TODO Editor should use faster numberfield
