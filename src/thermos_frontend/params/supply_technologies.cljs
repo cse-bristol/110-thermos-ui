@@ -129,7 +129,7 @@
                                       (fn [x]
                                         (cond-> (assoc x :chp %)
                                           ;; make sure there is a power efficiency set if you turn on chp
-                                          % (assoc :power-efficiency (:power-efficiency x 0.75)))))
+                                          % (assoc :power-efficiency (or (:power-efficiency x) 0.75)))))
                    :value (-> params :chp)}]]
             [:td [inputs/number
                   {:value-atom (reagent/cursor plant-options [plant-option :capacity-kwp])
