@@ -11,7 +11,8 @@
             [thermos-util.pipes :as pipes]
             [thermos-specs.measure :as measure]
             [clojure.set :as set]
-            [thermos-backend.spreadsheet.common :as common]))
+            [thermos-backend.spreadsheet.common :as common]
+            [thermos-backend.spreadsheet.schema :as schema]))
 
 (def *100 (partial * 100.0))
 
@@ -302,10 +303,7 @@
          (fn [i v] [i (cond-> v id-key (assoc id-key i))])
          entries)))
 
-(defn input-from-spreadsheet
-  "Inverse function - takes a spreadsheet, as loaded by `common/read-to-tables`.
-
-  So far this ignores everything to do with supply model & candidates."
+(defn validated-input-from-ss
   [ss]
   (let [{:keys [tariffs
                 connection-costs
@@ -456,3 +454,12 @@
                 basics
                 civils-keys*))])
           (into {}))})})))
+
+
+(defn input-from-spreadsheet
+  "Inverse function - takes a spreadsheet, as loaded by `common/read-to-tables`.
+
+  So far this ignores everything to do with supply model & candidates." [spreadsheet]
+  (let [{:keys [spreadsheet errors]} (schema/validate-network-model-ss spreadsheet)]
+    {:errors errors
+     :doc (when (nil? errors) (validated-input-from-ss spreadsheet))}))
