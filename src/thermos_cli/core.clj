@@ -72,6 +72,7 @@ If there are buildings, they will have demand and peak demand computed, subject 
     :parse-fn #(Double/parseDouble %)]
    [nil "--solve" "Run the network model solver."]
    [nil "--height-field FIELD" "A height field, used in preference to LIDAR."]
+   [nil "--supply-field FIELD" "A field which, if true, will be used to select a supply location."]
    [nil "--fallback-height-field FIELD" "A height field, used if LIDAR (and given height) is missing."]
    [nil "--resi-field FIELD" "A field which is used to tell the demand model if a building is residential."]
    [nil "--demand-field FIELD" "A kwh/yr field. If given, this will be used in preference to the demand model."]
@@ -291,7 +292,7 @@ If the scenario definition refers to some fields, you mention them here or they 
     (cond-> building
       tariff (assoc ::tariff/id tariff))))
 
-(defn- select-supply-location [instance supply top-n]
+(defn- select-top-n-supplies [instance supply top-n]
   (let [{buildings :building paths :path}
         (document/candidates-by-type instance)
 
@@ -348,10 +349,30 @@ If the scenario definition refers to some fields, you mention them here or they 
        winning-ids))
     ))
 
+(defn- select-input-supplies [instance supply supply-field]
+  (log/info "Adding supplies based on" supply-field)
+  (document/map-buildings
+   instance
+   (fn [building]
+     (if-let [field (as-boolean (get building supply-field))]
+       (merge supply building)
+       building))))
+
+(defn- select-supply-location [instance options]
+  (cond
+
+    (:supply-field options)
+    (select-input-supplies instance (:supply options) (:supply-field options))
+
+    (pos? (:top-n-supplies options))
+    (select-top-n-supplies instance (:supply options) (:top-n-supplies options))
+
+    :else ;; NOP
+    instance))
+
 (defn- make-candidates [paths buildings preserve-fields]
   (let [paths (for [path paths]
                 (-> path
-                    (select-keys preserve-fields)
                     (merge {::candidate/id        (::geoio/id path)
                             ::candidate/type      :path
                             ::candidate/subtype   (:subtype path)
@@ -595,8 +616,7 @@ If the scenario definition refers to some fields, you mention them here or they 
 
                             (seq (:supply options))
                             (-> (saying "Add supplies")
-                                (select-supply-location (:supply options)
-                                                        (:top-n-supplies options)))
+                                (select-supply-location options))
 
                             (seq (:set options))
                             (set-values (:set options))
