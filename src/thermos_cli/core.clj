@@ -80,6 +80,7 @@ If given, then a shape for which this says 'max' will get the maximum of demand 
 If it says 'use', then the demand-field value will be used (unless it's not numeric)."]
    [nil "--peak-field FIELD" "A kwp field. If given, this will be used in preference to peak model."]
    [nil "--count-field FIELD" "Connection count. Otherwise we assume 1."]
+   [nil "--require-all" "Require all buildings be connected to network."]
    ["-f" "--preserve-field FIELD*" "A field to preserve from input data (e.g. TOID).
 If the scenario definition refers to some fields, you mention them here or they will be stripped out before the scenario is applied."
     :assoc-fn conj-arg]
@@ -519,6 +520,11 @@ If the scenario definition refers to some fields, you mention them here or they 
    instance
    things-to-set))
 
+(defn- require-all-buildings [instance]
+  (document/map-buildings
+   instance
+   (fn [building] (assoc building ::candidate/inclusion :required))))
+
 (defn --main [options]
   (mount/start-with {#'thermos-backend.config/config
                      {:solver-directory (:temp-dir options)}})
@@ -602,6 +608,10 @@ If the scenario definition refers to some fields, you mention them here or they 
                             (:mip-gap options)
                             (assoc :thermos-specs.document/mip-gap
                                    (:mip-gap options))
+
+                            (:require-all options)
+                            (-> (saying "Requiring all buildings")
+                                (require-all-buildings))
                             
                             (:solver options)
                             (-> (saying "Solve")
