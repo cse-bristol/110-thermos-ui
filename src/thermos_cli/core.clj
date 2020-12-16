@@ -239,7 +239,8 @@ If the scenario definition refers to some fields, you mention them here or they 
 
 (defn- match
   "Match ITEM, a map, against OPTIONS, a list of things with a :rule in them.
-  A :rule is a tuple going [field pattern], so when we (get field item) it matches pattern (a regex literal)"
+  A :rule is a tuple going [field pattern], so when we (get field
+  item) it matches pattern (a regex literal or set of values)"
   [item options & {:keys [match] :or {match :thermos-cli/rule}}]
   
   (and item
