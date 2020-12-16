@@ -147,7 +147,7 @@ If the scenario definition refers to some fields, you mention them here or they 
           {lines true not-lines false}
           (group-by is-line features)
 
-          lines (spatial/node-paths lines)
+          lines (spatial/node-paths lines :snap-tolerance 0.01 :crs crs)
 
           [buildings roads]
           (if lines
@@ -157,7 +157,8 @@ If the scenario definition refers to some fields, you mention them here or they 
              :connect-to-connectors false)
             [not-lines nil])]
 
-      [roads buildings])))
+      [(spatial/trim-dangling-paths roads buildings 1.0)
+       buildings])))
 
 (defn- generate-demands [buildings
 
