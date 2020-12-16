@@ -393,10 +393,6 @@ If the scenario definition refers to some fields, you mention them here or they 
                             ::candidate/geometry  (::geoio/geometry path)})))
         buildings (for [building buildings]
                     (-> building
-                        
-                        (select-keys (concat [:demand-source :sap-water-demand]
-                                             preserve-fields))
-                        
                         (merge {::candidate/id            (::geoio/id building)
                                 ::candidate/subtype       (:subtype building)
                                 ::candidate/type          :building
