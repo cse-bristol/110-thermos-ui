@@ -70,7 +70,7 @@ If there are buildings, they will have demand and peak demand computed, subject 
    [nil "--shortest-face LENGTH" "When finding face centers, only faces longer than this will be considered."
     :default 3.0
     :parse-fn #(Double/parseDouble %)]
-   [nil "--solver PATH" "Path to the solver program; if given, runs solver."]
+   [nil "--solve" "Run the network model solver."]
    [nil "--height-field FIELD" "A height field, used in preference to LIDAR."]
    [nil "--fallback-height-field FIELD" "A height field, used if LIDAR (and given height) is missing."]
    [nil "--resi-field FIELD" "A field which is used to tell the demand model if a building is residential."]
@@ -521,8 +521,7 @@ If the scenario definition refers to some fields, you mention them here or they 
 
 (defn --main [options]
   (mount/start-with {#'thermos-backend.config/config
-                     {:solver-directory (:temp-dir options)
-                      :solver-command (:solver options)}})
+                     {:solver-directory (:temp-dir options)}})
   (let [output-path       (:output options)
         summary-output-path (:summary-output options)
 
