@@ -97,9 +97,8 @@ If the scenario definition refers to some fields, you mention them here or they 
     :assoc-fn conj-arg]
    [nil "--supply FILE*"
     "A file containing supply parameters for supply point"]
-   [nil "--civils FILE*"
-    "A file containing civil cost parameters"
-    :assoc-fn conj-arg]
+   [nil "--pipe-costs FILE"
+    "A file containing pipe cost parameters. Complex structure for this means not mergeable."]
    [nil "--tariffs FILE*"
     "A file containing tariff definitions"
     :assoc-fn conj-arg]
@@ -264,11 +263,22 @@ If the scenario definition refers to some fields, you mention them here or they 
                 ))))
         options)))
 
-(defn- add-civils [path civils]
-  (let [civil (first (match path civils))]
-    (cond-> path
-      civil
-      (assoc ::path/civil-cost-id (::path/civil-cost-id civil)))))
+(defn- add-civils
+  "Use `match` to join pipe-costs to paths.
+  The rule structure for paths is that the pipe-costs blob contains
+  :thermos-cli/rule, which is a series of vectors, that look like
+
+  [civil-cost-id RULE]
+
+  where RULE is like what `match` takes.
+  "
+  [path pipe-costs]
+  (let [civils (:civils pipe-costs)
+        rules  (:thermos-cli/rule pipe-costs)]
+    (let [civil (first (match path rules :match second))]
+      (cond-> path
+        civil
+        (assoc ::path/civil-cost-id (first civil))))))
 
 (defn- add-insulation [building insulation]
   (let [insulation (match building insulation)
@@ -598,10 +608,12 @@ If the scenario definition refers to some fields, you mention them here or they 
                                 (assoc ::document/tariffs (assoc-by (:tariffs options) ::tariff/id))
                                 (document/map-buildings (let [tariffs (:tariffs options)] #(add-tariff % tariffs))))
 
-                            (seq (:civils options))
-                            (-> (saying "Replace civils")
-                                (assoc ::document/civil-costs  (assoc-by (:civils options) ::path/civil-cost-id))
-                                (document/map-paths (let [civils (:civils options)] #(add-civils % civils))))
+                            (seq (:pipe-costs options))
+                            (-> (saying "Replace pipe costs")
+                                (assoc ::document/pipe-costs (:pipe-costs options))
+                                (document/map-paths
+                                 (let [pipe-costs (:pipe-costs options)]
+                                   #(add-civils % pipe-costs))))
 
                             (seq (:insulation options))
                             (-> (saying "Replace insulation")
@@ -686,13 +698,12 @@ If the scenario definition refers to some fields, you mention them here or they 
                     (update :insulation   concat-edn)
                     (update :alternatives concat-edn)
                     (update :tariffs      concat-edn)
-                    (update :civils       concat-edn)
+                    (update :pipe-costs   read-edn)
                     (update :supply       read-edn)
-
+                    
                     (update :insulation   generate-ids ::measure/id)
                     (update :alternatives generate-ids ::supply/id)
                     (update :tariffs      generate-ids ::tariff/id)
-                    (update :civils       generate-ids ::path/civil-cost-id)
                     )]
     (cond
       (:help options)
