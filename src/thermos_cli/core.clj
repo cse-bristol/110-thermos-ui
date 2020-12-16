@@ -613,7 +613,7 @@ If the scenario definition refers to some fields, you mention them here or they 
                             (-> (saying "Requiring all buildings")
                                 (require-all-buildings))
                             
-                            (:solver options)
+                            (:solve options)
                             (-> (saying "Solve")
                                 (as-> instance
                                     (interop/solve "" instance
