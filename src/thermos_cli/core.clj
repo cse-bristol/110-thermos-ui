@@ -33,12 +33,10 @@
 
 ;; THERMOS CLI tools for Net Zero Analysis
 
-(defn- output [thing]
+(defn- output ^java.io.Closeable [thing]
   (if (= thing "-")
     (proxy [java.io.FilterWriter] [(io/writer System/out)]
-      (close []
-        (proxy-super flush)
-        ))
+      (close [] (proxy-super flush)))
     (io/writer (io/file thing))))
 
 (defn- conj-arg [m k v]
