@@ -715,3 +715,16 @@ If the scenario definition refers to some fields, you mention them here or they 
 
 
 
+
+(comment
+  (-main "-m" "/home/hinton/p/110-thermos/network-model-validation/data/scenario-A60.gpkg"
+         "-j" "/home/hinton/p/110-thermos/network-model-validation/A60.gjson"
+         "--supply-field" "SupplyDema"
+         "--supply" "/home/hinton/p/110-thermos/network-model-validation/supply.edn"
+         "--tariffs" "/home/hinton/p/110-thermos/network-model-validation/tariffs.edn"
+         "--demand-field" "kWh"
+         "--require-all"
+         "--solve"
+         "--summary-output" "-"
+         )
+  )
