@@ -68,6 +68,10 @@ If there are buildings, they will have demand and peak demand computed, subject 
    [nil "--shortest-face LENGTH" "When finding face centers, only faces longer than this will be considered."
     :default 3.0
     :parse-fn #(Double/parseDouble %)]
+   [nil "--snap-tolerance DIST" "Patch holes in the network of length DIST."
+    :default nil
+    :parse-fn #(Double/parseDouble %)]
+   [nil "--trim-paths" "Remove paths that don't go anywhere."]
    [nil "--solve" "Run the network model solver."]
    [nil "--height-field FIELD" "A height field, used in preference to LIDAR."]
    [nil "--supply-field FIELD" "A field which, if true, will be used to select a supply location."]
@@ -137,25 +141,28 @@ If the scenario definition refers to some fields, you mention them here or they 
   "Given a set of shapes, do the noding and connecting dance"
   [{crs ::geoio/crs features ::geoio/features}
 
-   connect-to-connectors
-   shortest-face-length]
+   {:keys [connect-to-connectors shortest-face
+           snap-tolerance trim-paths]}
+   ]
   (when (seq features)
     (let [is-line (comp boolean #{:line-string :multi-line-string} ::geoio/type)
           
           {lines true not-lines false}
           (group-by is-line features)
 
-          lines (spatial/node-paths lines :snap-tolerance 0.01 :crs crs)
+          lines (spatial/node-paths lines :snap-tolerance snap-tolerance :crs crs)
 
           [buildings roads]
           (if lines
             (spatial/add-connections
              crs not-lines lines
-             :shortest-face-length shortest-face-length
+             :shortest-face-length shortest-face
              :connect-to-connectors false)
             [not-lines nil])]
 
-      [(spatial/trim-dangling-paths roads buildings 1.0)
+      [(cond-> roads
+         trim-paths
+         (spatial/trim-dangling-paths buildings))
        buildings])))
 
 (defn- generate-demands [buildings
@@ -566,9 +573,8 @@ If the scenario definition refers to some fields, you mention them here or they 
                             (geoio/read-from-multiple (:map options)
                                                       :key-transform identity))
 
-        [paths buildings] (node-connect geodata
-                                        (:connect-to-connectors options)
-                                        (:shortest-face options))
+        [paths buildings] (node-connect geodata options)
+        
         
         buildings         (when (seq buildings)
                             (-> {::geoio/features buildings
@@ -717,8 +723,12 @@ If the scenario definition refers to some fields, you mention them here or they 
 
 
 (comment
-  (-main "-m" "/home/hinton/p/110-thermos/network-model-validation/data/scenario-A60.gpkg"
-         "-j" "/home/hinton/p/110-thermos/network-model-validation/A60.gjson"
+  (doseq [f (file-seq (io/file "/home/hinton/p/110-thermos/network-model-validation/data/"))]
+    (when (.endsWith (.getName f) ".gpkg")
+      (-main "-m" (.getAbsolutePath f)
+             "-j" (str "/home/hinton/p/110-thermos/network-model-validation/"
+                       (.replaceAll (.getName f) "\\.gpkg$" ".gjson"))
+             
          "--supply-field" "SupplyDema"
          "--supply" "/home/hinton/p/110-thermos/network-model-validation/supply.edn"
          "--tariffs" "/home/hinton/p/110-thermos/network-model-validation/tariffs.edn"
@@ -727,4 +737,24 @@ If the scenario definition refers to some fields, you mention them here or they 
          "--solve"
          "--summary-output" "-"
          )
+      )
+    )
+
+
+  (-main "-m" "/home/hinton/p/110-thermos/network-model-validation/data/scenario-A137.gpkg"
+         "-j" "/home/hinton/p/110-thermos/network-model-validation/A137.gjson"
+         "--supply-field" "SupplyDema"
+         "--supply" "/home/hinton/p/110-thermos/network-model-validation/supply.edn"
+         "--tariffs" "/home/hinton/p/110-thermos/network-model-validation/tariffs.edn"
+         "--pipe-costs" "/home/hinton/p/110-thermos/network-model-validation/pipe-costs.edn"
+         "--demand-field" "kWh"
+         "--require-all"
+         "--solve"
+         "--snap-tolerance" "0.1"
+         "--summary-output" "-"
+         "--trim-paths"
+         "--set" "[:thermos-specs.document/flow-temperature 80]"
+         "--set" "[:thermos-specs.document/return-temperature 40]"
+         )
+  
   )
