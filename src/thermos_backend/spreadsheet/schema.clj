@@ -62,10 +62,10 @@
                            [:losses {:optional true} string?]
                            [:pipe-cost string?]]]
                  [:rows [:sequential [:map
-                                      [:nb double?]
-                                      [:capacity {:optional true} double?]
-                                      [:losses {:optional true} double?]
-                                      [:pipe-cost double?]
+                                      [:nb number?]
+                                      [:capacity {:optional true} number?]
+                                      [:losses {:optional true} number?]
+                                      [:pipe-cost number?]
                                       [:spreadsheet/row int?]]]]]]
 
    [:insulation [:map
@@ -97,12 +97,11 @@
 
 (def variable-pipe-costs-schema [:map 
                                  [:header [:map-of keyword? string?]] 
-                                 [:rows [:sequential [:map-of keyword? double?]]]])
+                                 [:rows [:sequential [:map-of keyword? number?]]]])
 
 (defn merge-errors
   "Recursively merges error maps."
   [& maps]
-  (println maps)
   (letfn [(do-merge [& xs]
             (cond 
               (every? map? xs) (apply merge-with do-merge xs)
@@ -112,19 +111,11 @@
 
 (defn validate-pipe-costs 
   "Coerce and validate the non-fixed columns in the pipe costs sheet.
-   Unfortunately malli is not (currently) capable of this - see https://github.com/metosin/malli/issues/43"
+   Unfortunately malli is not (currently) capable of doing this
+   at the same time as validating the fixed columns - see https://github.com/metosin/malli/issues/43"
   [pipe-costs coercions]
-  (let [fixed [:nb :capacity :losses :pipe-cost :spreadsheet/row]
-        remove-fixed (fn [m] (apply (partial dissoc m) fixed))
-        variable-headers (remove-fixed (:header pipe-costs))
-        variable-rows (map remove-fixed (:rows pipe-costs))
-        coerced (m/decode variable-pipe-costs-schema 
-                          {:header variable-headers 
-                           :rows variable-rows} coercions)]
-    
-    {:header (conj (:header pipe-costs) (:header coerced))
-     :rows (map conj (:rows pipe-costs) (:rows coerced))
-     :import/errors (me/humanize (m/explain variable-pipe-costs-schema coerced))}))
+  (let [coerced (m/decode variable-pipe-costs-schema pipe-costs coercions)]
+    (assoc pipe-costs :import/errors (me/humanize (m/explain variable-pipe-costs-schema coerced)))))
 
 (defn validate-network-model-ss 
   "Coerce and validate a network model spreadsheet.
@@ -134,21 +125,19 @@
    
    Current attempted coercions are string-to-number and int-to-double."
   [ss]
-  (let [coercions 
-        (mt/transformer mt/string-transformer number-to-double-transformer)
+  (let [coercions (mt/transformer mt/string-transformer number-to-double-transformer)
+
+        coerced (m/decode network-model-schema ss coercions)
         
-        coerced 
-        (m/decode network-model-schema ss coercions)
+        coerced-pcs  (m/decode variable-pipe-costs-schema (:pipe-costs coerced) coercions)
+
+        coerced (conj coerced (when coerced-pcs [:pipe-costs coerced-pcs]))
         
-        {pc-errors :import/errors, :as coerced-pcs} 
-        (validate-pipe-costs (:pipe-costs coerced) coercions)
-        
-        coerced 
-        (assoc coerced :pipe-costs coerced-pcs)
-        
-        errors
-        (me/humanize (m/explain network-model-schema coerced))]
-    (assoc coerced :import/errors (merge-errors errors (when pc-errors {:pipe-costs pc-errors})))))
+        errors (me/humanize (m/explain network-model-schema coerced))
+
+        pc-errors  (me/humanize (m/explain variable-pipe-costs-schema (:pipe-costs coerced)))]
+    
+    (assoc coerced :import/errors (merge-errors (when pc-errors {:pipe-costs pc-errors}) errors))))
 
 
 ;; Write default spreadsheet to disk
