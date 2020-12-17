@@ -8,7 +8,7 @@
   (mt/transformer
    {:name :double
     :decoders {'double? mt/-number->double, :double mt/-number->double}}))
-  
+
 (def network-model-schema 
   [:map
    [:tariffs [:map
@@ -33,7 +33,7 @@
                                             [:cost-name string?]
                                             [:fixed-cost double?]
                                             [:capacity-cost double?]]]]]]
-   
+
    [:individual-systems [:map
                          [:header [:map
                                    [:name string?]
@@ -54,24 +54,20 @@
                                               [:co2 double?]
                                               [:operating-cost double?]
                                               [:fuel-price double?]]]]]]
-   
+
    [:pipe-costs [:map
                  [:header [:map
                            [:nb string?]
-                           [:capacity string?]
-                           [:losses string?]
-                           [:pipe-cost string?]
-                           [:soft string?]
-                           [:hard string?]]]
+                           [:capacity {:optional true} string?]
+                           [:losses {:optional true} string?]
+                           [:pipe-cost string?]]]
                  [:rows [:sequential [:map
                                       [:nb double?]
-                                      [:capacity double?]
-                                      [:losses double?]
+                                      [:capacity {:optional true} double?]
+                                      [:losses {:optional true} double?]
                                       [:pipe-cost double?]
-                                      [:soft double?]
-                                      [:hard double?]
                                       [:spreadsheet/row int?]]]]]]
-   
+
    [:insulation [:map
                  [:header [:map
                            [:name string?]
@@ -88,7 +84,7 @@
                                       [:maximum-area-% double?]
                                       [:surface double?]
                                       [:spreadsheet/row int?]]]]]]
-   
+
    [:other-parameters [:map
                        [:header [:map
                                  [:parameter string?]
@@ -99,18 +95,60 @@
                                             [:spreadsheet/row int?]]]]]]])
 
 
+(def variable-pipe-costs-schema [:map 
+                                 [:header [:map-of keyword? string?]] 
+                                 [:rows [:sequential [:map-of keyword? double?]]]])
+
+(defn merge-errors
+  "Recursively merges error maps."
+  [& maps]
+  (println maps)
+  (letfn [(do-merge [& xs]
+            (cond 
+              (every? map? xs) (apply merge-with do-merge xs)
+              (every? sequential? xs) (apply mapv do-merge xs)
+              :else (last (remove nil? xs))))]
+    (reduce do-merge maps)))
+
+(defn validate-pipe-costs 
+  "Coerce and validate the non-fixed columns in the pipe costs sheet.
+   Unfortunately malli is not (currently) capable of this - see https://github.com/metosin/malli/issues/43"
+  [pipe-costs coercions]
+  (let [fixed [:nb :capacity :losses :pipe-cost :spreadsheet/row]
+        remove-fixed (fn [m] (apply (partial dissoc m) fixed))
+        variable-headers (remove-fixed (:header pipe-costs))
+        variable-rows (map remove-fixed (:rows pipe-costs))
+        coerced (m/decode variable-pipe-costs-schema 
+                          {:header variable-headers 
+                           :rows variable-rows} coercions)]
+    
+    {:header (conj (:header pipe-costs) (:header coerced))
+     :rows (map conj (:rows pipe-costs) (:rows coerced))
+     :import/errors (me/humanize (m/explain variable-pipe-costs-schema coerced))}))
+
 (defn validate-network-model-ss 
   "Coerce and validate a network model spreadsheet.
    
-   Returns a map with 2 elements, :errors and :spreadsheet :errors is either a map
-   containg errors or nil, and :spreadsheet is the coerced input. 
+   Returns the coerced input with an extra key, :import/errors,
+   which is either nil or an error map.
    
    Current attempted coercions are string-to-number and int-to-double."
   [ss]
-  (let [coercions (mt/transformer mt/string-transformer number-to-double-transformer)
-        coerced (m/decode network-model-schema ss coercions)]
-    { :errors (me/humanize (m/explain network-model-schema coerced))
-      :spreadsheet coerced}))
+  (let [coercions 
+        (mt/transformer mt/string-transformer number-to-double-transformer)
+        
+        coerced 
+        (m/decode network-model-schema ss coercions)
+        
+        {pc-errors :import/errors, :as coerced-pcs} 
+        (validate-pipe-costs (:pipe-costs coerced) coercions)
+        
+        coerced 
+        (assoc coerced :pipe-costs coerced-pcs)
+        
+        errors
+        (me/humanize (m/explain network-model-schema coerced))]
+    (assoc coerced :import/errors (merge-errors errors (when pc-errors {:pipe-costs pc-errors})))))
 
 
 ;; Write default spreadsheet to disk
@@ -131,7 +169,7 @@
   (require '[thermos-backend.spreadsheet.common :as ss-common])
 
   (let [in-ss (ss-common/read-to-tables "/home/neil/tmp/spreadsheet.xlsx")
-        sheet (:connection-costs in-ss)]
+        sheet (:pipe-costs in-ss)]
     (println sheet)
     (mp/provide sheet)))
 

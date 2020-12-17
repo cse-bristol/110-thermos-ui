@@ -459,7 +459,9 @@
 (defn input-from-spreadsheet
   "Inverse function - takes a spreadsheet, as loaded by `common/read-to-tables`.
 
-  So far this ignores everything to do with supply model & candidates." [spreadsheet]
-  (let [{:keys [spreadsheet errors]} (schema/validate-network-model-ss spreadsheet)]
-    {:errors errors
-     :doc (when (nil? errors) (validated-input-from-ss spreadsheet))}))
+  So far this ignores everything to do with supply model & candidates."
+  [spreadsheet]
+  (let [{errors :import/errors :as spreadsheet} (schema/validate-network-model-ss spreadsheet)]
+    (if (nil? errors) 
+      (validated-input-from-ss spreadsheet)
+      {:import/errors errors})))
