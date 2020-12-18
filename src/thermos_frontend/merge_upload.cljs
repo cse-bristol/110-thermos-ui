@@ -288,8 +288,8 @@
      (or (nil? error) (empty? error)) nil
      (map? error) [:ul {:style {:list-style :square}} (map (fn [[k v]] (show-errors k v)) error)]
      (sequential? error) [:ul {:style {:list-style :square}} (map show-errors error)]
-     :else [:li (str error)]))
-  ([k v] [:li [:b (if (keyword? k) (keyword->string k) k)] ": " (show-errors v)]))
+     :else [:li {:key (str error)} (str error)]))
+  ([k v] [:li {:key k} [:b (if (keyword? k) (keyword->string k) k)] ": " (show-errors v)]))
 
 (defn- show-row-errors 
   "Special-case handling for row errors - add key with row number and remove
@@ -304,7 +304,8 @@
         (into {}))))
 
 (defn- show-sheet-errors [[sheet errors]]
-   [:li
+   [:li 
+    {:key sheet}
     [:span "Sheet " [:b (keyword->string sheet)] ": "] 
     (cond
       (sequential? errors) (show-errors errors)

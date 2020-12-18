@@ -11,11 +11,11 @@
 
 (def network-model-schema 
   [:map
-   {:error/message {::m/missing-key "missing sheet from spreadsheet"}}
+   {:error/message "missing sheet from spreadsheet"}
    [:tariffs 
     [:map
      [:header [:map
-               {:error/message {::m/missing-key "column missing"}}
+               {:error/message "column missing"}
                [:tariff-name string?]
                [:unit-rate string?]
                [:capacity-charge string?]
@@ -30,7 +30,7 @@
    [:connection-costs
     [:map
      [:header [:map
-               {:error/message {::m/missing-key "column missing"}}
+               {:error/message "column missing"}
                [:cost-name string?]
                [:fixed-cost string?]
                [:capacity-cost string?]]]
@@ -42,7 +42,7 @@
    [:individual-systems
     [:map
      [:header [:map
-               {:error/message {::m/missing-key "column missing"}}
+               {:error/message "column missing"}
                [:name string?]
                [:fixed-cost string?]
                [:capacity-cost string?]
@@ -65,7 +65,7 @@
    [:pipe-costs
     [:map
      [:header [:map
-               {:error/message {::m/missing-key "column missing"}}
+               {:error/message "column missing"}
                [:nb string?]
                [:capacity {:optional true} string?]
                [:losses {:optional true} string?]
@@ -80,7 +80,7 @@
    [:insulation 
     [:map
      [:header [:map
-               {:error/message {::m/missing-key "column missing"}}
+               {:error/message "column missing"}
                [:name string?]
                [:fixed-cost string?]
                [:cost-per-m2 string?]
@@ -99,7 +99,7 @@
    [:other-parameters 
     [:map
      [:header [:map
-               {:error/message {::m/missing-key "column missing"}}
+               {:error/message "column missing"}
                [:parameter string?]
                [:value string?]]]
      [:rows [:sequential [:map
