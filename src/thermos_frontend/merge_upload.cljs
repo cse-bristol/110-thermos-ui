@@ -16,7 +16,8 @@
             [thermos-specs.tariff :as tariff]
             [thermos-specs.path :as path]
             [clojure.set :as set]
-            [clojure.test :as test]))
+            [clojure.test :as test]
+            [clojure.string :as str]))
 
 (def categories
   [:objective
@@ -278,6 +279,8 @@
    old-state
    (:categories opts)))
 
+(defn- keyword->string [k] (str/capitalize (str/replace (name k) \- \ )))
+
 (defn- show-errors
   ""
   ([error] 
@@ -286,7 +289,7 @@
      (map? error) [:ul {:style {:list-style :square}} (map (fn [[k v]] (show-errors k v)) error)]
      (sequential? error) [:ul {:style {:list-style :square}} (map show-errors error)]
      :else [:li (str error)]))
-  ([k v] [:li [:b (if (keyword? k) (name k) k)] ": " (show-errors v)]))
+  ([k v] [:li [:b (if (keyword? k) (keyword->string k) k)] ": " (show-errors v)]))
 
 (defn- show-row-errors 
   "Special-case handling for row errors - add key with row number and remove
@@ -302,7 +305,7 @@
 
 (defn- show-sheet-errors [[sheet errors]]
    [:li
-    [:span "Sheet " [:b sheet] ": "] 
+    [:span "Sheet " [:b (keyword->string sheet)] ": "] 
     (cond
       (sequential? errors) (show-errors errors)
       (map? errors)
