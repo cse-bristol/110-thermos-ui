@@ -278,6 +278,40 @@
    old-state
    (:categories opts)))
 
+(defn- show-errors
+  ""
+  ([error] 
+   (cond
+     (or (nil? error) (empty? error)) nil
+     (map? error) [:ul {:style {:list-style :square}} (map (fn [[k v]] (show-errors k v)) error)]
+     (sequential? error) [:ul {:style {:list-style :square}} (map show-errors error)]
+     :else [:li (str error)]))
+  ([k v] [:li [:b (if (keyword? k) (name k) k)] ": " (show-errors v)]))
+
+(defn- show-row-errors 
+  "Special-case handling for row errors - add key with row number and remove
+   any entries where there is already an error for the header."
+  [row-errors cols-to-exclude]
+  (show-errors
+   (->> row-errors
+        (map #(apply (partial dissoc %) cols-to-exclude))
+        (zipmap (iterate inc 1))
+        (remove (fn [[_ v]] (empty? v)))
+        (map (fn [[k v]] [(str "Row " k) v]))
+        (into {}))))
+
+(defn- show-sheet-errors [[sheet errors]]
+   [:li
+    [:span "Sheet " [:b sheet] ": "] 
+    (cond
+      (sequential? errors) (show-errors errors)
+      (map? errors)
+      (let [header-errors (:header errors)
+            row-errors (:rows errors)]
+        [:div
+         (show-errors header-errors)
+         (show-row-errors row-errors (keys header-errors))]))])
+
 (defn- merge-dialog [result]
   (reagent/with-let [*state
                      (reagent/atom
@@ -285,50 +319,65 @@
                        :join true
                        :merge false})]
     (let [state @*state]
-      [:div.popover-dialog
-       [:h2.popover-header "Import Parameters"]
-       [:button.popover-close-button
-        {:on-click popover/close!}
-        "⨯"]
+      (if (contains? result :import/errors)
+        [:div.popover-dialog
+         [:h2.popover-header "Failed to import spreadsheet"]
+         [:button.popover-close-button
+          {:on-click popover/close!}
+          "⨯"]
+         [:p "The spreadsheet you have chosen is not compatible with THERMOS."]
+         [:b "Errors:"]
+         [:div {:style {:max-height 300 :overflow-y :scroll}}
+          [:ul {:style {:list-style :square}} (map show-sheet-errors (:import/errors result))]]
+         
+         [:div.align-right {:style {:margin-top "2em"}}
+          [:button.button.button--danger
+           {:on-click popover/close!
+            :style {:margin-left :auto}}
+           "Cancel"]]]
+        
+        [:div.popover-dialog
+         [:h2.popover-header "Import Parameters"]
+         [:button.popover-close-button
+          {:on-click popover/close!}
+          "⨯"]
 
-       [:b "Categories to import:"]
-       (for [category categories]
-         [:div {:key category}
-          [inputs/check {:label (name category)
-                         :value (contains? (:categories state) category)
-                         :on-change (fn [e]
-                                      (swap!
-                                       *state
-                                       update :categories
-                                       #((if (contains? % category) disj conj)
-                                         % category)))}
-           ]])
+         [:b "Categories to import:"]
+         (for [category categories]
+           [:div {:key category}
+            [inputs/check {:label (name category)
+                           :value (contains? (:categories state) category)
+                           :on-change (fn [e]
+                                        (swap!
+                                         *state
+                                         update :categories
+                                         #((if (contains? % category) disj conj)
+                                           % category)))}]])
 
-       [:b "Existing parameters:"]
-       [:div
-        [inputs/check {:label "Use new parameters where names match"
-                           :value (:join state)
-                           :on-change #(swap! *state :join not)}]]
-       [:div
-        [inputs/check {:label "Keep old parameters with different names"
-                           :value (:merge state)
-                           :on-change #(swap! *state :merge not)}]]
-       
-       [:div.align-right {:style {:margin-top "2em"}}
-        [:button.button.button--danger
-         {:on-click popover/close!
-          :style {:margin-left :auto}}
-         "Cancel"]
-        [:button.button
-         {:on-click
-          #(do (swap!
-                state/state
-                merge-categories
-                result
-                @*state)
-               (popover/close!))
-          }
-         "Apply"]]])))
+         [:b "Existing parameters:"]
+         [:div
+          [inputs/check {:label "Use new parameters where names match"
+                         :value (:join state)
+                         :on-change #(swap! *state :join not)}]]
+         [:div
+          [inputs/check {:label "Keep old parameters with different names"
+                         :value (:merge state)
+                         :on-change #(swap! *state :merge not)}]]
+
+         [:div.align-right {:style {:margin-top "2em"}}
+          [:button.button.button--danger
+           {:on-click popover/close!
+            :style {:margin-left :auto}}
+           "Cancel"]
+          [:button.button
+           {:on-click
+            #(do (swap!
+                  state/state
+                  merge-categories
+                  result
+                  @*state)
+                 (popover/close!))}
+           "Apply"]]]))))
 
 (defn- show-merge-dialog [result]
   (popover/open!

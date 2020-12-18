@@ -36,7 +36,7 @@
                                    :capacity-charge 0.0, 
                                    :standing-charge 50.0, 
                                    :spreadsheet/row 0}))]
-    (is (= {:tariffs ["missing required key"]}
+    (is (= {:tariffs ["missing sheet from spreadsheet"]}
            (:import/errors (schema/validate-network-model-ss no-tarriffs-sheet))))
     (is (= {:tariffs {:rows [{:unit-rate ["missing required key"]}]}}
            (:import/errors (schema/validate-network-model-ss no-unit-rate))))
@@ -62,7 +62,7 @@
                          (assoc-in [:pipe-costs :rows 0 :nb] "aaa")
                          (assoc-in [:pipe-costs :rows 0 :soft] "aaa"))]
     
-    (is (= {:pipe-costs ["missing required key"]}
+    (is (= {:pipe-costs ["missing sheet from spreadsheet"]}
            (:import/errors (schema/validate-network-model-ss no-pipe-costs-sheet))))
     (is (= nil (:import/errors (schema/validate-network-model-ss cols-need-coercing))))
     (is (= {:pipe-costs {:rows [{:nb ["should be a number"]}]}}
