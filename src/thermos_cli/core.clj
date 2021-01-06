@@ -27,7 +27,8 @@
             [mount.core :as mount]
             [clojure.pprint :refer [pprint]]
             
-            [loom.alg :as graph-alg])
+            [loom.alg :as graph-alg]
+            [thermos-util.pipes :as pipes])
   (:gen-class))
 
 ;; THERMOS CLI tools for Net Zero Analysis
@@ -573,6 +574,20 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
        (assoc building ::demand/group g)
        building))))
 
+(defn- infer-peak-demand [instance diameter-field]
+  (let [pipe-costs (::document/pipe-costs instance)
+        curve      (pipes/curves pipe-costs)]
+    ;; to do reverse lookup we need pipe functions
+    
+    (document/map-buildings
+     instance
+     (fn [building]
+       (if-let [dia (as-double (get building diameter-field))]
+         ;; choose a demand that gets us this diameter
+         (assoc building ::demand/kwp (pipes/dia->kw curve dia))
+         ;; do nothing
+         building)))))
+
 (defn --main [options]
   (mount/start-with {#'thermos-backend.config/config
                      {:solver-directory (:temp-dir options)}})
@@ -662,6 +677,10 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
                             (:group-field options)
                             (-> (saying "Set group field")
                                 (set-groups (:group-field options)))
+
+                            (:infer-peak-from-diameter options)
+                            (-> (saying "Infer peak demand field")
+                                (infer-peak-demand (:infer-peak-from-diameter options)))
                             
                             (:solve options)
                             (-> (saying "Solve")
