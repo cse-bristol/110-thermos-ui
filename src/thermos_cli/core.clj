@@ -81,10 +81,16 @@ If there are buildings, they will have demand and peak demand computed, subject 
 If given, then a shape for which this says 'max' will get the maximum of demand modelled and demand-field value.
 If it says 'use', then the demand-field value will be used (unless it's not numeric)."]
    [nil "--peak-field FIELD" "A kwp field. If given, this will be used in preference to peak model."]
+   [nil "--infer-peak-from-diameter FIELD"
+    "If given, the peak will be determined from the diameter in FIELD.
+Use in conjunction with --transfer-field to get diameter off a pipe."
+    ]
+   
    [nil "--count-field FIELD" "Connection count. Otherwise we assume 1."]
    [nil "--require-all" "Require all buildings be connected to network."]
    [nil "--transfer-field FIELD"
     "Set FIELD on buildings to the value of FIELD on the road the connect to."]
+   [nil "--group-field FIELD" "Use FIELD to group buildings connection decisions together."]
    
    [nil "--output-predictors FILE"
     "Write out the things which went into the demand prediction method"]
@@ -559,6 +565,14 @@ If it says 'use', then the demand-field value will be used (unless it's not nume
    instance
    (fn [building] (assoc building ::candidate/inclusion :required))))
 
+(defn- set-groups [instance group-field]
+  (document/map-buildings
+   instance
+   (fn [building]
+     (if-let [g (get building group-field)]
+       (assoc building ::demand/group g)
+       building))))
+
 (defn --main [options]
   (mount/start-with {#'thermos-backend.config/config
                      {:solver-directory (:temp-dir options)}})
@@ -644,6 +658,10 @@ If it says 'use', then the demand-field value will be used (unless it's not nume
                             (:require-all options)
                             (-> (saying "Requiring all buildings")
                                 (require-all-buildings))
+
+                            (:group-field options)
+                            (-> (saying "Set group field")
+                                (set-groups (:group-field options)))
                             
                             (:solve options)
                             (-> (saying "Solve")
