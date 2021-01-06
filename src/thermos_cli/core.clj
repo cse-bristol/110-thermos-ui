@@ -25,10 +25,7 @@
             [thermos-specs.tariff :as tariff]
             [thermos-specs.solution :as solution]
             [mount.core :as mount]
-            [clojure.pprint :refer [pprint]]
-
-            [loom.graph :as graph]
-            [loom.alg :as graph-alg])
+            [clojure.pprint :refer [pprint]])
   (:gen-class))
 
 ;; THERMOS CLI tools for Net Zero Analysis
@@ -84,10 +81,7 @@ If it says 'use', then the demand-field value will be used (unless it's not nume
    [nil "--peak-field FIELD" "A kwp field. If given, this will be used in preference to peak model."]
    [nil "--count-field FIELD" "Connection count. Otherwise we assume 1."]
    [nil "--require-all" "Require all buildings be connected to network."]
-   ["-f" "--preserve-field FIELD*" "A field to preserve from input data (e.g. TOID).
-If the scenario definition refers to some fields, you mention them here or they will be stripped out before the scenario is applied."
-    :assoc-fn conj-arg]
-
+   
    [nil "--output-predictors FILE"
     "Write out the things which went into the demand prediction method"]
    
@@ -387,7 +381,7 @@ If the scenario definition refers to some fields, you mention them here or they 
     :else ;; NOP
     instance))
 
-(defn- make-candidates [paths buildings preserve-fields]
+(defn- make-candidates [paths buildings]
   (let [paths (for [path paths]
                 (-> path
                     (merge {::candidate/id        (::geoio/id path)
@@ -596,14 +590,12 @@ If the scenario definition refers to some fields, you mention them here or they 
                                               (:base options)))]
                                    (doall (map read-edn (reverse base)))))
 
-        required-fields   (:preserve-field options)
-
         saying            (fn [x s] (log/info s) x)
         
         instance          (cond-> instance
                             (or (seq paths) (seq buildings))
                             (-> (saying "Replace geometry")
-                                (assoc  ::document/candidates   (make-candidates paths buildings required-fields)))
+                                (assoc  ::document/candidates   (make-candidates paths buildings)))
                             
                             (seq (:tariffs options))
                             (-> (saying "Replace tariffs")
