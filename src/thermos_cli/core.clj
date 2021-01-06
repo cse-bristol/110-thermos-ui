@@ -25,7 +25,9 @@
             [thermos-specs.tariff :as tariff]
             [thermos-specs.solution :as solution]
             [mount.core :as mount]
-            [clojure.pprint :refer [pprint]])
+            [clojure.pprint :refer [pprint]]
+            
+            [loom.alg :as graph-alg])
   (:gen-class))
 
 ;; THERMOS CLI tools for Net Zero Analysis
