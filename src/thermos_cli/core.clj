@@ -81,6 +81,8 @@ If it says 'use', then the demand-field value will be used (unless it's not nume
    [nil "--peak-field FIELD" "A kwp field. If given, this will be used in preference to peak model."]
    [nil "--count-field FIELD" "Connection count. Otherwise we assume 1."]
    [nil "--require-all" "Require all buildings be connected to network."]
+   [nil "--transfer-field FIELD"
+    "Set FIELD on buildings to the value of FIELD on the road the connect to."]
    
    [nil "--output-predictors FILE"
     "Write out the things which went into the demand prediction method"]
@@ -136,7 +138,8 @@ If it says 'use', then the demand-field value will be used (unless it's not nume
   [{crs ::geoio/crs features ::geoio/features}
 
    {:keys [connect-to-connectors shortest-face
-           snap-tolerance trim-paths]}
+           snap-tolerance trim-paths
+           transfer-field]}
    ]
   (when (seq features)
     (let [is-line (comp boolean #{:line-string :multi-line-string} ::geoio/type)
@@ -150,6 +153,7 @@ If it says 'use', then the demand-field value will be used (unless it's not nume
           (if lines
             (spatial/add-connections
              crs not-lines lines
+             :copy-field (and transfer-field [transfer-field transfer-field])
              :shortest-face-length shortest-face
              :connect-to-connectors false)
             [not-lines nil])]
