@@ -93,7 +93,7 @@
                           [:cost-per-m2 double?]
                           [:maximum-reduction-% double?]
                           [:maximum-area-% double?]
-                          [:surface double?]
+                          [:surface string?]
                           [:spreadsheet/row int?]]]]]]
 
    [:other-parameters 
@@ -152,7 +152,30 @@
   (require '[thermos-backend.spreadsheet.common :as ss-common])
   (require '[clojure.java.io :as io])
   
-  (let [out-sheet (ss-core/to-spreadsheet defaults/default-document)]
+  (let [default-doc
+        (merge defaults/default-document
+               #:thermos-specs.document
+                {:connection-costs
+                 {0 #:thermos-specs.tariff
+                     {:id 0
+                      :name "cost-name"
+                      :fixed-connection-cost 123
+                      :variable-connection-cost 456}}
+                 :insulation
+                 {0 #:thermos-specs.measure
+                     {:id 0
+                      :name "name"
+                      :fixed-cost 1
+                      :cost-per-m2 2
+                      :maximum-effect 0.1
+                      :maximum-area 0.2
+                      :surface :roof}}
+                 :pumping-emissions {:co2 0.1 :pm25 0.2 :nox 0.3}
+                 :emissions-cost {:co2 0.4 :pm25 0.5 :nox 0.6}
+                 :emissions-limit {:co2 {:value 0.9 :enabled true}
+                                   :pm25 {:value 0.8 :enabled true}
+                                   :nox {:value 0.7 :enabled true}}})
+        out-sheet (ss-core/to-spreadsheet default-doc)]
     (with-open [out (io/output-stream "/home/neil/tmp/spreadsheet.xlsx")]
       (ss-common/write-to-stream out-sheet out))))
 
