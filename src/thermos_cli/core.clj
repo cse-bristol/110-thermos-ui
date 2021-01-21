@@ -575,8 +575,7 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
        building))))
 
 (defn- infer-peak-demand [instance diameter-field]
-  (let [pipe-costs (::document/pipe-costs instance)
-        curve      (pipes/curves pipe-costs)]
+  (let [curve      (pipes/curves instance)]
     ;; to do reverse lookup we need pipe functions
     
     (document/map-buildings
@@ -584,7 +583,7 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
      (fn [building]
        (if-let [dia (as-double (get building diameter-field))]
          ;; choose a demand that gets us this diameter
-         (assoc building ::demand/kwp (pipes/dia->kw curve dia))
+         (assoc building ::demand/kwp (dec (pipes/dia->kw curve dia)))
          ;; do nothing
          building)))))
 
@@ -767,11 +766,19 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
          "--supply-field" "SupplyDema"
          "--supply" "/home/hinton/p/110-thermos/network-model-validation/supply.edn"
          "--tariffs" "/home/hinton/p/110-thermos/network-model-validation/tariffs.edn"
+         "--pipe-costs" "/home/hinton/p/110-thermos/network-model-validation/pipe-costs.edn"
          "--demand-field" "kWh"
          "--require-all"
          "--solve"
+         "--snap-tolerance" "0.1"
          "--summary-output" "-"
+         "--trim-paths"
+         "--set" "[:thermos-specs.document/flow-temperature 80]"
+         "--set" "[:thermos-specs.document/return-temperature 40]"
+         "--transfer-field" "Diameter"
+         "--infer-peak-from-diameter" "Diameter"
          )
+
       )
     )
 
@@ -790,6 +797,8 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
          "--trim-paths"
          "--set" "[:thermos-specs.document/flow-temperature 80]"
          "--set" "[:thermos-specs.document/return-temperature 40]"
+         "--transfer-field" "Diameter"
+         "--infer-peak-from-diameter" "Diameter"
          )
   
   )
