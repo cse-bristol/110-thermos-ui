@@ -626,6 +626,7 @@
              ]
          (cond-> building
            set-tariff              (assoc ::tariff/id tariff)
+           set-connection-cost     (assoc ::tariff/cc-id connection-cost)
            ;; ensure we don't delete it since we edited it
            (or set-tariff set-connection-cost)
            (assoc ::candidate/modified true)
