@@ -11,7 +11,8 @@
             [thermos-util.pipes :as pipes]
             [thermos-specs.measure :as measure]
             [clojure.set :as set]
-            [thermos-backend.spreadsheet.common :as common]))
+            [thermos-backend.spreadsheet.common :as common]
+            [thermos-backend.spreadsheet.schema :as schema]))
 
 (def *100 (partial * 100.0))
 
@@ -232,7 +233,7 @@
           ~["Pumping overhead" (*100 (::document/pumping-overhead doc 0))]
           ~["Pumping cost/kWh" (::document/pumping-cost-per-kwh doc 0)]
 
-         ~@(for [[e f] (::pumping-emissions doc)]
+         ~@(for [[e f] (::document/pumping-emissions doc)]
              [(str "Pumping "
                    (candidate/text-emissions-labels e)
                    " ("
@@ -302,10 +303,7 @@
          (fn [i v] [i (cond-> v id-key (assoc id-key i))])
          entries)))
 
-(defn input-from-spreadsheet
-  "Inverse function - takes a spreadsheet, as loaded by `common/read-to-tables`.
-
-  So far this ignores everything to do with supply model & candidates."
+(defn validated-input-from-ss
   [ss]
   (let [{:keys [tariffs
                 connection-costs
@@ -360,7 +358,7 @@
      {::document/pumping-emissions
       (->>
        (for [e candidate/emissions-types
-             :let [v (get parameters (keyword (str "pumping-" (name e))))]
+             :let [v (get parameters (common/to-keyword (str "pumping-" (name e))))]
              :when (number? v)]
          [e (/ v (candidate/emissions-factor-scales e))])
        (into {}))}
@@ -368,7 +366,7 @@
      {::document/emissions-cost
       (->>
        (for [e candidate/emissions-types
-             :let [c (get parameters (keyword (name e) "-cost"))]
+             :let [c (get parameters (common/to-keyword (str (name e) "-cost")))]
              :when (number? c)]
          [e c])
        (into {}))}
@@ -376,9 +374,9 @@
      {::document/emissions-limit
       (->>
        (for [e candidate/emissions-types
-             :let [c (get parameters (keyword (name e) "-limit"))]
+             :let [c (get parameters (common/to-keyword (str (name e) "-limit")))]
              :when (number? c)]
-         [e {:enabled true :limit c}])
+         [e {:enabled true :value c}])
        (into {}))
       }
      
@@ -407,12 +405,14 @@
                 (:rows individual-systems)]
             #::supply
             {:name name
-             :cost-per-kwh (* 100 fuel-price)
+             :cost-per-kwh (/ fuel-price 100.0)
              :capex-per-kwp capacity-cost
              :opex-per-kwp operating-cost
              :fixed-cost fixed-cost
              :emissions
-             {:co2 co2 :pm25 pm25 :nox nox}})
+             {:co2 (/ co2 (candidate/emissions-factor-scales :co2))
+              :pm25 (/ pm25 (candidate/emissions-factor-scales :pm25))
+              :nox (/ nox (candidate/emissions-factor-scales :nox))}})
           (index ::supply/id))
       
       ::document/insulation
@@ -424,7 +424,7 @@
             {:name name
              :fixed-cost fixed-cost
              :cost-per-m2 cost-per-m2
-             :maximum-reduction (/ maximum-reduction-% 100.0)
+             :maximum-effect (/ maximum-reduction-% 100.0)
              :maximum-area (/ maximum-area-% 100.0)
              :surface (keyword surface)})
           (index ::measure/id))
@@ -456,3 +456,14 @@
                 basics
                 civils-keys*))])
           (into {}))})})))
+
+
+(defn input-from-spreadsheet
+  "Inverse function - takes a spreadsheet, as loaded by `common/read-to-tables`.
+
+  So far this ignores everything to do with supply model & candidates."
+  [spreadsheet]
+  (let [{errors :import/errors :as spreadsheet} (schema/validate-network-model-ss spreadsheet)]
+    (if (nil? errors) 
+      (validated-input-from-ss spreadsheet)
+      {:import/errors errors})))
