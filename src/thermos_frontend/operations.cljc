@@ -160,7 +160,9 @@
              (not (or (contains? deletions candidate-id)
                       (get candidates candidate-id)))
              (assoc! candidate-id (force new-candidate))))
-         (transient (or current-candidates {}))))))))
+         (transient (or current-candidates {}))
+         new-candidates
+         ))))))
 
 (defn deselect-candidates
   "Removes the given candidates from the current selection."
