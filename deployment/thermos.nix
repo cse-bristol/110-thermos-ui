@@ -111,6 +111,14 @@ with lib;
           ALTER USER postgres WITH PASSWORD 'therm0s';
           CREATE DATABASE thermos;
         '';
+
+        extraConfig = ''
+          wal_level = minimal
+          wal_compression = on
+          max_wal_senders = 0
+          archive_mode = off
+          max_wal_size = 8GB
+        '';
       };
 
       systemd.services.postgresql.environment.POSTGIS_GDAL_ENABLED_DRIVERS="ENABLE_ALL";
