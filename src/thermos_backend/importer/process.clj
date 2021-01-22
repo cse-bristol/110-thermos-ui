@@ -286,6 +286,15 @@
                  target-field :road-group]
              
              [source-field target-field])))
+
+        ;; copy the subtype field into user-fields/category
+        ;; this is there because it is how we tell connectors.
+        ;; urgh.
+        roads
+        (for [road roads]
+          (cond-> road
+            (contains? road :subtype)
+            (update-in [:user-fields "Category"] #(or % (:subtype road)))))
         
         ;; If there is a user-specified :group, it wins over what :road-group
         ;; got set to above. Otherwise we use :road-group as :group
