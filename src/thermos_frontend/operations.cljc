@@ -156,11 +156,11 @@
        (persistent!
         (reduce
          (fn [candidates [candidate-id new-candidate]]
-           (if (get candidates candidate-id)
-             candidates ;; If it already exists, don't change anything
-             (assoc! candidates candidate-id (force new-candidate))))
-         (transient (or current-candidates {}))
-         (remove (comp deletions ::candidate/id) new-candidates)))))))
+           (cond-> candidates
+             (not (or (contains? deletions candidate-id)
+                      (get candidates candidate-id)))
+             (assoc! candidate-id (force new-candidate))))
+         (transient (or current-candidates {}))))))))
 
 (defn deselect-candidates
   "Removes the given candidates from the current selection."
