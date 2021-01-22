@@ -61,8 +61,6 @@ in
     '';
   };
 
-;
-
   security.sudo.wheelNeedsPassword = false;
   
   users.motd = ''
