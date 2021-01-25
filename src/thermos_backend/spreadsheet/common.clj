@@ -16,12 +16,18 @@
   "
   (:require [dk.ative.docjure.spreadsheet :as dj]
             [clojure.java.io :as io]
-            [clojure.string :as string])
-  (:import  [org.apache.poi.xssf.usermodel XSSFWorkbook]))
+            [clojure.string :as string]
+            [clojure.tools.logging :as log])
+  (:import  [org.apache.poi.xssf.usermodel XSSFWorkbook]
+            [org.apache.poi.ss.usermodel DataFormatter CellType Cell]))
 
 (defn empty-spreadsheet
   "Make a new empty spreadsheet."
   [] [])
+
+(let [fmt (DataFormatter.)]
+  (defn cell-text [^Cell cell]
+    (.formatCellValue fmt cell)))
 
 (defn add-tab [ss name columns rows]
   (conj
@@ -76,25 +82,54 @@
 
     (keyword s)))
 
-(defn sheet-to-maps
-  "Convert a sheet into a seq of maps.
-  Map keys are the column required-headers, downcased and dash-separated.
-  Values are per `dj/read-cell` so may include inst? and stuff."
+(defn top-left-rectangle
+  "Read a table out of a sheet.
+
+  The tables columns are determined by the first row, starting at A1.
+
+  Headers are read until an empty column.
+  Subsequent rows are read until a row with no values in the header.
+
+  Junk outside the rectangle is ignored.
+
+  Headers are converted to keywords.
+  Rows are returned as maps against these keywords
+  "
   [sheet]
-  (and sheet
-       (let [[header & rows]
-             (->> sheet
-                  (dj/row-seq)
-                  (map (fn [r] (map dj/read-cell (dj/cell-seq r)))))
-             header (map strip-units header)
-             key-header (map to-keyword header)
-             ]
-         {:header (zipmap key-header header)
-          :rows
-          (map-indexed
-           (fn [i r]
-             (assoc r :spreadsheet/row i))
-           (map zipmap (repeat key-header) rows))})))
+
+  (when sheet
+    (let [[header & rows]
+          (remove nil? (dj/row-seq sheet))
+
+          header-cells (dj/cell-seq header)
+          header-cells (take-while
+                        #(not
+                          (or
+                           (nil? %)
+                           (= CellType/BLANK (.getCellType ^Cell %))))
+                        header-cells)
+          header-text (map (comp strip-units cell-text) header-cells)
+          header-keys (map to-keyword header-text)
+          n-cols      (count header-keys)
+          ]
+      
+      {:header (zipmap header-keys header-text)
+       :rows
+       (map-indexed
+        (fn [i r]
+          (-> (zipmap header-keys r)
+              (assoc :spreadsheet/row i)))
+        (->> rows
+             (map (fn [row]
+                    (let [cells (dj/cell-seq row)
+                          vals  (map dj/read-cell (take n-cols cells))
+                          ]
+
+                      vals
+                      )
+                    )
+)
+             (take-while #(some identity %))))})))
 
 (defn read-to-tables [file]
   (let [wb (dj/load-workbook file)]
@@ -102,4 +137,10 @@
      {}
      (for [sheet (dj/sheet-seq wb)]
        [(to-keyword (dj/sheet-name sheet))
-        (sheet-to-maps sheet)]))))
+        (top-left-rectangle sheet)]))))
+
+(comment
+  (read-to-tables
+   "/home/hinton/dl/cddp-thermos-parameters-2021-01-25.xlsx"
+   )
+  )
