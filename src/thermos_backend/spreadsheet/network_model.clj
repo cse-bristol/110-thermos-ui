@@ -190,7 +190,7 @@
          {:name "Fixed cost (¤)" :key ::supply/fixed-cost}
          {:name "Capacity cost (¤/kWp)" :key ::supply/capex-per-kwp}
          {:name "Operating cost (¤/kWp.yr)" :key ::supply/opex-per-kwp}
-         {:name "Fuel price (c/kWh)" :key (comp *100 ::supply/cost-per-kwh)}
+         {:name "Heat price (c/kWh)" :key (comp *100 ::supply/cost-per-kwh)}
          ]
         (for [e candidate/emissions-types]
           {:name (str (candidate/text-emissions-labels e)
@@ -400,12 +400,13 @@
           (index ::tariff/cc-id))
       
       ::document/alternatives
-      (-> (for [{:keys [name fixed-cost capacity-cost operating-cost fuel-price
-                        co2 pm25 nox]}
+      (-> (for [{:keys [name fixed-cost capacity-cost operating-cost heat-price
+                        co2 pm25 nox]
+                 }
                 (:rows individual-systems)]
             #::supply
             {:name name
-             :cost-per-kwh (/ fuel-price 100.0)
+             :cost-per-kwh (/ heat-price 100.0)
              :capex-per-kwp capacity-cost
              :opex-per-kwp operating-cost
              :fixed-cost fixed-cost
