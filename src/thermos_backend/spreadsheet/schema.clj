@@ -47,20 +47,22 @@
                [:fixed-cost string?]
                [:capacity-cost string?]
                [:operating-cost string?]
-               [:fuel-price string?]
+               [:heat-price string?]
                [:co2 string?]
                [:pm25 string?]
                [:nox string?]]]
-     [:rows [:sequential [:map
-                          [:nox double?]
-                          [:spreadsheet/row int?]
-                          [:fixed-cost double?]
-                          [:name string?]
-                          [:pm25 double?]
-                          [:capacity-cost empty?]
-                          [:co2 double?]
-                          [:operating-cost double?]
-                          [:fuel-price double?]]]]]]
+     [:rows [:sequential
+             [:map
+              [:spreadsheet/row int?]
+
+              [:fixed-cost double?]
+              [:name string?]
+              [:capacity-cost double?]
+              [:nox [:or nil? double?]]
+              [:pm25 [:or nil? double?]]
+              [:co2 [:or nil? double?]]
+              [:operating-cost double?]
+              [:heat-price double?]]]]]]
 
    [:pipe-costs
     [:map
