@@ -411,9 +411,9 @@
              :opex-per-kwp operating-cost
              :fixed-cost fixed-cost
              :emissions
-             {:co2 (/ co2 (candidate/emissions-factor-scales :co2))
-              :pm25 (/ pm25 (candidate/emissions-factor-scales :pm25))
-              :nox (/ nox (candidate/emissions-factor-scales :nox))}})
+             {:co2  (/ (or co2 0.0) (candidate/emissions-factor-scales :co2))
+              :pm25 (/ (or pm25 0.0) (candidate/emissions-factor-scales :pm25))
+              :nox  (/ (or nox 0.0) (candidate/emissions-factor-scales :nox))}})
           (index ::supply/id))
       
       ::document/insulation
@@ -445,13 +445,13 @@
           (for [row (:rows pipe-costs)]
             [(:nb row)
              (let [basics
-                   (cond-> {:pipe (:pipe-cost row)}
+                   (cond-> {:pipe (:pipe-cost row 0)}
                      (:capacity row) (assoc :capacity-kw (:capacity row))
                      (:losses row)   (assoc :losses-kwh (:losses row)))]
 
                (reduce-kv
                 (fn [a civ-key civ-id]
-                  (let [cost (get row civ-key)]
+                  (let [cost (get row civ-key 0)]
                     (cond-> a
                       cost (assoc civ-id cost))))
                 basics
