@@ -74,26 +74,30 @@
              :count vcount))
           unit]]))))
 
-(defonce collapsed-rows (reagent/atom {}))
+(defonce *open-rows
+  (reagent/atom {}))
 
 (defn- chips-row [flow selection title value
-                  & {:keys [add-classes nil-value]}]
-  (reagent/with-let [collapsed (reagent/cursor collapsed-rows [title])]
+                  & {:keys [add-classes nil-value default-closed]}]
+  (reagent/with-let [*open (reagent/cursor *open-rows [title])]
     (let [by-value (dissoc (group-by (if nil-value
-                                #(or (value %) nil-value)
-                                value)
+                                       #(or (value %) nil-value)
+                                       value)
                                      selection)
                            nil)
-          n-groups (count by-value)]
+          n-groups (count by-value)
+          open     @*open
+          open     (or open (and (nil? open) (not default-closed)))
+          ]
       
       (when-not (zero? n-groups)
         [row
          [:span (when (> n-groups 1)
                   [:span {:style {:cursor :pointer :display :inline-block}
-                          :on-click #(swap! collapsed not)
-                          :class (when-not @collapsed "rotate-90")
+                          :on-click #(reset! *open (not open))
+                          :class (when open "rotate-90")
                           } "▶"]) " " title]
-         (if (and (> n-groups 1) @collapsed)
+         (if (and (> n-groups 1) (not open))
            [:div {:style {:padding :0.2em}} (str n-groups " groups")]
            (let [groups (sort-by str (keys by-value))]
              (remove
@@ -234,96 +238,141 @@
 
 (defn- custom-keys [root]
   (let [selection @(flow/view* root operations/selected-candidates)]
-
-    (for [f (set (mapcat (comp keys ::candidate/user-fields) selection))]
-      [f :string])
     
-    ))
-
+    (->
+     (reduce
+      (fn [acc candidate]
+        (let [uf (::candidate/user-fields candidate)]
+          (reduce-kv
+           (fn [acc field val]
+             (let [new (contains? acc field)
+                   cur (get acc field :none)
+                   nxt (cond
+                         (nil? val)               :none
+                         (or (= 0 val) (= 1 val)) :bit
+                         (number? val)            :number
+                         (boolean? val)           :boolean
+                         :else :string)
+                   ]
+               (cond
+                 (or new (= :none cur)) (assoc! acc field nxt)
+                 (= cur nxt)            acc
+                 (and (= :number nxt)
+                      (= :bit cur))     (assoc! acc field :number)
+                 :else                  (assoc! acc field :string))))
+           acc
+           uf)))
+      
+      (transient {})
+      selection)
+     (persistent!)
+     (->> (into (sorted-map))))))
 
 
 (defn component
   "The panel in the bottom right which displays some information about the currently selected candidates."
   [flow]
   
-  (reagent/with-let [collapsed (reagent/atom {})]
-    (let [selection @(flow/view* flow operations/selected-candidates)
-          has-solution @(flow/view* flow document/has-solution?)
-          model-mode @(flow/view* flow document/mode)
-          mode-name (case model-mode :cooling "Cold" "Heat")
-          cost-factors @(flow/view* flow select-keys
-                                    [::document/pipe-costs
-                                     ::document/connection-costs])
+  (let [selection @(flow/view* flow operations/selected-candidates)
+        has-solution @(flow/view* flow document/has-solution?)
+        model-mode @(flow/view* flow document/mode)
+        mode-name (case model-mode :cooling "Cold" "Heat")
+        cost-factors @(flow/view* flow select-keys
+                                  [::document/pipe-costs
+                                   ::document/connection-costs])
 
-          custom-keys (sort-by first @(flow/view flow custom-keys))
-          doc @flow ;; this means we will re-render all the time.
-          ]
-      
-      [:div.component--selection-info
-       [:header.selection-header
-        (cond (empty? selection)
-              "No selection"
-              (empty? (rest selection)) "One candidate selected"
-              :else (str (count selection) " candidates selected"))]
+        custom-keys @(flow/view flow custom-keys)
+        doc @flow ;; this means we will re-render all the time.
+        ]
 
-       (let [chips-row (partial chips-row flow selection)
-             number-row (partial number-row selection)
-             base-cost (partial base-cost doc model-mode)
-             ]
-         [:div.selection-table
-          [chips-row "Type" ::candidate/type]
-          
-          (for [[field type] custom-keys]
-            [:<> {:key field}
-             (case type
-               :number
-               [number-row field (fn [x] (-> x ::candidate/user-fields (get field)))]
+    (println custom-keys)
+    
+    [:div.component--selection-info
+     [:header.selection-header
+      (cond (empty? selection)
+            "No selection"
+            (empty? (rest selection)) "One candidate selected"
+            :else (str (count selection) " candidates selected"))]
 
-               
-               [chips-row field (fn [x]
-                                  (let [s (-> x ::candidate/user-fields (get field))]
-                                    (if (string/blank? s) nil s)))
-                
-                :nil-value "None"])])
-          
-          [chips-row "Constraint" ::candidate/inclusion
-           :nil-value "Forbidden" :add-classes (fn [x] ["constraint" (name x)])]
-          [chips-row "Tariff" (partial building-tariff-name doc)]
-          [chips-row "Edited" (comp {false "no" true "yes" nil "no"} ::candidate/modified)]
-          [chips-row "Profile" (partial building-profile-name doc)]
-          [number-row "Market rate" ::solution/market-rate
-           :summary :mean :unit "c/kWh" :scale 100]
-          [chips-row "Civils" (partial path-civil-cost-name doc)]
-          [number-row "Length" ::path/length :unit "m"]
-          [number-row "Base cost" base-cost :unit "¤"
-           :tooltip (str "For buildings this is the connection cost. "
-                         "For paths it is the cost of the smallest pipe.")]
+     (let [chips-row  (partial chips-row flow selection)
+           number-row (partial number-row selection)
+           base-cost  (partial base-cost doc model-mode)
+           ]
+       [:div.selection-table
+        [chips-row "Type" ::candidate/type]
+        
+        (for [[field type] custom-keys]
+          [:<> {:key field}
+           (case type
+             :number
+             [number-row field (fn [x] (-> x ::candidate/user-fields (get field)))
+              :summary :sum :unit "" :default-closed true]
 
-          [number-row (str mode-name " demand") #(candidate/annual-demand % model-mode)
-           :unit "Wh/yr" :scale 1000]
-          
-          [number-row (str mode-name " peak") #(candidate/peak-demand % model-mode)
-           :unit "Wp" :scale 1000]
+             :bit
+             [chips-row field
+              (fn [x]
+                (let [s (-> x ::candidate/user-fields (get field))]
+                  (case s
+                    1 "yes"
+                    0 "no"
+                    
+                    nil)))
+              :nil-value "None" :default-closed true]
 
-          [linear-density-row selection model-mode]
-
-          (when has-solution
-            [:<>
-             [chips-row "In solution" candidate/solution-description
-              :nil-value "no" :add-classes solution-row-classes]
-             [number-row "Coincidence" ::solution/diversity
-              :summary :mean :unit "%" :scale 100]
-             [number-row "Capacity" ::solution/capacity-kw
-              :summary :max :unit "W" :scale 1000]
-             [number-row "Diameter" ::solution/diameter-mm
-              :summary :max :unit "m" :scale 0.001]
-
-             [cost-row selection]
+             :boolean
+             [chips-row field
+              (fn [x]
+                (let [s (-> x ::candidate/user-fields (get field))]
+                  (case s
+                    true "yes"
+                    false "no"
+                    nil)))
+              :nil-value "None" :default-closed true]
              
-             [number-row "Revenue" (comp :annual ::solution/heat-revenue)
-              :unit "¤/yr"]
-             
-             [losses-row selection]
-             ])])])))
+             [chips-row field (fn [x]
+                                (let [s (-> x ::candidate/user-fields (get field))]
+                                  (if (string/blank? s) nil s)))
+              
+              :nil-value "None" :default-closed true])])
+        
+        [chips-row "Constraint" ::candidate/inclusion
+         :nil-value "Forbidden" :add-classes (fn [x] ["constraint" (name x)])]
+        [chips-row "Tariff" (partial building-tariff-name doc)]
+        [chips-row "Edited" (comp {false "no" true "yes" nil "no"} ::candidate/modified)]
+        [chips-row "Profile" (partial building-profile-name doc)]
+        [number-row "Market rate" ::solution/market-rate
+         :summary :mean :unit "c/kWh" :scale 100]
+        [chips-row "Civils" (partial path-civil-cost-name doc)]
+        [number-row "Length" ::path/length :unit "m"]
+        [number-row "Base cost" base-cost :unit "¤"
+         :tooltip (str "For buildings this is the connection cost. "
+                       "For paths it is the cost of the smallest pipe.")]
+
+        [number-row (str mode-name " demand") #(candidate/annual-demand % model-mode)
+         :unit "Wh/yr" :scale 1000]
+        
+        [number-row (str mode-name " peak") #(candidate/peak-demand % model-mode)
+         :unit "Wp" :scale 1000]
+
+        [linear-density-row selection model-mode]
+
+        (when has-solution
+          [:<>
+           [chips-row "In solution" candidate/solution-description
+            :nil-value "no" :add-classes solution-row-classes]
+           [number-row "Coincidence" ::solution/diversity
+            :summary :mean :unit "%" :scale 100]
+           [number-row "Capacity" ::solution/capacity-kw
+            :summary :max :unit "W" :scale 1000]
+           [number-row "Diameter" ::solution/diameter-mm
+            :summary :max :unit "m" :scale 0.001]
+
+           [cost-row selection]
+           
+           [number-row "Revenue" (comp :annual ::solution/heat-revenue)
+            :unit "¤/yr"]
+           
+           [losses-row selection]
+           ])])]))
 
 
