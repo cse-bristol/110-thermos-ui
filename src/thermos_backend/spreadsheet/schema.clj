@@ -74,8 +74,8 @@
                [:pipe-cost string?]]]
      [:rows [:sequential [:map
                           [:nb number?]
-                          [:capacity {:optional true} number?]
-                          [:losses {:optional true} number?]
+                          [:capacity {:optional true} [:or number? nil?]]
+                          [:losses {:optional true} [:or number? nil?]]
                           [:pipe-cost number?]
                           [:spreadsheet/row int?]]]]]]
 
@@ -110,9 +110,10 @@
                           [:spreadsheet/row int?]]]]]]])
 
 
-(def variable-pipe-costs-schema [:map 
-                                 [:header [:map-of keyword? string?]] 
-                                 [:rows [:sequential [:map-of keyword? number?]]]])
+(def variable-pipe-costs-schema
+  [:map 
+   [:header [:map-of keyword? string?]] 
+   [:rows [:sequential [:pipe-costs-row]]]])
 
 (defn merge-errors
   "Recursively merges error maps."
@@ -132,19 +133,41 @@
    
    Current attempted coercions are string-to-number and int-to-double."
   [ss]
-  (let [coercions (mt/transformer mt/string-transformer number-to-double-transformer)
+  (def last-input ss)
+  (let [registry (merge (m/class-schemas)
+                        (m/comparator-schemas)
+                        (m/base-schemas)
+                        (m/predicate-schemas)
+                        (m/type-schemas)
+                        {:pipe-costs-row
+                         (m/-simple-schema
+                          {:type :pipe-costs-row
+                           :type-properties
+                           {:error/message "all pipe costs must be numeric"}
+                           :pred
+                           (fn [m]
+                            (->> (dissoc m :capacity :losses)
+                                 (vals)
+                                 (every? number?)))})})
+        
+        coercions (mt/transformer mt/string-transformer number-to-double-transformer)
 
         coerced (m/decode network-model-schema ss coercions)
         
-        coerced-pcs  (m/decode variable-pipe-costs-schema (:pipe-costs coerced) coercions)
+        coerced-pcs  (m/decode variable-pipe-costs-schema (:pipe-costs coerced)
+                               {:registry registry}
+                               coercions)
 
-        coerced (conj coerced (when coerced-pcs [:pipe-costs coerced-pcs]))
+        coerced (cond-> coerced
+                  coerced-pcs (assoc :pipe-costs coerced-pcs))
         
         errors (me/humanize (m/explain network-model-schema coerced))
 
-        pc-errors  (me/humanize (m/explain variable-pipe-costs-schema (:pipe-costs coerced)))]
+        pc-errors  (me/humanize (m/explain variable-pipe-costs-schema (:pipe-costs coerced)
+                                           {:registry registry}))]
     
     (assoc coerced :import/errors (merge-errors (when pc-errors {:pipe-costs pc-errors}) errors))))
+
 
 
 ;; Write default spreadsheet to disk
