@@ -61,10 +61,11 @@
                          (assoc-in [:pipe-costs :rows] (vec (get-in default-sheet [:pipe-costs :rows])))
                          (assoc-in [:pipe-costs :rows 0 :nb] "aaa")
                          (assoc-in [:pipe-costs :rows 0 :soft] "aaa"))]
-    
+
     (is (= {:pipe-costs ["missing sheet from spreadsheet"]}
            (:import/errors (schema/validate-network-model-ss no-pipe-costs-sheet))))
     (is (= nil (:import/errors (schema/validate-network-model-ss cols-need-coercing))))
+
     (is (= {:pipe-costs {:rows [{:nb ["should be a number"]}]}}
            (:import/errors (schema/validate-network-model-ss bad-fixed-col))))
     (is (= {:pipe-costs {:rows [{:soft ["should be a number"]}]}}

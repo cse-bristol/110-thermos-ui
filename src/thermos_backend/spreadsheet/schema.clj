@@ -1,8 +1,9 @@
 (ns thermos-backend.spreadsheet.schema
-    (:require [malli.provider :as mp]
-              [malli.core :as m]
-              [malli.error :as me]
-              [malli.transform :as mt]))
+  (:require [malli.provider :as mp]
+            [malli.core :as m]
+            [malli.error :as me]
+            [malli.transform :as mt]
+            [com.rpl.specter :as S]))
 
 (defn- number-to-double-transformer []
   (mt/transformer
@@ -111,9 +112,10 @@
 
 
 (def variable-pipe-costs-schema
-  [:map 
+  [:map
+   {:error/message "missing sheet from spreadsheet"}
    [:header [:map-of keyword? string?]] 
-   [:rows [:sequential [:pipe-costs-row]]]])
+   [:rows [:sequential [:map-of keyword? number?]]]])
 
 (defn merge-errors
   "Recursively merges error maps."
@@ -133,38 +135,35 @@
    
    Current attempted coercions are string-to-number and int-to-double."
   [ss]
-  (def last-input ss)
-  (let [registry (merge (m/class-schemas)
-                        (m/comparator-schemas)
-                        (m/base-schemas)
-                        (m/predicate-schemas)
-                        (m/type-schemas)
-                        {:pipe-costs-row
-                         (m/-simple-schema
-                          {:type :pipe-costs-row
-                           :type-properties
-                           {:error/message "all pipe costs must be numeric"}
-                           :pred
-                           (fn [m]
-                            (->> (dissoc m :capacity :losses)
-                                 (vals)
-                                 (every? number?)))})})
-        
-        coercions (mt/transformer mt/string-transformer number-to-double-transformer)
+  (let [coercions (mt/transformer mt/string-transformer number-to-double-transformer)
 
         coerced (m/decode network-model-schema ss coercions)
-        
-        coerced-pcs  (m/decode variable-pipe-costs-schema (:pipe-costs coerced)
-                               {:registry registry}
-                               coercions)
+        ;; the variable pipe costs schema cannot properly check rows
+        ;; because I (tom) designed that datastructure badly: it
+        ;; contains a few special columns which are in the normal
+        ;; schema, that have to be removed before checking with
+        ;; variable schema
 
-        coerced (cond-> coerced
-                  coerced-pcs (assoc :pipe-costs coerced-pcs))
+        variable-pipe-costs (->> (:pipe-costs coerced)
+                                 (S/setval [(S/multi-path :headers [:rows S/ALL]) 
+                                            (S/multi-path :losses :capacity)]
+                                           S/NONE))
         
+        coerced-variable-pcs  (m/decode variable-pipe-costs-schema variable-pipe-costs coercions)
+
+        
+        coerced (cond-> coerced
+                  (and coerced-variable-pcs (contains? coerced :pipe-costs))
+                  (update-in [:pipe-costs :rows]
+                             (fn [rows]
+                               (map merge rows (:rows coerced-variable-pcs)))))
+
+
         errors (me/humanize (m/explain network-model-schema coerced))
 
-        pc-errors  (me/humanize (m/explain variable-pipe-costs-schema (:pipe-costs coerced)
-                                           {:registry registry}))]
+        pc-errors  (me/humanize (m/explain variable-pipe-costs-schema coerced-variable-pcs))
+        ]
+    
     
     (assoc coerced :import/errors (merge-errors (when pc-errors {:pipe-costs pc-errors}) errors))))
 

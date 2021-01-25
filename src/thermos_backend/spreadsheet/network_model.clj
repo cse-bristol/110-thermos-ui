@@ -15,6 +15,7 @@
             [thermos-backend.spreadsheet.schema :as schema]))
 
 (def *100 (partial * 100.0))
+(defn or-zero [f] (fn [x] (or (f x) 0.0)))
 
 (defn cost-columns [type prefix key]
   (case type
@@ -171,26 +172,26 @@
       (sheet/add-tab
        "Tariffs"
        [{:name "Tariff name" :key ::tariff/name}
-        {:name "Unit rate (c/¤)" :key (comp *100 ::tariff/unit-charge)}
-        {:name "Capacity charge (¤/kWp)" :key ::tariff/capacity-charge}
-        {:name "Standing charge (¤)" :key ::tariff/standing-charge}]
+        {:name "Unit rate (c/¤)" :key (comp *100 (or-zero ::tariff/unit-charge))}
+        {:name "Capacity charge (¤/kWp)" :key (or-zero ::tariff/capacity-charge)}
+        {:name "Standing charge (¤)" :key (or-zero ::tariff/standing-charge)}]
        (vals (::document/tariffs doc)))
       
       (sheet/add-tab
        "Connection costs"
        [{:name "Cost name" :key ::tariff/name}
-        {:name "Fixed cost (¤)" :key ::tariff/fixed-connection-cost}
-        {:name "Capacity cost (¤/kWp)" :key ::tariff/variable-connection-cost}]
+        {:name "Fixed cost (¤)" :key        (or-zero ::tariff/fixed-connection-cost)}
+        {:name "Capacity cost (¤/kWp)" :key (or-zero ::tariff/variable-connection-cost)}]
        (vals (::document/connection-costs doc)))
 
       (sheet/add-tab
        "Individual systems"
        (into
         [{:name "Name" :key ::supply/name}
-         {:name "Fixed cost (¤)" :key ::supply/fixed-cost}
-         {:name "Capacity cost (¤/kWp)" :key ::supply/capex-per-kwp}
-         {:name "Operating cost (¤/kWp.yr)" :key ::supply/opex-per-kwp}
-         {:name "Heat price (c/kWh)" :key (comp *100 ::supply/cost-per-kwh)}
+         {:name "Fixed cost (¤)" :key (or-zero ::supply/fixed-cost)}
+         {:name "Capacity cost (¤/kWp)" :key (or-zero ::supply/capex-per-kwp)}
+         {:name "Operating cost (¤/kWp.yr)" :key (or-zero ::supply/opex-per-kwp)}
+         {:name "Heat price (c/kWh)" :key (comp *100 (or-zero ::supply/cost-per-kwh))}
          ]
         (for [e candidate/emissions-types]
           {:name (str (candidate/text-emissions-labels e)
@@ -206,10 +207,10 @@
       (sheet/add-tab
        "Insulation"
        [{:name "Name" :key ::measure/name}
-        {:name "Fixed cost" :key ::measure/fixed-cost}
-        {:name "Cost / m2" :key ::measure/cost-per-m2}
-        {:name "Maximum reduction %" :key (comp *100 ::measure/maximum-effect)}
-        {:name "Maximum area %" :key (comp *100 ::measure/maximum-area)}
+        {:name "Fixed cost" :key (or-zero ::measure/fixed-cost)}
+        {:name "Cost / m2" :key (or-zero ::measure/cost-per-m2)}
+        {:name "Maximum reduction %" :key (comp *100 (or-zero ::measure/maximum-effect))}
+        {:name "Maximum area %" :key (comp *100 (or-zero ::measure/maximum-area))}
         {:name "Surface" :key (comp name ::measure/surface)}]
        (vals (::document/insulation doc)))
       
