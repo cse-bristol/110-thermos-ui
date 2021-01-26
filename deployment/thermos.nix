@@ -112,13 +112,13 @@ with lib;
           CREATE DATABASE thermos;
         '';
 
-        extraConfig = ''
-          wal_level = minimal
-          wal_compression = on
-          max_wal_senders = 0
-          archive_mode = off
-          max_wal_size = 8GB
-        '';
+        settings = {
+          wal_level = "minimal";
+          wal_compression = true;
+          max_wal_senders = 0;
+          archive_mode = false;
+          max_wal_size = "8GB";
+        };
       };
 
       systemd.services.postgresql.environment.POSTGIS_GDAL_ENABLED_DRIVERS="ENABLE_ALL";
