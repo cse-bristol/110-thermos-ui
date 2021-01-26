@@ -50,7 +50,8 @@
             [ajax.core :refer [POST]]
             [ajax.protocols :refer [-body]]
 
-            [thermos-pages.symbols :as symbols]))
+            [thermos-pages.symbols :as symbols]
+            [thermos-specs.magic-fields :as magic-fields]))
 
 (enable-console-print!)
 
@@ -243,7 +244,7 @@
            [:ul
             [:li [:button.button--link-style
                   {:on-click
-                   #(let [state (document/keep-interesting @state/state)]
+                   #(let [state (magic-fields/join (document/keep-interesting @state/state))]
                       (POST "/convert/excel"
                           {:params {:state state}
                            :response-format

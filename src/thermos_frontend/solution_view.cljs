@@ -17,7 +17,7 @@
             [thermos-frontend.virtual-table :as table]
             [goog.object :as o]
             [thermos-util.solution-summary :as solution-summary]
-            ))
+            [thermos-specs.magic-fields :as magic-fields]))
 
 (defn- message [& contents]
   [:div {:style {:margin :1em :background :white :border "1px grey solid"
@@ -585,7 +585,9 @@
 
 (defn- solution-summary* [document]
   (reagent/with-let
-    [solution-members (reagent/track
+    [document (reagent/track (comp magic-fields/join deref) document)
+
+     solution-members (reagent/track
                        #(->> document deref
                              ::document/candidates
                              vals

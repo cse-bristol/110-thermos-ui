@@ -52,6 +52,7 @@
             [thermos-specs.demand :as demand]
             [thermos-specs.supply :as supply]
             [thermos-specs.path :as path]
+            [thermos-specs.magic-fields :as magic-fields]
             
             [thermos-backend.config :refer [config]]
             [thermos-util :refer [kw->annual-kwh
@@ -308,7 +309,7 @@
 
         {fixed-connection    ::tariff/fixed-connection-cost
          variable-connection ::tariff/variable-connection-cost}
-        (document/connection-cost-for-id instance (::tariff/cc-id candidate))
+        (document/connection-cost-for-building instance candidate)
 
         standing-charge (if ignore-revenues 0 (or standing-charge 0))
         unit-charge     (if ignore-revenues 0 (or unit-charge 0))
@@ -768,7 +769,7 @@
                                   (market (::candidate/id v))
                                   (document/tariff-for-id instance tariff-id))
 
-                connection-cost      (document/connection-cost-for-id instance (::tariff/cc-id v))
+                connection-cost      (document/connection-cost-for-building instance v)
                 
                 insulation           (for [[id kwh] (:insulation solution-vertex)]
                                        (output-insulation instance v id kwh))
@@ -1066,13 +1067,14 @@
                  a)))))
 
 
-
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
-  [instance]
+  [original-instance]
   
-  (let [instance (document/remove-solution instance)
+  (let [original-instance (document/remove-solution original-instance)
+
+        instance (magic-fields/join original-instance)
 
         included-candidates (->> (::document/candidates instance)
                                  (vals)
@@ -1117,7 +1119,7 @@
     ;; check whether there are actually any vertices
     (cond
       (empty? (graph/nodes net-graph))
-      (-> instance
+      (-> original-instance
           (assoc ::solution/log "The problem is empty - you need to include some buildings and paths in the problem for the optimiser to consider"
                  ::solution/state :empty-problem
                  ::solution/message "Empty problem"
@@ -1145,7 +1147,7 @@
               end-time (System/currentTimeMillis)
 
               solved-instance
-              (-> instance
+              (-> original-instance
                   (assoc
                    ::solution/log (str
                                    (when (seq bad-numbers)

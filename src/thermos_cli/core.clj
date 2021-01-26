@@ -35,9 +35,9 @@
             
             [loom.alg :as graph-alg]
             [thermos-util.pipes :as pipes]
+            [clojure.set :as set]
             [thermos-cli.output :as output]
-            [clojure.set :as set])
-
+            [thermos-specs.magic-fields :as magic-fields])
   (:gen-class))
 
 ;; THERMOS CLI tools for Net Zero Analysis
@@ -802,6 +802,11 @@ The different options are those supplied after --retry, so mostly you can use th
                             (-> (saying "Infer peak demand field")
                                 (infer-peak-demand (:infer-peak-from-diameter options)
                                                    (:infer-peak-at options 0.5)))
+
+                            ;; bake in magic fields
+                            true
+                            (-> (saying "Fix magic fields")
+                                (magic-fields/join :user-fields-in identity))
                             
                             (:solve options)
                             (-> (saying "Solve")

@@ -16,7 +16,8 @@
             [com.rpl.specter :as sr :refer-macros [transform setval]]
             [clojure.test :as test]
             [spec-tools.data-spec :as ds]
-            ))
+
+            [thermos-util :as util]))
 
 (s/def ::document
   (s/keys :req [::candidates
@@ -339,15 +340,27 @@
             [::candidates sr/MAP-VALS ::tariff/id (sr/pred= tariff-id)]
             sr/NONE))))
 
-(defn connection-cost-for-id [doc connection-cost-id]
-  (let [connection-costs (::connection-costs doc)]
-    (when (seq connection-costs)
-      (or (get connection-costs connection-cost-id)
-          (get connection-costs
-               (reduce min (keys connection-costs)))))))
+(defn connection-cost-for-building [doc building]
+  
+  (let [connection-cost-id (::tariff/cc-id building)
+        user-override  (and (nil? connection-cost-id)
+                            (some-> (::candidate/user-fields building)
+                                    (get "CONNECTION-COST")
+                                    (util/as-double)))]
 
-(defn connection-cost-name [doc connection-cost-id]
-  (or (::tariff/name (connection-cost-for-id doc connection-cost-id)) "None"))
+    (if user-override
+      {::tariff/name "Override value"
+       ::tariff/fixed-connection-cost user-override
+       ::tariff/variable-connection-cost 0}
+
+      (let [connection-costs (::connection-costs doc)]
+        (when (seq connection-costs)
+          (or (get connection-costs connection-cost-id)
+              (get connection-costs
+                   (reduce min (keys connection-costs)))))))))
+
+(defn connection-cost-name [doc building]
+  (or (::tariff/name (connection-cost-for-building doc building)) "None"))
 
 (defn remove-connection-cost
   {:test #(test/is
