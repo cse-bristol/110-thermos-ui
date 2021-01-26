@@ -167,6 +167,15 @@
      curve-rows
      )))
 
+
+(def capital-cost-names
+  "Used to output keys from ::document/capital-costs"
+  {:alternative "Other heating"
+   :connection "Connections"
+   :insulation "Insulation"
+   :supply "Supply"
+   :pipework "Pipework"})
+
 (defn output-network-parameters [ss doc]
   (-> ss
       (sheet/add-tab
@@ -216,6 +225,17 @@
       
       
       (output-pipe-costs doc)
+
+      (sheet/add-tab
+       "Capital costs"
+       [{:name "Name" :key (comp capital-cost-names first)}
+        {:name "Annualize" :key (comp boolean :annualize second)}
+        {:name "Recur" :key (comp boolean :recur second)}
+        {:name "Period (years)" :key #(int (:period (second %) 0))}
+        {:name "Rate (%)" :key #(* 100 (:rate (second %) 0))}]
+
+       (::document/capital-costs doc))
+      
       
       (sheet/add-tab
        "Other parameters"
@@ -252,7 +272,7 @@
              (for [e candidate/emissions-types
                    :let [{:keys [value enabled]} (get limits e )]]
                [(str (candidate/text-emissions-labels e) " limit")
-                (when enabled value)]))
+                (if enabled value "none")]))
          
          ~["Objective" (name (::document/objective doc))]
          ~["Consider alternative systems" (::document/consider-alternatives doc)]
@@ -311,7 +331,8 @@
                 individual-systems
                 pipe-costs
                 insulation
-                other-parameters]} ss
+                other-parameters
+                capital-costs]} ss
 
         parameters
         (reduce
@@ -356,6 +377,20 @@
      (copy-parameter :mip-gap ::document/mip-gap)
      (copy-parameter :max-runtime ::document/maximum-runtime)
 
+     {::document/capital-costs
+      (let [capital-cost-names (set/map-invert capital-cost-names)]
+        (->> (for [{:keys [name annualize recur period rate]
+                    :or {recur false annualize false period 0 rate 0}}
+                   (:rows capital-costs)
+                   :let [name (get capital-cost-names name)]
+                   :when name]
+               [name
+                {:annualize (boolean annualize)
+                 :recur (boolean recur)
+                 :period (int (or period 0))
+                 :rate (/ (or rate 0) 100)}])
+             (into {})))}
+     
      {::document/pumping-emissions
       (->>
        (for [e candidate/emissions-types

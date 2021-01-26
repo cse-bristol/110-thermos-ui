@@ -10,6 +10,20 @@
    {:name :double
     :decoders {'double? mt/-number->double, :double mt/-number->double}}))
 
+(defn number-to-boolean [n]
+  (cond
+    (= 1.0 n) true
+    (= 0.0 n) false
+    (= 1 n) true
+    (= 0 n) false
+    (nil? n) false
+    :else n))
+
+(defn- number-to-boolean-transformer []
+  (mt/transformer
+   {:name :boolean
+    :decoders {'boolean? number-to-boolean, :boolean number-to-boolean}}))
+
 (def network-model-schema 
   [:map
    {:error/message "missing sheet from spreadsheet"}
@@ -40,6 +54,26 @@
                           [:fixed-cost double?]
                           [:capacity-cost double?]]]]]]
 
+   [:capital-costs
+    [:map
+     [:header [:map {:error/message "column missing"}
+               [:name string?]
+               [:annualize string?]
+               [:recur string?]
+               [:period string?]
+               [:rate string?]]]
+     [:rows [:sequential [:map
+                          [:name [:enum
+                                  "Other heating"
+                                  "Connections"
+                                  "Insulation"
+                                  "Supply"
+                                  "Pipework"]]
+                          [:annualize boolean?]
+                          [:recur boolean?]
+                          [:period [:or nil? number?]]
+                          [:rate [:or nil? double?]]]]]]]
+   
    [:individual-systems
     [:map
      [:header [:map
@@ -135,7 +169,9 @@
    
    Current attempted coercions are string-to-number and int-to-double."
   [ss]
-  (let [coercions (mt/transformer mt/string-transformer number-to-double-transformer)
+  (let [coercions (mt/transformer mt/string-transformer number-to-double-transformer
+                                  number-to-boolean-transformer
+                                  )
 
         coerced (m/decode network-model-schema ss coercions)
         ;; the variable pipe costs schema cannot properly check rows
