@@ -11,6 +11,7 @@
            "The project with no name"
            (:name project)
            )]]
+
    (when-not (string/blank? (:description project))
      [:p (:description project)])])
 
@@ -18,9 +19,6 @@
   (page
    {:title (str "Welcome, " (:name user))}
    [:div
-    
-    
-    
     [:div.flex-cols.card
      (if (seq projects)
        (let [c (count projects)]
@@ -34,7 +32,7 @@
                    :flex-direction "row"
                    :flex-wrap "wrap"
                    }}
-     (for [project projects]
+     (for [project (sort-by :name projects)]
        (project-card project)
        )]
 

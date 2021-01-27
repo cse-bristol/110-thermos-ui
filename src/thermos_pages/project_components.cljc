@@ -500,7 +500,7 @@
 
      ;; data uploady box...
      
-     (if-let [maps (seq (:maps project))]
+     (if-let [maps (seq (sort-by :name (:maps project)))]
        [:div
         {:style {:display :flex
                  :flex-flow "row wrap"}}
