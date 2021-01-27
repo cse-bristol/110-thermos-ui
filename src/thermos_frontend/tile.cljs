@@ -99,19 +99,28 @@
       ;; Selected buildings
       (doseq [candidate selected-buildings]
         (render-candidate zoom has-solution? candidate ctx project map-view))
-      (when (> zoom 15)
-        ;; Non-selected paths
-        (doseq [path non-selected-paths]
-          (let [line-width (pipe-diam-line-width path)]
-            (render-candidate zoom has-solution? path ctx project map-view line-width)))
-        ;; Selected path shadows
-        (doseq [path selected-paths]
-          (let [line-width (pipe-diam-line-width path)]
-            (render-candidate-shadow zoom has-solution? path ctx project  map-view line-width)))
-        ;; Selected paths
-        (doseq [path selected-paths]
-          (let [line-width (pipe-diam-line-width path)]
-            (render-candidate zoom has-solution? path ctx project map-view line-width)))))
+
+      (if (> zoom 13)
+        (do
+          ;; Non-selected paths
+          (doseq [path non-selected-paths]
+            (let [line-width (pipe-diam-line-width path)]
+              (render-candidate zoom has-solution? path ctx project map-view line-width)))
+          ;; Selected path shadows
+          (doseq [path selected-paths]
+            (let [line-width (pipe-diam-line-width path)]
+              (render-candidate-shadow zoom has-solution? path ctx project  map-view line-width)))
+          ;; Selected paths
+          (doseq [path selected-paths]
+            (let [line-width (pipe-diam-line-width path)]
+              (render-candidate zoom has-solution? path ctx project map-view line-width))))
+        
+        (when has-solution?
+          (doseq [path non-selected-paths]
+            (when candidate/in-solution?
+              (let [line-width (pipe-diam-line-width path)]
+                (render-candidate zoom has-solution? path ctx project map-view line-width)))))
+        ))
     ))
 
 (defn render-candidate
