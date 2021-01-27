@@ -113,6 +113,22 @@
 
 (defn- to-jsonb [x] (sql-types/call :cast (json/write-str x) :jsonb))
 
+(defn- clean-user-fields
+  "Filter map `m` to take out any values that are nil, stringify all
+  keys, and make sure values are expressible as simple json values.
+  This will convert any nested structures in user-fields to strings
+  I'm afraid."
+  [m]
+  (persistent!
+   (reduce-kv
+    (fn [a k v]
+      (cond-> a (not (nil? v))
+              (assoc! (str k)
+                      (if (or (string? v) (number? v) (boolean? v))
+                        v (str v))
+                      )))
+    (transient {}) m)))
+
 (defn insert-into-map!
   "Insert data into a map, possibly erasing what is already there.
   Later we will want to amend this to stitch together old map and new map."
@@ -170,7 +186,7 @@
                                   (update :conn-group
                                           #(sql-types/call :cast % :integer))
 
-                                  (update :user-fields to-jsonb)
+                                  (update :user-fields (comp to-jsonb clean-user-fields))
                                   
                                   (assoc :map-id map-id)
                                   (update :geometry #(geom-from-text % srid)))))
@@ -200,7 +216,7 @@
                                   (select-keys (remove #{:candidate-id}
                                                        (concat candidates-keys paths-keys)))
                                   (assoc :map-id map-id)
-                                  (update :user-fields to-jsonb)
+                                  (update :user-fields (comp to-jsonb clean-user-fields))
                                   
                                   (update :geometry #(geom-from-text % srid)))))
 
