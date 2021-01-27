@@ -344,7 +344,13 @@
         (fn [out-key in-key & {:keys [type convert]
                                :or {type number? convert identity}}]
           (when-let [v (get parameters out-key)] (when (type v) {in-key (convert v)})))
+
+        bool-or-num?
+        (fn [x] (or (number? x) (boolean? x)))
         
+        bool-or-num-to-bool
+        (fn [x] (or (and (boolean? x) x)
+                    (boolean (not (zero? x)))))
         ]
 
     (merge
@@ -358,14 +364,18 @@
      (copy-parameter :pumping-overhead ::document/pumping-overhead)
      (copy-parameter :pumping-cost-per-kwh ::document/pumping-cost-per-kwh)
      (copy-parameter :objective ::document/objective
-                     :type #{"network" "whole-system"}
+                     :type #{"network" "system"}
                      :convert keyword)
      (copy-parameter :consider-alternative-systems
                      ::document/consider-alternatives
-                     :type boolean?)
+                     :type    bool-or-num?
+                     :convert bool-or-num-to-bool
+                     )
      (copy-parameter :consider-insulation
                      ::document/consider-insulation
-                     :type boolean?)
+                     :type    bool-or-num?
+                     :convert bool-or-num-to-bool
+                     )
      
      (copy-parameter :npv-term ::document/npv-term)
      (copy-parameter :npv-rate ::document/npv-rate
