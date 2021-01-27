@@ -21,9 +21,9 @@
     {:mvn/version "0.5.19", :exclusions [com.google.javascript/closure-compiler]},
     org.clojure/tools.namespace {:mvn/version "0.2.11"},
     refactor-nrepl/refactor-nrepl {:mvn/version "2.5.0"},
-    cider/cider-nrepl {:mvn/version "0.25.0-SNAPSHOT"},
+    cider/cider-nrepl {:mvn/version "0.25.8"},
     proto-repl/proto-repl {:mvn/version "0.3.1"},
-    nrepl/nrepl {:mvn/version "0.6.0"},
+    nrepl/nrepl {:mvn/version "0.8.3"},
     badigeon/badigeon
     {:git/url "https://github.com/EwenG/badigeon.git",
      :sha "dca97f9680a6ea204a2504c4414cafc4ba182a83",
