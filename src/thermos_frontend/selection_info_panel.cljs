@@ -271,8 +271,8 @@
 
 (defn component
   "The panel in the bottom right which displays some information about the currently selected candidates."
-  [flow]
-  (let [flow        (flow/view* flow dissoc ::view/view-state) ;; stripping
+  [root]
+  (let [flow        (flow/view* root dissoc ::view/view-state) ;; stripping
                                                                ;; off
                                                                ;; view
                                                                ;; state
@@ -283,7 +283,7 @@
                                                                ;; nothing
                                                                ;; has
                                                                ;; changed
-        selection (vals @(flow/view* flow operations/selected-candidates))
+        selection @(flow/view* flow operations/selected-candidates)
         has-solution @(flow/view* flow document/has-solution?)
         model-mode @(flow/view* flow document/mode)
         mode-name (case model-mode :cooling "Cold" "Heat")
@@ -298,7 +298,7 @@
             (empty? (rest selection)) "One candidate selected"
             :else (str (count selection) " candidates selected"))]
 
-     (let [chips-row  (partial chips-row flow selection)
+     (let [chips-row  (partial chips-row root selection)
            number-row (partial number-row selection)
            base-cost  (partial base-cost cost-factors model-mode)
            ]
