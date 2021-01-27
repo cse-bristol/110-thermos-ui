@@ -272,21 +272,25 @@
 (defn component
   "The panel in the bottom right which displays some information about the currently selected candidates."
   [flow]
-  
-  (let [selection @(flow/view* flow operations/selected-candidates)
+  (let [flow        (flow/view* flow dissoc ::view/view-state) ;; stripping
+                                                               ;; off
+                                                               ;; view
+                                                               ;; state
+                                                               ;; prevents
+                                                               ;; us
+                                                               ;; re-rendering
+                                                               ;; when
+                                                               ;; nothing
+                                                               ;; has
+                                                               ;; changed
+        selection (vals @(flow/view* flow operations/selected-candidates))
         has-solution @(flow/view* flow document/has-solution?)
         model-mode @(flow/view* flow document/mode)
         mode-name (case model-mode :cooling "Cold" "Heat")
-        cost-factors @(flow/view* flow select-keys
-                                  [::document/pipe-costs
-                                   ::document/connection-costs])
-
-        custom-keys @(flow/view flow custom-keys)
-        doc @flow ;; this means we will re-render all the time.
+        cost-factors @(flow/view* flow dissoc ::document/candidates)
+        custom-keys (sort-by first @(flow/view flow custom-keys))
         ]
 
-    (println custom-keys)
-    
     [:div.component--selection-info
      [:header.selection-header
       (cond (empty? selection)
@@ -296,11 +300,11 @@
 
      (let [chips-row  (partial chips-row flow selection)
            number-row (partial number-row selection)
-           base-cost  (partial base-cost doc model-mode)
+           base-cost  (partial base-cost cost-factors model-mode)
            ]
        [:div.selection-table
         [chips-row "Type" ::candidate/type]
-        
+
         (for [[field type] custom-keys]
           [:<> {:key field}
            (case type
@@ -337,12 +341,13 @@
         
         [chips-row "Constraint" ::candidate/inclusion
          :nil-value "Forbidden" :add-classes (fn [x] ["constraint" (name x)])]
-        [chips-row "Tariff" (partial building-tariff-name doc)]
-        [chips-row "Edited" (comp {false "no" true "yes" nil "no"} ::candidate/modified)]
-        [chips-row "Profile" (partial building-profile-name doc)]
+        [chips-row "Tariff"    (partial building-tariff-name cost-factors)]
+        [chips-row "Edited"    (comp {false "no" true "yes" nil "no"} ::candidate/modified)]
+        [chips-row "Profile"   (partial building-profile-name cost-factors)]
         [number-row "Market rate" ::solution/market-rate
          :summary :mean :unit "c/kWh" :scale 100]
-        [chips-row "Civils" (partial path-civil-cost-name doc)]
+        [chips-row "Civils"    (partial path-civil-cost-name cost-factors)]
+
         [number-row "Length" ::path/length :unit "m"]
         [number-row "Base cost" base-cost :unit "¤"
          :tooltip (str "For buildings this is the connection cost. "
