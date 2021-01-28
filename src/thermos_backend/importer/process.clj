@@ -264,7 +264,9 @@
   (let [crs (::geoio/crs roads)
 
         roads
-        (topo/node-paths (::geoio/features roads))
+        (topo/node-paths (::geoio/features roads)
+                         :crs crs
+                         :snap-tolerance 5.0)
 
         roads ;; if group-buildings is geo-id, we need to give the
               ;; segments a unique ID within the map.
