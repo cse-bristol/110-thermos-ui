@@ -244,8 +244,7 @@
   (defn remove-solution
     "Remove everything to do with a solution from this document"
     [doc]
-    (-> doc
-        (dissoc (filter is-solution-keyword (keys doc)))
+    (-> (apply dissoc doc (filter is-solution-keyword (keys doc)))
         (map-candidates #(select-keys % (remove is-solution-keyword (keys %)))))))
 
 (defn has-solution? [document]

@@ -119,8 +119,7 @@
                *is-cooling (r/track #(document/is-cooling? @state/state))
                has-solution? (r/track #(document/has-solution? @state/state))
                has-supply-solution? (r/track #(document/has-supply-solution? @state/state))
-               has-valid-solution? (r/track #(solution/valid-state?
-                                             (keyword (::solution/state @state/state))))]
+               has-valid-solution? (r/track #(solution/exists? @state/state))]
 
     (let [close-popover
           (fn [e]

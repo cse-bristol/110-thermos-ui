@@ -6,7 +6,6 @@
 (s/def ::message string?)
 (s/def ::runtime integer?)
 
-(def valid-state? 
-  #{:valid :feasible :optimal :globallyOptimal
-    :locallyOptimal :maxIterations :maxTimeLimit})
+(defn exists? [document]
+  (number? (::objective document)))
 

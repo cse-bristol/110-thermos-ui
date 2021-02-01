@@ -79,7 +79,7 @@
    (case state
      :empty-problem [problem-empty]
      :infeasible [solution-infeasible]
-     ::noSolution [solution-not-found]
+     :time-limit [solution-not-found]
      [unknown-state document])])
 
 (defn- unit-header [& stuff]
@@ -780,10 +780,9 @@
     ))
 
 (defn solution-summary [document]
-  (let [state (keyword (::solution/state @document))]
-    (if (solution/valid-state? state)
-      [solution-summary* document]
-      [invalid-solution state document])))
+  (if (solution/exists? @document)
+    [solution-summary* document]
+    [invalid-solution (::solution/state @document) document]))
 
 (defn run-log [document]
   [:pre {:style {:text-wrap :pre-wrap}}
