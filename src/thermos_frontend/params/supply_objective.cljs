@@ -54,7 +54,7 @@
       ;; Link to the other page.
       [:h1 "Computing resources"]
       ;; Custom for this page
-      [:p "Stop after " [inputs/number {:min 0.5 :max 100 :step 0.5 :value-atom time-limit}]
+      [:p "Stop after " [inputs/number {:min 0.1 :max 100 :step 0.1 :value-atom time-limit}]
        " hours, or when within "
        [inputs/number {:min 0 :max 100 :step 0.5 :scale 100 :value-atom mip-gap}]
        "% of the optimum."]
