@@ -19,7 +19,7 @@
             [thermos-specs.demand :as demand]
             [thermos-specs.supply :as supply]
             [thermos-specs.path :as path]
-            [thermos-backend.solver.bounds :as bounds]
+            
             [thermos-backend.config :refer [config]]
             [thermos-util :refer [kw->annual-kwh
                                   annual-kwh->kw
@@ -36,6 +36,7 @@
             [clojure.string :as string]
 
             [thermos.opt.net.core :as net-model]
+            [thermos.opt.net.bounds :as net-model-bounds]
             [thermos-backend.solver.logcap :as logcap]
             )
   
@@ -430,20 +431,29 @@
      :emissions   emissions-factors}))
 
 (defn- edge-terms [instance
+                   bounds
                    pipe-curves
-                   bounds net-graph edge]
+                   net-graph edge]
   (let [length (or (attr/attr net-graph edge :length) 0)
 
         [fixed-cost variable-cost]
         (if (zero? length) [0 0] ;; zero length path has no cost, and is probably a virtual connecty thing
-            (let [{[[lf uf] [lb ub]] :peak} bounds]
-              ;; wait now I have multiplied by length^2
-              
+            (let [forward-bounds (get bounds edge)
+                  reverse-bounds (get bounds [(second edge) (first edge)])
+
+                  lf (:diverse-peak-min forward-bounds)
+                  uf (:diverse-peak-max forward-bounds)
+
+                  lb (:diverse-peak-min reverse-bounds)
+                  ub (:diverse-peak-max reverse-bounds)
+                  ]
               (pipes/linear-cost
                pipe-curves
 
                (attr/attr net-graph edge :civil-costs)
-               length
+               length ;; don't worry, this length is normalized out
+                      ;; inside call to linear-cost - the result is
+                      ;; per meter
                
                (if (zero? (min lf lb))
                  (max lf lb)
@@ -464,9 +474,14 @@
 
     {:i        (first edge) :j (second edge)
      :length   length
+     :max-capacity%kwp (float
+                        (if-let [max-dia (attr/attr net-graph edge :max-dia)]
+                          (let [max-dia (* 1000 max-dia)]
+                            (pipes/dia->kw pipe-curves max-dia))
+                          (pipes/max-kw pipe-curves)))
+     
      :cost%m   (float (finance/objective-value instance cost-type fixed-cost))
      :cost%kwm (float (finance/objective-value instance cost-type variable-cost))
-     :bounds   bounds
      :required (boolean (attr/attr net-graph edge :required))}))
 
 (defn- instance->json [instance net-graph pipe-curves market]
@@ -474,10 +489,60 @@
 
         mode (document/mode instance)
 
-        edge-bounds
+        first-stage
+        {:time-limit      (float (::document/maximum-runtime instance 1.0))
+         :mip-gap         (float (::document/mip-gap instance 0.05))
+         :iteration-limit (int   (::document/maximum-iterations instance 1000))
+         :supply-limit    (when-let [l (::document/maximum-supply-sites instance)] (int l))
+         
+         :pipe-losses
+         (let [losses (pipes/heat-loss-curve pipe-curves)]
+           {:kwp  (map (comp float first) losses)
+            :w%m  (map (comp float second) losses)})
+
+         ;; global emissions costs and limits
+         :emissions
+         (into {}
+               (for [e candidate/emissions-types]
+                 [e (merge {:cost    (float
+                                      (finance/objective-value
+                                       instance
+                                       :emissions-cost
+                                       (get-in instance [::document/emissions-cost e] 0)))}
+                           (when     (get-in instance [::document/emissions-limit :enabled e])
+                             {:limit (float (get-in instance [::document/emissions-limit :value e] 0))}))]))
+
+         :vertices
+         (for [vertex (graph/nodes net-graph)
+               :let [candidate (candidates vertex)]
+               :when (or (candidate/has-demand? candidate mode)
+                         (candidate/has-supply? candidate))]
+           (let [unreachable (attr/attr net-graph vertex :unreachable)]
+             (cond-> {:id vertex}
+               (candidate/has-demand? candidate mode)
+               (assoc :demand (demand-terms instance candidate market))
+
+               unreachable
+               (assoc-in [:demand :required] false)
+
+               (candidate/has-supply? candidate)
+               (assoc :supply (supply-terms instance candidate)))))
+         
+         :edges
+         (for [edge (->> (graph/edges net-graph)
+                         (map (comp vec sort))
+                         (set))]
+           {:i (first edge) :j (second edge)})
+         }
+
+        bounds
+        (net-model-bounds/compute-bounds first-stage)
+
+        #_#_
+        olde-bounds
         (do
           (log/info "Computing flow bounds...")
-          (bounds/edge-bounds
+          (old-bounds/edge-bounds
            net-graph
            :capacity (memoize (comp #(::supply/capacity-kwp % 0) candidates))
            :demand
@@ -502,54 +567,29 @@
                                global-max)))))
            
            :size (comp #(::connection-count % 1) candidates)))
-
-        
-        _ (log/info "Computed flow bounds")
         ]
+
+    ;; debug check bounds against olde-bounds
+    (comment (doseq [[i j] (keys bounds)]
+       (let [[old-bound rev] (if (contains? olde-bounds [i j])
+                               [(get olde-bounds [i j]) false]
+                               [(get olde-bounds [j i]) true])
+             
+             new-bound (get bounds [i j])]
+
+         ;; compare old and new
+         )
+       ))
     
-    {:time-limit      (float (::document/maximum-runtime instance 1.0))
-     :mip-gap         (float (::document/mip-gap instance 0.05))
-     :iteration-limit (int   (::document/maximum-iterations instance 1000))
-     :supply-limit    (when-let [l (::document/maximum-supply-sites instance)] (int l))
-     
-     :pipe-losses
-     (let [losses (pipes/heat-loss-curve pipe-curves)]
-       {:kwp  (map (comp float first) losses)
-        :w%m  (map (comp float second) losses)})
-
-     ;; global emissions costs and limits
-     :emissions
-     (into {}
-           (for [e candidate/emissions-types]
-             [e (merge {:cost    (float
-                                  (finance/objective-value
-                                   instance
-                                   :emissions-cost
-                                   (get-in instance [::document/emissions-cost e] 0)))}
-                       (when     (get-in instance [::document/emissions-limit :enabled e])
-                         {:limit (float (get-in instance [::document/emissions-limit :value e] 0))}))]))
-
-     :vertices
-     (for [vertex (graph/nodes net-graph)
-           :let [candidate (candidates vertex)]
-           :when (or (candidate/has-demand? candidate mode)
-                     (candidate/has-supply? candidate))]
-       (let [unreachable (attr/attr net-graph vertex :unreachable)]
-         (cond-> {:id vertex}
-           (candidate/has-demand? candidate mode)
-           (assoc :demand (demand-terms instance candidate market))
-
-           unreachable
-           (assoc-in [:demand :required] false)
-
-           (candidate/has-supply? candidate)
-           (assoc :supply (supply-terms instance candidate)))))
-     
-     :edges
-     (for [edge (->> (graph/edges net-graph)
-                     (map (comp vec sort))
-                     (set))]
-       (edge-terms instance pipe-curves (get edge-bounds edge) net-graph edge))}))
+    (log/info "Linearising costs")
+    (assoc first-stage
+           :edges
+           (for [edge (->> (graph/edges net-graph)
+                           (map (comp vec sort))
+                           (set))]
+             (edge-terms instance bounds pipe-curves net-graph edge))
+           :bounds bounds)
+    ))
 
 (defn- index-by [f vs]
   (reduce #(assoc %1 (f %2) %2) {} vs))
