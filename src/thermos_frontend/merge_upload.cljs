@@ -45,7 +45,9 @@
                ::document/loan-rate
                ::document/mip-gap
                ::document/maximum-runtime
-               ::document/capital-costs]
+               ::document/capital-costs
+               ::document/maximum-supply-sites
+               ]
    :emissions [::document/emissions-cost ::document/emissions-limit]
    :pumping [::document/pumping-overhead ::document/pumping-emissions
              ::document/pumping-cost-per-kwh]

@@ -286,6 +286,10 @@
          
          ~["MIP Gap" (::document/mip-gap doc)]
          ~["Max runtime" (::document/maximum-runtime doc)]
+
+         ~["Max supplies" (::document/maximum-supply-sites
+                            doc
+                            "unlimited")]
          ]
        )
       
@@ -387,6 +391,10 @@
      (copy-parameter :mip-gap ::document/mip-gap)
      (copy-parameter :max-runtime ::document/maximum-runtime)
 
+     (copy-parameter :max-supplies ::document/maximum-supply-sites
+                     :type number?
+                     :convert int)
+     
      {::document/capital-costs
       (let [capital-cost-names (set/map-invert capital-cost-names)]
         (->> (for [{:keys [name annualize recur period rate]

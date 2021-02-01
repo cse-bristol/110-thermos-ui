@@ -42,6 +42,7 @@
      connection-capex (reagent/cursor document [::document/capital-costs :connection])
      insulation-capex (reagent/cursor document [::document/capital-costs :insulation])
      alternative-capex (reagent/cursor document [::document/capital-costs :alternative])
+     maximum-supply-sites (reagent/cursor document [::document/maximum-supply-sites])
 
      emissions-cost (into {} (for [e candidate/emissions-types]
                                [e (reagent/cursor document [::document/emissions-cost e])]))
@@ -169,6 +170,7 @@
                                  :max 1000
                                  :scale 1000
                                  :step 0.01}]]])]]]
+
       [:div.card {:style {:flex-grow 1}}
        [:h1 "Emissions limits"]
        [:table
@@ -192,6 +194,24 @@
                                   :step 0.1}]]
              
              ]))]]]
+
+      [:div.card {:style {:flex-grow 1}}
+       [:h1 "Supply limit"]
+       [:p "Limit the number of supply locations the model can build to: "]
+
+       [:div [inputs/check {:value (boolean @maximum-supply-sites)
+                            :on-change
+                            #(if %
+                               (reset! maximum-supply-sites 1)
+                               (reset! maximum-supply-sites nil))
+                            }]
+        [inputs/number {:value-atom maximum-supply-sites
+                        :disabled (not (boolean @maximum-supply-sites))
+                        :min 1
+                        :max 100
+                        :step 1}
+         ]]
+       ]
 
       [:div.card {:style {:flex-grow 1}}
        [:h1 "Computing resources"]
