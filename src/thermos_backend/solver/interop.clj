@@ -1123,7 +1123,7 @@
     (try
       
       (let [solution
-            (logcap/with-log-into log-writer
+            (logcap/with-log-into2 log-writer
               (solve label instance :remove-temporary-files remove-temporary-files))]
         (assoc solution ::solution/log (.toString log-writer)))
 
