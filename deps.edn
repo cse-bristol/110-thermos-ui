@@ -23,7 +23,7 @@
     refactor-nrepl/refactor-nrepl {:mvn/version "2.5.0"},
     cider/cider-nrepl {:mvn/version "0.25.8"},
     proto-repl/proto-repl {:mvn/version "0.3.1"},
-    nrepl/nrepl {:mvn/version "0.8.3"},
+    nrepl/nrepl {:mvn/version "0.7.0"}, ;; 0.8.3 is newest but seems to give trouble
     badigeon/badigeon
     {:git/url "https://github.com/EwenG/badigeon.git",
      :sha "dca97f9680a6ea204a2504c4414cafc4ba182a83",
@@ -54,7 +54,7 @@
     thermos/importer
     {:git/url "ssh://git@github.com/cse-bristol/110-thermos-importer.git",
      :tag "HEAD",
-     :sha "26a9c536bdba73499fa4ed113bb8f887d3e66946"}
+     :sha "c184f8f03ffbdf86db73977930a4fa7844a58b44"}
     org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"},
     log4j/log4j
     {:mvn/version "1.2.17",
@@ -81,7 +81,7 @@
     thermos/models
     {:git/url "ssh://git@github.com/cse-bristol/110-thermos-models.git",
      :tag "HEAD",
-     :sha "a8889c45fe9f2c906286ee5f3cefce373b11b494"},
+     :sha "10232f6e5ae5be4d9efa42d52bb5c4daf2c8137f"},
     clucie/clucie {:mvn/version "0.4.2"},
     honeysql/honeysql {:mvn/version "0.9.4"},
     ring/ring-json {:mvn/version "0.4.0"},
@@ -90,7 +90,7 @@
     thermos/importer
     {:git/url "ssh://git@github.com/cse-bristol/110-thermos-importer.git",
      :tag "HEAD",
-     :sha "26a9c536bdba73499fa4ed113bb8f887d3e66946"},
+     :sha "c184f8f03ffbdf86db73977930a4fa7844a58b44"},
     clojure-term-colors/clojure-term-colors {:mvn/version "0.1.0"},
     org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"},
     nilenso/honeysql-postgres {:mvn/version "0.2.3"},

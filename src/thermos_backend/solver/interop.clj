@@ -492,6 +492,7 @@
         first-stage
         {:time-limit      (float (::document/maximum-runtime instance 1.0))
          :mip-gap         (float (::document/mip-gap instance 0.05))
+         :param-gap       (float (::document/param-gap instance 0.0))
          :iteration-limit (int   (::document/maximum-iterations instance 1000))
          :supply-limit    (when-let [l (::document/maximum-supply-sites instance)] (int l))
          
