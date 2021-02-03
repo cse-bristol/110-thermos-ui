@@ -302,7 +302,14 @@
            base-cost  (partial base-cost cost-factors model-mode)
            ]
        [:div.selection-table
-        [chips-row "Type" ::candidate/type]
+        [chips-row "Type"
+         (fn [c]
+           (cond
+             (candidate/has-supply? c) "supply"
+             (= :building (::candidate/type c)) "demand"
+             true (::candidate/type c)))
+
+         ]
 
         (for [[field type] custom-keys]
           [:<> {:key field}
