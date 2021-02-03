@@ -94,7 +94,9 @@
 
          (.on map (.. js/L.Draw -Event -CREATED)
               (fn [^js/L.Draw.Event e]
-                (on-draw-box (-> e .-layer (.toGeoJSON) (js->clj)))))
+                (on-draw-box 
+                 {:bounds (-> e .-layer (.toGeoJSON) (js->clj))
+                  :centroid (-> e .-layer (.getBounds) (.getCenter) (js->clj) (select-keys ["lat" "lng"]))})))
                            
          (assoc state
                 ::map map
@@ -397,6 +399,7 @@
         *data-files (rum/cursor-in form-state   [:geometry :files])
         *osm-position (rum/cursor-in form-state [:geometry :osm])
         *map-position (rum/cursor-in form-state [:geometry :map-position])
+        *centroid (rum/cursor-in form-state [:geometry :centroid])
         
         data (rum/react *data-source)
         data-files (rum/react *data-files)
@@ -432,7 +435,8 @@
                                    :boundary  (get place "geojson")})))})
          (osm-map-box {:map-position (rum/react *map-position)
                        :boundary-geojson (:boundary (rum/react *osm-position))
-                       :on-draw-box #(do (reset! *osm-position {:boundary %})
+                       :on-draw-box #(do (reset! *osm-position {:boundary (:bounds %)})
+                                         (reset! *centroid (:centroid %))
                                          (reset! *map-position nil))})])]
      
      [:div.card
@@ -831,6 +835,19 @@
      "Buildings in a group must all be connected to a network at once, or not at all."]}
    ])
 
+
+(defn- centroid 
+  "Get the centroid of the map area, either from the osm boundary box or
+   as the average centroid of all the uploaded files' centroids."
+  [*form-state]
+  (let [data-source (get-in @*form-state [:geometry :source])]
+    (case data-source
+      :osm (get-in @*form-state [:geometry :centroid])
+      :files (let [files (vals (get-in @*form-state [:geometry :files]))]
+               (merge-with / 
+                           (apply merge-with + (map (fn [file] (:centroid file)) files)) 
+                           {:lat (count files) :lng (count files)})))))
+
 (rum/defc button-strip < rum/reactive rum/static [*form-state *current-page]
   (let [state (rum/react *form-state)
         current-page (rum/react *current-page)
@@ -840,35 +857,44 @@
        [:ul
         (for [[i m] (map-indexed vector messages)]
           [:li {:key i} m])])
-     
+
      (when-not (= :name current-page)
        [:button.button {:on-click
                         (fn [e]
-                          (swap! *current-page (map-invert (next-page-map @*form-state))))
-                        } "Back"])
-
-     (if (= :other-parameters current-page)
+                          (swap! *current-page (map-invert (next-page-map @*form-state))))} "Back"])
+     (case current-page
+       :other-parameters
        [:button.button {:disabled (not-empty messages)
                         :on-click
                         (fn [e]
                           (POST "../new" ;; urgh yuck
-                              {:params
-                               (->> @*form-state
+                            {:params
+                             (->> @*form-state
                                     ;; :geometry :files ;; values need
                                     ;; their :files bit removing
                                     ;; because :files are not
                                     ;; encodable
-                                    (setval [:geometry :files MAP-VALS :files] NONE))
-                               
-                               :handler (fn-js [e]
-                                          (js/window.location.replace "../.."))}))
-                        } "Create map"]
+                                  (setval [:geometry :files MAP-VALS :files] NONE))
+
+                             :handler (fn-js [e]
+                                             (js/window.location.replace "../.."))}))} "Create map"]
+       
+       :geometry
+       [:button.button {:disabled (not-empty messages)
+                        :on-click
+                        (fn [e]
+                          (GET "heat-degree-days"
+                            {:params (centroid *form-state)
+                             :handler (fn [res]
+                                        (swap! *current-page (next-page-map @*form-state))
+                                        (reset! (rum/cursor-in *form-state [:degree-days]) (int res)))
+                             :error-handler #((swap! *current-page (next-page-map @*form-state)))}))} "Next"]
+
        
        [:button.button {:disabled (not-empty messages)
                         :on-click
                         (fn [e]
-                          (swap! *current-page (next-page-map @*form-state)))
-                        } "Next"])]))
+                          (swap! *current-page (next-page-map @*form-state)))} "Next"])]))
 
 
 (rum/defc map-creation-form < rum/reactive rum/static [form-state]

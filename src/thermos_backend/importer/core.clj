@@ -136,28 +136,29 @@
           ;; get geospatial info
           (let [{features ::geoio/features} (geoio/read-from file :key-transform identity)
                 ]
-            (loop [fields   {}
-                   counts   {}
-                   features features]
-              (if (empty? features)
-                {:fields-by-type fields :count-by-type  counts}
+            (into
+             (loop [fields   {}
+                    counts   {}
+                    features features]
+               (if (empty? features)
+                 {:fields-by-type fields :count-by-type  counts}
 
-                (let [[feature & features] features
-                      type   (::geoio/type feature)
-                      fs     (reduce-kv
-                              (fn [a k v] (if (and (string? k) (not (nil? v))) (conj a k) a))
-                              nil feature)
-                      ]
-                  (recur
-                   (if (contains? fields type)
-                     (update fields type into fs)
-                     (assoc fields type (set fs)))
+                 (let [[feature & features] features
+                       type   (::geoio/type feature)
+                       fs     (reduce-kv
+                               (fn [a k v] (if (and (string? k) (not (nil? v))) (conj a k) a))
+                               nil feature)]
+                   (recur
+                    (if (contains? fields type)
+                      (update fields type into fs)
+                      (assoc fields type (set fs)))
 
-                   (if (contains? counts type)
-                     (update counts type inc)
-                     (assoc counts type 1))
-                   
-                   features)))))
+                    (if (contains? counts type)
+                      (update counts type inc)
+                      (assoc counts type 1))
+
+                    features))))
+             {:centroid (spatial/centroid features "EPSG:4326")}))
           
           (= "csv" extension)
           {:keys (set

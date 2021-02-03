@@ -298,9 +298,17 @@
     (projects/delete-networks! map-id (url-decode network-name))
     deleted))
 
+(defn- heat-degree-days [{{:keys [lat lng]} :params}] 
+  (print lat lng) 
+  (-> 3000
+      (json/encode)
+      (response/response)
+      (response/content-type "application/json")))
+
 (def map-routes
   [["/new" {:get new-map-page :post create-new-map!}]
    ["/new/add-file" {:post upload-map-data}]
+   ["/new/heat-degree-days" {:get heat-degree-days}]
    [["/" [long :map-id]] {"" {:delete delete-map!}
                           "/delete" {:get delete-map-page :post delete-map!}
                           "/icon.png" map-icon
