@@ -594,12 +594,10 @@
              :geometry (if (and using-geometry-files (seq building-cols))
                          :building-cols
                          :other-parameters)
-
-             }
-          
-          (and using-geometry-files (seq building-cols))  (assoc :building-cols :road-cols)
-          (and using-geometry-files (seq road-cols))      (assoc :road-cols :other-parameters)
-          )
+            }
+          (and using-geometry-files (seq building-cols) (seq road-cols))        (assoc :building-cols :road-cols)
+          (and using-geometry-files (seq building-cols) (not (seq road-cols)))  (assoc :building-cols :other-parameters)
+          (and using-geometry-files (seq road-cols))                            (assoc :road-cols :other-parameters))
         ]
     result))
 
