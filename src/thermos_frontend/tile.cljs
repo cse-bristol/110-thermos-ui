@@ -70,58 +70,90 @@
           (group-by
            (fn [x] (boolean (or (::candidate/selected x) (:in-selected-group x))))
            buildings)
+
+
+          paths
+          (cond
+            (> zoom 14) paths
+
+            has-solution?
+            (filter candidate/in-solution? paths)
+
+            :else [])
+
+
+          use-diameters
+          (and (> zoom 14)
+               min-max-diameter
+               (not= (first min-max-diameter) (second min-max-diameter)))
+
+          paths
+          (if use-diameters
+            (let [[min-diameter max-diameter] min-max-diameter
+                  dia-range (- max-diameter min-diameter)
+                  mm-ratio (/ max-diameter min-diameter)
+                  mm-over-1 (- mm-ratio 1)
+
+                  ;; clamp mm-over-1 so that we get a range that looks nice
+                  mm-over-1 (cond
+                              (< mm-over-1 2.5) 2.5
+                              (> mm-over-1 4.5) 4.5
+                              :else mm-over-1)
+                  ]
+              (for [path paths]
+                (if-let [diameter (::solution/diameter-mm path)]
+                  (assoc path ::dia-scale
+                         (let [ratio (/ (- diameter min-diameter) dia-range)]
+                           (+ 1 (* mm-over-1 (Math/sqrt ratio)))))
+                  path)))
+            paths)
+
           
-          {selected-paths true non-selected-paths false} (group-by (comp boolean ::candidate/selected) paths)
+          {selected-paths true non-selected-paths false}
+          (group-by (comp boolean ::candidate/selected) paths)
 
-          pipe-diam-line-width
-          (or
-           (and
-            min-max-diameter
-            (let [[min-diameter max-diameter] min-max-diameter]
-              (and min-diameter max-diameter
-                   (fn [path]
-                     (if-let [diameter (::solution/diameter-mm path)]
-                       (let [rel-diam (/ (- diameter min-diameter)
-                                         (inc (- max-diameter min-diameter)))]
-                         (+ 0.5 (* 10 (Math/sqrt rel-diam))))
-                       nil)))))
+          ordinary-line-width
+          (cond
+            (> zoom 16) 1.5
+            :else 1)
 
-           (constantly nil))
+          shadow-width
+          (cond
+            (> zoom 16) 3
+            :else 2)
+          
+          shadow-line-width
+          (+ ordinary-line-width shadow-width)
 
           ]
-
+      
       ;; Non-selected buildings
       (doseq [candidate non-selected-buildings]
-        (render-candidate zoom has-solution? candidate ctx project  map-view))
+        (render-candidate ordinary-line-width has-solution? candidate ctx project map-view))
       ;; Selected building shadows
       (doseq [candidate selected-buildings]
-        (render-candidate-shadow zoom has-solution? candidate ctx project  map-view))
+        (render-candidate-shadow shadow-line-width has-solution? candidate ctx project map-view))
       ;; Selected buildings
       (doseq [candidate selected-buildings]
-        (render-candidate zoom has-solution? candidate ctx project map-view))
+        (render-candidate ordinary-line-width has-solution? candidate ctx project map-view))
 
-      (if (> zoom 14)
-        (do
-          ;; Non-selected paths
-          (doseq [path non-selected-paths]
-            (let [line-width (pipe-diam-line-width path)]
-              (render-candidate zoom has-solution? path ctx project map-view line-width)))
-          ;; Selected path shadows
-          (doseq [path selected-paths]
-            (let [line-width (pipe-diam-line-width path)]
-              (render-candidate-shadow zoom has-solution? path ctx project  map-view line-width)))
-          
-          ;; Selected paths
-          (doseq [path selected-paths]
-            (let [line-width (pipe-diam-line-width path)]
-              (render-candidate zoom has-solution? path ctx project map-view line-width))))
-        
-        (when has-solution?
-          (doseq [path paths]
-            (when (candidate/in-solution? path)
-              (let [line-width (pipe-diam-line-width path)]
-                (render-candidate zoom has-solution? path ctx project map-view line-width)))))
-        ))
+      ;; Non-selected paths
+      (doseq [path non-selected-paths]
+        (render-candidate
+         (* (::dia-scale path 1) ordinary-line-width)
+         has-solution? path ctx project map-view))
+      ;; Selected path shadows
+      (doseq [path selected-paths]
+        (render-candidate-shadow
+         (+ shadow-width (* (::dia-scale path 1) ordinary-line-width))
+         has-solution? path ctx project  map-view))
+      ;; Selected paths
+      (doseq [path selected-paths]
+        (render-candidate
+         (::dia-scale path ordinary-line-width)
+         has-solution? path ctx project map-view))
+      
+      )
     ))
 
 (defn render-candidate
@@ -131,7 +163,7 @@
   `project` is a function to project from real space into the canvas pixel space,
   `map-view` is either ::view/constraints or ::view/solution,
   `line-width` is an optionally specified line width for when you want to represent the pipe diameter."
-  [zoom solution candidate ctx project map-view line-width]
+  [line-width solution candidate ctx project map-view]
 
   (let [filtered          (:filtered candidate)
         in-selected-group (:in-selected-group candidate)]
@@ -148,8 +180,7 @@
             forbidden (not included)]
 
         ;; Line width
-        (set! (.. ctx -lineWidth)
-              (if (> zoom 17) 1.5 1))
+        (set! (.. ctx -lineWidth) line-width)
 
         ;; Line colour
         (set! (.. ctx -strokeStyle)
@@ -186,11 +217,7 @@
             supply-in-solution (candidate/supply-in-solution? candidate)]
 
         ;; Line width
-        (set! (.. ctx -lineWidth)
-              (+ (if (> zoom 17) 0.5 0)
-                 (cond
-                   line-width line-width
-                   true       1)))
+        (set! (.. ctx -lineWidth) line-width)
 
         ;; Line colour
         (set! (.. ctx -strokeStyle)
@@ -238,7 +265,7 @@
 (defn render-candidate-shadow
   "Draw some kind of ephemeral outline for selected candidate.
   Arguments are the same as render-candidate."
-  [zoom solution candidate ctx project map-view line-width]
+  [line-width solution candidate ctx project map-view]
   (set! (.. ctx -lineCap) "round")
   (set! (.. ctx -lineJoin) "round")
   (case map-view
@@ -252,8 +279,7 @@
           forbidden         (not included)]
 
       ;; Line width
-      (set! (.. ctx -lineWidth)
-            (+ (* 2 (- zoom 16)) 1))
+      (set! (.. ctx -lineWidth) line-width)
 
       ;; Line colour
       (set! (.. ctx -strokeStyle)
@@ -275,11 +301,7 @@
           supply-in-solution (candidate/supply-in-solution? candidate)]
 
       ;; Line width
-      (set! (.. ctx -lineWidth)
-            (+ (* 2 (- zoom 16))
-               (cond
-                 line-width line-width
-                 true       1)))
+      (set! (.. ctx -lineWidth) line-width)
 
       ;; Line colour
       (set! (.. ctx -strokeStyle)
