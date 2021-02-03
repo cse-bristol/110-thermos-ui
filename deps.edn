@@ -81,7 +81,7 @@
     thermos/models
     {:git/url "ssh://git@github.com/cse-bristol/110-thermos-models.git",
      :tag "HEAD",
-     :sha "10232f6e5ae5be4d9efa42d52bb5c4daf2c8137f"},
+     :sha "823282ceb05a6c95a311365a0034bb9461263180"},
     clucie/clucie {:mvn/version "0.4.2"},
     honeysql/honeysql {:mvn/version "0.9.4"},
     ring/ring-json {:mvn/version "0.4.0"},
