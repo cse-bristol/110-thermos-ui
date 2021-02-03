@@ -47,6 +47,8 @@
 (def dark-grey "#555555")
 (def cyan "#ffd700")
 (def magenta "#ff00ff")
+(def peripheral-yellow "#ffd700")
+(def peripheral-yellow-light "#eedd82")
 (def in-solution-orange "#c84500")
 (def supply-orange "#dd6600")
 (def green "#32cd32")

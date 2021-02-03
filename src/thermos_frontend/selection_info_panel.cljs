@@ -166,7 +166,7 @@
 (defn- solution-row-classes [x]
   ["solution"
    (cond
-     (or (= x "network") (= x "impossible"))
+     (or (= x "network") (= x "impossible") (= x "peripheral"))
      x
      
      (= x "no") "no"

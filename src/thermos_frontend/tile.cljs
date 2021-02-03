@@ -82,7 +82,7 @@
                    (fn [path]
                      (if-let [diameter (::solution/diameter-mm path)]
                        (let [rel-diam (/ (- diameter min-diameter)
-                                         (- max-diameter min-diameter))]
+                                         (inc (- max-diameter min-diameter)))]
                          (+ 0.5 (* 10 (Math/sqrt rel-diam))))
                        nil)))))
 
@@ -100,7 +100,7 @@
       (doseq [candidate selected-buildings]
         (render-candidate zoom has-solution? candidate ctx project map-view))
 
-      (if (> zoom 13)
+      (if (> zoom 14)
         (do
           ;; Non-selected paths
           (doseq [path non-selected-paths]
@@ -110,14 +110,15 @@
           (doseq [path selected-paths]
             (let [line-width (pipe-diam-line-width path)]
               (render-candidate-shadow zoom has-solution? path ctx project  map-view line-width)))
+          
           ;; Selected paths
           (doseq [path selected-paths]
             (let [line-width (pipe-diam-line-width path)]
               (render-candidate zoom has-solution? path ctx project map-view line-width))))
         
         (when has-solution?
-          (doseq [path non-selected-paths]
-            (when candidate/in-solution?
+          (doseq [path paths]
+            (when (candidate/in-solution? path)
               (let [line-width (pipe-diam-line-width path)]
                 (render-candidate zoom has-solution? path ctx project map-view line-width)))))
         ))
@@ -194,6 +195,9 @@
         ;; Line colour
         (set! (.. ctx -strokeStyle)
               (cond
+                (= unreachable :peripheral)
+                theme/peripheral-yellow
+
                 unreachable
                 theme/magenta
                 
@@ -280,6 +284,9 @@
       ;; Line colour
       (set! (.. ctx -strokeStyle)
             (cond
+              (= unreachable :peripheral)
+              theme/peripheral-yellow-light
+
               unreachable
               theme/magenta-light
 

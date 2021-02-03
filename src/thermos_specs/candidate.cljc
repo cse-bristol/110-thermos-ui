@@ -117,6 +117,7 @@
    :nox  "mg/kWh"})
 
 (defn unreachable? [candidate] (::solution/unreachable candidate))
+(defn peripheral? [candidate] (= :peripheral (::solution/unreachable candidate)))
 
 (defn forbid-supply! [candidate]
   (dissoc candidate ::supply/capacity-kwp))
@@ -146,5 +147,6 @@
         (::solution/alternative)
         (::supply/name)
         (str " (existing)"))
-    
+
+    (peripheral? candidate) "peripheral"
     (unreachable? candidate) "impossible"))

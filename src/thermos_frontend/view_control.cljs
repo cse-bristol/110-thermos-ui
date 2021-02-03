@@ -64,6 +64,7 @@
                  [:span.pipe-size-key__max]
                  (Math/round (second @min-max-diam)) "mm"])]]
             [:div [:dt.key.not-in-network-key] [:dd "Not in network"]]
+            [:div [:dt.key.peripheral-key] [:dd "Peripheral to network"]]
             [:div [:dt.key.unreachable-key] [:dd "Cannot be reached by network"]]
             [:div [:dt.key.alternative-key] [:dd "Has alternative"]]
             [:div [:dt.key.supply-key] [:dd "Network supply"]]])])]
