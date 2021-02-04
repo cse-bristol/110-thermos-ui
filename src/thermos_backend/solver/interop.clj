@@ -45,18 +45,41 @@
 (def HOURS-PER-YEAR 8766)
 
 (defn create-graph [buildings paths]
-  (apply
-   graph/graph
-   (concat
-    (mapcat ::candidate/connections buildings)
+  (let [graph (apply
+               graph/graph
+               (concat
+                (mapcat ::candidate/connections buildings)
 
-    (map ::path/start paths)
-    (map ::path/end paths)
-    
-    (map ::candidate/id buildings)
+                (map ::path/start paths)
+                (map ::path/end paths)
+                
+                (map ::candidate/id buildings)
 
-    (map #(vector (::path/start %) (::path/end %)) paths)
-    (mapcat #(for [c (::candidate/connections %)] [c (::candidate/id %)]) buildings))))
+                (map #(vector (::path/start %) (::path/end %)) paths)
+                (mapcat #(for [c (::candidate/connections %)] [c (::candidate/id %)]) buildings)))
+        graph (reduce
+               (fn [g b]
+                 (-> g
+                     (attr/add-attr (::candidate/id b) :real-vertex true)
+                     (cond->
+                         
+                       (candidate/has-supply? b)
+                       (attr/add-attr (::candidate/id b) :supply-vertex true)
+                       )))
+               graph
+               buildings)
+        graph (reduce
+               (fn [g p] (attr/add-attr g (::path/start p) (::path/end p) :ids #{(::candidate/id p)}))
+               graph
+               paths)
+
+        graph (graph/remove-edges*
+               graph
+               (filter (fn [e] (= (second e) (first e)))
+                       (graph/edges graph)))
+        ]
+    graph
+    ))
 
 (defn- check-invalid-edges [net-graph at]
   (doseq [[i j] (graph/edges net-graph)]
@@ -73,41 +96,10 @@
   The output graph has edge labels :ids, which relate to a collection of
   candidate path IDs that are included by using that edge.
   "
-  [candidates]
+  [net-graph]
 
-  (let [{paths :path buildings :building}
-        (group-by ::candidate/type candidates)
-
-        net-graph (check-invalid-edges
-                   (create-graph buildings paths)
-                   :construction)
-
-        _ (log/info "Basic graph has" (count (graph/nodes net-graph)) "nodes and" (count (graph/edges net-graph)) "edges")
-        
-        ;; tag all the real vertices
-        net-graph (reduce (fn [g d]
-                            (attr/add-attr g (::candidate/id d) :real-vertex true))
-                          net-graph
-                          buildings)
-
-        ;; tag all the edges with their path IDs, for summarise later
-        net-graph (reduce (fn [g p]
-                            
-                            (-> g
-                                (attr/add-attr (::path/start p) (::path/end p)
-                                               :ids #{(::candidate/id p)})))
-                          
-                          net-graph
-                          paths)
-
-        ;; delete all self-edges
-        net-graph (check-invalid-edges
-                   (graph/remove-edges*
-                    net-graph
-                    (filter (fn [e] (= (second e) (first e)))
-                            (graph/edges net-graph)))
-                   :delete-self-edges)
-
+  (let [;; TODO : this could be improved - what we really want is all the 2-cuts
+        ;; in the graph which isolate a subgraph containing no real-vertex
         collapsible? (fn [net-graph node]
                        (and (not (attr/attr net-graph node :real-vertex))
                             (= 2 (graph/out-degree net-graph node))))
@@ -158,11 +150,9 @@
                ;; bother.
                (recur (reduce collapse-junction net-graph collapsible)))))
          :collapse-junctions)
-        
 
-        ;; prune all spurious junctions
+        ;; Prune all dangling junctions. This removes all the frills on the network.
         net-graph
-        
         (check-invalid-edges
          (loop [net-graph net-graph]
            (let [spurious (->> (graph/nodes net-graph)
@@ -173,8 +163,40 @@
                (recur (graph/remove-nodes* net-graph spurious)))))
          :prune)]
     
-    (log/info "Simplified graph has" (count (graph/nodes net-graph)) "nodes and" (count (graph/edges net-graph)) "edges")
     net-graph))
+
+(defn- clean-disconnected-components
+  "Anything in the network graph which is not reachable from a supply
+  shouldn't be considered for heat networking. However sometimes we
+  are considering other heating systems, in which case we only want to
+  delete the edges.
+
+  Returns a tuple: [modified graph, candidate IDs removed]"
+  [net-graph only-remove-edges]
+  (let [ccs         (graph-alg/connected-components net-graph)
+        unsupplied-ccs (filter (fn [cc]
+                                 (not-any?
+                                  (fn [id] (attr/attr net-graph id :supply-vertex))
+                                  cc)) ccs)]
+    (if (empty? unsupplied-ccs)
+      [net-graph []]
+
+      (let [dead-verts (reduce into unsupplied-ccs)
+            dead-edges (graph/edges (graph/subgraph net-graph dead-verts))]
+        
+
+        [(-> net-graph
+             (graph/remove-edges* dead-edges)
+             (cond->
+                 only-remove-edges
+               (attr/add-attr-to-nodes :unreachable true dead-verts)
+
+               (not only-remove-edges)
+               (graph/remove-nodes* dead-verts)))
+
+         (into
+          (set (mapcat #(attr/attr net-graph % :ids) dead-edges))
+          (filter #(attr/attr net-graph % :real-vertex) dead-verts))]))))
 
 (defn- summarise-attributes
   "Take CANDIDATES and NET-GRAPH being a loom graph with :ids on some edges,
@@ -492,6 +514,7 @@
         first-stage
         {:time-limit      (float (::document/maximum-runtime instance 1.0))
          :mip-gap         (float (::document/mip-gap instance 0.05))
+         :param-gap       (float (::document/param-gap instance 0.0))
          :iteration-limit (int   (::document/maximum-iterations instance 1000))
          :supply-limit    (when-let [l (::document/maximum-supply-sites instance)] (int l))
          
@@ -537,50 +560,8 @@
 
         bounds
         (net-model-bounds/compute-bounds first-stage)
-
-        #_#_
-        olde-bounds
-        (do
-          (log/info "Computing flow bounds...")
-          (old-bounds/edge-bounds
-           net-graph
-           :capacity (memoize (comp #(::supply/capacity-kwp % 0) candidates))
-           :demand
-           (memoize (fn [id]
-                      (-> (get candidates id)
-                          (candidate/annual-demand mode)
-                          (or 0.0)
-                          (annual-kwh->kw))))
-           :peak-demand
-           (memoize (fn [id]
-                      (-> (get candidates id)
-                          (candidate/peak-demand mode)
-                          (or 0.0))))
-           
-           :edge-max (let [global-max (pipes/max-kw pipe-curves)]
-                       (memoize
-                        (fn [i j]
-                          (min
-                           global-max
-                           (or (when-let [max-dia (attr/attr net-graph [i j] :max-dia)]
-                                 (pipes/dia->kw pipe-curves max-dia))
-                               global-max)))))
-           
-           :size (comp #(::connection-count % 1) candidates)))
         ]
 
-    ;; debug check bounds against olde-bounds
-    (comment (doseq [[i j] (keys bounds)]
-       (let [[old-bound rev] (if (contains? olde-bounds [i j])
-                               [(get olde-bounds [i j]) false]
-                               [(get olde-bounds [j i]) true])
-             
-             new-bound (get bounds [i j])]
-
-         ;; compare old and new
-         )
-       ))
-    
     (log/info "Linearising costs")
     (assoc first-stage
            :edges
@@ -608,7 +589,7 @@
             area-done   (* proportion-done max-area)
             cost        (+ fixed-cost (* cost-per-m2 area-done))]
         (merge
-         {::measure/name (::measure/name insulation) ;; yes? no?
+         {::measure/name (::measure/name insulation)
           ::measure/id   id
           :kwh kwh
           :area area-done
@@ -866,7 +847,7 @@
                  (-> result-json :solver :objectives)
                  )))))
 
-(defn- mark-unreachable [instance net-graph included-candidates]
+(defn- mark-unreachable [instance net-graph included-candidates disconnected-candidate-ids]
   (let [ids-in-net-graph
         (->> (graph/nodes net-graph)
              (filter #(attr/attr net-graph % :real-vertex))
@@ -877,11 +858,15 @@
 
         ids-in-instance
         (set (map ::candidate/id included-candidates))]
-    
+
     (document/map-candidates
      instance
-     #(assoc % ::solution/unreachable true)
+     (fn [c]
+       (assoc c ::solution/unreachable
+              (if (contains? disconnected-candidate-ids (::candidate/id c))
+                :disconnected :peripheral)))
      (set/difference ids-in-instance ids-in-net-graph))))
+
 
 (defn- make-market-decisions
   "Some people in INSTANCE may be on the special tariff called :market.
@@ -986,56 +971,49 @@
   [label instance & {:keys [remove-temporary-files]}]
   
   (let [instance (document/remove-solution instance)
-
-        ;; working-directory (util/create-temp-directory!
-        ;;                    (config :solver-directory)
-        ;;                    label)
         
-        ;; input-file (io/file working-directory "problem.json")
-
-        solver-command (config :solver-command)
+        instance (magic-fields/join original-instance)
 
         included-candidates (->> (::document/candidates instance)
                                  (vals)
                                  (filter candidate/is-included?))
+
+        net-graph  (let [{paths :path buildings :building}
+                         (group-by ::candidate/type included-candidates)]
+                     (create-graph buildings paths))
+
+        _ (log/info "Basic graph has"
+                    (count (graph/nodes net-graph))
+                    "nodes,"
+                    (count (graph/edges net-graph)) "edges")
         
-        net-graph (simplify-topology included-candidates)
+        [net-graph disconnected-cand-ids]
+        (clean-disconnected-components net-graph (::document/consider-alternatives instance))
+
+        _ (log/info "Trimmed graph has"
+                    (count (graph/nodes net-graph))
+                    "nodes,"
+                    (count (graph/edges net-graph)) "edges")
+        
+        net-graph (simplify-topology net-graph)
+
+        _ (log/info "Simplified graph has"
+                    (count (graph/nodes net-graph))
+                    "nodes,"
+                    (count (graph/edges net-graph)) "edges")
+        
         net-graph (summarise-attributes net-graph included-candidates)
-
-        ;; at this point we should check for some more bad things:
-
-        ;; * components not connected to any supply vertex
-        net-graph
-        (let [ccs (map set (graph-alg/connected-components net-graph))
-              supplies (map ::candidate/id (filter candidate/has-supply? included-candidates))
-
-              ;; if we are offering alternative systems we don't need to do this
-              
-              invalid-ccs (filter (fn [cc] (not-any? cc supplies)) ccs)]
-          (cond
-            (empty? invalid-ccs)
-            net-graph ;; do nothing if no invalid CCs
-
-            (::document/consider-alternatives instance)
-            (do (log/info "Removing unusable edges contained in disconnected components")
-                (reduce (fn [g cc]
-                          (-> g
-                              (graph/remove-edges* (graph/edges (graph/subgraph g cc)))
-                              (attr/add-attr-to-nodes :unreachable true cc)))
-                        net-graph invalid-ccs))
-
-            :else
-            (do (log/info "Removing disconnected components")
-                (reduce (fn [g cc] (graph/remove-nodes* g cc))
-                        net-graph invalid-ccs))))
-                
-        ;; This is now the topology we want. Every edge may be several
-        ;; input edges, and nodes can either be real ones or junctions
-        ;; that are needed topologically.
-
-        ;; Edges can have attributes :ids, which say the input paths,
-        ;; and :cost which say the total pipe cost for the edge.
         ]
+    
+    ;; net-graph is now the topology we want. Every edge may be several
+    ;; input edges, and nodes can either be real ones or junctions
+    ;; that are needed topologically.
+
+    ;; All dangling edges have been removed entirely.
+
+    ;; Edges can have attributes :ids, which say the input paths,
+    ;; and :cost which say the total pipe cost for the edge.
+    
     ;; check whether there are actually any vertices
     (cond
       (empty? (graph/nodes net-graph))
@@ -1044,7 +1022,7 @@
                  ::solution/state :empty-problem
                  ::solution/message "Empty problem"
                  ::solution/runtime 0)
-          (mark-unreachable net-graph included-candidates))
+          (mark-unreachable net-graph included-candidates disconnected-cand-ids))
       
       :else
       (let [pipe-curves (pipes/curves instance)
@@ -1055,40 +1033,16 @@
             
             bad-numbers (find-bad-numbers input-json)
             
-            zero-nans (fn [x]
-                        (if (and (number? x)
-                                 (Double/isNaN x))
-                          0.0
-                          x))
+            zero-nans (fn [x] (if (and (number? x) (Double/isNaN x)) 0.0 x))
             
             input-json (postwalk zero-nans input-json)]
 
-
-        (doseq [p bad-numbers]
-          (log/error "Invalid numeric value at" p))
-        
-        ;; (with-open [writer (io/writer input-file)]
-        ;;   (json/write input-json writer :escape-unicode false))
-
-
-        
+        (doseq [p bad-numbers] (log/error "Invalid numeric value at" p))
         (log/info "Starting solver")
         
         (let [start-time (System/currentTimeMillis)
-              ;; output (sh solver-command "problem.json" "solution.json"
-              ;;            :dir working-directory)
-
               result (net-model/run-model input-json)
-              
               end-time (System/currentTimeMillis)
-
-              ;; output-json
-              ;; (try
-              ;;               (with-open [r (io/reader (io/file working-directory "solution.json"))]
-              ;;                 (json/read r :key-fn keyword))
-              ;;               (catch Exception ex
-              ;;                 {:state :error
-              ;;                  :message (.getMessage ex)}))
 
               solved-instance
               (-> instance
@@ -1104,16 +1058,8 @@
                    ::solution/message (:message result)
                    ::solution/runtime (safe-div (- end-time start-time) 1000.0))
                   (merge-solution net-graph pipe-curves market result)
-                  (mark-unreachable net-graph included-candidates))
+                  (mark-unreachable net-graph included-candidates disconnected-cand-ids))
               ]
-
-          ;; (if remove-temporary-files
-          ;;   (util/remove-files! working-directory)
-          ;;   (do
-          ;;     (spit (io/file working-directory "stdout.txt") (:out output))
-          ;;     (spit (io/file working-directory "stderr.txt") (:err output))
-          ;;     (spit (io/file working-directory "instance.edn") solved-instance)))
-
           
           solved-instance)))
     ))

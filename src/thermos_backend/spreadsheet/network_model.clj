@@ -285,6 +285,7 @@
          ~["Loan Rate" (*100 (::document/loan-rate doc))]
          
          ~["MIP Gap" (::document/mip-gap doc)]
+         ~["Param Gap" (::document/param-gap doc)]
          ~["Max runtime" (::document/maximum-runtime doc)]
 
          ~["Max supplies" (::document/maximum-supply-sites
@@ -389,6 +390,7 @@
                      :type number? :convert #(/ % 100.0))
      
      (copy-parameter :mip-gap ::document/mip-gap)
+     (copy-parameter :param-gap ::document/param-gap)
      (copy-parameter :max-runtime ::document/maximum-runtime)
 
      (copy-parameter :max-supplies ::document/maximum-supply-sites

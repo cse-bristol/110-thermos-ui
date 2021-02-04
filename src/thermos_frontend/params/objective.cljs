@@ -57,6 +57,7 @@
      consider-alternatives (reagent/cursor document [::document/consider-alternatives])
 
      mip-gap (reagent/cursor document [::document/mip-gap])
+     param-gap (reagent/cursor document [::document/param-gap])
      runtime (reagent/cursor document [::document/maximum-runtime])
      ]
     [:div.parameters-component
@@ -218,7 +219,10 @@
 
        [:p
         "Stop if solution is known to be at least this close to the optimum "
-        [inputs/number {:value-atom mip-gap :min 0 :max 100 :scale 100}] "%"]
+        [inputs/number {:value-atom mip-gap :step 0.1 :min 0 :max 100 :scale 100}] "%"]
+       [:p
+        "Stop if parameter fixing affects the objective by less than or equal to "
+        [inputs/number {:value-atom param-gap :step 0.01 :min 0 :max 100 :scale 100}] "%"]
        [:p
         "Maximum runtime "
         [inputs/number {:value-atom runtime :min 0 :max 50 :step 0.1}] "h"]

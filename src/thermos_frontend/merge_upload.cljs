@@ -44,6 +44,7 @@
                ::document/loan-term
                ::document/loan-rate
                ::document/mip-gap
+               ::document/param-gap
                ::document/maximum-runtime
                ::document/capital-costs
                ::document/maximum-supply-sites

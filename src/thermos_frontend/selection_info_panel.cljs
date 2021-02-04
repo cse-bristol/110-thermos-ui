@@ -74,8 +74,7 @@
              :count vcount))
           unit]]))))
 
-(defonce *open-rows
-  (reagent/atom {}))
+(defonce *open-rows (reagent/atom {}))
 
 (defn- chips-row [flow selection title value
                   & {:keys [add-classes nil-value default-closed]}]
@@ -167,7 +166,7 @@
 (defn- solution-row-classes [x]
   ["solution"
    (cond
-     (or (= x "network") (= x "impossible"))
+     (or (= x "network") (= x "impossible") (= x "peripheral"))
      x
      
      (= x "no") "no"
@@ -245,7 +244,7 @@
         (let [uf (::candidate/user-fields candidate)]
           (reduce-kv
            (fn [acc field val]
-             (let [new (contains? acc field)
+             (let [new (not (contains? acc field))
                    cur (get acc field :none)
                    nxt (cond
                          (nil? val)               :none
@@ -303,7 +302,14 @@
            base-cost  (partial base-cost cost-factors model-mode)
            ]
        [:div.selection-table
-        [chips-row "Type" ::candidate/type]
+        [chips-row "Type"
+         (fn [c]
+           (cond
+             (candidate/has-supply? c) "supply"
+             (= :building (::candidate/type c)) "demand"
+             true (::candidate/type c)))
+
+         ]
 
         (for [[field type] custom-keys]
           [:<> {:key field}
