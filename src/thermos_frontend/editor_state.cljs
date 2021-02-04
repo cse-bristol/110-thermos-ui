@@ -229,7 +229,14 @@
        (let [new-state (->> (.-target e)
                             (.getResponseText)
                             (cljs.reader/read-string))]
-         (edit-geometry! state operations/load-document new-state)
+         (edit-geometry! state
+                         (fn [state new-state]
+                           ;; the remove-solution here is needed in case
+                           ;; there is an element that got solution data last run
+                           ;; but is not in the problem we sent to the server.
+                           (-> (document/remove-solution state)
+                               (operations/load-document new-state)))
+                         new-state)
          (swap! save-state
                 assoc
                 :needs-save false
@@ -262,22 +269,6 @@
                 (fn [t]
                   (when t (js/window.clearTimeout t))
                   nil))
-
-             ;; TODO switch tab
-             ;; (let [run-state (state/is-running?)
-             ;;       last-state @last-run-state]
-             ;;   (when (and (= :completed run-state)
-             ;;              (or (= :running last-state)
-             ;;                  (= :ready last-state)))
-             ;;     (let [[org-name proj-name version] (state/get-last-save)]
-             ;;       (state/load-document!
-             ;;        org-name proj-name version
-             ;;        (fn []
-             ;;          (state/edit! state/state
-             ;;                       assoc-in
-             ;;                       [::view/view-state ::view/selected-tab]
-             ;;                       :solution)))))
-             
              (load!))
 
            nil)
