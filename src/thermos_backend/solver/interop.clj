@@ -968,7 +968,7 @@
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
-  [label instance & {:keys [remove-temporary-files]}]
+  [label original-instance]
   
   (let [instance (document/remove-solution instance)
         
@@ -1070,7 +1070,7 @@
       
       (let [solution
             (logcap/with-log-into2 log-writer
-              (solve label instance :remove-temporary-files remove-temporary-files))]
+              (solve label instance))]
         (assoc solution ::solution/log (.toString log-writer)))
 
       (catch Throwable ex
