@@ -668,7 +668,16 @@
                          :value (:degree-days (rum/react *form-state))
                          :on-change #(swap! *form-state assoc :degree-days
                                             (as-int (.. % -target -value)))}] " °C × days"]
-     [:p "The number of heating degree days per year in this location, relative to a 17° base temperature."]]
+     [:p "The number of heating degree days per year in this location, relative to a 17° base temperature."]
+     [:p "THERMOS attempts to calculate a default value for the heating degree days for the location of your map from " 
+      [:a {:href "https://ec.europa.eu/eurostat/cache/metadata/en/nrg_chdd_esms.htm" :target "_blank"} "Eurostat"] 
+      " heating degree day data."]
+     (let [*hdd-from-server? (rum/cursor-in *form-state [:hdd-from-server?])]
+       (when-not @*hdd-from-server?
+         [:p "The default value above is not from Eurostat data as your map is outside the coverage area. "
+          "You may want to use "
+          [:a {:href "https://www.degreedays.net" :target "_blank"} "degree-days.net"]
+          " to generate a value."]))]
 
     [:div.card.flex-grow
      [:h1 "Automatic building groups"]
@@ -834,17 +843,19 @@
    ])
 
 
-(defn- centroid 
+(defn centroid 
   "Get the centroid of the map area, either from the osm boundary box or
    as the average centroid of all the uploaded files' centroids."
   [*form-state]
   (let [data-source (get-in @*form-state [:geometry :source])]
     (case data-source
       :osm (get-in @*form-state [:geometry :centroid])
-      :files (let [files (vals (get-in @*form-state [:geometry :files]))]
+      :files (let [centroids (->> (vals (get-in @*form-state [:geometry :files]))
+                                  (map (fn [file] (:centroid file)))
+                                  (filter (fn [c] (not (nil? c)))))]
                (merge-with / 
-                           (apply merge-with + (map (fn [file] (:centroid file)) files)) 
-                           {:lat (count files) :lng (count files)})))))
+                           (apply merge-with + centroids) 
+                           {:lat (count centroids) :lng (count centroids)})))))
 
 (rum/defc button-strip < rum/reactive rum/static [*form-state *current-page]
   (let [state (rum/react *form-state)
@@ -884,8 +895,11 @@
                           (GET "heat-degree-days"
                             {:params (centroid *form-state)
                              :handler (fn [res]
-                                        (swap! *current-page (next-page-map @*form-state))
-                                        (reset! (rum/cursor-in *form-state [:degree-days]) (int res)))
+                                        (let [res-val (int res)
+                                              use-val? (not= res-val -1)]
+                                          (swap! *current-page (next-page-map @*form-state))
+                                          (when use-val? (reset! (rum/cursor-in *form-state [:degree-days]) res-val))
+                                          (reset! (rum/cursor-in *form-state [:hdd-from-server?]) use-val?)))
                              :error-handler #((swap! *current-page (next-page-map @*form-state)))}))} "Next"]
 
        
@@ -945,6 +959,7 @@
    :geometry {:source :osm :files {}}
    :roads    {:include-osm false :group-buildings nil}
    :degree-days 2000
+   :hdd-from-server? false
    :default-fixed-civil-cost 350.0
    :default-variable-civil-cost 700.0})
 

@@ -12,6 +12,7 @@
             [thermos-backend.db.maps :as maps]
             [thermos-backend.config :refer [config]]
             [thermos-backend.importer.core :as importer]
+            [thermos-backend.importer.heat-degree-days :as heat-degree-days]
             [clojure.java.io :as io]
             [ring.util.io :as ring-io]
             [cheshire.core :as json]
@@ -298,9 +299,9 @@
     (projects/delete-networks! map-id (url-decode network-name))
     deleted))
 
-(defn- heat-degree-days [{{:keys [lat lng]} :params}] 
+(defn- heat-degree-days [{{:keys [lng lat]} :params}] 
   (print lat lng) 
-  (-> 3000
+  (-> (heat-degree-days/get-hdd (Double/parseDouble lng) (Double/parseDouble lat))
       (json/encode)
       (response/response)
       (response/content-type "application/json")))
