@@ -1,16 +1,6 @@
 [{:title "Next release"
   :changes
-  [{:title "Bug fixes"
-    :summary
-    [:ul
-     [:li "The combined demand profile for the supply model was computed incorrectly in some cases, making the total demand not match up with what the network model said. This is fixed."]
-     [:li "The network optimisation would sometimes fail if the a solution was feasible, but became infeasible when the diversity parameters were updated to reflect decisions in the first pass. This is now less likely to happen."]
-     [:li "The network optimisation model would not report correctly when a problem was infeasible."]
-     [:li "The candidate editor did not set connection costs when told to."]
-     [:li "It is no longer possible to tell the supply model that a technology is CHP but has no power efficiency; doing this this caused the supply model to fail."]
-     [:li "An incorrect bounds calculation for the maximum power flow on pipes to buildings with a connection count of more than 1 is fixed. This mistake made some solutions infeasible that shouldn't have been."]]}
-   
-   {:title "Application features"
+  [{:title "Features: user-defined fields, building groups, spreadsheet input/output, and more"
     :summary
     [:ul 
      [:li "Buildings and roads can now have arbitrary user-defined fields on them."]
@@ -19,7 +9,23 @@
       "Groups can be inferred automatically during map creation from what road segment a building is connected to."]
      [:li "Tiny holes in the network are now automatically closed during map creation."]
      [:li "Model parameters can now be saved to and loaded from an excel spreadsheet."]
-     [:li "Underlying optimiser updated to a newer version."]]}]}
+     [:li "Underlying optimiser updated to a newer version."]
+     [:li "Project pages now show which problems have a solution. Running problems can be cancelled by clicking on the spinning thermos icon."]
+     [:li "The objective settings page now lets you stop the optimisation early if parameter fixing is not having a large effect on the result."]
+     [:li "To help find holes in the network, pipes which are connected to the network but go nowhere are now distinguished from those which are not connected at all."]
+     ]}
+   
+   {:title "Some bug fixes"
+    :summary
+    [:ul
+     [:li "The combined demand profile for the supply model was computed incorrectly in some cases, making the total demand not match up with what the network model said. This is fixed."]
+     [:li "The network optimisation would sometimes fail if the a solution was feasible, but became infeasible when the diversity parameters were updated to reflect decisions in the first pass. This is now less likely to happen."]
+     [:li "The network optimisation model would not report correctly when a problem was infeasible."]
+     [:li "The candidate editor did not set connection costs when told to."]
+     [:li "It is no longer possible to tell the supply model that a technology is CHP but has no power efficiency; doing this this caused the supply model to fail."]
+     [:li "An incorrect bounds calculation for the maximum power flow on pipes to buildings with a connection count of more than 1 is fixed. This mistake made some solutions infeasible that shouldn't have been."]
+     [:li "The cooling peak demand was not assignable during map creation; it now is."]
+     ]}]}
 
  {:title "27th October 2020"
   :changes
