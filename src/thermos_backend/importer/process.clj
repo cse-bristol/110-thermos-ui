@@ -480,7 +480,10 @@
         (mapcat
          (fn [[base file]]
            (let [features (::geoio/features
-                           (geoio/read-from file :force-crs "EPSG:4326" :key-transform identity))
+                           (geoio/read-from file
+                                            :force-crs "EPSG:4326"
+                                            :force-precision 100000000
+                                            :key-transform identity))
 
                  features (filter
                            (comp legal-geometry-types ::geoio/type)
@@ -805,7 +808,7 @@
                 ;; we want to do peak modelling afterwards
                 (progress* 35 "Computing peak demands")
                 (update :buildings geoio/update-features :produce-peaks produce-peak)
-
+                
                 (progress* 45 "De-duplicating geometry")
                 (dedup)
                 (progress* 50 "Noding paths and adding connectors")
