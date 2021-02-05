@@ -968,11 +968,9 @@
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
-  [label original-instance]
+  [label instance]
   
   (let [instance (document/remove-solution instance)
-        
-        instance (magic-fields/join original-instance)
 
         included-candidates (->> (::document/candidates instance)
                                  (vals)
