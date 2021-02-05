@@ -44,6 +44,9 @@
 
 ;; most of the work is in here - how to paint an individual tile onto the map
 ;; if there is a solution we probably want to show the solution cleanly
+(def ^:dynamic *point-radius*
+  "The screen-units radius for a Point geometry." 8.0)
+
 (defn render-tile [has-solution? contents tile layer map-view min-max-diameter]
   "Draw a tile.
   `document` should be a document layer (not an atom containing a document layer),
@@ -126,32 +129,35 @@
           (+ ordinary-line-width shadow-width)
 
           ]
-      
-      ;; Non-selected buildings
-      (doseq [candidate non-selected-buildings]
-        (render-candidate ordinary-line-width has-solution? candidate ctx project map-view))
-      ;; Selected building shadows
-      (doseq [candidate selected-buildings]
-        (render-candidate-shadow shadow-line-width has-solution? candidate ctx project map-view))
-      ;; Selected buildings
-      (doseq [candidate selected-buildings]
-        (render-candidate ordinary-line-width has-solution? candidate ctx project map-view))
+      (binding [*point-radius*
+                (if (<= zoom 15) 3
+                    (- zoom 10))]
+        
+        ;; Non-selected buildings
+        (doseq [candidate non-selected-buildings]
+          (render-candidate ordinary-line-width has-solution? candidate ctx project map-view))
+        ;; Selected building shadows
+        (doseq [candidate selected-buildings]
+          (render-candidate-shadow shadow-line-width has-solution? candidate ctx project map-view))
+        ;; Selected buildings
+        (doseq [candidate selected-buildings]
+          (render-candidate ordinary-line-width has-solution? candidate ctx project map-view))
 
-      ;; Non-selected paths
-      (doseq [path non-selected-paths]
-        (render-candidate
-         (* (::dia-scale path 1) ordinary-line-width)
-         has-solution? path ctx project map-view))
-      ;; Selected path shadows
-      (doseq [path selected-paths]
-        (render-candidate-shadow
-         (+ shadow-width (* (::dia-scale path 1) ordinary-line-width))
-         has-solution? path ctx project  map-view))
-      ;; Selected paths
-      (doseq [path selected-paths]
-        (render-candidate
-         (::dia-scale path ordinary-line-width)
-         has-solution? path ctx project map-view))
+        ;; Non-selected paths
+        (doseq [path non-selected-paths]
+          (render-candidate
+           (* (::dia-scale path 1) ordinary-line-width)
+           has-solution? path ctx project map-view))
+        ;; Selected path shadows
+        (doseq [path selected-paths]
+          (render-candidate-shadow
+           (+ shadow-width (* (::dia-scale path 1) ordinary-line-width))
+           has-solution? path ctx project  map-view))
+        ;; Selected paths
+        (doseq [path selected-paths]
+          (render-candidate
+           (::dia-scale path ordinary-line-width)
+           has-solution? path ctx project map-view)))
       
       )
     ))
@@ -330,8 +336,7 @@
   (render-geometry (::spatial/jsts-geometry candidate) ctx project
                    true false true))
 
-(def point-radius
-  "The screen-units radius for a Point geometry." 8.0)
+
 
 (defn render-geometry
   [geom ctx project fill? close? shadow?]
@@ -360,7 +365,7 @@
         (let [pt (project (.getY geom) (.getX geom))]
           (.arc ctx
                 (.-x pt) (.-y pt)
-                point-radius 0 (* 2 Math/PI)))
+                *point-radius* 0 (* 2 Math/PI)))
         (when fill? (.fill ctx))
         (.stroke ctx))
 
