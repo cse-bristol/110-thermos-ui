@@ -258,6 +258,13 @@
 (defn run-peak-model [annual-demand]
   (+ peak-constant (* annual-demand peak-gradient)))
 
+(defn- inverse-peak-model [kwp]
+  "In some data there is a known peak but no annual, and just point geometry.
+  In this case, we can invert the peak regression to get an annual demand"
+  [kwp]
+  (when (number? kwp)
+    (max 0.0 (/ (- kwp peak-constant) peak-gradient))))
+
 (defn- blank-string? [x] (and (string? x) (string/blank? x)))
 
 (defn- topo [{roads :roads buildings :buildings :as state} group-buildings]
@@ -607,6 +614,13 @@
                          :annual-demand (+ benchmark-c
                                            (* (or benchmark-m 0) floor-area))
                          :demand-source :benchmark)
+
+                  (and (zero? (::lidar/footprint feature 0))
+                       (number? (as-double (:peak-demand feature))))
+                  (assoc feature
+                         :annual-demand (inverse-peak-model
+                                         (as-double (:peak-demand feature)))
+                         :demand-source :inverse-peak)
 
                   :else
                   (merge feature @model-output))
