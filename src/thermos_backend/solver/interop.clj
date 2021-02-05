@@ -1073,6 +1073,7 @@
               (solve label instance))]
         (assoc solution ::solution/log (.toString log-writer)))
 
+      (catch InterruptedException ex (throw ex))
       (catch Throwable ex
         (util/dump-error ex "Error running network problem"
                          :type "network" :data instance)

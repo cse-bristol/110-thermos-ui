@@ -158,6 +158,7 @@
 (defn try-solve [label doc]
   (try
     (solve label doc)
+    (catch InterruptedException ex (throw ex))
     (catch Throwable ex
       (dump-error ex "Error solving supply problem"
                   :type "supply" :data doc)

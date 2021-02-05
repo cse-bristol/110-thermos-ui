@@ -78,6 +78,14 @@ If it does exist, you don't have privileges to see it.")
                 (log/warn "Unknown network operation" operation))
       (forbidden-or-login))))
 
+(defmethod verify* :job [[operation _ job-id]]
+  (let [am-sysadmin (current-sysadmin?)]
+    (when-not (and
+               (or (= operation :restart) (= operation :cancel))
+               (or am-sysadmin
+                   (contains? (:jobs *current-user*) job-id)))
+      (forbidden))))
+
 (defmethod verify* :default [query]
   (log/warn "Unknown type of permission" query)
   (forbidden-or-login))
