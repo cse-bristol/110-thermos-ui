@@ -118,10 +118,10 @@
   "Run an import job enqueued by `queue-import`"
   [{map-id :map-id} progress]
   
-  (let [{map-name :name parameters :parameters} (db/get-map map-id)]
+  (let [{map-name :name parameters :parameters project-id :project-id} (db/get-map map-id)]
     (if (empty? parameters)
       (log/error "Map" map-id "does not exist - probably been deleted before import")
-      (-> (run-import map-id map-name parameters progress)
+      (-> (run-import map-id project-id map-name parameters progress)
           (add-to-database (assoc parameters :map-id map-id))))))
 
 

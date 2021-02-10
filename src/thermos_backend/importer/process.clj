@@ -179,14 +179,19 @@
                        highways)})))
         ))))
 
-(defn load-lidar-index []
+(defn load-lidar-index [project-id]
   (when-let [lidar-directory (config :lidar-directory)]
-    (->> (file-seq (io/file lidar-directory))
-         (filter #(and (.isFile %)
-                       (let [name (.getName %)]
-                         (or (.endsWith name ".tif")
-                             (.endsWith name ".tiff")))))
-         (lidar/rasters->index))))
+    (let [per-project-dir (io/file lidar-directory "project")
+          project-dir (io/file lidar-directory "project" project-id)]
+      (->> (file-seq (io/file lidar-directory))
+           (filter #(and (.isFile %)
+                         (let [name (.getName %)]
+                           (or (.endsWith name ".tif")
+                               (.endsWith name ".tiff")))
+                         (let [path (.getPath %)]
+                           (or (not (.contains path (.getPath per-project-dir)))
+                               (.contains path (.getPath project-dir))))))
+           (lidar/rasters->index)))))
 
 (def residential-subtypes
   #{nil ;; no subtype = resi
@@ -731,7 +736,7 @@
 
 (defn run-import
   "Run an import job enqueued by `queue-import`"
-  [map-id map-name parameters progress]
+  [map-id project-id map-name parameters progress]
   (let [work-directory (util/create-temp-directory!
                         (config :import-directory)
                         (str
@@ -780,7 +785,7 @@
                 (update-in [:roads ::geoio/features] explode-multi-lines)
                 ;; now we have several of everything, potentially
                 (progress* 20 "Checking for LIDAR coverage")
-                (update :buildings lidar/add-lidar-to-shapes (load-lidar-index))
+                (update :buildings lidar/add-lidar-to-shapes (load-lidar-index project-id))
                 
                 (progress* 30 "Computing annual demands")
                 
