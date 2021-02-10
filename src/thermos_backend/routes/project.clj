@@ -345,9 +345,9 @@
 
 (defn- download-lidar [{{:keys [project-id filename]} :params}]
   (auth/verify [:read :project project-id]
-               (-> (response/response (lidar-file project-id filename))
+               (-> (response/response (lidar-file project-id (url-decode filename)))
                    (response/content-type "image/tiff")
-                   (attachment-disposition filename))))
+                   (attachment-disposition (url-decode filename)))))
 
 (defn- list-lidar [{{:keys [project-id]} :params}]
   (auth/verify [:read :project project-id]
@@ -362,12 +362,12 @@
 
 (defn- delete-lidar! [{{:keys [project-id filename]} :params}]
   (auth/verify [:modify :project project-id]
-               (io/delete-file (lidar-file project-id filename))
+               (io/delete-file (lidar-file project-id (url-decode filename)))
                deleted))
 
 (defn- lidar-info [{{:keys [project-id filename]} :params}]
   (auth/verify [:read :project project-id]
-               (-> (response/response (raster-facts (lidar-file project-id filename)))
+               (-> (response/response (raster-facts (lidar-file project-id (url-decode filename))))
                    (response/content-type "text/edn"))))
 
 (def map-routes
@@ -408,11 +408,11 @@
                    :get    delete-project-page
                    :post   delete-project!}
         "/users"  {:post set-project-users!}
-        "/lidar"  {"" {:get  list-lidar
-                       :post upload-lidar!}
-                   ["/" [str :filename]] {:get    download-lidar ;; todo does filename need url-decode?
-                                          :delete delete-lidar!}
-                   ["/" [str :filename] "/info"] {:get lidar-info}}
+        "/lidar"  {""  {:get  list-lidar :post upload-lidar!}
+                   "/" {:get  list-lidar :post upload-lidar!}
+                   ["/info/" [#".+" :filename]] {:get lidar-info}
+                   ["/" [#".+" :filename]] {:get    download-lidar
+                                            :delete delete-lidar!}}
         "/map"    map-routes})
      ]
     ]
