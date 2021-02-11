@@ -51,8 +51,6 @@ An efficient way to use the tool is to put back in a file produced by a previous
    ["-o" "--output FILE" "The problem & solution state will be written in here as EDN."]
    ["-s" "--summary-output FILE" "A file where some json summary stats about the problem will go."]
    ["-j" "--json-output FILE" "The geometry data from the final state will be put here as geojson."]
-   [nil  "--temp-dir DIR" "Where to put temporary files" :default "/tmp/thermos"]
-   [nil  "--preserve-temp" "If not set, temporary files will be removed after run"]
    ["-m" "--map FILE*"
     "Geodata files containing roads or buildings.
 These geometries will replace everything in the base scenario (NOT combine with).
@@ -594,8 +592,7 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
          building)))))
 
 (defn --main [options]
-  (mount/start-with {#'thermos-backend.config/config
-                     {:solver-directory (:temp-dir options)}})
+  (mount/start-with {#'thermos-backend.config/config {}})
   (let [output-path       (:output options)
         summary-output-path (:summary-output options)
 
