@@ -25,7 +25,7 @@
     :else
     (vec values)))
 
-(defn solve [label doc]
+(defn solve [doc]
   ;; We are going to assume for now a single supply location
   ;; which logically must serve all demands
 
@@ -155,9 +155,9 @@
            ::solution/supply-solution solution
            ::solution/supply-problem supply-problem)))
 
-(defn try-solve [label doc]
+(defn try-solve [doc]
   (try
-    (solve label doc)
+    (solve doc)
     (catch InterruptedException ex (throw ex))
     (catch Throwable ex
       (dump-error ex "Error solving supply problem"

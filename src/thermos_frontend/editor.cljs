@@ -289,7 +289,7 @@
          :hamburger
          [:button.hamburger
           {:on-click #(swap! *show-menu not)
-           :class (when (state/is-running?) "spin-around")
+           :class (when (state/is-running-or-queued?) "spin-around")
            :style (merge
                    {:background :none
                     :border :none}
@@ -303,7 +303,7 @@
          :unsaved? (state/needs-save?)}]
 
        (cond
-         (state/is-running?)
+         (state/is-running-or-queued?)
          [:div
           {:style {:position :absolute
                    :z-index 1000000
@@ -311,14 +311,26 @@
                    :height :100%
                    :display :flex
                    :background "rgba(0,0,0,0.75)"}}
-          [:b {:style {:color :white
-                       :margin :auto
-                       :font-size :3em}}
-           (let [position (state/queue-position)]
-             (if (zero? position)
-               [:span "Running"]
-               [:span "Number " position " in queue"]))
-           ]])
+          (let [position (state/queue-position)
+                run-state (state/run-state)]
+            [:div.popover-menu
+             {:style {:background :white
+                      :padding :1em
+                      :margin :auto :width :75vw}}
+             
+             (case run-state
+               (:cancel :cancelling)  [:b "Cancelling"]
+               :running
+               [:<>
+                [:b "Model is running"]
+                [:pre
+                 {:style {:font-size :0.75em :overflow :auto}}
+                 
+                 (state/run-message)]
+                ]
+
+               [:span "Number " position " in queue"])
+             [:a {:href "../../../"} "Back to project"]])])
 
        [:div {:style {:height 1 :flex-grow 1
                       :overflow :auto

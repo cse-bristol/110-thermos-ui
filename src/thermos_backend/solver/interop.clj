@@ -968,7 +968,7 @@
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
-  [label instance]
+  [instance]
   
   (let [instance (document/remove-solution instance)
 
@@ -1062,13 +1062,16 @@
           solved-instance)))
     ))
 
-(defn try-solve [label instance & {:keys [remove-temporary-files]}]
+(defn try-solve [instance progress]
   (let [log-writer (java.io.StringWriter.)]
     (try
-      
-      (let [solution
-            (logcap/with-log-into2 log-writer
-              (solve label instance))]
+      (progress :message "Start network problem")
+      (let [solution (logcap/with-log-messages
+                       (fn [^String msg]
+                         (.write log-writer msg)
+                         (.append log-writer \newline)
+                         (progress :message (.toString log-writer)))
+                       (solve instance))]
         (assoc solution ::solution/log (.toString log-writer)))
 
       (catch InterruptedException ex (throw ex))

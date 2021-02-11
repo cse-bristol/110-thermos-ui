@@ -178,11 +178,13 @@
                 :networks.job-id
                 :networks.version
                 :ranked-jobs.state
-                :ranked-jobs.queue-position)
+                :ranked-jobs.queue-position
+                :jobs.message)
       (cond-> include-content
         (h/merge-select :networks.content))
       (h/from :networks)
-      (h/left-join :ranked-jobs [:= :networks.job-id :ranked-jobs.id])
+      (h/left-join :ranked-jobs [:= :networks.job-id :ranked-jobs.id]
+                   :jobs [:= :jobs.id :networks.job-id])
       (h/where [:= :networks.id network-id])
       (db/fetch-one!)
       (as-> %

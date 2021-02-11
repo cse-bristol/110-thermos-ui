@@ -314,7 +314,7 @@
                                    {"" {:get  network-editor-page
                                         :head network-poll-status
                                         :post network-save!}
-                                    
+                                    "/status" network-poll-status
                                     "/data.json" {:get network-geojson}
                                     }]
                                   [["/" [#".+" :network-name]] {:delete delete-networks!}]]}]])

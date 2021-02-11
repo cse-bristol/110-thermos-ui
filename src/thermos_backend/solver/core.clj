@@ -36,12 +36,13 @@
         (->> (edn/read-string {:default ->TaggedValue}))
 
         (cond->
-            (#{:network :both} problem-type)
-          (->> (interop/try-solve (format "network-%s-" network-id)))
+          (#{:network :both} problem-type)
+          (interop/try-solve progress)
           
           (#{:supply :both} problem-type)
-          (->> (supply-solver/try-solve (format "supply-%s-" network-id))))
-        
+          (supply-solver/try-solve))
+
+        ;; stringify and save back to database
         (pr-str)
         (->> (projects/add-solution! network-id)))
     (catch InterruptedException ex
