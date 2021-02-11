@@ -167,7 +167,6 @@
   (let [today (today-date)
         expanded-name @*expanded
         desc #(compare %2 %1)]
-    
     (table
      {:style {:width :100%}
       :rows
@@ -195,9 +194,22 @@
       [{:key :state
         :value #(cond
                   (:has-run %)
-                  [:b ""]
+                  [:b {:title "Optimiser has been run on this save"} "✓"]
+                  
                   (:job-id %)
-                  (spinner {:size 16}))
+                  [:button
+                   {:style {:border :none :background :none
+                            :cursor :pointer}
+
+                    :on-click
+                    (fn-js
+                     [e]
+                     (when (js/confirm "Cancel running job?")
+                       (POST (str "/admin/job/" (:job-id %))
+                           {:params {:action "cancel"}})
+                       ))
+                    }
+                   (spinner {:size 16})])
         :title ""
         }
        {:key :name

@@ -217,6 +217,12 @@
       (h/where [:= :id network-id])
       (db/execute!)))
 
+(defn forget-run! [network-id]
+  (-> (h/update :networks)
+      (h/sset {:has-run false :job-id nil})
+      (h/where [:= :id network-id])
+      (db/execute!)))
+
 (defn associate-job! [network-id job-id]
   (-> (h/update :networks)
       (h/sset {:job-id job-id})

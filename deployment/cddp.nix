@@ -15,6 +15,10 @@
     services.thermos.model.enable = true;
     services.thermos.importer.enable = true;
 
+    services.thermos.ui.javaArgs = "-Xmx6g -server";
+    services.thermos.model.javaArgs = "-Xmx32g -server";
+    services.thermos.importer.javaArgs = "-Xmx10g -server";
+
     nixpkgs.config.allowUnfree = true;
     
     services.thermos.ui.baseUrl = "https://cddp-thermos.cse.org.uk";

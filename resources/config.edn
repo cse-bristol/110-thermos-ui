@@ -1,4 +1,4 @@
-{:pg-host "192.168.56.101"
+{:pg-host "10.233.2.2"
  :pg-user "postgres"
  :pg-password "therm0s"
  :pg-db "thermos"

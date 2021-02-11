@@ -46,7 +46,7 @@
      - :auth - the user's authority on this project"
   [user-id]
   (when user-id
-    (let [[user-details project-details]
+    (let [[user-details project-details jobs]
           (db/with-connection [conn]
             [(-> (h/select :*)
                  (h/from :users)
@@ -72,6 +72,16 @@
                           :users-projects.user-id
                           :users-projects.auth)
                  (db/fetch! conn))
+
+             (-> (h/select [:networks.job-id :job-id])
+                 (h/from :users-projects)
+                 (h/left-join :projects [:= :projects.id :users-projects.project-id]
+                              :maps [:= :maps.project-id :projects.id]
+                              :networks [:= :networks.map-id :maps.id])
+                 (h/where [:and
+                           [:= :users-projects.user-id user-id]
+                           [:not [:= nil :networks.job-id]]])
+                 (db/fetch! conn))
              ])]
       (-> user-details
           (update :auth keyword)
@@ -88,7 +98,9 @@
           (assoc :maps
                  (into #{} (mapcat :map-ids project-details))
                  :networks
-                 (into #{} (mapcat :network-ids project-details)))
+                 (into #{} (mapcat :network-ids project-details))
+                 :jobs
+                 (into #{} (map :job-id jobs)))
           ))))
 
 (defn delete-user! [user-id]

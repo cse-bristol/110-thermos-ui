@@ -258,6 +258,13 @@
 (defn run-peak-model [annual-demand]
   (+ peak-constant (* annual-demand peak-gradient)))
 
+(defn- inverse-peak-model [kwp]
+  "In some data there is a known peak but no annual, and just point geometry.
+  In this case, we can invert the peak regression to get an annual demand"
+  [kwp]
+  (when (number? kwp)
+    (max 0.0 (/ (- kwp peak-constant) peak-gradient))))
+
 (defn- blank-string? [x] (and (string? x) (string/blank? x)))
 
 (defn- topo [{roads :roads buildings :buildings :as state} group-buildings]
@@ -473,7 +480,10 @@
         (mapcat
          (fn [[base file]]
            (let [features (::geoio/features
-                           (geoio/read-from file :force-crs "EPSG:4326" :key-transform identity))
+                           (geoio/read-from file
+                                            :force-crs "EPSG:4326"
+                                            :force-precision 100000000
+                                            :key-transform identity))
 
                  features (filter
                            (comp legal-geometry-types ::geoio/type)
@@ -607,6 +617,13 @@
                          :annual-demand (+ benchmark-c
                                            (* (or benchmark-m 0) floor-area))
                          :demand-source :benchmark)
+
+                  (and (zero? (::lidar/footprint feature 0))
+                       (number? (as-double (:peak-demand feature))))
+                  (assoc feature
+                         :annual-demand (inverse-peak-model
+                                         (as-double (:peak-demand feature)))
+                         :demand-source :inverse-peak)
 
                   :else
                   (merge feature @model-output))
@@ -791,7 +808,7 @@
                 ;; we want to do peak modelling afterwards
                 (progress* 35 "Computing peak demands")
                 (update :buildings geoio/update-features :produce-peaks produce-peak)
-
+                
                 (progress* 45 "De-duplicating geometry")
                 (dedup)
                 (progress* 50 "Noding paths and adding connectors")

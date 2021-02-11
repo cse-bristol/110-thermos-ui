@@ -769,6 +769,12 @@
     :doc
     [:span
      "A value for annual cooling demand will be used in preference to a cooling estimate."]}
+
+   {:value :cooling-peak
+    :label "Peak cooling demand (kW)"
+    :doc
+    [:span
+     "A value for peak cooling demand will be used in preference to an estimate."]}
    
    {:value :peak-demand :label "Peak heat demand (kW)"
     :doc

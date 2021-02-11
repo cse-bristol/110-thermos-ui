@@ -968,11 +968,9 @@
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
-  [label instance & {:keys [remove-temporary-files]}]
+  [label instance]
   
   (let [instance (document/remove-solution instance)
-        
-        instance (magic-fields/join original-instance)
 
         included-candidates (->> (::document/candidates instance)
                                  (vals)
@@ -1070,9 +1068,10 @@
       
       (let [solution
             (logcap/with-log-into2 log-writer
-              (solve label instance :remove-temporary-files remove-temporary-files))]
+              (solve label instance))]
         (assoc solution ::solution/log (.toString log-writer)))
 
+      (catch InterruptedException ex (throw ex))
       (catch Throwable ex
         (util/dump-error ex "Error running network problem"
                          :type "network" :data instance)

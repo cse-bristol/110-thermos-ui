@@ -25,7 +25,7 @@
 
 (defn- act-on-job! [{{:keys [action job-id]} :params}]
   {:pre [(int job-id) (#{"restart" "cancel"} action)]}
-  (auth/verify :sysadmin
+  (auth/verify [(keyword action) :job job-id]
     (case action
       "restart" (queue/restart job-id)
       "cancel"  (queue/cancel job-id))

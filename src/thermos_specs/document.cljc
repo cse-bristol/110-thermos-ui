@@ -132,9 +132,11 @@
                                           "two" {::candidate/inclusion :forbidden
                                                  ::candidate/modified true}
                                           "three" {}
-                                          "four" {::candidate/inclusion :forbidden}}}
+                                          "four" {::candidate/inclusion :forbidden}
+                                          "five" {::candidate/modified true}
+                                          }}
                            ))))
-              #{"one" "two"}))}
+              #{"one" "two" "five"}))}
   (->> doc
        (sr/setval
         [::candidates sr/MAP-VALS
@@ -170,7 +172,7 @@
 
 (defn- remove-transient-keys
   "Some values are stored in the document which we don't want to persist.
-  They are all stored in maps under namespaced keywors which are not
+  They are all stored in maps under namespaced keywords which are not
   the thermos-specs namespace or below.
 
   This function removes all these keys"
@@ -199,7 +201,8 @@
 
 (defn keep-interesting
   "Return a version of document in which only the interesting bits are retained.
-  This strips off anything which is not part of one of the specs."
+  This strips off anything which is not part of one of the specs, and
+  anything that cannot participate in the problem."
   [document]
 
   (->> document

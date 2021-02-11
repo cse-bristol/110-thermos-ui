@@ -13,7 +13,7 @@
             [clojure.tools.logging :as log]
             [thermos-backend.maps.heat-density :as heat-density]
             [clojure.data.json :as json]
-            [thermos-util :refer [distinct-by]]))
+            [thermos-util :refer [distinct-by] :as util]))
 
 (defmethod fmt/fn-handler "&&" [_ a b & more]
   (if (seq more)
@@ -122,10 +122,13 @@
   (persistent!
    (reduce-kv
     (fn [a k v]
-      (cond-> a (not (nil? v))
+      (cond-> a (not (or (nil? v) (and (string? v) (string/blank? v))))
               (assoc! (str k)
-                      (if (or (string? v) (number? v) (boolean? v))
-                        v (str v))
+                      (cond
+                        (or (boolean? v) (number? v)) v
+                        (string? v)
+                        (or (util/as-double v) (util/as-boolean v) v)
+                        :else (str v))
                       )))
     (transient {}) m)))
 

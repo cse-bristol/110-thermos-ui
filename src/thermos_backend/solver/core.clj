@@ -44,6 +44,9 @@
         
         (pr-str)
         (->> (projects/add-solution! network-id)))
+    (catch InterruptedException ex
+      (log/info "Solver interrupted (probably user cancel) for" network-id)
+      (projects/forget-run! network-id))
     (catch Exception ex
       (log/error "Error caught in problem consumer" ex))))
 

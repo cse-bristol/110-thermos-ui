@@ -138,7 +138,13 @@ that intersect the shape"
 
   (->> (::document/candidates doc)
        (vals)
-       (filter #(.intersects shape (::jsts-geometry %)))))
+       (filter #(let [geom (::jsts-geometry %)]
+                  (case (.getGeometryType geom)
+                    "Point"
+                    (.intersects shape (.buffer geom 0.000025 6))
+                    
+                    (.intersects shape geom))
+                  ))))
 
 (defn find-intersecting-candidates-ids
   "Given `doc`, a document, and `shape`, a shape, and possibly having

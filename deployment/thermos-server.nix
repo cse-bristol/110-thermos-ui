@@ -40,23 +40,29 @@ in
       add_header Strict-Transport-Security max-age=15768000;
 
       server {
-      listen 80 default_server;
+           listen 80 default_server;
 
-      client_max_body_size 1000M;
+           client_max_body_size 1000M;
 
-      gzip on;
-      gzip_proxied any;
-      gzip_types text/css text/javascript application/json text/plain text/xml application/javascript application/octet-stream;
+           gzip on;
+           gzip_proxied any;
+           gzip_types text/css text/javascript application/json text/plain text/xml application/javascript application/octet-stream;
+           error_page 403 404 500 502 503 504 /error.html;
 
-      location / {
-      proxy_pass http://localhost:${toString config.services.thermos.ui.port}/;
-      proxy_set_header Host $host;
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           location /error.html {
+             internal;
+             root ${./error};
+           }
 
-      proxy_read_timeout 7200;
-      proxy_send_timeout 7200;
-      send_timeout 7200;
-      }
+           location / {
+             proxy_pass http://localhost:${toString config.services.thermos.ui.port}/;
+             proxy_set_header Host $host;
+             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+             proxy_read_timeout 7200;
+             proxy_send_timeout 7200;
+             send_timeout 7200;
+           }
+
       }
     '';
   };
