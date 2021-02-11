@@ -39,19 +39,17 @@
       
       (+
        primary-losses
-       (* 1.15 ;; distribution loss factor
-          (areduce
-           sap-delta-t
-           month total 0
+       (areduce
+        sap-delta-t
+        month total 0
 
-           (+ total
-              (* sap-liters-per-day
-                 (aget sap-volume-factor month)
-                 (aget sap-days month)
-                 4.18
-                 (/ (aget sap-delta-t month)
-                    3600.0))))))
-      )
-    
-    ))
+        (+ total
+           (* 4.18
+              sap-liters-per-day
+              (aget sap-days month)
+              (aget sap-volume-factor month)
+              (aget sap-delta-t month)
+              (/ 3600.0)))))
+      )))
+
         
