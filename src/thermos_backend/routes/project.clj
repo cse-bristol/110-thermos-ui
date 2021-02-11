@@ -20,7 +20,8 @@
             [thermos-util.converter :as converter]
             [clojure.edn :as edn]
             [thermos-backend.solver.core :as solver]
-            [thermos-backend.routes.lidar :as lidar-routes])
+            [thermos-backend.routes.lidar :as lidar-routes]
+            [thermos-backend.lidar :as lidar])
   (:import [javax.mail.internet InternetAddress]
            [java.io ByteArrayInputStream]))
 
@@ -86,6 +87,7 @@
                    (= (string/lower-case project-name)
                       (string/lower-case (:name (projects/get-project project-id))))))
           (do (projects/delete-project! project-id)
+              (lidar/delete-project-lidar! project-id)
               deleted)
           
           (= :post method)

@@ -6,40 +6,14 @@
             [thermos-backend.db.projects :as projects]
             [thermos-backend.pages.cache-control :as cache-control]
             [thermos-backend.pages.lidar :as lidar-pages]
-            [thermos-backend.config :refer [config]]
             [clojure.java.io :as io]
-            [thermos-importer.lidar :as lidar]))
+            [thermos-backend.lidar :as lidar]))
 
-
-(defn- project-lidar-dir ^java.io.File [project-id]
-  (when-let [lidar-directory (config :lidar-directory)]
-    (io/file lidar-directory "project" (str project-id))))
-
-(defn- lidar-file ^java.io.File [project-id filename]
-  (io/file (project-lidar-dir project-id) filename))
-
-(defn- raster-facts [file]
-  (let [facts (lidar/raster-facts file)
-        rect (:bounds facts)]
-    {:filename (.getName (:raster facts))
-     :crs (:crs facts)
-     :bounds {:x1 (.x1 rect)
-              :y1 (.y1 rect)
-              :x2 (.x2 rect)
-              :y2 (.y2 rect)}}))
-
-(defn- all-facts [project-id]
-  (->> (file-seq (project-lidar-dir project-id))
-       (filter #(and (.isFile %)
-                     (let [name (.getName %)]
-                       (or (.endsWith name ".tif")
-                           (.endsWith name ".tiff")))))
-       (map raster-facts)))
 
 (defn- upload-lidar! [{{:keys [file project-id]} :params}]
   (auth/verify [:modify :project project-id]
                (let [files (if (vector? file) file [file])
-                     target-dir (project-lidar-dir project-id)]
+                     target-dir (lidar/project-lidar-dir project-id)]
 
                  (.mkdirs target-dir)
 
@@ -54,7 +28,7 @@
 
 (defn- download-lidar [{{:keys [project-id filename]} :params}]
   (auth/verify [:read :project project-id]
-               (-> (response/response (lidar-file project-id (url-decode filename)))
+               (-> (response/response (lidar/project-lidar-file project-id (url-decode filename)))
                    (response/content-type "image/tiff")
                    (response/header
                     "Content-Disposition"
@@ -62,23 +36,18 @@
 
 (defn- list-lidar [{{:keys [project-id]} :params}]
   (auth/verify [:read :project project-id]
-                 (-> (response/response (all-facts project-id))
+                 (-> (response/response (lidar/project-lidar-properties project-id))
                      (response/content-type "text/edn"))))
 
 (defn- delete-lidar! [{{:keys [project-id filename]} :params}]
   (auth/verify [:modify :project project-id]
-               (io/delete-file (lidar-file project-id (url-decode filename)))
+               (io/delete-file (lidar/project-lidar-file project-id (url-decode filename)))
                (response/redirect (str "/project/" project-id "/lidar") :see-other)))
 
-(defn- lidar-info [{{:keys [project-id filename]} :params}]
-  (auth/verify [:read :project project-id]
-               (-> (response/response (raster-facts (lidar-file project-id (url-decode filename))))
-                   (response/content-type "text/edn"))))
-
 (defn- manage-lidar-page [{{:keys [project-id]} :params}]
-  (auth/verify [:read :project project-id]
+  (auth/verify [:modify :project project-id]
                (let [project (projects/get-project project-id)]
-                 (-> (lidar-pages/manage-lidar (:name project) (all-facts project-id))
+                 (-> (lidar-pages/manage-lidar (:name project) (lidar/project-lidar-properties project-id))
                      (html)
                      (cache-control/no-store)))))
 
@@ -92,7 +61,7 @@
 (def lidar-routes 
   {""  {:get  manage-lidar-page 
         :post upload-lidar!}
-   ["/info/" [#".+" :filename]] {:get lidar-info}
+   "/list" {:get list-lidar}
    ["/delete/" [#".+" :filename]] {:get delete-lidar-page
                                    :post delete-lidar!}
    ["/" [#".+" :filename]] {:get download-lidar}})
