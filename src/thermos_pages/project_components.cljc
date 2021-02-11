@@ -508,7 +508,10 @@
            ])
         
         (when user-auth
-          [:a.button {:href "map/new"} "MAP " symbols/plus]))]]
+          [:a.button {:href "map/new"} "MAP " symbols/plus])
+        
+        (when user-auth
+          [:a.button {:href "lidar"} "LIDAR"]))]]
 
      ;; data uploady box...
      

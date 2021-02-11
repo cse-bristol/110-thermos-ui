@@ -20,7 +20,7 @@
             [thermos-util.converter :as converter]
             [clojure.edn :as edn]
             [thermos-backend.solver.core :as solver]
-            [thermos-importer.lidar :as lidar])
+            [thermos-backend.routes.lidar :as lidar-routes])
   (:import [javax.mail.internet InternetAddress]
            [java.io ByteArrayInputStream]))
 
@@ -307,68 +307,6 @@
       (response/response)
       (response/content-type "application/json")))
 
-(defn- project-lidar-dir ^java.io.File [project-id]
-  (when-let [lidar-directory (config :lidar-directory)] 
-    (io/file lidar-directory "project" (str project-id))))
-
-(defn- lidar-file ^java.io.File [project-id filename]
-  (io/file (project-lidar-dir project-id) filename))
-
-(defn- raster-facts [file]
-  (let [facts (lidar/raster-facts file)
-        rect (:bounds facts)]
-    {:filename (.getName (:raster facts))
-     :crs (:crs facts)
-     :bounds {:x1 (.x1 rect)
-              :y1 (.y1 rect)
-              :x2 (.x2 rect)
-              :y2 (.y2 rect)}}))
-
-(defn- upload-lidar! [{{:keys [file project-id]} :params}]
-  (auth/verify [:modify :project project-id]
-               (let [files (if (vector? file) file [file])
-                     target-dir (project-lidar-dir project-id)]
-
-                 (.mkdirs target-dir)
-
-                 (doseq [file files]
-                   (let [target-file ^java.io.File (io/file target-dir (:filename file))]
-                     (java.nio.file.Files/move
-                      (.toPath (:tempfile file))
-                      (.toPath target-file)
-                      (into-array java.nio.file.CopyOption []))))
-
-                 (-> (response/response
-                      (map (fn [file] (raster-facts (lidar-file project-id file)))
-                           files))
-                     (response/content-type "text/edn")))))
-
-(defn- download-lidar [{{:keys [project-id filename]} :params}]
-  (auth/verify [:read :project project-id]
-               (-> (response/response (lidar-file project-id (url-decode filename)))
-                   (response/content-type "image/tiff")
-                   (attachment-disposition (url-decode filename)))))
-
-(defn- list-lidar [{{:keys [project-id]} :params}]
-  (auth/verify [:read :project project-id]
-               (let [facts (->> (file-seq (project-lidar-dir project-id))
-                                (filter #(and (.isFile %)
-                                              (let [name (.getName %)]
-                                                (or (.endsWith name ".tif")
-                                                    (.endsWith name ".tiff")))))
-                                (map raster-facts))]
-                 (-> (response/response facts)
-                     (response/content-type "text/edn")))))
-
-(defn- delete-lidar! [{{:keys [project-id filename]} :params}]
-  (auth/verify [:modify :project project-id]
-               (io/delete-file (lidar-file project-id (url-decode filename)))
-               deleted))
-
-(defn- lidar-info [{{:keys [project-id filename]} :params}]
-  (auth/verify [:read :project project-id]
-               (-> (response/response (raster-facts (lidar-file project-id (url-decode filename))))
-                   (response/content-type "text/edn"))))
 
 (def map-routes
   [["/new" {:get new-map-page :post create-new-map!}]
@@ -408,11 +346,7 @@
                    :get    delete-project-page
                    :post   delete-project!}
         "/users"  {:post set-project-users!}
-        "/lidar"  {""  {:get  list-lidar :post upload-lidar!}
-                   "/" {:get  list-lidar :post upload-lidar!}
-                   ["/info/" [#".+" :filename]] {:get lidar-info}
-                   ["/" [#".+" :filename]] {:get    download-lidar
-                                            :delete delete-lidar!}}
+        "/lidar"  lidar-routes/lidar-routes
         "/map"    map-routes})
      ]
     ]
