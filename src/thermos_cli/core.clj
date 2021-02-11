@@ -86,6 +86,11 @@ If it says 'use', then the demand-field value will be used (unless it's not nume
     "If given, the peak will be determined from the diameter in FIELD.
 Use in conjunction with --transfer-field to get diameter off a pipe."
     ]
+   [nil "--infer-peak-at VAL"
+    "When inferring peak from diameter, there is a range from (next lowest dia) + 1kW to (next highest) - 1kW. This value is used to interpolate between them."
+    :default 0.5
+    :parse-fn #(Double/parseDouble %)
+    ]
    
    [nil "--count-field FIELD" "Connection count. Otherwise we assume 1."]
    [nil "--require-all" "Require all buildings be connected to network."]
@@ -574,7 +579,7 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
        (assoc building ::demand/group g)
        building))))
 
-(defn- infer-peak-demand [instance diameter-field]
+(defn- infer-peak-demand [instance diameter-field interpolate-to]
   (let [curve      (pipes/curves instance)]
     ;; to do reverse lookup we need pipe functions
     
@@ -583,7 +588,8 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
      (fn [building]
        (if-let [dia (as-double (get building diameter-field))]
          ;; choose a demand that gets us this diameter
-         (assoc building ::demand/kwp (dec (pipes/dia->kw curve dia)))
+         (let [[kwmin kwmax] (pipes/dia->kw-range curve dia)]
+           (assoc building ::demand/kwp (+ kwmin (* interpolate-to (- kwmax kwmin)))))
          ;; do nothing
          building)))))
 
