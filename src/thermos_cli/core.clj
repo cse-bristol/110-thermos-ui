@@ -10,8 +10,9 @@
             
             [thermos-backend.importer.process :as importer]
             [thermos-backend.solver.interop :as interop]
+            [thermos-backend.spreadsheet.core :as spreadsheet]
             [thermos-util :refer [as-double as-boolean as-integer assoc-by]]
-            [thermos-util.converter :as converter]
+
             [thermos-importer.lidar :as lidar]
             
             [thermos-specs.document :as document]
@@ -28,29 +29,29 @@
             [clojure.pprint :refer [pprint]]
             
             [loom.alg :as graph-alg]
-            [thermos-util.pipes :as pipes])
+            [thermos-util.pipes :as pipes]
+
+            [thermos-cli.output :as output])
   (:gen-class))
 
 ;; THERMOS CLI tools for Net Zero Analysis
-
-(defn- output ^java.io.Closeable [thing]
-  (if (= thing "-")
-    (proxy [java.io.FilterWriter] [(io/writer System/out)]
-      (close [] (proxy-super flush)))
-    (io/writer (io/file thing))))
 
 (defn- conj-arg [m k v]
   (update m k conj v))
 
 (def options
-  [[nil "--name NAME" "A name to put in the summary output"]
+  [[nil "--problem-name NAME" "Name of problem - this will be put in some outputs"]
    ["-i" "--base FILES" "The problem to start with - this may contain geometry already.
 An efficient way to use the tool is to put back in a file produced by a previous -o output."
     :assoc-fn conj-arg]
    
-   ["-o" "--output FILE" "The problem & solution state will be written in here as EDN."]
-   ["-s" "--summary-output FILE" "A file where some json summary stats about the problem will go."]
-   ["-j" "--json-output FILE" "The geometry data from the final state will be put here as geojson."]
+   ["-o" "--output FILE*" "The problem will be written out here. Format determined by file extension. Can be repeated.
+If the file is a tsv file then if the name contains 'pipe' the output will be about pipes, otherwise buildings."
+    :assoc-fn conj-arg]
+   
+   ;; ["-s"  "--output-summary FILE*" "Solution summary data will be written out here. Format by extension, can be repeated."
+   ;;  :assoc-fn conj-arg]
+
    ["-m" "--map FILE*"
     "Geodata files containing roads or buildings.
 These geometries will replace everything in the base scenario (NOT combine with).
@@ -95,9 +96,10 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
    [nil "--transfer-field FIELD"
     "Set FIELD on buildings to the value of FIELD on the road the connect to."]
    [nil "--group-field FIELD" "Use FIELD to group buildings connection decisions together."]
-   
-   [nil "--output-predictors FILE"
-    "Write out the things which went into the demand prediction method"]
+  
+
+   [nil "--spreadsheet FILE"
+    "Load parameters from an excel spreadsheet; this will only be useful if you also set up the magic fields."]
    
    [nil "--insulation FILE*"
     "A file containing insulation definitions"
@@ -127,11 +129,6 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
     :assoc-fn conj-arg]
    
    ["-h" "--help" "me Obi-Wan Kenobi - You're my only hope."]])
-
-(defmethod print-method org.locationtech.jts.geom.Geometry
-  [this w]
-  (.write w "#geojson ")
-  (print-method (jts/geom->json this) w))
 
 (defn read-edn [file]
   (when file
@@ -541,16 +538,6 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
           :opex (sum-costs (keep (comp :opex ::solution/alternative) alts))}])
       (into {}))}))
 
-(defn- write-geojson [data writer]
-  (json/write
-   data
-   writer
-   :value-fn
-   (fn write-geojson-nicely [k v]
-     (if (instance? org.locationtech.jts.geom.Geometry v)
-       (jts/geom->json v)
-       v))))
-
 (defn- set-values [instance things-to-set]
   (reduce
    (fn [i s]
@@ -593,12 +580,8 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
 
 (defn --main [options]
   (mount/start-with {#'thermos-backend.config/config {}})
-  (let [output-path       (:output options)
-        summary-output-path (:summary-output options)
-
-        output-predictors-path (:output-predictors options)
-        
-        json-path         (:json-output options)
+  (let [output-paths         (:output options)
+        ;; summary-output-paths (:summary-output options)
         
         geodata           (when (seq (:map options))
                             (geoio/read-from-multiple (:map options)
@@ -616,17 +599,24 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
                                 ;; areas for measures to work on
                                 (->> (map importer/add-areas))))
         
-        instance          (apply merge defaults/default-document
-                                 (when-let [base
-                                            (seq
-                                             (filter
-                                              #(let [e (.exists (io/file %))]
-                                                 (when-not e
-                                                   (log/warn "--base" % "doesn't exist"))
-                                                 e)
-                                              (:base options)))]
-                                   (doall (map read-edn (reverse base)))))
+        instance
+        (apply merge
+               defaults/default-document
 
+               (when-let [spreadsheet (:spreadsheet options)]
+                 (log/info "Reading settings from" spreadsheet)
+                 (spreadsheet/from-spreadsheet spreadsheet))
+               
+               (when-let [base
+                          (seq
+                           (filter
+                            #(let [e (.exists (io/file %))]
+                               (when-not e
+                                 (log/warn "--base" % "doesn't exist"))
+                               e)
+                            (:base options)))]
+                 (doall (map read-edn (reverse base)))))
+        
         saying            (fn [x s] (log/info s) x)
         
         instance          (cond-> instance
@@ -682,48 +672,19 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
 
                             (:infer-peak-from-diameter options)
                             (-> (saying "Infer peak demand field")
-                                (infer-peak-demand (:infer-peak-from-diameter options)))
+                                (infer-peak-demand (:infer-peak-from-diameter options)
+                                                   (:infer-peak-at options 0.5)))
                             
                             (:solve options)
                             (-> (saying "Solve")
-                                (as-> instance
-                                    (interop/solve "" instance
-                                                   :remove-temporary-files
-                                                   (not (:preserve-temp options)))
-                                  )))
+                                (interop/solve)))
         ]
-
-    (when output-predictors-path
-      (log/info "Saving predictors to" output-predictors-path)
-      (with-open [w (output output-predictors-path)]
-        (write-geojson
-         {:type :FeatureCollection
-          :features
-          (for [b buildings]
-            {:type :Feature
-             :id (::geoio/id b)
-             :properties (dissoc b ::geoio/geometry)
-             :geometry (::geoio/geometry b)})}
-         w)))
     
-    (when json-path
-      (log/info "Saving geojson to" json-path)
-      (with-open [w (output json-path)]
-        (-> instance
-            (converter/network-problem->geojson)
-            (write-geojson w))))
-    
-    (when output-path
-      (log/info "Saving edn to" output-path)
-      (with-open [w (output output-path)]
-        (if (= output-path "-") 
-          (pprint instance w)
-          (binding [*out* w] (prn instance)))))
-
-    (when summary-output-path
-      (log/info "Saving summary to" summary-output-path)
-      (with-open [w (output summary-output-path)]
-        (json/write (problem-summary instance (:name options)) w))))
+    (binding [output/*identifier* (:problem-name options)]
+      (doseq [output-path output-paths]
+        (log/info "Saving state to" output-path)
+        (output/save-state instance output-path))))
+  
   
   (mount/stop))
 
@@ -751,57 +712,24 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
         (println summary))
 
       :else
-      (--main options)
-      )
-    ))
-
-
+      (--main options))))
 
 
 
 (comment
-  (doseq [f (file-seq (io/file "/home/hinton/p/110-thermos/network-model-validation/data/"))]
-    (when (.endsWith (.getName f) ".gpkg")
-      (-main "-m" (.getAbsolutePath f)
-             "-j" (str "/home/hinton/p/110-thermos/network-model-validation/"
-                       (.replaceAll (.getName f) "\\.gpkg$" ".gjson"))
-             
-         "--supply-field" "SupplyDema"
-         "--supply" "/home/hinton/p/110-thermos/network-model-validation/supply.edn"
-         "--tariffs" "/home/hinton/p/110-thermos/network-model-validation/tariffs.edn"
-         "--pipe-costs" "/home/hinton/p/110-thermos/network-model-validation/pipe-costs.edn"
-         "--demand-field" "kWh"
-         "--require-all"
-         "--solve"
-         "--snap-tolerance" "0.1"
-         "--summary-output" "-"
-         "--trim-paths"
-         "--set" "[:thermos-specs.document/flow-temperature 80]"
-         "--set" "[:thermos-specs.document/return-temperature 40]"
-         "--transfer-field" "Diameter"
-         "--infer-peak-from-diameter" "Diameter"
-         )
+  (-main
+   "-m"               "/home/hinton/p/738-cddp/density-maps/cluster-9.gpkg"
+   "--spreadsheet"    "/home/hinton/p/738-cddp/density-maps/cddp-thermos-parameters-current.xlsx"
+   "--snap-tolerance" "4"
+   "--supply"         "/home/hinton/p/738-cddp/density-maps/supply.edn"
+   "--solve"
 
-      )
-    )
+   "--problem-name"   "9"
 
+   "-o"               "/home/hinton/p/738-cddp/density-maps/cluster-9-pipes.tsv"
+   "-o"               "/home/hinton/p/738-cddp/density-maps/cluster-9-buildings.tsv"
 
-  (-main "-m" "/home/hinton/p/110-thermos/network-model-validation/data/scenario-A137.gpkg"
-         "-j" "/home/hinton/p/110-thermos/network-model-validation/A137.gjson"
-         "--supply-field" "SupplyDema"
-         "--supply" "/home/hinton/p/110-thermos/network-model-validation/supply.edn"
-         "--tariffs" "/home/hinton/p/110-thermos/network-model-validation/tariffs.edn"
-         "--pipe-costs" "/home/hinton/p/110-thermos/network-model-validation/pipe-costs.edn"
-         "--demand-field" "kWh"
-         "--require-all"
-         "--solve"
-         "--snap-tolerance" "0.1"
-         "--summary-output" "-"
-         "--trim-paths"
-         "--set" "[:thermos-specs.document/flow-temperature 80]"
-         "--set" "[:thermos-specs.document/return-temperature 40]"
-         "--transfer-field" "Diameter"
-         "--infer-peak-from-diameter" "Diameter"
-         )
-  
+   )
   )
+
+
