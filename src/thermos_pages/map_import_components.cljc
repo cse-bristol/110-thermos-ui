@@ -55,7 +55,9 @@
      (fn-js [state]
        (let [{[{[lat0 lat1 lon0 lon1] :map-position
                 boundary-geojson :boundary-geojson
-                on-draw-box :on-draw-box}]
+                on-draw-box :on-draw-box
+                allow-drawing :allow-drawing
+                lidar-coverage-geojson :lidar-coverage-geojson}]
               :rum/args} state
 
              node (rum/ref state :container)
@@ -73,6 +75,12 @@
                                :minZoom 0 :maxZoom 20}))
 
              boundary (js/L.geoJSON (clj->js boundary-geojson)) ;; yech
+             lidar-coverage (js/L.geoJSON (clj->js lidar-coverage-geojson) 
+                                          #js {:style (fn [_] #js {:color "#33ff88"})
+                                               :onEachFeature (fn [feature layer] 
+                                                                (.bindTooltip layer 
+                                                                              (.. feature -properties -filename)
+                                                                              #js{"direction" "center"}))})
 
              draw-control (js/L.Control.Draw.
                            #js {"position" "topleft"
@@ -90,7 +98,9 @@
          (.addLayer map layer)
          (.addLayer map labels)
          (.addLayer map boundary)
-         (.addControl map draw-control)
+         (.addLayer map lidar-coverage)
+         (when allow-drawing
+           (.addControl map draw-control))
 
          (.on map (.. js/L.Draw -Event -CREATED)
               (fn [^js/L.Draw.Event e]
@@ -437,7 +447,8 @@
                        :boundary-geojson (:boundary (rum/react *osm-position))
                        :on-draw-box #(do (reset! *osm-position {:boundary (:bounds %)})
                                          (reset! *centroid (:centroid %))
-                                         (reset! *map-position nil))})])]
+                                         (reset! *map-position nil))
+                       :allow-drawing true})])]
      
      [:div.card
       [:label [:input {:name :building-source :type :radio :value :files
@@ -593,11 +604,12 @@
             {:name :geometry
              :geometry (if (and using-geometry-files (seq building-cols))
                          :building-cols
-                         :other-parameters)
+                         :lidar)
+             :lidar :other-parameters
             }
           (and using-geometry-files (seq building-cols) (seq road-cols))        (assoc :building-cols :road-cols)
-          (and using-geometry-files (seq building-cols) (not (seq road-cols)))  (assoc :building-cols :other-parameters)
-          (and using-geometry-files (seq road-cols))                            (assoc :road-cols :other-parameters))
+          (and using-geometry-files (seq building-cols) (not (seq road-cols)))  (assoc :building-cols :lidar)
+          (and using-geometry-files (seq road-cols))                            (assoc :road-cols :lidar))
         ]
     result))
 
@@ -652,7 +664,6 @@
     :geometry (concat (validate-files    (:geometry form-state))
                       (validate-osm-area (:geometry form-state)))
     nil))
-
 
 (rum/defc other-parameters-page < rum/reactive rum/static
   [*form-state]
@@ -863,6 +874,60 @@
                            (apply merge-with + centroids) 
                            {:lat (count centroids) :lng (count centroids)})))))
 
+(defn extent-geojson
+  "Get the extent of the map area, either from the osm boundary box or
+   as the extent of all the uploaded files' extents."
+  [*form-state]
+  (let [data-source (get-in @*form-state [:geometry :source])]
+    (case data-source
+      :osm (get-in @*form-state [:geometry :osm :boundary])
+      :files (let [extents (->> (vals (get-in @*form-state [:geometry :files]))
+                                (map (fn [file] (:extent file)))
+                                (filter (fn [c] (not (nil? c)))))
+                   x1 (apply min (map :x1 extents))
+                   y1 (apply min (map :y1 extents))
+                   x2 (apply max (map :x2 extents))
+                   y2 (apply max (map :y2 extents))]
+               {:type "Feature"
+                :properties {}
+                :geometry {:type "Polygon"
+                           :coordinates [[[x1 y1]
+                                          [x2 y1]
+                                          [x2 y2]
+                                          [x1 y2]
+                                          [x1 y1]]]}}))))
+
+
+(rum/defcs lidar-page <
+  rum/static
+  rum/reactive
+
+  (rum/local nil ::map-position)
+  (rum/local nil ::boundary-geojson)
+
+  [{map-position ::map-position
+    boundary-geojson ::boundary-geojson}
+
+   form-state]
+
+  (let [extent (extent-geojson form-state)]
+    [:div
+     [:h1 "Check LIDAR coverage"]
+     [:p "Check your map area for LIDAR coverage. LIDAR is used 
+          to calculate building heights and volumes for heat demand estimation."]
+     [:p "LIDAR data is shared across all maps in this project."]
+
+     [:div.card
+      (osm-map-box {:map-position (let [coords (get (get-in extent [:geometry :coordinates]) 0)]
+                                    [(get-in coords [0 1]) 
+                                     (get-in coords [2 1]) 
+                                     (get-in coords [0 0]) 
+                                     (get-in coords [1 0])]) ;([:y1 :y2 :x1 :x2]) TODO extent of (map, lidar)
+                    :boundary-geojson extent
+                    :allow-drawing false
+                    :lidar-coverage-geojson (:lidar-coverage-geojson @form-state)})
+      ]]))
+
 (rum/defc button-strip < rum/reactive rum/static [*form-state *current-page]
   (let [state (rum/react *form-state)
         current-page (rum/react *current-page)
@@ -893,8 +958,17 @@
 
                              :handler (fn-js [e]
                                              (js/window.location.replace "../.."))}))} "Create map"]
-       
        :geometry
+       [:button.button {:disabled (not-empty messages)
+                        :on-click
+                        (fn [e]
+                          (GET (str "/project/" (:project-id @*form-state) "/lidar/coverage.json")
+                            {:handler (fn [res]
+                                        (reset! (rum/cursor-in *form-state [:lidar-coverage-geojson]) res)
+                                        (swap! *current-page (next-page-map @*form-state)))
+                             :error-handler #(swap! *current-page (next-page-map @*form-state)) }))} "Next"]
+
+       :lidar
        [:button.button {:disabled (not-empty messages)
                         :on-click
                         (fn [e]
@@ -906,9 +980,9 @@
                                           (swap! *current-page (next-page-map @*form-state))
                                           (when use-val? (reset! (rum/cursor-in *form-state [:degree-days]) res-val))
                                           (reset! (rum/cursor-in *form-state [:hdd-from-server?]) use-val?)))
-                             :error-handler #((swap! *current-page (next-page-map @*form-state)))}))} "Next"]
+                             :error-handler #(swap! *current-page (next-page-map @*form-state))}))} "Next"]
 
-       
+
        [:button.button {:disabled (not-empty messages)
                         :on-click
                         (fn [e]
@@ -945,6 +1019,7 @@
           road-fields
           (rum/cursor-in form-state [:roads :mapping])))
 
+       :lidar (lidar-page form-state)
        :other-parameters (other-parameters-page form-state)
 
        ;; then we press go and wait ages
@@ -966,6 +1041,8 @@
    :roads    {:include-osm false :group-buildings nil}
    :degree-days 2000
    :hdd-from-server? false
+   :project-id nil
+   :lidar-coverage-geojson nil
    :default-fixed-civil-cost 350.0
    :default-variable-civil-cost 700.0})
 

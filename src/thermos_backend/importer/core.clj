@@ -134,7 +134,7 @@
         (cond
           (geoio/can-read? file)
           ;; get geospatial info
-          (let [{features ::geoio/features} (geoio/read-from file :key-transform identity)
+          (let [{features ::geoio/features} (geoio/read-from file :key-transform identity :force-crs "EPSG:4326")
                 ]
             (into
              (loop [fields   {}
@@ -158,7 +158,12 @@
                       (assoc counts type 1))
 
                     features))))
-             {:centroid (spatial/centroid features "EPSG:4326")}))
+             {:centroid (spatial/centroid features "EPSG:4326")
+              :extent (let [box (spatial/extent features "EPSG:4326")]
+                        {:x1 (.getMinX box)
+                         :y1 (.getMinY box)
+                         :x2 (.getMaxX box)
+                         :y2 (.getMaxY box)})}))
           
           (= "csv" extension)
           {:keys (set

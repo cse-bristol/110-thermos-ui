@@ -39,6 +39,10 @@
                  (-> (response/response (lidar/project-lidar-properties project-id))
                      (response/content-type "text/edn"))))
 
+(defn- lidar-coverage-geojson [{{:keys [project-id]} :params}]
+  (auth/verify [:read :project project-id]
+               (response/response (lidar/lidar-coverage-geojson project-id :include-system-lidar true))))
+
 (defn- delete-lidar! [{{:keys [project-id filename]} :params}]
   (auth/verify [:modify :project project-id]
                (io/delete-file (lidar/project-lidar-file project-id (url-decode filename)))
@@ -62,6 +66,7 @@
   {""  {:get  manage-lidar-page 
         :post upload-lidar!}
    "/list" {:get list-lidar}
+   "/coverage.json" {:get lidar-coverage-geojson}
    ["/delete/" [#".+" :filename]] {:get delete-lidar-page
                                    :post delete-lidar!}
    ["/" [#".+" :filename]] {:get download-lidar}})

@@ -10,7 +10,7 @@
            (geoio/read-from-geojson-2 r)))
 
 (defn get-hdd [lon lat]
-  (let [point (::geoio/geometry {::geoio/geometry (jts/create-point lon lat)})
+  (let [point (jts/create-point lon lat)
         matches (filter
                  #(.contains (::geoio/geometry %) point)
                  (::geoio/features hdd-shapes))]

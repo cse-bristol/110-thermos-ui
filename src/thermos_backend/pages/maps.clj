@@ -3,13 +3,14 @@
                                                   preloaded-values]]
             [thermos-pages.map-import-components :as comps]))
 
-(defn create-map-form [& [map-id]]
-  (page
-   {:title "Create a new map"
-    :js ["/js/database_import.js"]
-    :css ["/css/create-map-form.css"]
-    :preload {:initial-state comps/start-state}}
-   (prerender-rum (comps/map-creation-form (atom comps/start-state)))))
+(defn create-map-form [project-id]
+  (let [start-state (assoc comps/start-state :project-id project-id)]
+    (page
+     {:title "Create a new map"
+      :js ["/js/database_import.js"]
+      :css ["/css/create-map-form.css"]
+      :preload {:initial-state start-state}}
+     (prerender-rum (comps/map-creation-form (atom start-state))))))
 
 (defn delete-map-page []
   (page {:title "Delete map"}

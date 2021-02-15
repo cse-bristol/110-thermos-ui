@@ -112,7 +112,7 @@
         (response/response)
         (response/content-type "image/png"))))
 
-(defn- new-map-page [_] (html (map-pages/create-map-form)))
+(defn- new-map-page [{{:keys [project-id]} :params}] (html (map-pages/create-map-form project-id)))
 (defn- create-new-map! [{{:keys [project-id name description] :as params} :params}]
   (auth/verify [:modify :project project-id]
     (let [map-id (maps/create-map!
