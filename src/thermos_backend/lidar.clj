@@ -91,3 +91,16 @@
                                        [x2 y2]
                                        [x1 y2]
                                        [x1 y1]]]}}) properties)}))
+
+(defn upload-lidar! [file project-id]
+  (let [files (if (vector? file) file [file])
+        target-dir (project-lidar-dir project-id)]
+    
+    (.mkdirs target-dir)
+
+    (doseq [file files]
+      (let [target-file ^java.io.File (io/file target-dir (:filename file))]
+        (java.nio.file.Files/move
+         (.toPath (:tempfile file))
+         (.toPath target-file)
+         (into-array java.nio.file.CopyOption [java.nio.file.StandardCopyOption/REPLACE_EXISTING]))))))

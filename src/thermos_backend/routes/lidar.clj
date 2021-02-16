@@ -10,21 +10,15 @@
             [thermos-backend.lidar :as lidar]))
 
 
+(defn- upload-lidar-no-redirect! [{{:keys [file project-id]} :params}]
+  (auth/verify [:modify :project project-id]
+               (lidar/upload-lidar! file project-id)
+               (response/response (lidar/lidar-coverage-geojson project-id :include-system-lidar true))))
+
 (defn- upload-lidar! [{{:keys [file project-id]} :params}]
   (auth/verify [:modify :project project-id]
-               (let [files (if (vector? file) file [file])
-                     target-dir (lidar/project-lidar-dir project-id)]
-
-                 (.mkdirs target-dir)
-
-                 (doseq [file files]
-                   (let [target-file ^java.io.File (io/file target-dir (:filename file))]
-                     (java.nio.file.Files/move
-                      (.toPath (:tempfile file))
-                      (.toPath target-file)
-                      (into-array java.nio.file.CopyOption []))))
-
-                 (response/redirect (str "/project/" project-id "/lidar") :see-other))))
+               (lidar/upload-lidar! file project-id)
+               (response/redirect (str "/project/" project-id "/lidar") :see-other)))
 
 (defn- download-lidar [{{:keys [project-id filename]} :params}]
   (auth/verify [:read :project project-id]
@@ -65,6 +59,7 @@
 (def lidar-routes 
   {""  {:get  manage-lidar-page 
         :post upload-lidar!}
+   "/from-wizard" {:post upload-lidar-no-redirect!}
    "/list" {:get list-lidar}
    "/coverage.json" {:get lidar-coverage-geojson}
    ["/delete/" [#".+" :filename]] {:get delete-lidar-page
