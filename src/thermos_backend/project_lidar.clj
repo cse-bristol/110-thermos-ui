@@ -1,4 +1,4 @@
-(ns thermos-backend.lidar
+(ns thermos-backend.project-lidar
   (:require [thermos-backend.config :refer [config]]
             [clojure.java.io :as io]
             [thermos-importer.lidar :as lidar]
@@ -35,37 +35,45 @@
      :x2 (.getX p2)
      :y2 (.getY p2)}))
 
-(defn- is-tiff? [file]
+(defn is-tiff? [file]
   (and (.isFile file)
        (let [name (.getName file)]
          (or (.endsWith name ".tif")
-             (.endsWith name ".tiff")))))
+             (.endsWith name ".tiff")))
+       ; This is memoised so not expensive
+       (try (lidar/raster-facts file)
+            (catch Exception _ false))))
 
-(defn- can-access-tiff? 
+(defn can-access-tiff? 
   "For a given LIDAR tiff, return true if it is not in another project's LIDAR dir."
   [project-id file]
-  (let [path (.getPath file)]
-    (or (not (.contains path (.getPath (per-project-lidar-dir))))
-        (.contains path (.getPath (project-lidar-dir project-id))))))
+  (let [path (.toPath file)]
+    (println path)
+    (or (not (.startsWith path (.toPath (per-project-lidar-dir))))
+        (.startsWith path (.toPath (project-lidar-dir project-id))))))
+
+(defn- is-system-lidar? [file]
+  (not (.startsWith (.toPath file) (.toPath (per-project-lidar-dir)))))
 
 (defn lidar-properties [file & {:keys [force-crs]}]
-  (let [facts (lidar/raster-facts file)
-        rect (:bounds facts)
-        bounds {:x1 (.x1 rect)
-                :y1 (.y1 rect)
-                :x2 (.x2 rect)
-                :y2 (.y2 rect)}
-        crs (:crs facts)]
-    {:filename (.getName (:raster facts))
-     :crs (if force-crs force-crs crs)
-     :bounds (if force-crs (reproject-bounds bounds crs force-crs) bounds)}))
+      (let [facts (lidar/raster-facts file)
+            rect (:bounds facts)
+            bounds {:x1 (.x1 rect)
+                    :y1 (.y1 rect)
+                    :x2 (.x2 rect)
+                    :y2 (.y2 rect)}
+            crs (:crs facts)]
+        {:filename (.getName (:raster facts))
+         :crs (if force-crs force-crs crs)
+         :bounds (if force-crs (reproject-bounds bounds crs force-crs) bounds)
+         :source (if (is-system-lidar? file) :system :project)}))
 
 (defn project-lidar-properties [project-id & {:keys [force-crs include-system-lidar]}]
   (->> (file-seq (if include-system-lidar 
                    (io/file (config :lidar-directory)) 
                    (project-lidar-dir project-id)))
-       (filter is-tiff?)
        (filter #(can-access-tiff? project-id %))
+       (filter is-tiff?)
        (map (fn [file] (lidar-properties file :force-crs force-crs)))))
 
 (defn delete-project-lidar! [project-id]
@@ -82,9 +90,10 @@
                                              :include-system-lidar include-system-lidar)]
     {:type "FeatureCollection"
      :features
-     (map (fn [{{:keys [x1 y1 x2 y2]} :bounds filename :filename}]
+     (map (fn [{{:keys [x1 y1 x2 y2]} :bounds filename :filename source :source}]
             {:type "Feature"
-             :properties {:filename filename}
+             :properties {:filename filename
+                          :source source}
              :geometry {:type "Polygon"
                         :coordinates [[[x1 y1]
                                        [x2 y1]
@@ -100,6 +109,10 @@
 
     (doseq [file files]
       (let [target-file ^java.io.File (io/file target-dir (:filename file))]
+        (when (not (is-tiff? (:tempfile file)))
+          (throw (ex-info (str "Invalid file uploaded: " (:filename file) " (not a tiff)") 
+                          {:filename (:filename file)})))
+        
         (java.nio.file.Files/move
          (.toPath (:tempfile file))
          (.toPath target-file)

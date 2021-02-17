@@ -23,10 +23,15 @@
 (defn show-lidar-on-map [map lidar-coverage-geojson]
   (let [lidar-coverage
         (js/L.geoJSON (clj->js lidar-coverage-geojson)
-                      #js{:style (fn [_] #js {:color "#33ff88"})
+                      #js{:style (fn [feature] 
+                                   (if (= (.. feature -properties -source) "system")
+                                     #js{:color "#DD0077"}
+                                     #js {:color "#33ff88"}))
                           :onEachFeature (fn [feature layer]
                                            (.bindTooltip layer
-                                                         (.. feature -properties -filename)
+                                                         (if (= (.. feature -properties -source) "system")
+                                                           "system LIDAR"
+                                                           (.. feature -properties -filename))
                                                          #js{"direction" "center"}))})]
     
     (.addLayer map lidar-coverage)

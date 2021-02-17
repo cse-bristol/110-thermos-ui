@@ -33,6 +33,8 @@
                            [:button.button {:type :submit :value "DOWNLOAD"} "DOWNLOAD"]]]
                      [:td [:a.button.button--danger {:href (str "delete/" filename)} "DELETE"]]])) 
         (sort-by :filename lidar-info))]]
+     (when (empty? lidar-info) 
+       [:p {:style {:text-align "center" :font-style "italic"}} "This project has no LIDAR data associated with it."])
      [:div
       [:form#upload-form {:method :POST :enctype "multipart/form-data"}
        [:label.button [:input {:value ""

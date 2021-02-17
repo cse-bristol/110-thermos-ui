@@ -7,22 +7,22 @@
             [thermos-backend.pages.cache-control :as cache-control]
             [thermos-backend.pages.lidar :as lidar-pages]
             [clojure.java.io :as io]
-            [thermos-backend.lidar :as lidar]))
+            [thermos-backend.project-lidar :as project-lidar]))
 
 
 (defn- upload-lidar-no-redirect! [{{:keys [file project-id]} :params}]
   (auth/verify [:modify :project project-id]
-               (lidar/upload-lidar! file project-id)
-               (response/response (lidar/lidar-coverage-geojson project-id :include-system-lidar true))))
+               (project-lidar/upload-lidar! file project-id)
+               (response/response (project-lidar/lidar-coverage-geojson project-id :include-system-lidar true))))
 
 (defn- upload-lidar! [{{:keys [file project-id]} :params}]
   (auth/verify [:modify :project project-id]
-               (lidar/upload-lidar! file project-id)
+               (project-lidar/upload-lidar! file project-id)
                (response/redirect (str "/project/" project-id "/lidar") :see-other)))
 
 (defn- download-lidar [{{:keys [project-id filename]} :params}]
   (auth/verify [:read :project project-id]
-               (-> (response/response (lidar/project-lidar-file project-id (url-decode filename)))
+               (-> (response/response (project-lidar/project-lidar-file project-id (url-decode filename)))
                    (response/content-type "image/tiff")
                    (response/header
                     "Content-Disposition"
@@ -30,22 +30,22 @@
 
 (defn- list-lidar [{{:keys [project-id]} :params}]
   (auth/verify [:read :project project-id]
-                 (-> (response/response (lidar/project-lidar-properties project-id))
+                 (-> (response/response (project-lidar/project-lidar-properties project-id))
                      (response/content-type "text/edn"))))
 
 (defn- lidar-coverage-geojson [{{:keys [project-id]} :params}]
   (auth/verify [:read :project project-id]
-               (response/response (lidar/lidar-coverage-geojson project-id :include-system-lidar true))))
+               (response/response (project-lidar/lidar-coverage-geojson project-id :include-system-lidar true))))
 
 (defn- delete-lidar! [{{:keys [project-id filename]} :params}]
   (auth/verify [:modify :project project-id]
-               (io/delete-file (lidar/project-lidar-file project-id (url-decode filename)))
+               (io/delete-file (project-lidar/project-lidar-file project-id (url-decode filename)))
                (response/redirect (str "/project/" project-id "/lidar") :see-other)))
 
 (defn- manage-lidar-page [{{:keys [project-id]} :params}]
   (auth/verify [:modify :project project-id]
                (let [project (projects/get-project project-id)]
-                 (-> (lidar-pages/manage-lidar (:name project) (lidar/project-lidar-properties project-id))
+                 (-> (lidar-pages/manage-lidar (:name project) (project-lidar/project-lidar-properties project-id))
                      (html)
                      (cache-control/no-store)))))
 

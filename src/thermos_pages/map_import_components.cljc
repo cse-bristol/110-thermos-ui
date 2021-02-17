@@ -61,10 +61,10 @@
               :rum/args} state
 
              node (rum/ref state :container)
-             
+
              map (js/L.map node (clj->js {:minZoom 2 :maxZoom 20
                                           :zoom 15 :center [51.553356 -0.109271]}))
-             
+
              layer (js/L.tileLayer
                     "https:///stamen-tiles-{s}.a.ssl.fastly.net/toner-background/{z}/{x}/{y}.png"
                     (clj->js {:subdomains "abcd"
@@ -75,12 +75,20 @@
                                :minZoom 0 :maxZoom 20}))
 
              boundary (js/L.geoJSON (clj->js boundary-geojson)) ;; yech
-             lidar-coverage (js/L.geoJSON (clj->js lidar-coverage-geojson) 
-                                          #js {:style (fn [_] #js {:color "#33ff88"})
-                                               :onEachFeature (fn [feature layer] 
-                                                                (.bindTooltip layer 
-                                                                              (.. feature -properties -filename)
-                                                                              #js{"direction" "center"}))})
+             lidar-coverage
+             (js/L.geoJSON (clj->js lidar-coverage-geojson)
+                           #js{:style
+                               (fn [feature]
+                                 (if (= (.. feature -properties -source) "system")
+                                   #js{:color "#DD0077"}
+                                   #js{:color "#33ff88"}))
+                               :onEachFeature
+                               (fn [feature layer]
+                                 (.bindTooltip layer
+                                               (if (= (.. feature -properties -source) "system")
+                                                 "system LIDAR"
+                                                 (.. feature -properties -filename))
+                                               #js{"direction" "center"}))})
 
              draw-control (js/L.Control.Draw.
                            #js {"position" "topleft"
@@ -88,8 +96,7 @@
                                             "polygon" false
                                             "marker" false
                                             "circle" false
-                                            "circlemarker" false}})
-             ]
+                                            "circlemarker" false}})]
 
          (when-not (nil? lat0)
            (.invalidateSize map)
