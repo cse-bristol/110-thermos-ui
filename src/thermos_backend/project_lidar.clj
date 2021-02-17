@@ -5,6 +5,10 @@
             [cljts.core :as jts]
             [thermos-importer.geoio :as geoio]))
 
+(defn system-lidar-dir ^java.io.File []
+  (when-let [lidar-directory (config :lidar-directory)]
+    (io/file lidar-directory)))
+
 (defn per-project-lidar-dir 
   "directory within the system LIDAR dir that contains a separate
    directory for each projects' LIDAR tiles."
@@ -27,7 +31,7 @@
         (first)
         (::geoio/geometry))))
 
-(defn- reproject-bounds [{:keys [x1 y1 x2 y2]} from-crs to-crs]
+(defn reproject-bounds [{:keys [x1 y1 x2 y2]} from-crs to-crs]
   (let [p1 (reproject-coord (jts/create-point [x1 y1]) from-crs to-crs)
         p2 (reproject-coord (jts/create-point [x2 y2]) from-crs to-crs)]
     {:x1 (.getX p1)
@@ -35,27 +39,30 @@
      :x2 (.getX p2)
      :y2 (.getY p2)}))
 
-(defn is-tiff? [file]
+(defn is-tiff? [^java.io.File file]
   (and (.isFile file)
        (let [name (.getName file)]
          (or (.endsWith name ".tif")
              (.endsWith name ".tiff")))
        ; This is memoised so not expensive
-       (try (lidar/raster-facts file)
+       (try (some? (lidar/raster-facts file))
             (catch Exception _ false))))
 
-(defn can-access-tiff? 
+(defn- ancestor-of? [^java.io.File child, ^java.io.File ancestor]
+  (let [abs-path (fn [file] (.toAbsolutePath (.toPath file)))]
+    (.startsWith (abs-path child) (abs-path ancestor))))
+
+(defn is-system-lidar? [^java.io.File file]
+  (and (ancestor-of? file (system-lidar-dir))
+       (not (ancestor-of? file (per-project-lidar-dir)))))
+
+(defn can-access-tiff?
   "For a given LIDAR tiff, return true if it is not in another project's LIDAR dir."
-  [project-id file]
-  (let [path (.toPath file)]
-    (println path)
-    (or (not (.startsWith path (.toPath (per-project-lidar-dir))))
-        (.startsWith path (.toPath (project-lidar-dir project-id))))))
+  [project-id, ^java.io.File file]
+  (or (is-system-lidar? file)
+      (ancestor-of? file (project-lidar-dir project-id))))
 
-(defn- is-system-lidar? [file]
-  (not (.startsWith (.toPath file) (.toPath (per-project-lidar-dir)))))
-
-(defn lidar-properties [file & {:keys [force-crs]}]
+(defn lidar-properties [^java.io.File file & {:keys [force-crs]}]
       (let [facts (lidar/raster-facts file)
             rect (:bounds facts)
             bounds {:x1 (.x1 rect)
@@ -70,7 +77,7 @@
 
 (defn project-lidar-properties [project-id & {:keys [force-crs include-system-lidar]}]
   (->> (file-seq (if include-system-lidar 
-                   (io/file (config :lidar-directory)) 
+                   (system-lidar-dir) 
                    (project-lidar-dir project-id)))
        (filter #(can-access-tiff? project-id %))
        (filter is-tiff?)
@@ -101,7 +108,7 @@
                                        [x1 y2]
                                        [x1 y1]]]}}) properties)}))
 
-(defn upload-lidar! [file project-id]
+(defn upload-lidar! [^java.io.File file project-id]
   (let [files (if (vector? file) file [file])
         target-dir (project-lidar-dir project-id)]
     

@@ -303,7 +303,6 @@
     deleted))
 
 (defn- heat-degree-days [{{:keys [lng lat]} :params}] 
-  (print lat lng) 
   (-> (heat-degree-days/get-hdd (Double/parseDouble lng) (Double/parseDouble lat))
       (json/encode)
       (response/response)
