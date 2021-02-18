@@ -106,10 +106,14 @@
                                             "circle" false
                                             "circlemarker" false}})]
 
-         (when-not (nil? lat0)
-           (.invalidateSize map)
-           (.fitBounds map (js/L.latLngBounds #js [lat0 lon0] #js [lat1 lon1])))
-         
+         (cond
+           (not (nil? lat0))
+           (do (.invalidateSize map)
+               (.fitBounds map (js/L.latLngBounds #js [lat0 lon0] #js [lat1 lon1])))
+           (not (nil? boundary-geojson))
+           (do (.invalidateSize map)
+               (.fitBounds map (.getBounds boundary))))
+
          (.addLayer map layer)
          (.addLayer map labels)
          (.addLayer map boundary)
