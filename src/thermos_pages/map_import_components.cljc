@@ -50,6 +50,14 @@
                :on-change #(reset! description (.. % -target -value))
                :value (or (rum/react description) "")}]]]))
 
+(defn bounds->extent
+  "Convert a leaflet LatLngBounds object to a map with keys :x1 :y1 :x2 :y2"
+  [bounds]
+  {:x1 (.getWest bounds)
+   :y1 (.getSouth bounds)
+   :x2 (.getEast bounds)
+   :y2 (.getNorth bounds)})
+
 (rum/defc osm-map-box
   < {:did-mount
      (fn-js [state]
@@ -112,7 +120,8 @@
          (.on map (.. js/L.Draw -Event -CREATED)
               (fn [^js/L.Draw.Event e]
                 (on-draw-box 
-                 {:bounds (-> e .-layer (.toGeoJSON) (js->clj))
+                 {:bounds (-> e .-layer (.toGeoJSON) (js->clj) (assoc-in [:properties :bounds] 
+                                                                         (bounds->extent (-> e .-layer (.getBounds)))))
                   :centroid (-> e .-layer (.getBounds) (.getCenter) (js->clj) (select-keys ["lat" "lng"]))})))
                            
          (assoc state
