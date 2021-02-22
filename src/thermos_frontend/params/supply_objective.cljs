@@ -3,7 +3,8 @@
             [reagent.core :as reagent]
             [thermos-specs.supply :as supply]
             [thermos-specs.document :as document]
-            [thermos-specs.candidate :as candidate]))
+            [thermos-specs.candidate :as candidate]
+            [thermos-frontend.preload :as preload]))
 
 (defn supply-objective-parameters [doc]
   (reagent/with-let [accounting-period (reagent/cursor doc [::supply/objective :accounting-period])
@@ -54,10 +55,16 @@
       ;; Link to the other page.
       [:h1 "Computing resources"]
       ;; Custom for this page
-      [:p "Stop after " [inputs/number {:min 0.1 :max 100 :step 0.1 :value-atom time-limit}]
+      [:p "Stop after " [inputs/number {:min 0.1
+                                        :max (or (preload/get-value :max-restricted-project-runtime) 100)
+                                        :step 0.1
+                                        :value-atom time-limit}]
        " hours, or when within "
        [inputs/number {:min 0 :max 100 :step 0.5 :scale 100 :value-atom mip-gap}]
        "% of the optimum."]
+      (when-let [max-restricted-project-runtime (preload/get-value :max-restricted-project-runtime)]
+        [:p "As this is a restricted project, maximum runtime cannot be above " 
+         (str max-restricted-project-runtime) " hour(s)."])
       ]])
 
   )

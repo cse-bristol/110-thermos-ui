@@ -13,7 +13,7 @@
   (sql/call :project_auth (name a)))
 
 (defn- as-user-auth [a]
-  {:pre [(#{:admin :normal} a)]}
+  {:pre [(#{:admin :normal :restricted} a)]}
   (sql/call :user_auth (name a)))
 
 (defn- max-auth [a b]

@@ -102,6 +102,19 @@
        (transform [:maps ALL :networks] #(group-by :name %))
        (setval [:maps ALL :networks MAP-VALS ALL :name] NONE))))
 
+(defn- can-create-type? 
+  "Returns true iff a user with auth of type `auth` can create
+   projects of type `type`."
+  [auth type]
+  (case auth
+    :restricted      (= type :restricted)
+    (:normal :admin) true
+    false))
+
+(defn- as-project-type [type]
+  {:pre [(#{:normal :restricted} type)]}
+  (sql/call :project_type (name type)))
+
 (defn create-project!
   "Create a new project with the given `name` and `description`.
 
@@ -111,12 +124,15 @@
   The `users` are all given :write :auth to the project unless
   you say otherwise. They should have :id, :name and maybe :auth.
 
+  The `type` should be a valid project type.
+
   Any user who does not exist will be created and sent an invitation
   email."
-  [creator project-name description users]
+  [creator project-name description users type]
   {:pre
    [(string? (:id creator))
     (string? (:name creator))
+    (can-create-type? (:auth creator) type)
     (not (string/blank? project-name))
     (string? description)
     (every? (fn [{e :id n :name a :auth}]
@@ -134,9 +150,12 @@
         
         project-name (string/trim project-name)
         description (string/trim description)
+        project-type (:auth creator)
         
         project-id
-        (db/insert-one! :projects {:name project-name :description description})
+        (db/insert-one! :projects {:name project-name
+                                   :description description
+                                   :project_type (as-project-type project-type)})
 
         project
         {:id project-id
@@ -371,3 +390,23 @@
            (:auth)
            (keyword))))
 
+(defn is-restricted-project? [project-id]
+  (let [type
+        (-> (h/select :project_type)
+            (h/from :projects)
+            (h/where [:= project-id :id])
+            (db/fetch-one!)
+            (:project-type)
+            (keyword))]
+    (= type :restricted)))
+
+(defn is-restricted-map? [map-id]
+  (let [type
+        (-> (h/select :project_type)
+            (h/from :projects)
+            (h/join :maps [:= :maps.project-id :projects.id])
+            (h/where [:= map-id :maps.id])
+            (db/fetch-one!)
+            (:project-type)
+            (keyword))]
+    (= type :restricted)))

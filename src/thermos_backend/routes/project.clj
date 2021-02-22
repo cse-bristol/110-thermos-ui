@@ -36,14 +36,14 @@
 
 (defn- new-project-page [_]
   (auth/verify :logged-in
-    (html (project-pages/new-project-page))))
+    (html (project-pages/new-project-page (:auth auth/*current-user*)))))
 
-(defn- create-project! [{{:keys [name description members]} :params}]
+(defn- create-project! [{{:keys [name description members type]} :params}]
   (auth/verify :logged-in
     (let [members (parse-emails members)
           new-project-id (projects/create-project!
                           auth/*current-user*
-                          name description members)]
+                          name description members type)]
       (response/redirect (str "./" new-project-id)))))
 
 (defn- get-project-data [id]
@@ -218,18 +218,20 @@
                             (maps/get-map-bounds map-id)
                             (nil? (projects/get-map-project-auth
                                    map-id
-                                   (:id auth/*current-user*))))
+                                   (:id auth/*current-user*)))
+                            (projects/is-restricted-map? map-id))
         (response/response)
         (response/status 200)
         (response/content-type "text/html"))))
 
-(defn- network-editor-page [{{:keys [net-id]} :params {accept "accept"} :headers}]
+(defn- network-editor-page [{{:keys [net-id project-id]} :params {accept "accept"} :headers}]
   (auth/verify [:read :network net-id]
     (let [accept (set (string/split accept #","))
           info   (projects/get-network net-id :include-content true)
           project-auth (projects/get-network-project-auth
                         net-id
-                        (:id auth/*current-user*))]
+                        (:id auth/*current-user*))
+          restricted (projects/is-restricted-project? project-id)]
       (-> (cond
             (accept "application/edn")
             (-> (response/response (:content info))
@@ -242,7 +244,8 @@
                                     (:content info)
                                     nil
                                     nil
-                                    (nil? project-auth))
+                                    (nil? project-auth)
+                                    restricted)
                 
                 (response/response)
                 (response/status 200)

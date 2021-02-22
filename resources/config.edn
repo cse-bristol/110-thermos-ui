@@ -28,4 +28,6 @@
  :import-directory "import-work"
  :lidar-directory "lidar"
  :error-dumps "error-dumps"
+
+ :max-restricted-project-runtime 1
  }
