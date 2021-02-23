@@ -25,14 +25,25 @@
 (defn- parse-email [text]
   (try
     (let [address (InternetAddress. text)]
-     {:id (.getAddress address)
-      :name (or (.getPersonal address)
-                (.getAddress address))})
+      {:id    (string/trim (string/lower-case (.getAddress address)))
+       :name  (or (.getPersonal address)
+                  (.getAddress address))})
     (catch javax.mail.internet.AddressException e)))
 
 (defn- parse-emails [text]
   (keep (comp parse-email string/trim)
-        (string/split text #"[\n,]+")))
+        (string/split text #"[\n,;]+")))
+
+(defn- normalize-users [users]
+  (->> users
+       (mapcat
+        (fn [user]
+          (let [id (:id user) emails (parse-emails id)]
+            (if (seq emails)
+              (for [e emails] (merge user e))
+              [user]))))
+       (reduce (fn [out user] (assoc out (:id user) user)) {})
+       (vals)))
 
 (defn- new-project-page [_]
   (auth/verify :logged-in
@@ -96,10 +107,11 @@
         (cache-control/no-store))))
 
 (defn- set-project-users! [{{:keys [users public project-id]} :params}]
-  (auth/verify [:share :project project-id]
-    (projects/set-users! project-id auth/*current-user* users)
-    (projects/make-public! project-id (boolean public))
-    (response/redirect ".")))
+  (let [users (normalize-users users)]
+    (auth/verify [:share :project project-id]
+      (projects/set-users! project-id auth/*current-user* users)
+      (projects/make-public! project-id (boolean public))
+      (response/redirect "."))))
 
 (defn- map-icon [{{:keys [map-id]} :params}]
   (auth/verify [:read :map map-id]
