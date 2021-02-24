@@ -40,6 +40,18 @@
       (pprint instance w)
       (binding [*out* w] (prn instance)))))
 
+(defmethod save-state :geojson
+  [instance path]
+
+  (with-open [w (output path)]
+    (-> instance
+        (converter/network-problem->geojson)
+        (json/write w :value-fn
+                    (fn write-geojson-nicely [k v]
+                      (if (instance? Geometry v)
+                        (jts/geom->json v)
+                        v))))))
+
 (defmethod save-state :json
   [instance path]
 
