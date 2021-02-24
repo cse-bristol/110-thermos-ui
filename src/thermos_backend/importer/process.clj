@@ -15,6 +15,7 @@
             [thermos-importer.util :refer [has-extension file-extension]]
             [thermos-backend.importer.sap :as sap]
             [thermos-backend.importer.cooling :as cooling]
+            [thermos-backend.project-lidar :as project-lidar]
 
             [clojure.data.json :as json]
             [clojure.string :as str]
@@ -179,14 +180,12 @@
                        highways)})))
         ))))
 
-(defn load-lidar-index []
+(defn load-lidar-index [project-id]
   (when-let [lidar-directory (config :lidar-directory)]
-    (->> (file-seq (io/file lidar-directory))
-         (filter #(and (.isFile %)
-                       (let [name (.getName %)]
-                         (or (.endsWith name ".tif")
-                             (.endsWith name ".tiff")))))
-         (lidar/rasters->index))))
+      (->> (file-seq (io/file lidar-directory))
+           (filter #(project-lidar/can-access-tiff? project-id %))
+           (filter project-lidar/is-tiff?)
+           (lidar/rasters->index))))
 
 (def residential-subtypes
   #{nil ;; no subtype = resi
@@ -731,7 +730,7 @@
 
 (defn run-import
   "Run an import job enqueued by `queue-import`"
-  [map-id map-name parameters progress]
+  [map-id project-id map-name parameters progress]
   (let [work-directory (util/create-temp-directory!
                         (config :import-directory)
                         (str
@@ -780,7 +779,7 @@
                 (update-in [:roads ::geoio/features] explode-multi-lines)
                 ;; now we have several of everything, potentially
                 (progress* 20 "Checking for LIDAR coverage")
-                (update :buildings lidar/add-lidar-to-shapes (load-lidar-index))
+                (update :buildings lidar/add-lidar-to-shapes (load-lidar-index project-id))
                 
                 (progress* 30 "Computing annual demands")
                 
