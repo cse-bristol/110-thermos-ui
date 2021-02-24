@@ -83,8 +83,8 @@
             lat        (.getY centroid)
             system     (candidate/solution-description c)
             kwh-orig   (candidate/annual-demand c mode)
-            kwh        (or (::solution/kwh c) kwh-orig)
-            kwp        (candidate/peak-demand c mode)
+            kwh        (candidate/solved-annual-demand c mode)
+            kwp        (candidate/solved-peak-demand c mode)
             insulation (- kwh-orig kwh)]
         [lon lat system kwh kwp insulation]))))
 

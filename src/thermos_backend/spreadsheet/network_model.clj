@@ -49,21 +49,25 @@
            :key (fn [x] (get (::candidate/user-fields x) user-field))})))
 
 (defn building-columns [doc]
-  (concat
-   (candidate-columns doc)
-   [{ :name "Annual demand (kWh)" :key ::demand/kwh              :format :double}
-    { :name "Peak demand (kW)"    :key ::demand/kwp              :format :double}
-    { :name "Demand model"        :key ::demand/source}
-    { :name "Tariff name"
-     :key #(let [name (document/tariff-name doc (::tariff/id %))
-                 is-market (= :market (::tariff/id %))
-                 has-market-value (::solution/market-rate %)]
-             (if (and is-market has-market-value)
-               (str name " (" (*100 has-market-value) " c/kWh)")
-               name))}
-    { :name "Connection cost name"
-     :key #(document/connection-cost-name doc (::tariff/cc-id %))}
-    ]))
+  (let [mode (document/mode doc)
+        peak-demand   #(candidate/solved-peak-demand % mode)
+        annual-demand #(candidate/solved-annual-demand % mode)
+        ]
+    (concat
+     (candidate-columns doc)
+     [{ :name "Annual demand (kWh)" :key annual-demand        :format :double}
+      { :name "Peak demand (kW)"    :key peak-demand          :format :double}
+      { :name "Demand model"        :key ::demand/source}
+      { :name "Tariff name"
+       :key #(let [name (document/tariff-name doc (::tariff/id %))
+                   is-market (= :market (::tariff/id %))
+                   has-market-value (::solution/market-rate %)]
+               (if (and is-market has-market-value)
+                 (str name " (" (*100 has-market-value) " c/kWh)")
+                 name))}
+      { :name "Connection cost name"
+       :key #(document/connection-cost-name doc (::tariff/cc-id %))}
+      ])))
 
 (defn output-buildings [ss doc]
   (let [buildings (filter candidate/is-building? (vals (::document/candidates doc)))
@@ -201,6 +205,7 @@
          {:name "Capacity cost (¤/kWp)" :key (or-zero ::supply/capex-per-kwp)}
          {:name "Operating cost (¤/kWp.yr)" :key (or-zero ::supply/opex-per-kwp)}
          {:name "Heat price (c/kWh)" :key (comp *100 (or-zero ::supply/cost-per-kwh))}
+         {:name "Tank factor" :key ::supply/kwp-per-mean-kw}
          ]
         (for [e candidate/emissions-types]
           {:name (str (candidate/text-emissions-labels e)
@@ -457,7 +462,7 @@
       
       ::document/alternatives
       (-> (for [{:keys [name fixed-cost capacity-cost operating-cost heat-price
-                        co2 pm25 nox]
+                        co2 pm25 nox tank-factor]
                  }
                 (:rows individual-systems)]
             #::supply
@@ -466,6 +471,7 @@
              :capex-per-kwp capacity-cost
              :opex-per-kwp operating-cost
              :fixed-cost fixed-cost
+             :kwp-per-mean-kw tank-factor
              :emissions
              {:co2  (/ (or co2 0.0) (candidate/emissions-factor-scales :co2))
               :pm25 (/ (or pm25 0.0) (candidate/emissions-factor-scales :pm25))

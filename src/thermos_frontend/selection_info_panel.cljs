@@ -209,7 +209,7 @@
        #(let [p  (capital-mode (::solution/pipe-capex %))
               cc (capital-mode (::solution/connection-capex %))
               sc (capital-mode (::solution/supply-capex %))
-              ac (capital-mode (::solution/alternative %))
+              ac (capital-mode (:capex (::solution/alternative %)))
               ics (keep capital-mode (::solution/insulation %))
               ic (when (seq ics) (reduce + 0 ics))
               ]
@@ -361,9 +361,29 @@
 
         [number-row (str mode-name " demand") #(candidate/annual-demand % model-mode)
          :unit "Wh/yr" :scale 1000]
+
+        (when (and has-solution
+                   (some #(not=
+                           (candidate/solved-annual-demand % model-mode)
+                           (candidate/annual-demand % model-mode))
+                         selection))
+
+          [number-row "Insulated demand" #(candidate/solved-annual-demand % model-mode)
+           :tooltip "Demand after solving, including efect of insulation"
+           :unit "Wh/yr" :scale 1000])
         
         [number-row (str mode-name " peak") #(candidate/peak-demand % model-mode)
+         :tooltip (when has-solution "Peak demand input for optimisation model")
          :unit "Wp" :scale 1000]
+
+        (when (and has-solution
+                   (some #(not=
+                           (candidate/solved-peak-demand % model-mode)
+                           (candidate/peak-demand % model-mode))
+                         selection))
+          [number-row "System peak" #(candidate/solved-peak-demand % model-mode)
+           :tooltip "Peak after solving, including peak adjustments from tank factor"
+           :unit "Wp" :scale 1000])
 
         [linear-density-row selection model-mode]
 

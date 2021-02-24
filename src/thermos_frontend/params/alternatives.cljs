@@ -6,7 +6,9 @@
             [thermos-pages.symbols :as symbols]
             [thermos-frontend.util :refer [target-value]]
             [thermos-frontend.inputs :as inputs]
-            [thermos-util :refer [next-integer-key]]))
+            [thermos-util :refer [next-integer-key]]
+            [clojure.string :as string]
+            [thermos-util :as util]))
 
 (defn- create-new-alternative [alternatives]
   (let [id (next-integer-key alternatives)]
@@ -18,7 +20,9 @@
             :capex-per-kwp 0
             :opex-per-kwp 0
             :fixed-cost 0
-            :emissions {}})))
+            :emissions {}
+            :kwp-per-mean-kw nil
+            })))
 
 (defn- alternative-row
   [{id :key} *doc alternative *alternatives]
@@ -82,7 +86,29 @@
                               [id ::supply/opex-per-kwp] %)}]]
         [:td
          "¤/kWp"]
-        ]]]
+        ]
+       [:tr
+        [:td [:span.has-tt
+              {:title "If provided, the peak supplied by this system will be calculated as this multiple of the average heat demand in the year. This models systems with hot water tanks, like heat pumps - a value of 6.5 is reasonable."}
+              "Tank factor"]]
+        [:td
+         [inputs/fmt
+          {:min 1 :max 20 :step 0.1
+           :class     ["input" "number-input"]
+           :type      :number
+           :read      (fn [s] (util/as-double s))
+           :print     (fn [v] (if (nil? v) "" v))
+           :validate  (constantly nil)
+           :on-change #(if %
+                         (swap! *alternatives assoc-in [id ::supply/kwp-per-mean-kw] %)
+                         (swap! *alternatives update id dissoc ::supply/kwp-per-mean-kw))
+           :value     (::supply/kwp-per-mean-kw alternative)
+           }
+          ]
+         ]
+        [:td "kWp/kW.avg"]
+        ]
+       ]]
      ]
     [:div.flex-grow
      [:h3 "Emissions factors"]

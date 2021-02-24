@@ -1,10 +1,13 @@
 [{:title "Next release"
   :changes
-  [{:title "Features: upload your own lidar, auto HDD."
+  [{:title "Features: upload your own lidar, auto HDD, hot water tank."
     :summary
     [:ul
      [:li "Projects can now have their own associated LIDAR, used for maps in the same project."]
-     [:li "When creating a new map the heating degree days field will be pre-populated with a relevant value."]]}
+     [:li "When creating a new map the heating degree days field will be pre-populated with a relevant value."]
+     [:li "Individual systems can now represent a 'hot water tank' for sizing. "
+      "On the individual systems page, there is a new field for 'Tank factor'. "
+      "If supplied, this field is used to compute a new peak for the building when using that individual system as a multiple of the annual demand."]]}
 
    {:title "Bugs fixed"
     :summary

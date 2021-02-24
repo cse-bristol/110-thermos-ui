@@ -68,6 +68,18 @@
       :cooling (::cooling/kwp candidate 0)
       (::demand/kwp candidate 0))))
 
+(defn solved-peak-demand
+  "A building may have solution data on it indicating a different peak (due to alternatives' tank-factor).
+  This returns that if it's there, or `peak-demand`"
+  [candidate mode]
+  (or (::solution/kwp candidate) (peak-demand candidate mode)))
+
+(defn solved-annual-demand
+  "A building may have solution data on it indicating a different kwh (due to insulation).
+  This returns that if it's there, or `annual-demand`"
+  [candidate mode]
+  (or (::solution/kwh candidate) (peak-demand candidate mode)))
+
 (defn has-demand? [candidate mode]
   (when-let [^double demand (annual-demand candidate mode)]
     (pos? demand)))

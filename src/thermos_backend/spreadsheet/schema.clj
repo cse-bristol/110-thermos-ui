@@ -85,7 +85,8 @@
                [:heat-price string?]
                [:co2 string?]
                [:pm25 string?]
-               [:nox string?]]]
+               [:nox string?]
+               [:tank-factor string?]]]
      [:rows [:sequential
              [:map
               [:spreadsheet/row int?]
@@ -97,6 +98,7 @@
               [:pm25 [:or nil? double?]]
               [:co2 [:or nil? double?]]
               [:operating-cost double?]
+              [:tank-factor [:or nil? double?]]
               [:heat-price double?]]]]]]
 
    [:pipe-costs
