@@ -101,8 +101,7 @@
             length     (::path/length c)
             diameter   (::solution/diameter-mm c)
             kw         (::solution/capacity-kw c)
-            ;; TODO     vvv not exists in magic-fields, needs fixup
-            civils     (document/civil-cost-name instance c)
+            civils     (document/civil-cost-name instance (::path/civil-cost-id c))
             ]
         [lon lat length diameter kw civils]))))
 
