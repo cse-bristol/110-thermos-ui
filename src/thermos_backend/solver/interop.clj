@@ -372,7 +372,7 @@
                                           (::supply/opex-per-kwp alternative 0))
 
                  (finance/objective-value instance capex-type
-                                          (::supply/capex-per-kwp alternative 2)))
+                                          (::supply/capex-per-kwp alternative 0)))
               
               :emissions
               (into {}
