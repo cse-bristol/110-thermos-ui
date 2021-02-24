@@ -3,7 +3,8 @@
             [clojure.java.io :as io]
             [thermos-importer.lidar :as lidar]
             [cljts.core :as jts]
-            [thermos-importer.geoio :as geoio]))
+            [thermos-importer.geoio :as geoio]
+            [thermos-importer.util :refer [has-extension]]))
 
 (defn system-lidar-dir ^java.io.File []
   (when-let [lidar-directory (config :lidar-directory)]
@@ -39,14 +40,17 @@
      :x2 (.getX p2)
      :y2 (.getY p2)}))
 
+(defn has-tiff-extension? [^java.io.File file]
+  (or (has-extension file "tif")
+      (has-extension file "tiff")))
+
+(defn contains-tiff-data? [^java.io.File file]
+  (try (some? (lidar/raster-facts file)) (catch Exception _ false)))
+
 (defn is-tiff? [^java.io.File file]
   (and (.isFile file)
-       (let [name (.getName file)]
-         (or (.endsWith name ".tif")
-             (.endsWith name ".tiff")))
-       ; This is memoised so not expensive
-       (try (some? (lidar/raster-facts file))
-            (catch Exception _ false))))
+       (has-tiff-extension? file)
+       (contains-tiff-data? file)))
 
 (defn- ancestor-of? [^java.io.File child, ^java.io.File ancestor]
   (let [abs-path (fn [file] (.toAbsolutePath (.toPath file)))]
@@ -108,7 +112,8 @@
                                        [x1 y2]
                                        [x1 y1]]]}}) properties)}))
 
-(defn upload-lidar! [^java.io.File file project-id]
+(defn upload-lidar! [file project-id]
+  (println "upload" file)
   (let [files (if (vector? file) file [file])
         target-dir (project-lidar-dir project-id)]
     
@@ -116,10 +121,13 @@
 
     (doseq [file files]
       (let [target-file ^java.io.File (io/file target-dir (:filename file))]
-        (when (not (is-tiff? (:tempfile file)))
+        ;; Unfortunately the :tempfile in file is not guaranteed to
+        ;; have a filename ending in .tiff, even if :filename for it
+        ;; does, so we cannot use is-tiff? directly.
+        (when (not (and (has-tiff-extension? (:filename file))
+                        (contains-tiff-data? (:tempfile file))))
           (throw (ex-info (str "Invalid file uploaded: " (:filename file) " (not a tiff)") 
                           {:filename (:filename file)})))
-        
         (java.nio.file.Files/move
          (.toPath (:tempfile file))
          (.toPath target-file)
