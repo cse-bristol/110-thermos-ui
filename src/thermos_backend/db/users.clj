@@ -292,3 +292,13 @@
                   (db/fetch!))]
     (email/send-system-message users subject message)))
 
+(defn jobs-since [user-id days]
+  {:pre [(string? user-id) (int? days)]}
+  (-> (h/select :%count.jobs.queued)
+      (h/from :networks)
+      (h/join :jobs [:= :networks.job-id :jobs.id])
+      (h/where [:and
+                [:> :jobs.queued (sql/raw ["now() - interval '" (str days) " days'"])]
+                [:= :networks.user-id user-id]])
+      (db/fetch-one!)
+      (:count)))

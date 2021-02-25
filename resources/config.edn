@@ -29,5 +29,7 @@
  :lidar-directory "lidar"
  :error-dumps "error-dumps"
 
- :max-restricted-project-runtime 1
+ :max-restricted-project-runtime 1.0
+ :max-restricted-jobs-per-week 7
+ :new-user-auth-type :restricted
  }

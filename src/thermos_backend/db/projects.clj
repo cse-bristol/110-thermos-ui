@@ -410,3 +410,16 @@
             (:project-type)
             (keyword))]
     (= type :restricted)))
+
+(defn jobs-since [project-id days]
+  {:pre [(int? project-id) (int? days)]}
+  (-> (h/select :%count.jobs.queued)
+      (h/from :jobs)
+      (h/join :networks [:= :jobs.id :networks.job-id]
+              :maps [:= :networks.map-id :maps.id]
+              :projects [:= :maps.project-id :projects.id])
+      (h/where [:and
+                [:> :jobs.queued (sql/raw ["now() - interval '" (str days) " days'"])]
+                [:= :projects.id project-id]])
+      (db/fetch-one!)
+      (:count)))

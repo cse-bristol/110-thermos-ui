@@ -10,6 +10,7 @@
             [thermos-backend.pages.maps :as map-pages]
             [thermos-backend.pages.editor :as editor]
             [thermos-backend.db.maps :as maps]
+            [thermos-backend.db.users :as users]
             [thermos-backend.config :refer [config]]
             [thermos-backend.importer.core :as importer]
             [clojure.java.io :as io]
@@ -278,11 +279,24 @@
                     (str content))
           new-id (projects/save-network!
                   (:id auth/*current-user*)
-                  project-id map-id name content)]
-      (when run
-        (solver/queue-problem new-id (keyword run)))
-      (-> (response/created (str new-id))
-          (response/header "X-ID" new-id)))))
+                  project-id map-id name content)
+          user-jobs-run-in-week (users/jobs-since (:id auth/*current-user*) 7)
+          project-jobs-run-in-week (projects/jobs-since project-id 7)
+          max-restricted-jobs-per-week (config :max-restricted-jobs-per-week)]
+      
+      (if (and run 
+               (or (and (= :restricted (:auth auth/*current-user*))
+                        (>= user-jobs-run-in-week max-restricted-jobs-per-week))
+                   (and (projects/is-restricted-project? project-id)
+                        (>= project-jobs-run-in-week max-restricted-jobs-per-week))))
+        (-> "Job limit exceeded"
+            (response/response)
+            (response/status 403)
+            (cache-control/no-store))        
+        (do (when run
+              (solver/queue-problem new-id (keyword run)))
+            (-> (response/created (str new-id))
+                (response/header "X-ID" new-id)))))))
 
 (defn- network-geojson [{{:keys [net-id]} :params}]
   (auth/verify [:read :network net-id]
