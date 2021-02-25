@@ -39,12 +39,12 @@
   (auth/verify :logged-in
     (html (project-pages/new-project-page (:auth auth/*current-user*)))))
 
-(defn- create-project! [{{:keys [name description members type]} :params}]
+(defn- create-project! [{{:keys [name description members]} :params}]
   (auth/verify :logged-in
     (let [members (parse-emails members)
           new-project-id (projects/create-project!
                           auth/*current-user*
-                          name description members type)]
+                          name description members)]
       (response/redirect (str "./" new-project-id)))))
 
 (defn- get-project-data [id]
@@ -284,7 +284,7 @@
           project-jobs-run-in-week (projects/jobs-since project-id 7)
           max-restricted-jobs-per-week (config :max-restricted-jobs-per-week)]
       
-      (if (and run 
+      (if (and run
                (or (and (= :restricted (:auth auth/*current-user*))
                         (>= user-jobs-run-in-week max-restricted-jobs-per-week))
                    (and (projects/is-restricted-project? project-id)
@@ -292,7 +292,7 @@
         (-> "Job limit exceeded"
             (response/response)
             (response/status 403)
-            (cache-control/no-store))        
+            (cache-control/no-store))
         (do (when run
               (solver/queue-problem new-id (keyword run)))
             (-> (response/created (str new-id))

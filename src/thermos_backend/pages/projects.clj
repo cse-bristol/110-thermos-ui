@@ -31,27 +31,18 @@
      [:textarea {:style (style :width :100%
                                :padding :5px
                                :font-family :Sans)
-                 :name "members" :rows 5 :placeholder "Joe Smith <joe@smith.com>"}]]
-    [:div {:style (style :margin-bottom :0.5em)}
-     [:div "Project type"]
-     [:select {:style (style :width :100%
-                             :padding :5px
-                             :font-family :Sans
-                             :cursor (if (= user_auth :restricted) :not-allowed :inherit))
-               :disabled (= user_auth :restricted)
-               :name "type"}
-      [:option :normal]
-      [:option (when (= user_auth :restricted) {:selected true}) :restricted]]
-     [:p [:b "Restricted"] " projects:"]
-     [:ul 
-      (when (config :max-restricted-project-runtime) 
-        [:li "Cannot run problem optimisations for longer than a set time ("
-         (str (config :max-restricted-project-runtime)) "hour(s)),"])
-      [:li "Will only be run once there are no non-restricted jobs waiting to run."]]
-     (if (= user_auth :restricted)
-       [:p "You are a " [:b "restricted"] " user, and as such can only create " [:b "restricted"] " projects. "
-           "Contact " [:a {:href "todo@cse.org.uk"}] "if you need to be able to create non-restricted projects."]
-       [:p "As a non-restricted user, it is recommended that you create " [:b  "normal"] " projects."])]
+                 :name "members" :rows 5 :placeholder "Joe Smith <joe@smith.com>"}]] 
+     (when (= user_auth :restricted)
+       [:div {:style (style :margin-bottom :0.5em)}
+       [:p "You are a trial user, and as such can only create trial projects. "
+        "Contact " [:a {:href "mailto:todo@cse.org.uk"} "todo@cse.org.uk"] " if you need to be able to create trial projects."]
+       [:p [:b "Restricted"] " projects:"]
+       [:ul
+        (when (config :max-restricted-project-runtime)
+          [:li "Cannot run problem optimisations for longer than a set time ("
+           (str (config :max-restricted-project-runtime)) " hour(s)),"])
+        [:li "Will only be run once there are no non-restricted jobs waiting to run,"]
+        [:li "Cannot run more than " (config :max-restricted-jobs-per-week) " optimisations per week."]]])
     [:div.flex-rows
      [:input.button
       {:style (style :margin-left :auto)
