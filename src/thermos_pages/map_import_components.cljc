@@ -14,6 +14,7 @@
    #?@(:cljs
        [[thermos-pages.dialog :refer [show-dialog! close-dialog!]]
         [cljsjs.leaflet]
+        [goog.object :as o]
         [cljsjs.leaflet-draw]])
    [clojure.set :as set]))
 
@@ -73,7 +74,7 @@
              map (js/L.map node (clj->js {:minZoom 2 :maxZoom 20
                                           :zoom 15 :center [51.553356 -0.109271]}))
 
-             layer (js/L.tileLayer
+             tile-layer (js/L.tileLayer
                     "https:///stamen-tiles-{s}.a.ssl.fastly.net/toner-background/{z}/{x}/{y}.png"
                     (clj->js {:subdomains "abcd"
                               :minZoom 0 :maxZoom 20}))
@@ -83,19 +84,25 @@
                                :minZoom 0 :maxZoom 20}))
 
              boundary (js/L.geoJSON (clj->js boundary-geojson)) ;; yech
+             feature-style
+             (fn [feature]
+               (if (= "system" (o/getValueByKeys feature "properties" "source"))
+                 #js{:color "#DD0077"}
+                 #js{:color "#33ff88"}))
+
+             feature-tooltip
+             (fn [feature]
+               (if (= "system" (o/getValueByKeys feature "properties" "source"))
+                 "system LIDAR"
+                 (o/getValueByKeys feature "properties" "filename")))
+
              lidar-coverage
              (js/L.geoJSON (clj->js lidar-coverage-geojson)
-                           #js{:style
-                               (fn [feature]
-                                 (if (= (.. feature -properties -source) "system")
-                                   #js{:color "#DD0077"}
-                                   #js{:color "#33ff88"}))
+                           #js{:style feature-style
                                :onEachFeature
                                (fn [feature layer]
                                  (.bindTooltip layer
-                                               (if (= (.. feature -properties -source) "system")
-                                                 "system LIDAR"
-                                                 (.. feature -properties -filename))
+                                               (feature-tooltip feature)
                                                #js{"direction" "center"}))})
 
              draw-control (js/L.Control.Draw.
@@ -107,17 +114,20 @@
                                             "circlemarker" false}})]
 
          (cond
-           (not (nil? lat0))
+           (and lat0 lon0 lat1 lon1)
            (do (.invalidateSize map)
                (.fitBounds map (js/L.latLngBounds #js [lat0 lon0] #js [lat1 lon1])))
-           (not (nil? boundary-geojson))
-           (do (.invalidateSize map)
-               (.fitBounds map (.getBounds boundary))))
-
-         (.addLayer map layer)
+           (not (nil? boundary))
+           (try (.invalidateSize map)
+                (.fitBounds map (.getBounds boundary))
+                (catch :default _)))
+         
+         (.addLayer map tile-layer)
          (.addLayer map labels)
-         (.addLayer map boundary)
-         (.addLayer map lidar-coverage)
+         (when boundary
+           (.addLayer map boundary))
+         (when lidar-coverage
+           (.addLayer map lidar-coverage))
          (when allow-drawing
            (.addControl map draw-control))
 
@@ -148,8 +158,10 @@
          (when-not (nil? lat0)
            (.invalidateSize map)
            (.fitBounds map (js/L.latLngBounds #js [lat0 lon0] #js [lat1 lon1])))
-         (.clearLayers boundary)
-         (.clearLayers lidar-coverage)
+         (when boundary
+           (.clearLayers boundary))
+         (when lidar-coverage
+           (.clearLayers lidar-coverage))
          (when boundary-geojson
            (.addData boundary (clj->js boundary-geojson)))
          (when lidar-coverage-geojson
@@ -157,11 +169,12 @@
        state)}
   
   rum/static
+
   [{boundary-geojson :boundary-geojson
     on-draw-box :on-draw-box
     map-position :map-position}]
-  
-  [:div {:style {:width :100% :height :500px}
+
+  [:div {:style {:width :100% :height :400px}
          :ref :container}])
 
 #?(:cljs
@@ -444,11 +457,10 @@
     [:div
      [:h1 "Buildings and roads"]
      [:p
-        "Heat demands and supplies are associated with buildings in the map. "
-        "You can acquire building data from OpenStreetMap, or you can upload your own GIS data."]
-
-     [:p "Potential heat pipe routes are associated with roads and paths in the map. "
-        "You can acquire roads and paths from OpenStreetMap, or you can upload your own GIS data."]
+      "Heat demands and supplies are associated with buildings in the map, and "
+      "potential heat pipe routes are associated with roads and paths in the map. "
+      "You can acquire map data from OpenStreetMap, or you can upload your own GIS data."
+      ]
 
      [:div.card
       [:label [:input {:name :building-source :type :radio :value :osm
@@ -470,6 +482,7 @@
                                             (get place "osm_id"))
                                    :boundary  (get place "geojson")})))})
          (osm-map-box {:map-position (rum/react *map-position)
+                       
                        :boundary-geojson (:boundary (rum/react *osm-position))
                        :on-draw-box #(do (reset! *osm-position {:boundary (:bounds %)})
                                          (reset! *centroid (:centroid %))
@@ -706,9 +719,9 @@
                          :on-change #(swap! *form-state assoc :degree-days
                                             (as-int (.. % -target -value)))}] " °C × days"]
      [:p "The number of heating degree days per year in this location, relative to a 17° base temperature."]
-     [:p "THERMOS attempts to calculate a default value for the heating degree days for the location of your map from " 
+     [:p "This value was derived from " 
       [:a {:href "https://ec.europa.eu/eurostat/cache/metadata/en/nrg_chdd_esms.htm" :target "_blank"} "Eurostat"] 
-      " heating degree day data."]
+      " heating degree day data for this region."]
      (let [*hdd-from-server? (rum/cursor-in *form-state [:hdd-from-server?])]
        (when-not @*hdd-from-server?
          [:p "The default value above is not from Eurostat data as your map is outside the coverage area. "
@@ -934,7 +947,7 @@
                     :message "Unsupported file type")
              (let [form-data (js/FormData.)]
                (.append form-data "file" file (.-name file))
-
+               
                (POST (str "/project/" project-id "/lidar/from-wizard")
                  {:body form-data
                   :response-format :transit
@@ -1019,8 +1032,9 @@
                 (let [file (rum/cursor-in *lidar-uploaded [i])]
                   (upload-lidar (:project-id @form-state) file *lidar-coverage-geojson))))))})
 
-      (map-indexed (fn [i file-state] (lidar-upload-state i file-state))
-           (rum/react *lidar-uploaded))]]))
+      (for [[i file-state] (map-indexed vector (rum/react *lidar-uploaded))]
+        (rum/with-key (lidar-upload-state i file-state) i))
+      ]]))
 
 (rum/defc button-strip < rum/reactive rum/static [*form-state *current-page]
   (let [state (rum/react *form-state)
@@ -1041,14 +1055,17 @@
        [:button.button {:disabled (not-empty messages)
                         :on-click
                         (fn [e]
+                          (println @*form-state)
                           (POST "../new" ;; urgh yuck
                             {:params
                              (->> @*form-state
-                                    ;; :geometry :files ;; values need
-                                    ;; their :files bit removing
-                                    ;; because :files are not
-                                    ;; encodable
-                                  (setval [:geometry :files MAP-VALS :files] NONE))
+                                  ;; :geometry :files ;; values need
+                                  ;; their :files bit removing
+                                  ;; because :files are not
+                                  ;; encodable. Similarly the LIDAR file data can't be uploaded
+                                  ;; but it already went.
+                                  (setval [:geometry :files MAP-VALS :files] NONE)
+                                  (setval [:lidar :files] NONE))
 
                              :handler (fn-js [e]
                                              (js/window.location.replace "../.."))}))} "Create map"]
