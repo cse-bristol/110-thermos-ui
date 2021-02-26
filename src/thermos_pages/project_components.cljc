@@ -325,7 +325,7 @@
     [:h1 {:style {:flex-grow 1}}
      (case (keyword (:state m))
        (:ready :running)
-       [:div {:margin-right :1em} (spinner {:size 16})]
+       [:div (spinner {:size 16})]
        :completed
        [:img {:width :32px :height :32px :src (str "map/" (:id m) "/icon.png")
               :style {:margin-right :1em
