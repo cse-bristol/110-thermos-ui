@@ -162,10 +162,12 @@ with lib;
           export SMTP_PORT=25
           export SMTP_TLS=true
           export SMTP_USER=thermos-project.eu
-
+          
+          export LIDAR_DIRECTORY=/thermos-lidar/
+          
           while [[ ! -f /run/keys/smtp ]]; do 
-          echo "waiting for smtp key"
-          sleep 2
+            echo "waiting for smtp key"
+            sleep 2
           done
           
           export SMTP_PASSWORD=$(cat /run/keys/smtp)
