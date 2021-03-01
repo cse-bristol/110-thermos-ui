@@ -64,7 +64,7 @@
        "% of the optimum."]
       (when-let [max-restricted-project-runtime (preload/get-value :max-restricted-project-runtime)]
         [:p "As this is a restricted project, maximum runtime cannot be above " 
-         (str max-restricted-project-runtime) " hour(s)."])
+         (str max-restricted-project-runtime) " hour(s). Any higher values will be ignored."])
       ]])
 
   )

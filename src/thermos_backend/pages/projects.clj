@@ -7,7 +7,7 @@
             [rum.core :as rum]
             [thermos-backend.config :refer [config]]))
 
-(defn new-project-page [user_auth]
+(defn new-project-page []
   (page
    {:title "New Project"}
    [:form.flex-rows {:method :POST}
@@ -31,18 +31,7 @@
      [:textarea {:style (style :width :100%
                                :padding :5px
                                :font-family :Sans)
-                 :name "members" :rows 5 :placeholder "Joe Smith <joe@smith.com>"}]] 
-     (when (= user_auth :restricted)
-       [:div {:style (style :margin-bottom :0.5em)}
-       [:p "You are a trial user, and as such can only create trial projects. "
-        "Contact " [:a {:href "mailto:todo@cse.org.uk"} "todo@cse.org.uk"] " if you need to be able to create trial projects."]
-       [:p [:b "Restricted"] " projects:"]
-       [:ul
-        (when (config :max-restricted-project-runtime)
-          [:li "Cannot run problem optimisations for longer than a set time ("
-           (str (config :max-restricted-project-runtime)) " hour(s)),"])
-        [:li "Will only be run once there are no non-restricted jobs waiting to run,"]
-        [:li "Cannot run more than " (config :max-restricted-jobs-per-week) " optimisations per week."]]])
+                 :name "members" :rows 5 :placeholder "Joe Smith <joe@smith.com>"}]]
     [:div.flex-rows
      [:input.button
       {:style (style :margin-left :auto)

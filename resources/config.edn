@@ -31,5 +31,6 @@
 
  :max-restricted-project-runtime 1.0
  :max-restricted-jobs-per-week 7
+ :max-restricted-gis-features 1000000
  :new-user-auth-type :restricted
  }

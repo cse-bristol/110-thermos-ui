@@ -33,8 +33,7 @@
    projects."
   [document map-id]
   (let [max-restricted-project-runtime (config :max-restricted-project-runtime)]
-    (if (and max-restricted-project-runtime
-             (projects/is-restricted-map? map-id))
+    (if (projects/is-restricted-map? map-id)
       
       (let [max-runtime
             (min (::document/maximum-runtime document)

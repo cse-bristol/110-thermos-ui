@@ -67,7 +67,7 @@
        #(cond
           (= % 403)
           (toaster/show! [:div.toaster.toaster--error "You have exceeded the weekly job quota (" 
-                          (preload/get-value :max-restricted-jobs-per-week) ") for restricted users."])
+                          (preload/get-value :max-restricted-jobs-per-week) ") for trial users."])
 
           (not invalid)
           (toaster/show! [:div.toaster.toaster--success "Project saved"]))))))

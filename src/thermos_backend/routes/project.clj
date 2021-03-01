@@ -13,6 +13,7 @@
             [thermos-backend.db.users :as users]
             [thermos-backend.config :refer [config]]
             [thermos-backend.importer.core :as importer]
+            [thermos-backend.restrictions :as restrictions]
             [clojure.java.io :as io]
             [ring.util.io :as ring-io]
             [cheshire.core :as json]
@@ -37,7 +38,7 @@
 
 (defn- new-project-page [_]
   (auth/verify :logged-in
-    (html (project-pages/new-project-page (:auth auth/*current-user*)))))
+    (html (project-pages/new-project-page))))
 
 (defn- create-project! [{{:keys [name description members]} :params}]
   (auth/verify :logged-in
@@ -58,7 +59,8 @@
         (assoc :user-is-admin
                (= :admin user-auth))
         (assoc :user-auth user-auth)
-        (assoc :user (:id auth/*current-user*)))))
+        (assoc :user (:id auth/*current-user*))
+        (assoc :restriction-info (restrictions/get-restriction-info auth/*current-user* id)))))
 
 (defn- project-page [{{:keys [project-id]} :params :as req}]
   (auth/verify [:read :project project-id]
@@ -112,12 +114,19 @@
 (defn- new-map-page [_] (html (map-pages/create-map-form)))
 (defn- create-new-map! [{{:keys [project-id name description] :as params} :params}]
   (auth/verify [:modify :project project-id]
-    (let [map-id (maps/create-map!
+               (if (restrictions/exceeded-gis-feature-count? auth/*current-user*)
+
+                 (-> "GIS feature count limit exceeded"
+                     (response/response)
+                     (response/status 403)
+                     (cache-control/no-store))
+                 
+                 (let [map-id (maps/create-map!
                   ;; why not store the args within the map object
-                  project-id name description
-                  params)]
-      (importer/queue-import {:map-id map-id})
-      (response/created (str "/project/" project-id)))))
+                               project-id name description
+                               params)]
+                   (importer/queue-import {:map-id map-id})
+                   (response/created (str "/project/" project-id))))))
 
 (defn- upload-map-data [{{:keys [file project-id]} :params}]
   (auth/verify [:modify :project project-id]
@@ -279,16 +288,9 @@
                     (str content))
           new-id (projects/save-network!
                   (:id auth/*current-user*)
-                  project-id map-id name content)
-          user-jobs-run-in-week (users/jobs-since (:id auth/*current-user*) 7)
-          project-jobs-run-in-week (projects/jobs-since project-id 7)
-          max-restricted-jobs-per-week (config :max-restricted-jobs-per-week)]
+                  project-id map-id name content)]
       
-      (if (and run
-               (or (and (= :restricted (:auth auth/*current-user*))
-                        (>= user-jobs-run-in-week max-restricted-jobs-per-week))
-                   (and (projects/is-restricted-project? project-id)
-                        (>= project-jobs-run-in-week max-restricted-jobs-per-week))))
+      (if (and run (restrictions/exceeded-jobs-per-week? auth/*current-user* project-id))
         (-> "Job limit exceeded"
             (response/response)
             (response/status 403)

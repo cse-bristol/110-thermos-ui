@@ -292,7 +292,9 @@
                   (db/fetch!))]
     (email/send-system-message users subject message)))
 
-(defn jobs-since [user-id days]
+(defn jobs-since 
+  "Returns the number of problem jobs queued by the user in the past `days` days."
+  [user-id days]
   {:pre [(string? user-id) (int? days)]}
   (-> (h/select :%count.jobs.queued)
       (h/from :networks)
@@ -300,5 +302,20 @@
       (h/where [:and
                 [:> :jobs.queued (sql/raw ["now() - interval '" (str days) " days'"])]
                 [:= :networks.user-id user-id]])
+      (db/fetch-one!)
+      (:count)))
+
+(defn num-gis-features 
+  "Returns the number of GIS features (i.e. entries in the `candidates` table)
+   associated with the user across all they projects they are in."
+  [user-id]
+  {:pre [(string? user-id)]}
+  (-> (h/select :%count.*)
+      (h/from :users)
+      (h/join :users-projects [:= :users.id :users-projects.user-id]
+              :projects [:= :users-projects.project-id :projects.id]
+              :maps [:= :maps.project-id :projects.id]
+              :candidates [:= :candidates.map-id :maps.id])
+      (h/where [:= user-id :users.id])
       (db/fetch-one!)
       (:count)))

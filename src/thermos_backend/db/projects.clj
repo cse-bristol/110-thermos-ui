@@ -372,33 +372,31 @@
            (keyword))))
 
 (defn is-restricted-project? [project-id]
-  (let [unrestricted-admins
-        (-> (h/select :%count.*)
-            (h/from :projects)
-            (h/join :users-projects [:= :projects.id :users-projects.project-id]
-                    :users [:= :users.id :users-projects.user-id])
-            (h/where [:and
-                      [:= project-id :projects.id]
-                      [:= :users-projects.auth (sql/call :project_auth "admin")]
-                      [:!= :users.auth (sql/call :user_auth "restricted")]])
-            (db/fetch-one!)
-            (:count))]
-    (= unrestricted-admins 0)))
+  {:pre [(int? project-id)]}
+  (-> (h/select [(sql/call := :%count.* 0) :restricted])
+      (h/from :projects)
+      (h/join :users-projects [:= :projects.id :users-projects.project-id]
+              :users [:= :users.id :users-projects.user-id])
+      (h/where [:and
+                [:= project-id :projects.id]
+                [:= :users-projects.auth (sql/call :project_auth "admin")]
+                [:!= :users.auth (sql/call :user_auth "restricted")]])
+      (db/fetch-one!)
+      (:restricted)))
 
 (defn is-restricted-map? [map-id]
-  (let [unrestricted-admins
-        (-> (h/select :%count.*)
-            (h/from :maps)
-            (h/join :projects [:= :maps.project-id :projects.id]
-                    :users-projects [:= :projects.id :users-projects.project-id]
-                    :users [:= :users.id :users-projects.user-id])
-            (h/where [:and
-                      [:= map-id :maps.id]
-                      [:= :users-projects.auth (sql/call :project_auth "admin")]
-                      [:!= :users.auth (sql/call :user_auth "restricted")]])
-            (db/fetch-one!)
-            (:count))]
-    (= unrestricted-admins 0)))
+  {:pre [(int? map-id)]}
+  (-> (h/select [(sql/call := :%count.* 0) :restricted])
+      (h/from :maps)
+      (h/join :projects [:= :maps.project-id :projects.id]
+              :users-projects [:= :projects.id :users-projects.project-id]
+              :users [:= :users.id :users-projects.user-id])
+      (h/where [:and
+                [:= map-id :maps.id]
+                [:= :users-projects.auth (sql/call :project_auth "admin")]
+                [:!= :users.auth (sql/call :user_auth "restricted")]])
+      (db/fetch-one!)
+      (:restricted)))
 
 (defn jobs-since [project-id days]
   {:pre [(int? project-id) (int? days)]}

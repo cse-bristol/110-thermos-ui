@@ -1,5 +1,7 @@
 (ns thermos-backend.pages.landing-page
   (:require [thermos-backend.pages.common :refer [page]]
+            [thermos-pages.restriction-components :as restriction-comps]
+            [thermos-backend.restrictions :as restrictions]
             [clojure.string :as string]
             [thermos-backend.changelog :refer [changelog]]
             ))
@@ -19,6 +21,8 @@
   (page
    {:title (str "Welcome, " (:name user))}
    [:div
+    (restriction-comps/show-user-restrictions (restrictions/get-restriction-info user) 
+                                              :as-card true)
     [:div.flex-cols.card
      (if (seq projects)
        (let [c (count projects)]
