@@ -13,6 +13,7 @@
      {:max-restricted-jobs-per-week (config :max-restricted-jobs-per-week)
       :max-restricted-project-runtime (config :max-restricted-project-runtime)
       :max-restricted-gis-features (config :max-restricted-gis-features)
+      :contact-email (config :contact-email)
       :user-jobs-run-in-week (users/jobs-since (:id user) 7)
       :restricted-user? restricted-user?
       :restricted? restricted-user?

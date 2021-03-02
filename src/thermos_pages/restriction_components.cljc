@@ -8,7 +8,8 @@
           project-jobs-run-in-week (:project-jobs-run-in-week restriction-info)
           num-gis-features (:num-gis-features restriction-info)
           max-restricted-gis-features (:max-restricted-gis-features restriction-info)
-          max-restricted-project-runtime (:max-restricted-project-runtime restriction-info)]
+          max-restricted-project-runtime (:max-restricted-project-runtime restriction-info)
+          contact-email (:contact-email restriction-info)]
       [:div {:class (when as-card :card)}
        [:p "You currently have a trial user account:"]
        [:ul
@@ -24,6 +25,5 @@
            [:b project-jobs-run-in-week "/" max-restricted-jobs-per-week] " optimisations run so far."])
 
         [:li "Optimisations will automatically finish after " max-restricted-project-runtime " hours."]]
-       [:p ]
-       
-       [:p ]])))
+       [:p "If you think you should not have a trial account, or if you would like to upgrade your account, "
+           "please contact " [:a {:href (str "mailto:" contact-email)} contact-email] "."]])))

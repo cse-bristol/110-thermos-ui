@@ -33,4 +33,5 @@
  :max-restricted-jobs-per-week 7
  :max-restricted-gis-features 1000000
  :default-user-auth :restricted
+ :contact-email "todo@cse.org.uk"
  }

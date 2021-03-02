@@ -198,7 +198,7 @@
    (if run (str "?run=" (name run)) "")
    (fn on-success [e]
      (let [status (.. e -target getStatus)]
-       (when (= status 201)
+       (when (and (>= status 200) (< status 300))
          (update-url
           (.getResponseHeader (.. e -target) "Location"))
 

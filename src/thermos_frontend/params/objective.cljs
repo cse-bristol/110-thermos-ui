@@ -231,7 +231,7 @@
                         :max (or (preload/get-value :max-restricted-project-runtime) 50)
                         :step 0.1}] "h"]
        (when-let [max-restricted-project-runtime (preload/get-value :max-restricted-project-runtime)]
-         [:p "As this is a restricted project, maximum runtime cannot be above " 
+         [:p "As this is a trial project, maximum runtime cannot be above "
           (str max-restricted-project-runtime) " hour(s). Any higher values will be ignored."])
        ]]]))
 

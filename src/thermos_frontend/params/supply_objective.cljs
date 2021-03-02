@@ -63,7 +63,7 @@
        [inputs/number {:min 0 :max 100 :step 0.5 :scale 100 :value-atom mip-gap}]
        "% of the optimum."]
       (when-let [max-restricted-project-runtime (preload/get-value :max-restricted-project-runtime)]
-        [:p "As this is a restricted project, maximum runtime cannot be above " 
+        [:p "As this is a trial project, maximum runtime cannot be above "
          (str max-restricted-project-runtime) " hour(s). Any higher values will be ignored."])
       ]])
 

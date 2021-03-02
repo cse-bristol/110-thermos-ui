@@ -4,8 +4,7 @@
             [hiccup.util :refer [raw-string]]
             [thermos-pages.project-components :refer [project-page-body
                                                       delete-project-widget]]
-            [rum.core :as rum]
-            [thermos-backend.config :refer [config]]))
+            [rum.core :as rum]))
 
 (defn new-project-page []
   (page
