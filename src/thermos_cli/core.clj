@@ -146,8 +146,14 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
 
    [nil "--max-runtime N" "Max runtime hours"
     :parse-fn #(Double/parseDouble %)]
-   [nil "--mip-gap G" "Mip gap proportion"
-    :parse-fn #(Double/parseDouble %)]
+   [nil "--mip-gap G" "Mip gap %"
+    :parse-fn #(/ (Double/parseDouble %) 100.0)]
+
+   [nil "--max-iters N" "Stop after N tries"
+    :parse-fn #(Integer/parseInt %)]
+
+   [nil "--param-gap X%" "Stop if parameter fixing has less than X% effect"
+    :parse-fn #(/ (Double/parseDouble %) 100.0)]
    
    [nil "--set '[A B C V]'"
     "Set the value at path A B C to value V"
@@ -691,6 +697,14 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
                             (assoc :thermos-specs.document/mip-gap
                                    (:mip-gap options))
 
+                            (:max-iters options)
+                            (assoc :thermos-specs.document/maximum-iterations
+                                   (:max-iters options))
+
+                            (:param-gap options)
+                            (assoc :thermos-specs.document/param-gap
+                                   (:param-gap options))
+                            
                             (:require-all options)
                             (-> (saying "Requiring all buildings")
                                 (require-all-buildings))
