@@ -118,10 +118,10 @@
   "Run an import job enqueued by `queue-import`"
   [{map-id :map-id} progress]
   
-  (let [{map-name :name parameters :parameters} (db/get-map map-id)]
+  (let [{map-name :name parameters :parameters project-id :project-id} (db/get-map map-id)]
     (if (empty? parameters)
       (log/error "Map" map-id "does not exist - probably been deleted before import")
-      (-> (run-import map-id map-name parameters progress)
+      (-> (run-import map-id project-id map-name parameters progress)
           (add-to-database (assoc parameters :map-id map-id))))))
 
 
@@ -134,30 +134,36 @@
         (cond
           (geoio/can-read? file)
           ;; get geospatial info
-          (let [{features ::geoio/features} (geoio/read-from file :key-transform identity)
+          (let [{features ::geoio/features} (geoio/read-from file :key-transform identity :force-crs "EPSG:4326")
                 ]
-            (loop [fields   {}
-                   counts   {}
-                   features features]
-              (if (empty? features)
-                {:fields-by-type fields :count-by-type  counts}
+            (into
+             (loop [fields   {}
+                    counts   {}
+                    features features]
+               (if (empty? features)
+                 {:fields-by-type fields :count-by-type  counts}
 
-                (let [[feature & features] features
-                      type   (::geoio/type feature)
-                      fs     (reduce-kv
-                              (fn [a k v] (if (and (string? k) (not (nil? v))) (conj a k) a))
-                              nil feature)
-                      ]
-                  (recur
-                   (if (contains? fields type)
-                     (update fields type into fs)
-                     (assoc fields type (set fs)))
+                 (let [[feature & features] features
+                       type   (::geoio/type feature)
+                       fs     (reduce-kv
+                               (fn [a k v] (if (and (string? k) (not (nil? v))) (conj a k) a))
+                               nil feature)]
+                   (recur
+                    (if (contains? fields type)
+                      (update fields type into fs)
+                      (assoc fields type (set fs)))
 
-                   (if (contains? counts type)
-                     (update counts type inc)
-                     (assoc counts type 1))
-                   
-                   features)))))
+                    (if (contains? counts type)
+                      (update counts type inc)
+                      (assoc counts type 1))
+
+                    features))))
+             {:centroid (spatial/centroid features "EPSG:4326")
+              :extent (let [box (spatial/extent features "EPSG:4326")]
+                        {:x1 (.getMinX box)
+                         :y1 (.getMinY box)
+                         :x2 (.getMaxX box)
+                         :y2 (.getMaxY box)})}))
           
           (= "csv" extension)
           {:keys (set

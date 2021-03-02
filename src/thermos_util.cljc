@@ -53,16 +53,16 @@
   [v]
   (cond
     (string? v)
-    #?(:cljs (let [x (js/parseInt v)]
-               (and x (js/isFinite x) x))
+    #?(:cljs (if-let [x (js/parseInt v)]
+               (when (js/isFinite x) x))
        :clj (try (Integer/parseInt v)
                  (catch NumberFormatException e)))
     (number? v) (int v)))
 
 (defn parse-double [v]
   (and (string? v)
-       #?(:cljs (let [x (js/parseFloat v)]
-                  (and x (js/isFinite x) x))
+       #?(:cljs (when-let [x (js/parseFloat v)]
+                  (when (js/isFinite x) x))
           :clj (try (Double/parseDouble v)
                     (catch NumberFormatException e)))))
 

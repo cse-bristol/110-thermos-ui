@@ -32,14 +32,14 @@
          loan-rate :rate}
         opts
 
-        period (or period 1)
+        period    (max 1 (or period 1))
         loan-rate (or loan-rate 0)
 
         {npv-rate ::document/npv-rate
          npv-term ::document/npv-term} doc
 
         npv-rate (or npv-rate 0)
-        npv-term (or npv-term 1)
+        npv-term (max 1 (or npv-term 1))
         
         payments
         (if should-annualize

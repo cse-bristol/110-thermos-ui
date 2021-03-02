@@ -14,9 +14,14 @@
     services.thermos.ui.enable = true;
     services.thermos.model.enable = true;
     services.thermos.importer.enable = true;
-
+    # machine total = 62Gi
+    # reserve 20 for postgres & system
+    # 42 left
+    # 6 for web frontend => 36 left
+    # 10 for importer, 26 for models
     services.thermos.ui.javaArgs = "-Xmx6g -server";
-    services.thermos.model.javaArgs = "-Xmx32g -server";
+    services.thermos.model.javaArgs = "-Xmx24g -server";
+    services.thermos.model.solverCount = 30;
     services.thermos.importer.javaArgs = "-Xmx10g -server";
 
     nixpkgs.config.allowUnfree = true;

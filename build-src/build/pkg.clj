@@ -34,39 +34,50 @@
   (def cljs-builds
     (edn/read-string (slurp "cljs-builds.edn")))
 
-  (doseq [build cljs-builds]
-    (println (on-cyan (white "compile clojurescript for " (bold (:main build)))))
+
+  (let [build-less  (future (println (on-cyan (white "compile less to css")))
+                            (less/build
+                             {:source-paths ["resources"]
+                              :target-path "target/resources/"
+                              :compression true}))
+
+        build-clojure (future 
+                        (println (on-cyan (white "compile clojure")))
+                        (in-thread-group
+                         #(compile/compile
+                           '[thermos-backend.core]
+                           {:compile-path "target/classes"
+                            :compiler-options {:disable-locals-clearing false
+                                               :elide-meta [:doc :file :line :added]
+                                               :direct-linking true}
+                            :classpath (classpath/make-classpath {:aliases [:server]})})))
+
+        build-cljs (future (doseq [build cljs-builds]
+                             (println (on-cyan (white "compile clojurescript for " (bold (:main build)))))
+                             
+                             (cljs/build
+                              "src"
+                              (if debug-optimizations
+                                (assoc build
+                                       :parallel-build true
+                                       :preloads nil
+                                       :infer-externs true
+                                       :optimizations :advanced
+                                       :pretty-print true 
+                                       :pseudo-names true)
+                                
+                                (assoc build
+                                       :parallel-build true
+                                       :preloads nil
+                                       :infer-externs true
+                                       :optimizations :advanced)))
+                             ))
+        ]
     
-    (cljs/build
-     "src"
-     (if debug-optimizations
-       (assoc build
-              :preloads nil
-              :infer-externs true
-              :optimizations :advanced
-              :pretty-print true 
-              :pseudo-names true)
-       
-       (assoc build
-              :preloads nil
-              :infer-externs true
-              :optimizations :advanced))))
-
-  (println (on-cyan (white "compile less to css")))
-  (less/build
-    {:source-paths ["resources"]
-     :target-path "target/resources/"
-     :compression true})
-
-  (println (on-cyan (white "compile clojure")))
-  (in-thread-group
-   #(compile/compile
-     '[thermos-backend.core]
-     {:compile-path "target/classes"
-      :compiler-options {:disable-locals-clearing false
-                         :elide-meta [:doc :file :line :added]
-                         :direct-linking true}
-      :classpath (classpath/make-classpath {:aliases [:server]})}))
+    @build-less
+    @build-clojure
+    @build-cljs)
+  
 
   ;; Finally create uberjar. For whatever reason, there is no good
   ;; library for doing this at the moment. Lots of people seem to have

@@ -327,10 +327,12 @@
                     [:td class]
                     [:td.numeric (count demands)]
                     [:td.numeric (format/si-number
-                                  (* 1000
-                                     (reduce + 0 (map
-                                                  #(candidate/peak-demand % (document/mode @parameters))
-                                                  demands))))]
+                                  (let [mode (document/mode @parameters)]
+                                    (* 1000
+                                       (reduce + 0 (map
+                                                    #(candidate/solved-peak-demand
+                                                      % mode)
+                                                    demands)))))]
                     [:td.numeric (format/si-number
                                   (* 1000
                                      (reduce + 0 (map ::solution/kwh demands))))]
@@ -411,8 +413,11 @@
           [:tr {:key alt-name}
            [:td alt-name]
            [:td.numeric (count buildings)]
-           [:td.numeric (format/si-number (* 1000 (reduce + #(candidate/peak-demand % (document/mode @parameters))
-                                                          buildings)))]
+           [:td.numeric (format/si-number
+                         (* 1000
+                            (let [mode (document/mode @parameters)]
+                              (reduce + #(candidate/solved-peak-demand % mode)
+                                      buildings))))]
            [:td.numeric (format/si-number (* 1000 (reduce + (map ::solution/kwh buildings))))]
            [:td.numeric (format/si-number (reduce + (map (comp
                                                           capex-mode

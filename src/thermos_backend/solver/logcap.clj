@@ -1,36 +1,32 @@
 (ns thermos-backend.solver.logcap
   (:import [org.apache.log4j
-            AppenderSkeleton
             LogManager
-            Logger
-            WriterAppender
+            Appender
             SimpleLayout]
            [org.apache.log4j.spi Filter LoggingEvent])
-  (:require [clojure.tools.logging :as log]))
+  (:require [clojure.tools.logging :as log]
+            [clojure.string :as string]))
 
-(defmacro with-log-into2 [writer & body]
-  `(let [thread-name# (.getName (Thread/currentThread))
-         appender# (WriterAppender. (SimpleLayout.) ~writer)
-         filter# (proxy [Filter] []
-                   (decide [^LoggingEvent event#]
-                     (if (= thread-name# (.getThreadName event#))
-                         Filter/ACCEPT Filter/DENY)))]
-     (try
-       (.addFilter appender# filter#)
-       (.addAppender (LogManager/getRootLogger) appender#)
-       ~@body
-       (finally (.removeAppender (LogManager/getRootLogger) appender#)))))
+(defn appender-glue ^Appender [on-message]
+  (let [thread-id (.getId (Thread/currentThread))
+        layout (SimpleLayout.)]
+    
+    (reify Appender
+      (^void doAppend [this ^LoggingEvent event]
+       ;; making an assumption here: logging does happen on same thread
+       (when (= thread-id (.getId (Thread/currentThread)))
+         (on-message (string/trim (.format layout event))))))))
 
-(defmacro with-log-into [writer & body]
-  `(let [appender# (WriterAppender. (SimpleLayout.) ~writer)]
+(defmacro with-log-messages [on-message & body]
+  `(let [appender# (appender-glue ~on-message)]
      (try
        (.addAppender (LogManager/getRootLogger) appender#)
        ~@body
        (finally (.removeAppender (LogManager/getRootLogger) appender#)))))
-
 
 (comment
-  (let [w (java.io.StringWriter.)]
-    (with-log-into2 w
+  (let [msgs (atom [])]
+    (with-log-messages (fn [msg] (swap! msgs conj msg))
       (dotimes [i 1] (log/info "SOME WORDS" i)))
-    (println "CApped: "(.toString w))))
+    (println "CApped: " (count @msgs)))
+  )

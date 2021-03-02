@@ -1,4 +1,26 @@
-[{:title "Next release"
+[{:title "Feb 26th 2021"
+  :changes
+  [{:title "Features: upload your own lidar, auto HDD, hot water tank."
+    :summary
+    [:ul
+     [:li "Projects can now have their own associated LIDAR, used for maps in the same project."]
+     [:li "When creating a new map the heating degree days field will be pre-populated with a relevant value."]
+     [:li "Individual systems can now represent a 'hot water tank' for sizing. "
+      "On the individual systems page, there is a new field for 'Tank factor'. "
+      "If supplied, this field is used to compute a new peak for the building when using that individual system as a multiple of the annual demand."]]}
+
+   {:title "Bugs fixed"
+    :summary
+    [:ul
+     [:li "NPV or annualization terms of zero are taken as one year. Previously this would stop the model running."]
+     [:li "The hot water demand part of the demand model produced values 1.15 times larger than it should have; this is fixed, for new maps only."]
+     [:li "The application should do a better job of processing email addresses when inviting people to a project."]
+     [:li "The diversity calculation is corrected in the case where the optimisation solution includes multiple paths from the supply to a vertex. Previously, if one path had a very small heat flow the diversity on that path could be incorrect."]
+     ]
+    }
+   ]
+  }
+ {:title "5th February 2021"
   :changes
   [{:title "Features: user-defined fields, building groups, spreadsheet input/output, and more"
     :summary

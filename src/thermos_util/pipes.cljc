@@ -161,9 +161,53 @@
     
     ))
 
+(defn dia->kw-range
+  "Given curves from above, return [min kW, max kW], the range in kW for which we would use a pipe of this diameter. That is the size of the next pipe down + 1 kW upto this one.
+
+  This function is not efficient, if you call it a lot you will want to come in and fix it up."
+  [curves dia-mm]
+
+  (let [dia (/ dia-mm 1000.0)
+        dia->kw (into (sorted-map) (:dia->kw curves))
+        next-up (rsubseq dia->kw <= dia)]
+    (cond
+      (or (empty? next-up))
+      ;; diameter is below minimum, so we want 0 .. min
+      [0 (second (first dia->kw))]
+
+      (== (first (first next-up)) dia) ;; diameter is in the table
+      (let [[[_ a] [_ b]] next-up] [(inc (or b -1)) a])
+
+      :else ;; diameter is not in the table
+      (let [diameter-up (first (first (subseq dia->kw > dia)))]
+        (if (nil? diameter-up)
+          (throw (ex-info "Diameter is larger than maximum known in table" {:dia dia :dia->kw dia->kw}))
+          (dia->kw-range curves (* 1000.0 diameter-up)))))))
+
+
+(comment
+  ;; convert to test
+  (dia->kw-range
+   {:dia->kw [[0.01 50] [0.02 100] [0.03 200]]}
+   30) ;; => [101 200]
+
+  (dia->kw-range
+   {:dia->kw [[0.01 50] [0.02 100] [0.03 200]]}
+   29) ;; => [101 200]  
+
+  (dia->kw-range
+   {:dia->kw [[0.01 50] [0.02 100] [0.03 200]]}
+   20) ;; => [51 100]
+
+  (dia->kw-range
+   {:dia->kw [[0.01 50] [0.02 100] [0.03 200]]}
+   5) ;; => [0 50]
+  )
+
 
 (defn dia->kw
-  "Given some curves from above, interpolate out the kw carried by a pipe of given dia"
+  "Given some curves from above, interpolate out the kw carried by a pipe of given dia.
+  This is happy with diameters that are not in the table."
   [curves dia-mm]
 
   (linear-evaluate (:dia->kw curves) (/ dia-mm 1000.0)))

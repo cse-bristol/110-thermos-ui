@@ -14,27 +14,41 @@
             [thermos-backend.config :refer [config]]
             [thermos-backend.importer.core :as importer]
             [thermos-backend.restrictions :as restrictions]
+            [thermos-backend.importer.heat-degree-days :as heat-degree-days]
             [clojure.java.io :as io]
             [ring.util.io :as ring-io]
             [cheshire.core :as json]
             [clojure.tools.logging :as log]
             [thermos-util.converter :as converter]
             [clojure.edn :as edn]
-            [thermos-backend.solver.core :as solver])
+            [thermos-backend.solver.core :as solver]
+            [thermos-backend.routes.lidar :as lidar-routes]
+            [thermos-backend.project-lidar :as project-lidar])
   (:import [javax.mail.internet InternetAddress]
            [java.io ByteArrayInputStream]))
 
 (defn- parse-email [text]
   (try
     (let [address (InternetAddress. text)]
-     {:id (.getAddress address)
-      :name (or (.getPersonal address)
-                (.getAddress address))})
+      {:id    (string/trim (string/lower-case (.getAddress address)))
+       :name  (or (.getPersonal address)
+                  (.getAddress address))})
     (catch javax.mail.internet.AddressException e)))
 
 (defn- parse-emails [text]
   (keep (comp parse-email string/trim)
-        (string/split text #"[\n,]+")))
+        (string/split text #"[\n,;]+")))
+
+(defn- normalize-users [users]
+  (->> users
+       (mapcat
+        (fn [user]
+          (let [id (:id user) emails (parse-emails id)]
+            (if (seq emails)
+              (for [e emails] (merge user e))
+              [user]))))
+       (reduce (fn [out user] (assoc out (:id user) user)) {})
+       (vals)))
 
 (defn- new-project-page [_]
   (auth/verify :logged-in
@@ -87,6 +101,7 @@
                    (= (string/lower-case project-name)
                       (string/lower-case (:name (projects/get-project project-id))))))
           (do (projects/delete-project! project-id)
+              (project-lidar/delete-project-lidar! project-id)
               deleted)
           
           (= :post method)
@@ -99,10 +114,11 @@
         (cache-control/no-store))))
 
 (defn- set-project-users! [{{:keys [users public project-id]} :params}]
-  (auth/verify [:share :project project-id]
-    (projects/set-users! project-id auth/*current-user* users)
-    (projects/make-public! project-id (boolean public))
-    (response/redirect ".")))
+  (let [users (normalize-users users)]
+    (auth/verify [:share :project project-id]
+      (projects/set-users! project-id auth/*current-user* users)
+      (projects/make-public! project-id (boolean public))
+      (response/redirect "."))))
 
 (defn- map-icon [{{:keys [map-id]} :params}]
   (auth/verify [:read :map map-id]
@@ -111,7 +127,7 @@
         (response/response)
         (response/content-type "image/png"))))
 
-(defn- new-map-page [_] (html (map-pages/create-map-form)))
+(defn- new-map-page [{{:keys [project-id]} :params}] (html (map-pages/create-map-form project-id)))
 (defn- create-new-map! [{{:keys [project-id name description] :as params} :params}]
   (auth/verify [:modify :project project-id]
                (if (restrictions/exceeded-gis-feature-count? auth/*current-user*)
@@ -317,9 +333,17 @@
     (projects/delete-networks! map-id (url-decode network-name))
     deleted))
 
+(defn- heat-degree-days [{{:keys [lng lat]} :params}] 
+  (-> (heat-degree-days/get-hdd (Double/parseDouble lng) (Double/parseDouble lat))
+      (json/encode)
+      (response/response)
+      (response/content-type "application/json")))
+
+
 (def map-routes
   [["/new" {:get new-map-page :post create-new-map!}]
    ["/new/add-file" {:post upload-map-data}]
+   ["/new/heat-degree-days" {:get heat-degree-days}]
    [["/" [long :map-id]] {"" {:delete delete-map!}
                           "/delete" {:get delete-map-page :post delete-map!}
                           "/icon.png" map-icon
@@ -333,7 +357,7 @@
                                    {"" {:get  network-editor-page
                                         :head network-poll-status
                                         :post network-save!}
-                                    
+                                    "/status" network-poll-status
                                     "/data.json" {:get network-geojson}
                                     }]
                                   [["/" [#".+" :network-name]] {:delete delete-networks!}]]}]])
@@ -354,6 +378,7 @@
                    :get    delete-project-page
                    :post   delete-project!}
         "/users"  {:post set-project-users!}
+        "/lidar"  lidar-routes/lidar-routes
         "/map"    map-routes})
      ]
     ]

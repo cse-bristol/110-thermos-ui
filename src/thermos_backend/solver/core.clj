@@ -61,10 +61,10 @@
 
           solution (cond->> problem
                      (#{:network :both} problem-type)
-                     (interop/try-solve (format "network-%s-" network-id))
+                     (interop/try-solve progress)
 
                      (#{:supply :both} problem-type)
-                     (supply-solver/try-solve (format "supply-%s-" network-id)))]
+                     (supply-solver/try-solve))]
 
       (projects/add-solution! network-id (pr-str solution)))
 

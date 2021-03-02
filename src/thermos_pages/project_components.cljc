@@ -14,6 +14,15 @@
 (defn- remove-index [v i]
   (vec (concat (subvec v 0 i) (subvec v (inc i)))))
 
+(defn- parse-emails [in]
+  (let [parts (string/split in #"[;,\n]"+)]
+    (for [part parts]
+      (let [part (string/trim part)
+            email-part (re-find #"[^<> ]+@[^<> ]+" part)]
+        (if email-part
+          {:id (string/lower-case (string/trim email-part))     :name (string/trim part)}
+          {:id (string/lower-case (string/trim part)) :name (string/trim part)})))))
+
 (rum/defcs project-user-list < rum/reactive
   [state
    {:keys [on-close on-save]}
@@ -47,12 +56,15 @@
        ])
 
     [:div.flex-cols {:style {:margin-top :1em}}
-     [:input.input.text-input.flex-grow {:ref "invite" :placeholder "an.email@address.com"}]
+     [:input.input.text-input.flex-grow {:ref "invite" :placeholder
+                                         "comma-separated email addresses"}]
      [:button.button {:style { :margin-left :1em}
                       :on-click #(let [input (rum/ref state "invite")
-                                       input-value (.-value input)]
-                                   (swap! users conj {:id input-value :name input-value
-                                                      :new true :auth :read})
+                                       input-value (.-value input)
+                                       emails (parse-emails input-value)]
+                                   (swap! users
+                                          into
+                                          (for [e emails] (assoc e :new true :auth :read)))
                                    (set! (.-value input) nil))
                       } "Add"]]
     
@@ -314,7 +326,7 @@
     [:h1 {:style {:flex-grow 1}}
      (case (keyword (:state m))
        (:ready :running)
-       [:div {:margin-right :1em} (spinner {:size 16})]
+       [:div (spinner {:size 16})]
        :completed
        [:img {:width :32px :height :32px :src (str "map/" (:id m) "/icon.png")
               :style {:margin-right :1em
@@ -515,7 +527,10 @@
           (if (and (:restricted? restriction-info)
                    (> (:num-gis-features restriction-info) (:max-restricted-gis-features restriction-info)))
             [:button.button.button--disabled {:disabled true} "MAP " symbols/plus]
-            [:a.button {:href "map/new"} "MAP " symbols/plus])))]]
+            [:a.button {:href "map/new"} "MAP " symbols/plus]))
+        
+        (when user-auth
+          [:a.button {:href "lidar"} "LIDAR"]))]]
 
      ;; data uploady box...
      

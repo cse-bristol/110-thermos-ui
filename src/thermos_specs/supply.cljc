@@ -22,7 +22,12 @@
                 ::capex-per-mean-kw
                 ::opex-per-kwp
                 ::fixed-cost
-                ::emissions]))
+                ::emissions
+
+                ;; if this field contains a number, then the network model
+                ;; will be told a lie about the cost/kwp for this alternative
+                ::kwp-per-mean-kw
+                ]))
 
 (defn principal [candidate capacity-kw annual-kwh]
   (+ (::fixed-cost candidate 0)

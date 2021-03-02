@@ -1,6 +1,7 @@
 (ns thermos-frontend.editor-state
   (:require [goog.object :as o]
             [goog.net.XhrIo :as xhr]
+            [ajax.core :refer [GET]]
             [thermos-frontend.spatial :as spatial]
             [thermos-frontend.io :as io]
             [thermos-specs.candidate :as candidate]
@@ -84,9 +85,11 @@
 (set! js/thermos_initial_state nil)
 
 (def running-state? #{:ready :running :cancel :cancelling})
-(defn is-running? [] (running-state? (:run-state @save-state)))
+(defn run-state [] (:run-state @save-state))
+(defn is-running-or-queued? [] (running-state? (:run-state @save-state)))
 (defn needs-save? [] (:needs-save @save-state))
 (defn queue-position [] (:queue-position @save-state))
+(defn run-message [] (:run-message @save-state))
 
 (defonce watch-state-for-save
   (add-watch
@@ -254,36 +257,33 @@
 (defonce poll-timer (atom nil))
 
 (defn poll! []
-  (xhr/send
-   ""
-   (fn on-success [e]
-     (let [last-run-state (:run-state @save-state)
-           run-state (get-run-state e)]
-       (swap! save-state assoc
-              :run-state run-state
-              :queue-position (get-queue-position e))
-       (case run-state
-         :completed
-         (case last-run-state
-           (:ready :running)
-           (do
+  (GET (str js/window.location.pathname "/status")
+      {:handler
+       (fn [{:keys [state queue-position message]}]
+         (let [last-run-state (:run-state @save-state)]
+           (swap! save-state assoc
+                  :run-state state
+                  :queue-position queue-position
+                  :run-message message)
+           (case state
+             :completed
+             (case last-run-state
+               (:ready :running)
+               (do
+                 (swap! poll-timer
+                        (fn [t]
+                          (when t (js/window.clearTimeout t))
+                          nil))
+                 (load!))
+
+               nil)
+
+             (:ready :running :cancelling :cancel)
              (swap! poll-timer
-                (fn [t]
-                  (when t (js/window.clearTimeout t))
-                  nil))
-             (load!))
-
-           nil)
-         
-
-         (:ready :running :cancelling :cancel)
-         (swap! poll-timer
-                (fn [t]
-                  (when t (js/window.clearTimeout t))
-                  (js/window.setInterval poll! 1000)))
-
-         nil)))
-   
-   "HEAD"))
+                    (fn [t]
+                      (when t (js/window.clearTimeout t))
+                      (js/window.setInterval poll! 1000)))
+             nil))
+         )}))
 
 (poll!)
