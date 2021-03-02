@@ -3,6 +3,7 @@
             [honeysql-postgres.helpers :as p]
             [buddy.hashers :as hash]
             [thermos-backend.db :as db]
+            [thermos-backend.config :refer [config]]
             [clojure.string :as string]
             [jdbc.core :as jdbc]
             [honeysql.core :as sql]
@@ -142,7 +143,7 @@
                               :name name
                               :reset-token (and (not password) token)
                               :password (and password (hash/derive password))
-                              :auth (as-user-auth :normal)}])
+                              :auth (as-user-auth (or (config :default-user-auth) :normal))}])
                   (db/execute! conn))
               token)))))))
 
