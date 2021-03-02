@@ -46,9 +46,35 @@ An efficient way to use the tool is to put back in a file produced by a previous
     :assoc-fn conj-arg]
    
    ["-o" "--output FILE*" "The problem will be written out here. Format determined by file extension. Can be repeated.
-If the file is a tsv file then if the name contains 'pipe' the output will be about pipes, otherwise buildings."
+If the file is a tsv file then if the name contains 'pipe' the output will be about pipes, otherwise buildings.
+If the file name contains 'summary' summary data will be written.
+TSV columns for pipes & buildings:
+- problem : --problem-name
+- id : --id-field
+- lon,lat : epsg4326 centroid
+- system : heating system (buildings)
+- kwh, kwp : kwh (after ins.) and kwp (buildings)
+- insulation: kwh/yr avoided by insulation (buildings) 
+- capex : heating system capex (heat exch. for net, buildings)
+- opex : heating system annual whole-system cost (buildings, i.e. no network revenues)
+- revenue : heating system annual revenue to network (buildings)
+- count : n connections
+- skwp : supply capacity if supply
+- scapex : system capex if supply
+- sopex : system opex if supply
+- icapex : insulation capex
+- length : pipe length (m)
+- diameter : pipe diameter (mm)
+- kw : pipe capacity (kw)
+- civils : civil cost name (pipes)
+- capex : pipe capex
+- losses : kwh/yr losses
+- diversity : diversity / coincidence factor
+"
     :assoc-fn conj-arg]
-   
+
+   [nil "--id-field FIELD" "An ID field to output in TSV files"]
+
    ;; ["-s"  "--output-summary FILE*" "Solution summary data will be written out here. Format by extension, can be repeated."
    ;;  :assoc-fn conj-arg]
 
@@ -605,7 +631,10 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
 
                (when-let [spreadsheet (:spreadsheet options)]
                  (log/info "Reading settings from" spreadsheet)
-                 (spreadsheet/from-spreadsheet spreadsheet))
+                 (let [in (spreadsheet/from-spreadsheet spreadsheet)]
+                   (when (:import/errors in)
+                     (throw (ex-info "Spreadsheet not valid" in)))
+                   in))
                
                (when-let [base
                           (seq
@@ -680,11 +709,11 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
                                 (interop/solve)))
         ]
     
-    (binding [output/*identifier* (:problem-name options)]
+    (binding [output/*problem-id* (:problem-name options)
+              output/*id-field*   (:id-field options)]
       (doseq [output-path output-paths]
         (log/info "Saving state to" output-path)
         (output/save-state instance output-path))))
-  
   
   (mount/stop))
 
@@ -718,18 +747,18 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
 
 (comment
   (-main
-   "-m"               "/home/hinton/p/738-cddp/density-maps/cluster-9.gpkg"
-   "--spreadsheet"    "/home/hinton/p/738-cddp/density-maps/cddp-thermos-parameters-current.xlsx"
+   "-m"               "/home/hinton/p/738-cddp/cluster-runner/splits/cl--9.gpkg"
+   "--spreadsheet"    "/home/hinton/p/738-cddp/cluster-runner/cddp-thermos-parameters-current.xlsx"
    "--snap-tolerance" "4"
-   "--supply"         "/home/hinton/p/738-cddp/density-maps/supply.edn"
-   "--solve"
+   "--supply"         "/home/hinton/p/738-cddp/cluster-runner/supply.edn"
 
    "--problem-name"   "9"
+   "--max-runtime"    "1"
 
-   "-o"               "/home/hinton/p/738-cddp/density-maps/cluster-9-pipes.tsv"
-   "-o"               "/home/hinton/p/738-cddp/density-maps/cluster-9-buildings.tsv"
-
+   "-o"               "/home/hinton/p/738-cddp/cluster-runner/cluster-9-pipes.tsv"
+   "-o"               "/home/hinton/p/738-cddp/cluster-runner/cluster-9-buildings.tsv"
+   "-o"               "/home/hinton/p/738-cddp/cluster-runner/cluster-9.edn"
+   "-o"               "/home/hinton/p/738-cddp/cluster-runner/summary.json"
+   "-o"               "/home/hinton/p/738-cddp/cluster-runner/blarg.json.gz"
    )
   )
-
-
