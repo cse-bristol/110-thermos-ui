@@ -1,33 +1,44 @@
 (ns thermos-backend.pages.admin
   (:require [thermos-backend.pages.common :refer [page]]
+            [thermos-backend.db.users :refer [user-auth-types]]
+            [hiccup.form :refer [select-options]]
             [clojure.pprint :refer [pprint]]))
 
 (defn admin-page [users queues]
   (page
-   {:title "THERMOS admin"}
+   {:title "THERMOS admin"
+    :js ["/js/admin.js"]}
    [:div.card
     [:details
-     [:summary [:h1 "System users"]]
-     [:table
+     [:summary [:h1 {:style {:cursor "pointer"}} "System users"]]
+     [:table {:style {:width "100%" :margin-bottom "2em"}}
       [:thead
        [:tr
         [:th "ID"]
         [:th "Name"]
         [:th "Authority"]
-        [:th "Has logged in"]]]
+        [:th "Has logged in"]
+        [:th "Change authority"]
+        [:th "Delete"]]]
       [:tbody
        (for [u users]
          [:tr
           [:td (:id u)]
           [:td (:name u)]
           [:td (:auth u)]
-          [:td (not (nil? (:password u)))]])]]]]
+          [:td (not (nil? (:password u)))]
+          [:td [:select {:onchange (str "thermos_frontend.pages.admin.set_user_auth('" (:id u) "', this.value)")}
+                 (select-options (vec user-auth-types) (keyword (:auth u)))]]
+          [:td [:input {:type :checkbox
+                        :onchange (str "thermos_frontend.pages.admin.mark_for_deletion('" (:id u) "', this.checked)")}]]])]]
+
+     [:button.button {:onclick "thermos_frontend.pages.admin.submit_updates()"} "Apply changes"]]]
 
    (for [[q tasks] (group-by :queue-name queues)]
      [:div.card
       [:details
        [:summary.flex-cols
-        [:h1.flex-grow q " tasks"]
+        [:h1.flex-grow {:style {:cursor "pointer"}} q " tasks"]
         [:a {:href (str "clean-queue/" q)} "clean up"]
         " • "
         [:a {:href (str "clean-queue/" q "?purge=1")} "purge"]]

@@ -9,12 +9,14 @@
             [honeysql.core :as sql]
             [thermos-backend.email :as email]))
 
+(def user-auth-types (sorted-set :admin :normal :restricted))
+
 (defn as-project-auth [a]
   {:pre [(#{:admin :read :write} a)]}
   (sql/call :project_auth (name a)))
 
 (defn- as-user-auth [a]
-  {:pre [(#{:admin :normal :restricted} a)]}
+  {:pre [(user-auth-types a)]}
   (sql/call :user_auth (name a)))
 
 (defn- max-auth [a b]
@@ -30,7 +32,7 @@
 (defn users []
   (-> (h/select :*)
       (h/from :users)
-      (h/order-by :auth :id)
+      (h/order-by :id)
       (db/fetch!)))
 
 (defn set-user-auth! [user-id auth]
