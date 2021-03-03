@@ -140,9 +140,13 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
    [nil "--tariffs FILE*"
     "A file containing tariff definitions"
     :assoc-fn conj-arg]
+
    [nil "--top-n-supplies N" "Number of supplies to introduce into the map by taking the top N demands"
     :default 1
     :parse-fn #(Integer/parseInt %)]
+
+   [nil "--fit-supply-capacity"
+    "Make sure the supply added to each component (with --top-n-supplies) is large enough to meet all the demand."]
 
    [nil "--max-runtime N" "Max runtime hours"
     :parse-fn #(Double/parseDouble %)]
@@ -348,7 +352,7 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
     (cond-> building
       tariff (assoc ::tariff/id tariff))))
 
-(defn- select-top-n-supplies [instance supply top-n]
+(defn- select-top-n-supplies [instance supply top-n fit-supply]
   (let [{buildings :building paths :path}
         (document/candidates-by-type instance)
 
@@ -392,18 +396,38 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
                  (sort-by :value #(compare %2 %1))
                  (keep :id))))
 
-        winning-ids
-        (mapcat
-         #(take top-n (ranked-building-ids %))
+
+        building-peak (fn [c] (candidate/peak-demand
+                               (get candidates c)
+                               (document/mode instance)))
+        
+        ;; for each component compute a tuple
+        ;; [some buildings IDs, total kW]
+        ;; buildings IDs are where we want to put supplies
+        ;; total kW is the total demand in the component, in case fit-supply is true
+        components-and-supplies
+        (map
+         #(vector
+           (take top-n (ranked-building-ids %))
+           (reduce + 0 (keep building-peak %)))
          components)
         ]
-    (log/info "Adding" (count winning-ids) "supply locations to" (count components) "components")
-    (cond-> instance
-      (and (seq winning-ids) supply)
-      (document/map-candidates
-       #(merge supply %)
-       winning-ids))
-    ))
+
+    (doseq [[supplies size] components-and-supplies]
+      (log/info "Adding" (count supplies) "to a" size "kW component"))
+
+    (if (and (seq components-and-supplies) supply)
+      (reduce
+       (fn [instance [supply-ids max-capacity]]
+         (let [supply (cond-> supply
+                        fit-supply
+                        (assoc ::supply/capacity-kwp max-capacity))]
+           (document/map-candidates
+            instance (fn [candidate] (merge supply candidate))
+            supply-ids)))
+       instance components-and-supplies)
+
+      instance)))
 
 (defn- select-input-supplies [instance supply supply-field]
   (log/info "Adding supplies based on" supply-field)
@@ -421,7 +445,7 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
     (select-input-supplies instance (:supply options) (:supply-field options))
 
     (pos? (:top-n-supplies options))
-    (select-top-n-supplies instance (:supply options) (:top-n-supplies options))
+    (select-top-n-supplies instance (:supply options) (:top-n-supplies options) (:fit-supply-capacity options))
 
     :else ;; NOP
     instance))
@@ -761,18 +785,13 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
 
 (comment
   (-main
-   "-m"               "/home/hinton/p/738-cddp/cluster-runner/splits/cl--9.gpkg"
+   "-m"               "/home/hinton/p/738-cddp/cluster-runner/issues/infeasible/c_500_5=121.gpkg"
    "--spreadsheet"    "/home/hinton/p/738-cddp/cluster-runner/cddp-thermos-parameters-current.xlsx"
-   "--snap-tolerance" "4"
-   "--supply"         "/home/hinton/p/738-cddp/cluster-runner/supply.edn"
-
-   "--problem-name"   "9"
-   "--max-runtime"    "1"
-
-   "-o"               "/home/hinton/p/738-cddp/cluster-runner/cluster-9-pipes.tsv"
-   "-o"               "/home/hinton/p/738-cddp/cluster-runner/cluster-9-buildings.tsv"
-   "-o"               "/home/hinton/p/738-cddp/cluster-runner/cluster-9.edn"
+   "--supply"         "/home/hinton/p/738-cddp/cluster-runner/5p.edn"
    "-o"               "/home/hinton/p/738-cddp/cluster-runner/summary.json"
-   "-o"               "/home/hinton/p/738-cddp/cluster-runner/blarg.json.gz"
+   "--demand-field" "annual_demand" "--peak-field" "peak_demand" "--count-field" "connection_count"
+   "--solve"
    )
+
+  
   )
