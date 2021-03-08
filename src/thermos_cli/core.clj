@@ -7,6 +7,7 @@
             [clojure.data.json :as json]
             [cljts.core :as jts]
             [clojure.tools.logging :as log]
+            [clojure.string :as string]
             
             [thermos-backend.importer.process :as importer]
             [thermos-backend.solver.interop :as interop]
@@ -38,6 +39,11 @@
 
 (defn- conj-arg [m k v]
   (update m k conj v))
+
+(defn- setwise-keyword-option [short long doc values]
+  [short long (str doc ": " (string/join " | " (map name values)))
+   :parse-fn keyword
+   :validate [(set values) (str "Must be one of " (string/join ", " (map name values)))]])
 
 (def options
   [[nil "--problem-name NAME" "Name of problem - this will be put in some outputs"]
@@ -97,6 +103,11 @@ If there are buildings, they will have demand and peak demand computed, subject 
     :default nil
     :parse-fn #(Double/parseDouble %)]
    [nil "--trim-paths" "Remove paths that don't go anywhere."]
+
+   [nil "--ignore-paths FIELD=VALUE*" "Ignore paths where FIELD=VALUE"
+    :assoc-fn conj-arg
+    :parse-fn #(string/split % #"=")]
+   
    [nil "--solve" "Run the network model solver."]
    [nil "--height-field FIELD" "A height field, used in preference to LIDAR."]
    [nil "--supply-field FIELD" "A field which, if true, will be used to select a supply location."]
@@ -163,7 +174,17 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
     "Set the value at path A B C to value V"
     :parse-fn #(edn/read-string %)
     :assoc-fn conj-arg]
-   
+
+   [nil "--retry" "If the optimiser runs but does not find an answer in the time, retry with different options.
+The different options are those supplied after --retry, so mostly you can use this to bump up the runtime or similar."
+    :assoc-fn (fn [m k _] (assoc m :retry m))
+    ;; so :retry in the options is the pre-retry options.
+    ]
+
+   (setwise-keyword-option nil "--scip-emphasis X" "Overall scip emphasis" lp.scip/emphasis-values)
+   (setwise-keyword-option nil "--scip-presolving-emphasis X" "scip presolver emphasis" lp.scip/presolving-emphasis-values)
+   (setwise-keyword-option nil "--scip-heuristics-emphasis X" "scip branch/bound heuristics emphasis" lp.scip/heuristics-emphasis-values)
+
    ["-h" "--help" "me Obi-Wan Kenobi - You're my only hope."]])
 
 (defn read-edn [file]
@@ -677,6 +698,18 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
                  (doall (map read-edn (reverse base)))))
         
         saying            (fn [x s] (log/info s) x)
+
+        paths             (cond-> paths
+                            (seq (:ignore-paths options))
+                            (->
+                             (saying (str "Remove paths where "
+                                          (string/join ", " (for [[field value] (:ignore-paths options)]
+                                                              (str field "=" value)))))
+                             (->> (remove
+                                   (let [ignores (:ignore-paths options)]
+                                     (fn [x] (some identity (for [[f v] ignores] (= (get x f) v)))))
+                                   paths
+                                   ))))
         
         instance          (cond-> instance
                             (or (seq paths) (seq buildings))
@@ -744,16 +777,39 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
                             
                             (:solve options)
                             (-> (saying "Solve")
-                                (interop/solve)))
+                                (as-> x 
+                                    (binding [lp.scip/*default-solver-arguments*
+                                              (cond-> lp.scip/*default-solver-arguments*
+                                                (:scip-emphasis options)
+                                                (assoc :emphasis (:scip-emphasis options))
+
+                                                (:scip-heuristics-emphasis options)
+                                                (assoc :heuristics-emphasis (:scip-heuristics-emphasis options))
+                                                
+                                                (:scip-presolving-emphasis options)
+                                                (assoc :presolving-emphasis (:scip-presolving-emphasis options)))]
+                                      (interop/solve x)))))
         ]
     
     (binding [output/*problem-id* (:problem-name options)
               output/*id-field*   (:id-field options)]
       (doseq [output-path output-paths]
         (log/info "Saving state to" output-path)
-        (output/save-state instance output-path))))
-  
-  (mount/stop))
+        (output/save-state instance output-path)))
+    
+    (mount/stop)
+
+    (cond
+      (not (:solve options)) :not-run
+
+      (solution/exists? instance) :solved
+
+      ;; if we did solve, but there is no solution, and time-limit is
+      ;; the status:
+      (= :time-limit (::solution/state instance))
+      :timeout
+      
+      :else :unknown)))
 
 (defn- generate-ids [things id]
   (map-indexed (fn [i t] (assoc t id i)) things))
@@ -772,26 +828,45 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
                     (update :alternatives generate-ids ::supply/id)
                     (update :tariffs      generate-ids ::tariff/id)
                     )]
+    
+    
     (cond
       (:help options)
-      (do
+      (binding [*out* *err*]
         (println "SUMMARY:")
         (println summary))
 
+      (seq errors)
+      (binding [*out* *err*]
+        (println "INVALID ARGS: ")
+        (doseq [e errors]
+          (println e)))
+      
       :else
-      (--main options))))
-
-
+      (let [retry-options
+            (fn retry-options [do-now]
+              (if-let [do-first (:retry do-now)]
+                (let [outcome (retry-options do-first)]
+                  (if (= outcome :timeout)
+                    (do (log/info "No solution, retry with different options")
+                        (--main do-now))
+                    outcome))
+                (--main do-now)))]
+        (retry-options options)))))
 
 (comment
-  (-main
-   "-m"               "/home/hinton/p/738-cddp/cluster-runner/issues/infeasible/c_500_5=121.gpkg"
-   "--spreadsheet"    "/home/hinton/p/738-cddp/cluster-runner/cddp-thermos-parameters-current.xlsx"
-   "--supply"         "/home/hinton/p/738-cddp/cluster-runner/5p.edn"
-   "-o"               "/home/hinton/p/738-cddp/cluster-runner/summary.json"
-   "--demand-field" "annual_demand" "--peak-field" "peak_demand" "--count-field" "connection_count"
-   "--solve"
-   )
+  (binding [lp.io/*keep-temp-dir* true]
+   
+   (-main
+    "-m"               "/home/hinton/p/738-cddp/cluster-runner/issues/infeasible/c_500_5=121.gpkg"
+    "--spreadsheet"    "/home/hinton/p/738-cddp/cluster-runner/cddp-thermos-parameters-current.xlsx"
+    "--supply"         "/home/hinton/p/738-cddp/cluster-runner/5p.edn"
+    "-o"               "/home/hinton/p/738-cddp/cluster-runner/summary.json"
+    "--demand-field" "annual_demand" "--peak-field" "peak_demand" "--count-field" "connection_count"
+    "--scip-presolving-emphasis" "aggressive"
+    "--scip-heuristics-emphasis" "aggressive"
+    "--solve"
+    ))
 
-  
+
   )
