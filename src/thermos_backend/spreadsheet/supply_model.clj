@@ -9,7 +9,9 @@
             [thermos-specs.supply :as supply]
             [thermos-util.pipes :as pipes]
             [thermos-specs.measure :as measure]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [clojure.set :as set]
+            [com.rpl.specter :as S]))
 
 (defn *100 [x] (and x (* 100.0 x)))
 
@@ -55,7 +57,7 @@
                                           [(candidate/text-emissions-labels :pm25) pm25]]
                        
                        ]
-                   {:name (str name " " sub-name) :key (partial lkup series)})
+                   {:name (str "Fuel: " name " " sub-name) :key (partial lkup series)})
 
                ~@(for [[_ {:keys [name demand]}] (::supply/heat-profiles doc)]
                    {:name (str "Profile: " name) :key (partial lkup demand)})
@@ -101,6 +103,18 @@
              ]
            days*divisions))
         ss)
+
+        (sheet/add-tab
+         ss
+         "Supply Objective"
+         (into
+          [{:name "Accounting Period (years)" :key :accounting-period}
+           {:name "Discount Rate" :key :discount-rate}
+           {:name "Curtailment Cost (¤/kWh)" :key :curtailment-cost}
+           {:name "Can Dump Heat" :key :can-dump-heat}
+           {:name "MIP Gap" :key :mip-gap}
+           {:name "Time Limit (hours)" :key :time-limit}])
+         [(::supply/objective doc)])
       )))
 
 (defn output-technologies [ss doc]
@@ -187,7 +201,165 @@
           )
          input-storage)
 
+        (sheet/add-tab
+         "Supply Substations"
+         (into
+          [{:name "Name" :key (comp :name second)}
+           {:name "Headroom (kWp)" :key (comp :headroom-kwp second)}
+           {:name "Alpha" :key (comp :alpha second)}])
+         substations)
         )))
+
+
+(defn- index [entries & [id-key]]
+  (into {}
+        (map-indexed
+         (fn [i v] [i (cond-> v id-key (assoc id-key i))])
+         entries)))
+
+(defn- id-lookup
+  "Transforms maps of shape {0 {:name A}, 1 {:name B}} to {A 0, B 1}"
+  [m & {:keys [key-field] :or {key-field :name}}]
+  (set/map-invert (S/transform [S/MAP-VALS] key-field m)))
+
+(defn read-day-types
+  "Read the supply day types tab from the input spreadsheet."
+  [spreadsheet]
+  (-> (for [{:keys [name
+                    divisions
+                    frequency]}
+            (:rows (:supply-day-types spreadsheet))]
+        {:name name
+         :divisions divisions
+         :frequency frequency})
+      (index ::supply/day-type-id)))
+
+(defn read-substations [spreadsheet profiles]
+  (-> (for [{:keys [name
+                    headroom
+                    alpha]}
+            (:rows (:supply-substations spreadsheet))]
+        (let [load-profile-id (sheet/to-keyword (str "Substation: " name))]
+          {:name name
+           :headroom-kwp headroom
+           :alpha alpha
+           :load-kw (load-profile-id profiles)}))
+      (index ::supply/substation-id)))
+
+(defn read-fuels [profiles profile-names]
+  (let [fuels
+        (set (for [profile (keys profiles)
+                   :when (string/starts-with? (name profile) "fuel-")]
+               (string/replace (name profile) #"-price$|-nox$|-co2$|-pm25$" "")))]
+    (-> (for [fuel fuels]
+          {:name  (string/replace ((keyword (str fuel "-price")) profile-names) #"^Fuel: | price$" "")
+           :price ((keyword (str fuel "-price")) profiles)
+           :co2   ((keyword (str fuel "-co2")) profiles)
+           :pm25  ((keyword (str fuel "-pm25")) profiles)
+           :nox   ((keyword (str fuel "-nox")) profiles)})
+        (index ::supply/fuel-id))))
+
+(defn read-profiles
+  "Read the profiles tab from the input spreadsheet and convert it
+   into a map of profiles in the internal format."
+  [spreadsheet]
+  (let [{:keys [supply-profiles]} spreadsheet
+
+        day-type-to-id (id-lookup (read-day-types spreadsheet))
+
+        profile-names (dissoc (:header supply-profiles) :day-type :interval)]
+    (->> (:rows supply-profiles)
+         (sort-by (juxt :day-type :interval))
+         (map (fn [row]
+                (for [name (keys profile-names)]
+                  {:name name
+                   :day-type (day-type-to-id (:day-type row))
+                   :interval (:interval row)
+                   :val (name row)})))
+         (flatten)
+         (group-by :name)
+         (S/transform [S/MAP-VALS] (fn [e] (group-by :day-type e)))
+         (S/transform [S/MAP-VALS S/MAP-VALS S/ALL] :val))))
+
+(defn input-from-spreadsheet
+  "Inverse function - takes a spreadsheet, as loaded by `common/read-to-tables`."
+  [spreadsheet]
+  (let [{:keys [supply-plant
+                supply-profiles
+                supply-storage
+                supply-objective]} spreadsheet
+
+        profile-names (dissoc (:header supply-profiles) :day-type :interval)
+        profiles (read-profiles spreadsheet)
+
+        substations (read-substations spreadsheet profiles)
+        substation-ids (id-lookup substations)
+
+        fuels (read-fuels profiles profile-names)
+        fuel-ids (id-lookup fuels)]
+    (merge
+     {::supply/plants
+      (-> (for [{:keys [fixed-capex capex-per-kwp capex-per-kwh
+                        name
+                        capacity
+                        fuel
+                        heat-efficiency
+                        power-efficiency
+                        substation
+                        fixed-opex opex-per-kwp opex-per-kwh
+                        chp?
+                        lifetime]}
+                (:rows supply-plant)]
+            {:capital-cost {:fixed fixed-capex, :per-kwp capex-per-kwp, :per-kwh capex-per-kwh}
+             :name name
+             :capacity-kwp capacity
+             :fuel (get fuel-ids fuel)
+             :heat-efficiency heat-efficiency
+             :power-efficiency power-efficiency
+             :substation (get substation-ids substation)
+             :operating-cost {:fixed fixed-opex, :per-kwp opex-per-kwp, :per-kwh opex-per-kwh}
+             :chp chp?
+             :lifetime lifetime})
+          (index ::supply/plant-id))
+
+      ::supply/day-types
+      (read-day-types spreadsheet)
+
+      ::supply/storages
+      (-> (for [{:keys [name
+                        capacity
+                        efficiency
+                        fixed-capex capex-per-kwp capex-per-kwh
+                        lifetime]}
+                (:rows supply-storage)]
+            {:name name
+             :capacity-kwh capacity
+             :capacity-kwp "todo" ; TODO caused by common/strip-units
+             :efficiency efficiency
+             :capital-cost {:fixed fixed-capex, :per-kwp capex-per-kwp, :per-kwh capex-per-kwh}
+             :lifetime lifetime})
+          (index ::supply/day-type-id))
+
+      ::supply/heat-profiles
+      (let [profiles (->> profiles
+                          (filter (fn [[k _]] (string/starts-with? (name k) "profile-")))
+                          (into {}))]
+        (-> (for [[profile-name profile] profiles]
+              {:name (string/replace-first (profile-name profile-names) "Profile: " "")
+               :demand profile})
+            (index ::supply/day-type-id)))
+
+      ::supply/grid-offer
+      (:grid-offer profiles)
+
+      ::supply/fuels
+      fuels
+
+      ::supply/substations
+      substations
+
+      ::supply/objective
+      (first (:rows supply-objective))})))
 
 (defn output-problem [ss doc]
   (-> ss
