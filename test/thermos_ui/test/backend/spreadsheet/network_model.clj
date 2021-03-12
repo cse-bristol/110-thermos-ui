@@ -60,5 +60,3 @@
     (is (= (:pumping-emissions round-tripped) (:pumping-emissions initial-doc)))
     (is (= (:emissions-cost round-tripped) (:emissions-cost initial-doc)))
     (is (= (:emissions-limit round-tripped) (:emissions-limit initial-doc)))))
-
-(run-tests 'thermos-test.backend.spreadsheet.network-model)

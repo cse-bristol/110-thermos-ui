@@ -11,7 +11,8 @@
             [thermos-specs.measure :as measure]
             [clojure.string :as string]
             [clojure.set :as set]
-            [com.rpl.specter :as S]))
+            [com.rpl.specter :as S]
+            [thermos-backend.spreadsheet.schema :as schema]))
 
 (defn *100 [x] (and x (* 100.0 x)))
 
@@ -210,13 +211,6 @@
          substations)
         )))
 
-
-(defn- index [entries & [id-key]]
-  (into {}
-        (map-indexed
-         (fn [i v] [i (cond-> v id-key (assoc id-key i))])
-         entries)))
-
 (defn- id-lookup
   "Transforms maps of shape {0 {:name A}, 1 {:name B}} to {A 0, B 1}"
   [m & {:keys [key-field] :or {key-field :name}}]
@@ -232,7 +226,7 @@
         {:name name
          :divisions divisions
          :frequency frequency})
-      (index ::supply/day-type-id)))
+      (sheet/index)))
 
 (defn read-substations [spreadsheet profiles]
   (-> (for [{:keys [name
@@ -244,20 +238,21 @@
            :headroom-kwp headroom
            :alpha alpha
            :load-kw (load-profile-id profiles)}))
-      (index ::supply/substation-id)))
+      (sheet/index)))
 
 (defn read-fuels [profiles profile-names]
-  (let [fuels
-        (set (for [profile (keys profiles)
-                   :when (string/starts-with? (name profile) "fuel-")]
-               (string/replace (name profile) #"-price$|-nox$|-co2$|-pm25$" "")))]
+  (let [fuels (-> (for [profile (keys profiles)
+                        :when (string/starts-with? (name profile) "fuel-")]
+                    (string/replace (name profile) #"-price$|-nox$|-co2$|-pm25$" ""))
+                  (set)
+                  (sort))]
     (-> (for [fuel fuels]
           {:name  (string/replace ((keyword (str fuel "-price")) profile-names) #"^Fuel: | price$" "")
            :price ((keyword (str fuel "-price")) profiles)
            :co2   ((keyword (str fuel "-co2")) profiles)
            :pm25  ((keyword (str fuel "-pm25")) profiles)
            :nox   ((keyword (str fuel "-nox")) profiles)})
-        (index ::supply/fuel-id))))
+        (sheet/index))))
 
 (defn read-profiles
   "Read the profiles tab from the input spreadsheet and convert it
@@ -284,82 +279,86 @@
 (defn input-from-spreadsheet
   "Inverse function - takes a spreadsheet, as loaded by `common/read-to-tables`."
   [spreadsheet]
-  (let [{:keys [supply-plant
-                supply-profiles
-                supply-storage
-                supply-objective]} spreadsheet
+  (let [{errors :import/errors :as spreadsheet} (schema/validate-supply-model-ss spreadsheet)]
+    (println errors)
+    (if (not (nil? errors))
+      {:import/errors errors}
+      (let [{:keys [supply-plant
+                    supply-profiles
+                    supply-storage
+                    supply-objective]} spreadsheet
 
-        profile-names (dissoc (:header supply-profiles) :day-type :interval)
-        profiles (read-profiles spreadsheet)
+            profile-names (dissoc (:header supply-profiles) :day-type :interval)
+            profiles (read-profiles spreadsheet)
 
-        substations (read-substations spreadsheet profiles)
-        substation-ids (id-lookup substations)
+            substations (read-substations spreadsheet profiles)
+            substation-ids (id-lookup substations)
 
-        fuels (read-fuels profiles profile-names)
-        fuel-ids (id-lookup fuels)]
-    (merge
-     {::supply/plants
-      (-> (for [{:keys [fixed-capex capex-per-kwp capex-per-kwh
-                        name
-                        capacity
-                        fuel
-                        heat-efficiency
-                        power-efficiency
-                        substation
-                        fixed-opex opex-per-kwp opex-per-kwh
-                        chp?
-                        lifetime]}
-                (:rows supply-plant)]
-            {:capital-cost {:fixed fixed-capex, :per-kwp capex-per-kwp, :per-kwh capex-per-kwh}
-             :name name
-             :capacity-kwp capacity
-             :fuel (get fuel-ids fuel)
-             :heat-efficiency heat-efficiency
-             :power-efficiency power-efficiency
-             :substation (get substation-ids substation)
-             :operating-cost {:fixed fixed-opex, :per-kwp opex-per-kwp, :per-kwh opex-per-kwh}
-             :chp chp?
-             :lifetime lifetime})
-          (index ::supply/plant-id))
+            fuels (read-fuels profiles profile-names)
+            fuel-ids (id-lookup fuels)]
+        (merge
+         {::supply/plants
+          (-> (for [{:keys [fixed-capex capex-per-kwp capex-per-kwh
+                            name
+                            capacity
+                            fuel
+                            heat-efficiency
+                            power-efficiency
+                            substation
+                            fixed-opex opex-per-kwp opex-per-kwh
+                            chp?
+                            lifetime]}
+                    (:rows supply-plant)]
+                {:capital-cost {:fixed fixed-capex, :per-kwp capex-per-kwp, :per-kwh capex-per-kwh}
+                 :name name
+                 :capacity-kwp capacity
+                 :fuel (get fuel-ids fuel)
+                 :heat-efficiency heat-efficiency
+                 :power-efficiency power-efficiency
+                 :substation (get substation-ids substation)
+                 :operating-cost {:fixed fixed-opex, :per-kwp opex-per-kwp, :per-kwh opex-per-kwh}
+                 :chp chp?
+                 :lifetime lifetime})
+              (sheet/index))
 
-      ::supply/day-types
-      (read-day-types spreadsheet)
+          ::supply/day-types
+          (read-day-types spreadsheet)
 
-      ::supply/storages
-      (-> (for [{:keys [name
-                        capacity
-                        efficiency
-                        fixed-capex capex-per-kwp capex-per-kwh
-                        lifetime]}
-                (:rows supply-storage)]
-            {:name name
-             :capacity-kwh capacity
-             :capacity-kwp "todo" ; TODO caused by common/strip-units
-             :efficiency efficiency
-             :capital-cost {:fixed fixed-capex, :per-kwp capex-per-kwp, :per-kwh capex-per-kwh}
-             :lifetime lifetime})
-          (index ::supply/day-type-id))
+          ::supply/storages
+          (-> (for [{:keys [name
+                            capacity
+                            efficiency
+                            fixed-capex capex-per-kwp capex-per-kwh
+                            lifetime]}
+                    (:rows supply-storage)]
+                {:name name
+                 :capacity-kwh capacity
+                 :capacity-kwp "todo" ; TODO caused by common/strip-units
+                 :efficiency efficiency
+                 :capital-cost {:fixed fixed-capex, :per-kwp capex-per-kwp, :per-kwh capex-per-kwh}
+                 :lifetime lifetime})
+              (sheet/index))
 
-      ::supply/heat-profiles
-      (let [profiles (->> profiles
-                          (filter (fn [[k _]] (string/starts-with? (name k) "profile-")))
-                          (into {}))]
-        (-> (for [[profile-name profile] profiles]
-              {:name (string/replace-first (profile-name profile-names) "Profile: " "")
-               :demand profile})
-            (index ::supply/day-type-id)))
+          ::supply/heat-profiles
+          (let [profiles (->> profiles
+                              (filter (fn [[k _]] (string/starts-with? (name k) "profile-")))
+                              (into {}))]
+            (-> (for [[profile-name profile] profiles]
+                  {:name (string/replace-first (profile-name profile-names) "Profile: " "")
+                   :demand profile})
+                (sheet/index)))
 
-      ::supply/grid-offer
-      (:grid-offer profiles)
+          ::supply/grid-offer
+          (:grid-offer profiles)
 
-      ::supply/fuels
-      fuels
+          ::supply/fuels
+          fuels
 
-      ::supply/substations
-      substations
+          ::supply/substations
+          substations
 
-      ::supply/objective
-      (first (:rows supply-objective))})))
+          ::supply/objective
+          (first (:rows supply-objective))})))))
 
 (defn output-problem [ss doc]
   (-> ss

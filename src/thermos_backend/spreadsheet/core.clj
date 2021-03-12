@@ -10,5 +10,6 @@
       (supply-model/output-to-spreadsheet doc)))
 
 (defn from-spreadsheet [file]
-  (-> (common/read-to-tables file)
-      (network-model/input-from-spreadsheet)))
+  (let [spreadsheet (common/read-to-tables file)]
+    (merge (network-model/input-from-spreadsheet spreadsheet)
+           (supply-model/input-from-spreadsheet spreadsheet))))

@@ -3,7 +3,8 @@
             [malli.core :as m]
             [malli.error :as me]
             [malli.transform :as mt]
-            [com.rpl.specter :as S]))
+            [com.rpl.specter :as S]
+            [clojure.string :as string]))
 
 (defn- number-to-double-transformer []
   (mt/transformer
@@ -71,8 +72,8 @@
                                   "Pipework"]]
                           [:annualize boolean?]
                           [:recur boolean?]
-                          [:period [:or nil? number?]]
-                          [:rate [:or nil? double?]]]]]]]
+                          [:period {:optional true} number?]
+                          [:rate {:optional true} double?]]]]]]
    
    [:individual-systems
     [:map
@@ -90,15 +91,14 @@
      [:rows [:sequential
              [:map
               [:spreadsheet/row int?]
-
               [:fixed-cost double?]
               [:name string?]
               [:capacity-cost double?]
-              [:nox [:or nil? double?]]
-              [:pm25 [:or nil? double?]]
-              [:co2 [:or nil? double?]]
+              [:nox {:optional true} [:or double? nil?]]
+              [:pm25 {:optional true} [:or double? nil?]]
+              [:co2 {:optional true} [:or double? nil?]]
               [:operating-cost double?]
-              [:tank-factor [:or nil? double?]]
+              [:tank-factor {:optional true} [:or double? nil?]]
               [:heat-price double?]]]]]]
 
    [:pipe-costs
@@ -153,6 +153,254 @@
    [:header [:map-of keyword? string?]] 
    [:rows [:sequential [:map-of keyword? number?]]]])
 
+(defn substations-unique? [supply-substations]
+  (let [substations
+        (for [substation (:rows supply-substations)] (:name substation))]
+    (= (count substations) (count (set substations)))))
+
+(defn day-types-unique? [supply-day-types]
+  (let [day-types
+        (for [day-type (:rows supply-day-types)] (:name day-type))]
+    (= (count day-types) (count (set day-types)))))
+
+(defn profile-substation-names-match?
+  "Return true if the names of substation profile columns match those defined
+  in supply-substations.
+   
+  Allows the load-kw profile column to be missing."
+  [{:keys [supply-profiles supply-substations]}]
+  (let [substations (-> (for [substation (:rows supply-substations)] (:name substation))
+                        (set))
+        profile-cols (for [profile (vals (:header supply-profiles))
+                           :when (string/starts-with? (name profile) "Substation: ")] profile)
+        all-ok? (for [s profile-cols
+                      :let [substation (string/replace-first s "Substation: " "")]]
+                  (contains? substations substation))]
+    (every? true? all-ok?)))
+
+(defn plant-substation-names-match?
+  "Return true if the names of substations referenced in supply-plant match those 
+   defined in supply-substations."
+  [{:keys [supply-plant supply-substations]}]
+  (let [plant-substations (for [plant (:rows supply-plant)
+                                :let [s (:substation plant)]
+                                :when (some? s)] s)
+        substations (-> (for [substation (:rows supply-substations)] (:name substation))
+                        (set))
+        all-ok? (for [s plant-substations]
+                  (contains? substations s))]
+    (every? true? all-ok?)))
+
+(defn fuel-names-match?
+  "Return true if the names of fuel profile columns match the fuels
+   referenced in supply-plant.
+   
+   Allows the CO₂, NOₓ and PM₂₅ columns to be missing."
+  [{:keys [supply-profiles supply-plant]}]
+  (let [fuels (for [plant (:rows supply-plant)]
+                (:fuel plant))
+        profile-cols (-> (for [profile (vals (:header supply-profiles))
+                               :when (string/starts-with? (name profile) "Fuel: ")] profile)
+                         (set))
+        all-ok? (for [fuel fuels]
+                  (contains? profile-cols (str "Fuel: " fuel " price")))]
+    (every? true? all-ok?)))
+
+(defn- day-type-names-match?
+  "Return true if the names of day-types supply-day-types match the
+   day-type names in supply-profiles, otherwise false"
+  [{:keys [supply-profiles supply-day-types]}]
+  (let [profiles (->> (:rows supply-profiles)
+                      (group-by :day-type))
+        all-ok? (for [day-type (:rows supply-day-types)]
+                  (some? (get profiles (:name day-type))))]
+    (and (= (count profiles) (count all-ok?)) (every? true? all-ok?))))
+
+(defn- rows-per-day-type
+  "Return true if the division counts in supply-day-types match the
+   number of rows per day type in supply-profiles, otherwise false.
+   
+   todo how defensively does this need to be written? e.g. null-checks all the way down? test"
+  [{:keys [supply-profiles supply-day-types]}]
+
+  (let [profiles (->> (:rows supply-profiles)
+                      (group-by :day-type))
+        all-ok? (for [day-type (:rows supply-day-types)
+                      :let [divisions (:divisions day-type)
+                            num-profile-rows (count (get profiles (:name day-type)))]]
+                  (= (int divisions) (int num-profile-rows)))]
+    (every? true? all-ok?)))
+
+(defn- intervals-per-day-type
+  "Return true if the division counts in supply-day-types match the
+   interval columns of the rows in supply-profiles, otherwise false"
+  [{:keys [supply-profiles supply-day-types]}]
+  (let [profiles (->> (:rows supply-profiles)
+                      (group-by :day-type))
+        all-ok? (for [day-type (:rows supply-day-types)
+                      :let [divisions (int (:divisions day-type))
+                            profile-rows (map (fn [row] (int (:interval row))) (get profiles (:name day-type)))]]
+                  (= (range 0 divisions) profile-rows))]
+    (every? true? all-ok?)))
+
+(def supply-model-schema
+  [:and
+   [:map
+    {:error/message "missing sheet from spreadsheet"}
+    [:supply-plant
+     [:map
+      [:header [:map
+                {:error/message "column missing"}
+                [:fixed-capex string?]
+                [:capex-per-kwp string?]
+                [:capex-per-kwh string?]
+                [:name string?]
+                [:capacity string?]
+                [:fuel string?]
+                [:heat-efficiency string?]
+                [:power-efficiency string?]
+                [:substation string?]
+                [:fixed-opex string?]
+                [:opex-per-kwp string?]
+                [:opex-per-kwh string?]
+                [:chp? string?]
+                [:lifetime string?]]]
+      [:rows [:sequential [:map
+                           [:fixed-capex number?]
+                           [:capex-per-kwp number?]
+                           [:capex-per-kwh number?]
+                           [:name string?]
+                           [:capacity number?]
+                           [:fuel string?]
+                           [:heat-efficiency double?]
+                           [:power-efficiency {:optional true} [:or double? nil?]]
+                           [:substation {:optional true} [:or string? nil?]]
+                           [:fixed-opex number?]
+                           [:opex-per-kwp number?]
+                           [:opex-per-kwh number?]
+                           [:chp? boolean?]
+                           [:lifetime number?]
+                           [:spreadsheet/row int?]]]]]]
+
+    [:supply-day-types
+     [:and
+      [:map
+       [:header [:map
+                 {:error/message "column missing"}
+                 [:name string?]
+                 [:divisions string?]
+                 [:frequency string?]]]
+       [:rows [:sequential [:map
+                            [:name string?]
+                            [:divisions number?]
+                            [:frequency number?]
+                            [:spreadsheet/row int?]]]]]
+      [:fn
+       {:error/message "day-type names not unique"
+        :error/path [:header :name]}
+       day-types-unique?]]]
+
+    [:supply-storage
+     [:map
+      [:header [:map
+                {:error/message "column missing"}
+                [:name string?]
+                [:lifetime string?]
+                [:capacity string?]
+                [:efficiency string?]
+                [:fixed-capex string?]
+                [:capex-per-kwp string?]
+                [:capex-per-kwh string?]]]
+      [:rows [:sequential [:map
+                           [:name string?]
+                           [:lifetime number?]
+                           [:capacity number?]
+                           [:efficiency double?]
+                           [:fixed-capex number?]
+                           [:capex-per-kwp number?]
+                           [:capex-per-kwh number?]
+                           [:spreadsheet/row int?]]]]]]
+
+    [:supply-substations
+     [:and
+      [:map
+       [:header [:map
+                 {:error/message "column missing"}
+                 [:name string?]
+                 [:headroom string?]
+                 [:alpha string?]]]
+       [:rows [:sequential [:map
+                            [:name string?]
+                            [:headroom number?]
+                            [:alpha double?]
+                            [:spreadsheet/row int?]]]]]
+      [:fn
+       {:error/message "substation names not unique"
+        :error/path [:header :name]}
+       substations-unique?]]]
+
+    [:supply-objective
+     [:map
+      [:header [:map
+                {:error/message "column missing"}
+                [:accounting-period string?]
+                [:discount-rate string?]
+                [:curtailment-cost string?]
+                [:can-dump-heat string?]
+                [:mip-gap string?]
+                [:time-limit string?]]]
+      [:rows [:sequential [:map
+                           [:accounting-period number?]
+                           [:discount-rate double?]
+                           [:curtailment-cost number?]
+                           [:can-dump-heat boolean?]
+                           [:mip-gap double?]
+                           [:time-limit number?]
+                           [:spreadsheet/row int?]]]]]]
+
+    [:supply-profiles
+     [:map
+      {:error/message "missing sheet from spreadsheet"}
+      [:header [:map
+                {:error/message "column missing"}
+                [:day-type string?]
+                [:interval string?]
+                [:grid-offer string?]]]
+      [:rows [:sequential [:map
+                           [:day-type string?]
+                           [:interval number?]
+                           [:grid-offer number?]]]]]]]
+
+   [:fn
+    {:error/message "number of rows per day type does not match division counts in sheet 'Supply day types'"
+     :error/path [:supply-profiles]}
+    rows-per-day-type]
+
+   [:fn
+    {:error/message "intervals per day type do not match division counts in sheet 'Supply day types'"
+     :error/path [:supply-profiles]}
+    intervals-per-day-type]
+
+   [:fn
+    {:error/message "mismatch between day types defined in sheet 'Supply day types' and day types defined in sheet 'Supply profiles'"
+     :error/path [:supply-profiles]}
+    day-type-names-match?]
+
+   [:fn
+    {:error/message "fuel type referenced in sheet 'Supply plant' not defined in sheet 'Supply profiles'"
+     :error/path [:supply-profiles]}
+    fuel-names-match?]
+
+   [:fn
+    {:error/message "substation referenced in sheet 'Supply plant' not defined in sheet 'Supply substations'"
+     :error/path [:supply-plant]}
+    plant-substation-names-match?]
+
+   [:fn
+    {:error/message "substation referenced in sheet 'Supply profiles' not defined in sheet 'Supply substations'"
+     :error/path [:supply-profiles]}
+    profile-substation-names-match?]])
+
 (defn merge-errors
   "Recursively merges error maps."
   [& maps]
@@ -205,7 +453,14 @@
     
     (assoc coerced :import/errors (merge-errors (when pc-errors {:pipe-costs pc-errors}) errors))))
 
+(defn validate-supply-model-ss [ss]
+  (let [coercions (mt/transformer mt/string-transformer
+                                  number-to-double-transformer
+                                  number-to-boolean-transformer)
 
+        coerced (m/decode supply-model-schema ss coercions)
+        errors (me/humanize (m/explain supply-model-schema coerced))]
+    (assoc coerced :import/errors errors)))
 
 ;; Write default spreadsheet to disk
 (comment

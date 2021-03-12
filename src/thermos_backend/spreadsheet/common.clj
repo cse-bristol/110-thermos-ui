@@ -82,6 +82,17 @@
 
     (keyword s)))
 
+(defn index 
+  "Given a collection of entries, assign an index to each one and
+   create a map keyed from index to entry. 
+   
+   If `id-key` is specified, also add the index as a field to each entry."
+  [entries & [id-key]]
+  (into {}
+        (map-indexed
+         (fn [i v] [i (cond-> v id-key (assoc id-key i))])
+         entries)))
+
 (defn top-left-rectangle
   "Read a table out of a sheet.
 

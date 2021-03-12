@@ -328,12 +328,6 @@
       (output-network-parameters doc)
       ))
 
-(defn index [entries & [id-key]]
-  (into {}
-        (map-indexed
-         (fn [i v] [i (cond-> v id-key (assoc id-key i))])
-         entries)))
-
 (defn validated-input-from-ss
   [ss]
   (let [{:keys [tariffs
@@ -449,7 +443,7 @@
              :standing-charge standing-charge
              :unit-charge (/ unit-rate 100)
              :capacity-charge capacity-charge})
-          (index ::tariff/id))
+          (common/index ::tariff/id))
       
       ::document/connection-costs
       (-> (for [{:keys [cost-name fixed-cost capacity-cost]}
@@ -458,7 +452,7 @@
             {:name cost-name
              :fixed-connection-cost fixed-cost
              :variable-connection-cost capacity-cost})
-          (index ::tariff/cc-id))
+          (common/index ::tariff/cc-id))
       
       ::document/alternatives
       (-> (for [{:keys [name fixed-cost capacity-cost operating-cost heat-price
@@ -476,7 +470,7 @@
              {:co2  (/ (or co2 0.0) (candidate/emissions-factor-scales :co2))
               :pm25 (/ (or pm25 0.0) (candidate/emissions-factor-scales :pm25))
               :nox  (/ (or nox 0.0) (candidate/emissions-factor-scales :nox))}})
-          (index ::supply/id))
+          (common/index ::supply/id))
       
       ::document/insulation
       (-> (for [{:keys [name fixed-cost cost-per-m2
@@ -490,12 +484,12 @@
              :maximum-effect (/ maximum-reduction-% 100.0)
              :maximum-area (/ maximum-area-% 100.0)
              :surface (keyword surface)})
-          (index ::measure/id))
+          (common/index ::measure/id))
       
       ::document/pipe-costs
       (let [civils-keys (-> (:header pipe-costs)
                             (dissoc :nb :capacity :losses :pipe-cost))
-            civils-ids   (index (set (vals civils-keys)))
+            civils-ids   (common/index (set (vals civils-keys)))
             inverse      (set/map-invert civils-ids)
 
             civils-keys* (->> (for [[kwd s] civils-keys] [kwd (inverse s)])
