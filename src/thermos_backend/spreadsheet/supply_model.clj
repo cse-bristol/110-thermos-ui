@@ -15,6 +15,7 @@
             [thermos-backend.spreadsheet.schema :as schema]))
 
 (defn *100 [x] (and x (* 100.0 x)))
+(defn ÷100 [x] (and x (/ x 100.0)))
 
 (defn output-solution [ss doc]
   ss)
@@ -211,12 +212,12 @@
          substations)
         )))
 
-(defn- id-lookup
+(defn id-lookup
   "Transforms maps of shape {0 {:name A}, 1 {:name B}} to {A 0, B 1}"
   [m & {:keys [key-field] :or {key-field :name}}]
   (set/map-invert (S/transform [S/MAP-VALS] key-field m)))
 
-(defn read-day-types
+(defn- read-day-types
   "Read the supply day types tab from the input spreadsheet."
   [spreadsheet]
   (-> (for [{:keys [name
@@ -228,7 +229,7 @@
          :frequency frequency})
       (sheet/index)))
 
-(defn read-substations [spreadsheet profiles]
+(defn- read-substations [spreadsheet profiles]
   (-> (for [{:keys [name
                     headroom
                     alpha]}
@@ -240,12 +241,11 @@
            :load-kw (load-profile-id profiles)}))
       (sheet/index)))
 
-(defn read-fuels [profiles profile-names]
+(defn- read-fuels [profiles profile-names]
   (let [fuels (-> (for [profile (keys profiles)
                         :when (string/starts-with? (name profile) "fuel-")]
                     (string/replace (name profile) #"-price$|-nox$|-co2$|-pm25$" ""))
-                  (set)
-                  (sort))]
+                  (set))]
     (-> (for [fuel fuels]
           {:name  (string/replace ((keyword (str fuel "-price")) profile-names) #"^Fuel: | price$" "")
            :price ((keyword (str fuel "-price")) profiles)
@@ -254,7 +254,7 @@
            :nox   ((keyword (str fuel "-nox")) profiles)})
         (sheet/index))))
 
-(defn read-profiles
+(defn- read-profiles
   "Read the profiles tab from the input spreadsheet and convert it
    into a map of profiles in the internal format."
   [spreadsheet]
@@ -280,7 +280,6 @@
   "Inverse function - takes a spreadsheet, as loaded by `common/read-to-tables`."
   [spreadsheet]
   (let [{errors :import/errors :as spreadsheet} (schema/validate-supply-model-ss spreadsheet)]
-    (println errors)
     (if (not (nil? errors))
       {:import/errors errors}
       (let [{:keys [supply-plant
@@ -313,8 +312,8 @@
                  :name name
                  :capacity-kwp capacity
                  :fuel (get fuel-ids fuel)
-                 :heat-efficiency heat-efficiency
-                 :power-efficiency power-efficiency
+                 :heat-efficiency (÷100 heat-efficiency)
+                 :power-efficiency (÷100 power-efficiency)
                  :substation (get substation-ids substation)
                  :operating-cost {:fixed fixed-opex, :per-kwp opex-per-kwp, :per-kwh opex-per-kwh}
                  :chp chp?
@@ -334,7 +333,7 @@
                 {:name name
                  :capacity-kwh capacity
                  :capacity-kwp "todo" ; TODO caused by common/strip-units
-                 :efficiency efficiency
+                 :efficiency (÷100 efficiency)
                  :capital-cost {:fixed fixed-capex, :per-kwp capex-per-kwp, :per-kwh capex-per-kwh}
                  :lifetime lifetime})
               (sheet/index))
@@ -358,7 +357,7 @@
           substations
 
           ::supply/objective
-          (first (:rows supply-objective))})))))
+          (dissoc (first (:rows supply-objective)) :spreadsheet/row)})))))
 
 (defn output-problem [ss doc]
   (-> ss
