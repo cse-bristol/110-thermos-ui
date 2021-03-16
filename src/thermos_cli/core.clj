@@ -199,6 +199,9 @@ The different options are those supplied after --retry, so mostly you can use th
     (doall
      (apply concat (map read-edn files)))))
 
+(defn- line? [feature]
+  (-> feature ::geoio/type #{:line-string :multi-line-string} boolean))
+
 (defn- node-connect
   "Given a set of shapes, do the noding and connecting dance"
   [{crs ::geoio/crs features ::geoio/features}
@@ -208,10 +211,8 @@ The different options are those supplied after --retry, so mostly you can use th
            transfer-field]}
    ]
   (when (seq features)
-    (let [is-line (comp boolean #{:line-string :multi-line-string} ::geoio/type)
-          
-          {lines true not-lines false}
-          (group-by is-line features)
+    (let [{lines true not-lines false}
+          (group-by line? features)
 
           lines (spatial/node-paths lines :snap-tolerance snap-tolerance :crs crs)
 
@@ -664,6 +665,22 @@ The different options are those supplied after --retry, so mostly you can use th
                             (geoio/read-from-multiple (:map options)
                                                       :key-transform identity))
 
+        geodata           (cond-> geodata
+
+                            (seq (:ignore-paths options))
+                            (update ::geoio/features
+                                    (let [ignore-fields (:ignore-paths options)
+                                          ignored? (fn [x]
+                                                     (and (line? x)
+                                                          (some identity (for [[f v] ignore-fields] (= (get x f) v)))))]
+                                      (fn [features]
+                                        (let [out (remove ignored? features)]
+                                          (log/info
+                                           "Ignored" (- (count features) (count out))
+                                           "paths of" (count features) "geoms")
+                                          out)
+                                        ))))
+        
         [paths buildings] (node-connect geodata options)
         
         
@@ -699,18 +716,6 @@ The different options are those supplied after --retry, so mostly you can use th
         
         saying            (fn [x s] (log/info s) x)
 
-        paths             (cond-> paths
-                            (seq (:ignore-paths options))
-                            (->
-                             (saying (str "Remove paths where "
-                                          (string/join ", " (for [[field value] (:ignore-paths options)]
-                                                              (str field "=" value)))))
-                             (->> (remove
-                                   (let [ignores (:ignore-paths options)]
-                                     (fn [x] (some identity (for [[f v] ignores] (= (get x f) v)))))
-                                   paths
-                                   ))))
-        
         instance          (cond-> instance
                             (or (seq paths) (seq buildings))
                             (-> (saying "Replace geometry")
@@ -788,8 +793,8 @@ The different options are those supplied after --retry, so mostly you can use th
                                                 
                                                 (:scip-presolving-emphasis options)
                                                 (assoc :presolving-emphasis (:scip-presolving-emphasis options)))]
-                                      (interop/solve x)))))
-        ]
+                                      (interop/solve x)))))]
+    
     
     (binding [output/*problem-id* (:problem-name options)
               output/*id-field*   (:id-field options)]
@@ -814,59 +819,68 @@ The different options are those supplied after --retry, so mostly you can use th
 (defn- generate-ids [things id]
   (map-indexed (fn [i t] (assoc t id i)) things))
 
-(defn -main [& args]
-  (let [{:keys [options arguments errors summary]} (parse-opts args options)
+(defn- finalize-options [options]
+  (-> options
+      (update :insulation   concat-edn)
+      (update :alternatives concat-edn)
+      (update :tariffs      concat-edn)
+      (update :pipe-costs   read-edn)
+      (update :supply       read-edn)
+      
+      (update :insulation   generate-ids ::measure/id)
+      (update :alternatives generate-ids ::supply/id)
+      (update :tariffs      generate-ids ::tariff/id)))
 
-        options (-> options
-                    (update :insulation   concat-edn)
-                    (update :alternatives concat-edn)
-                    (update :tariffs      concat-edn)
-                    (update :pipe-costs   read-edn)
-                    (update :supply       read-edn)
-                    
-                    (update :insulation   generate-ids ::measure/id)
-                    (update :alternatives generate-ids ::supply/id)
-                    (update :tariffs      generate-ids ::tariff/id)
-                    )]
-    
-    
+(defn -main [& args]
+  (let [retries (loop [out []
+                       cur []
+                       args args]
+                  (cond (empty? args)
+                        (cond-> out (or (empty? out) (seq cur)) (conj cur))
+
+                        (= "--retry" (first args))
+                        (recur (conj out cur) [] (rest args))
+
+                        :else
+                        (recur out (conj cur (first args)) (rest args))))
+
+        parses (mapv #(parse-opts % options) retries)
+        errors (mapcat :errors parses)
+        ]
+
     (cond
-      (:help options)
+      (some :help (map :options parses))
       (binding [*out* *err*]
         (println "SUMMARY:")
-        (println summary))
+        (println (:summary (first parses))))
 
       (seq errors)
       (binding [*out* *err*]
         (println "INVALID ARGS: ")
-        (doseq [e errors]
-          (println e)))
+        (doseq [e (set errors)] (println e)))
       
       :else
-      (let [retry-options
-            (fn retry-options [do-now]
-              (if-let [do-first (:retry do-now)]
-                (let [outcome (retry-options do-first)]
-                  (if (= outcome :timeout)
-                    (do (log/info "No solution, retry with different options")
-                        (--main do-now))
-                    outcome))
-                (--main do-now)))]
-        (retry-options options)))))
+      (loop [optionses (mapv (comp finalize-options :options) parses)]
+        (let [[options & optionses] optionses
+              outcome (--main options)
+              ]
+          (when (and (= outcome :timeout) (seq optionses))
+            (log/info "No solution, retry with next options")
+            (recur optionses)))))))
 
 (comment
   (binding [lp.io/*keep-temp-dir* true]
    
    (-main
-    "-m"               "/home/hinton/p/738-cddp/cluster-runner/issues/infeasible/c_500_5=121.gpkg"
+    "-m"               "/home/hinton/p/738-cddp/cluster-runner/c_500_5=306.gpkg"
     "--spreadsheet"    "/home/hinton/p/738-cddp/cluster-runner/cddp-thermos-parameters-current.xlsx"
     "--supply"         "/home/hinton/p/738-cddp/cluster-runner/5p.edn"
-    "-o"               "/home/hinton/p/738-cddp/cluster-runner/summary.json"
     "--demand-field" "annual_demand" "--peak-field" "peak_demand" "--count-field" "connection_count"
     "--scip-presolving-emphasis" "aggressive"
     "--scip-heuristics-emphasis" "aggressive"
-    "--solve"
-    ))
+    "--ignore-paths" "hierarchy=path"
+    )
+   )
 
-
+  
   )
