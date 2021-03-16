@@ -4,7 +4,6 @@
             [clojure.java.io :as io]
             [thermos-importer.geoio :as geoio]
             [thermos-importer.spatial :as spatial]
-            [clojure.data.json :as json]
             [cljts.core :as jts]
             [clojure.tools.logging :as log]
             [clojure.string :as string]
@@ -27,12 +26,13 @@
             [thermos-specs.tariff :as tariff]
             [thermos-specs.solution :as solution]
             [mount.core :as mount]
-            [clojure.pprint :refer [pprint]]
+            [com.rpl.specter :as S]
             
             [loom.alg :as graph-alg]
             [thermos-util.pipes :as pipes]
+            [thermos-cli.output :as output]
+            [clojure.set :as set])
 
-            [thermos-cli.output :as output])
   (:gen-class))
 
 ;; THERMOS CLI tools for Net Zero Analysis
@@ -134,7 +134,9 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
     "Set FIELD on buildings to the value of FIELD on the road the connect to."]
    [nil "--group-field FIELD" "Use FIELD to group buildings connection decisions together."]
   
-
+   [nil "--connector-civil-cost NAME" "Use civil cost with NAME for connectors"]
+   [nil "--default-civil-cost NAME" "Set the default civil cost to that with NAME"]
+   
    [nil "--spreadsheet FILE"
     "Load parameters from an excel spreadsheet; this will only be useful if you also set up the magic fields."]
    
@@ -206,7 +208,7 @@ The different options are those supplied after --retry, so mostly you can use th
   "Given a set of shapes, do the noding and connecting dance"
   [{crs ::geoio/crs features ::geoio/features}
 
-   {:keys [connect-to-connectors shortest-face
+   {:keys [shortest-face
            snap-tolerance trim-paths
            transfer-field]}
    ]
@@ -656,6 +658,30 @@ The different options are those supplied after --retry, so mostly you can use th
          ;; do nothing
          building)))))
 
+(defn- set-default-civil-cost [document civil-cost-name]
+  (let [pipe-costs (::document/pipe-costs document)
+        civils     (:civils pipe-costs)
+        by-name    (set/map-invert civils)
+        default-id (get by-name civil-cost-name)
+        ]
+    (when-not default-id
+      (log/warn "No civil cost is defined for default" civil-cost-name))
+    (cond-> document
+      default-id
+      (assoc-in [::document/pipe-costs :default-civils] default-id))))
+
+(defn- set-connector-civil-cost [document civil-cost-name]
+  (let [pipe-costs (::document/pipe-costs document)
+        civils     (:civils pipe-costs)
+        by-name    (set/map-invert civils)
+        cost-id (get by-name civil-cost-name)
+        ]
+    (when-not cost-id
+      (log/warn "No civil cost is defined for" civil-cost-name))
+    (cond-> document
+      cost-id
+      (->> (S/setval [::document/candidates S/MAP-VALS (S/pred :connector) ::path/civil-cost-id] cost-id)))))
+
 (defn --main [options]
   (mount/start-with {#'thermos-backend.config/config {}})
   (let [output-paths         (:output options)
@@ -717,15 +743,10 @@ The different options are those supplied after --retry, so mostly you can use th
         saying            (fn [x s] (log/info s) x)
 
         instance          (cond-> instance
-                            (or (seq paths) (seq buildings))
-                            (-> (saying "Replace geometry")
-                                (assoc  ::document/candidates   (make-candidates paths buildings)))
-                            
                             (seq (:tariffs options))
                             (-> (saying "Replace tariffs")
                                 (assoc ::document/tariffs (assoc-by (:tariffs options) ::tariff/id))
                                 (document/map-buildings (let [tariffs (:tariffs options)] #(add-tariff % tariffs))))
-
                             (seq (:pipe-costs options))
                             (-> (saying "Replace pipe costs")
                                 (assoc ::document/pipe-costs (:pipe-costs options))
@@ -743,7 +764,18 @@ The different options are those supplied after --retry, so mostly you can use th
                                 (assoc  ::document/alternatives (assoc-by (:alternatives options) ::supply/id))
                                 (document/map-buildings (let [alternatives (:alternatives options)] #(add-alternatives % alternatives))))
 
+                            (or (seq paths) (seq buildings))
+                            (-> (saying "Replace geometry")
+                                (assoc  ::document/candidates   (make-candidates paths buildings)))
 
+                            (:default-civil-cost options)
+                            (-> (saying "Set default civil cost")
+                                (set-default-civil-cost (:default-civil-cost options)))
+
+                            (:connector-civil-cost options)
+                            (-> (saying "Set connector civil cost")
+                                (set-connector-civil-cost (:connector-civil-cost options)))
+                            
                             (seq (:supply options))
                             (-> (saying "Add supplies")
                                 (select-supply-location options))
@@ -876,9 +908,10 @@ The different options are those supplied after --retry, so mostly you can use th
     "--spreadsheet"    "/home/hinton/p/738-cddp/cluster-runner/cddp-thermos-parameters-current.xlsx"
     "--supply"         "/home/hinton/p/738-cddp/cluster-runner/5p.edn"
     "--demand-field" "annual_demand" "--peak-field" "peak_demand" "--count-field" "connection_count"
-    "--scip-presolving-emphasis" "aggressive"
-    "--scip-heuristics-emphasis" "aggressive"
     "--ignore-paths" "hierarchy=path"
+    "--default-civil-cost" "soft"
+    "-o" "/home/hinton/tmp/blah-pipes.tsv"
+    "-o" "/home/hinton/tmp/blah.json"
     )
    )
 
