@@ -78,7 +78,7 @@
   "A building may have solution data on it indicating a different kwh (due to insulation).
   This returns that if it's there, or `annual-demand`"
   [candidate mode]
-  (or (::solution/kwh candidate) (peak-demand candidate mode)))
+  (or (::solution/kwh candidate) (annual-demand candidate mode)))
 
 (defn has-demand? [candidate mode]
   (when-let [^double demand (annual-demand candidate mode)]
