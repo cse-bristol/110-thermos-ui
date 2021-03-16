@@ -3,7 +3,7 @@
             [malli.core :as m]
             [malli.error :as me]
             [malli.transform :as mt]
-            [com.rpl.specter :as S]
+            [malli.util :as mu]
             [clojure.string :as string]))
 
 (defn- number-to-double-transformer []
@@ -24,6 +24,22 @@
   (mt/transformer
    {:name :boolean
     :decoders {'boolean? number-to-boolean, :boolean number-to-boolean}}))
+
+(defn- schematise-dynamic-cols [tab-header schema path]
+  (let [cols (keys tab-header)]
+    (mu/assoc-in
+     schema
+     path
+     (mu/merge
+      (reduce (fn [s col] (mu/assoc s col number?)) [:map] cols)
+      (mu/get-in schema path)))))
+
+(defn- no-error?
+  "Wrap a function in the format expected by malli's `:error/fn`, 
+   and turn it into a function suitable for  malli's `:fn`, 
+   which returns false if `error-fn`'s return value is non-nil, otherwise true."
+  [error-fn]
+  (fn [arg] (nil? (error-fn {:value arg} nil))))
 
 (def network-model-schema
   [:map
@@ -146,20 +162,6 @@
                           [:value any?]
                           [:spreadsheet/row int?]]]]]]])
 
-
-(def variable-pipe-costs-schema
-  [:map
-   {:error/message "missing sheet from spreadsheet"}
-   [:header [:map-of keyword? string?]]
-   [:rows [:sequential [:map-of keyword? number?]]]])
-
-(defn- no-error?
-  "Wrap a function in the format expected by malli's `:error/fn`, 
-   and turn it into a function suitable for  malli's `:fn`, 
-   which returns false if non-nil or true if error string is nil."
-  [f]
-  (fn [arg] (nil? (f {:value arg} nil))))
-
 (defn- duplicates 
   "Get the duplicate items in a collection"
   [coll]
@@ -168,23 +170,50 @@
        (filter (fn [[_ freq]] (> freq 1)))
        (map first)))
 
-(defn- substations-unique? [{supply-substations :value} _]
-  (let [substations
-        (for [substation (:rows supply-substations)] (:name substation))
+(defn- unique?
+  "Return a function that returns an error message if the entries in
+   the given field are not unique."
+  [fieldname]
+  {:pre [(keyword? fieldname)]}
+  (fn [{:keys [value]} _]
+    (let [values
+          (for [entry (:rows value)] (fieldname entry))
 
-        dups (duplicates substations)]
+          dups (duplicates values)]
 
-    (when (seq dups)
-      (str "substation names not unique: '" (string/join "', '" dups) "'"))))
+      (when (seq dups)
+        (str "duplicate identifier: '" (string/join "', '" dups) "'")))))
 
-(defn- day-types-unique? [{supply-day-types :value} _]
-  (let [day-types
-        (for [day-type (:rows supply-day-types)] (:name day-type))
+(defn- keyword->string [k] (string/capitalize (string/replace (name k) \- \ )))
 
-        dups (duplicates day-types)]
+(defn- references?
+  "Check the spreadsheet for referential integrity.
+   
+   Returns a function that returns an error message if any values in 
+   `ref-field` are not also present in `source-field`. 
+   
+   Values may be present in `source-field` that are not in `ref-field`."
+  [source-tab source-field ref-tab ref-field]
+  (fn [{{ref ref-tab source source-tab} :value} _]
+    (let [ref-vals
+          (for [ref-row (:rows ref)
+                :let [ref-val (ref-field ref-row)]
+                :when (some? ref-val)] ref-val)
 
-    (when (seq dups)
-      (str "day-type names not unique: '" (string/join "', '" dups) "'"))))
+          source-vals
+          (-> (for [source-row (:rows source)] (source-field source-row))
+              (set))
+
+          all-not-ok
+          (for [ref-val ref-vals
+                :when (not (contains? source-vals ref-val))] ref-val)]
+
+      (case (count (set all-not-ok))
+        0 nil
+        1 (str "value '" (first all-not-ok) "' referenced, "
+               "but not defined in sheet '" (keyword->string source-tab) "'")
+        (str "values '" (string/join "', '" (set all-not-ok)) "' referenced, "
+             "but not defined in sheet '" (keyword->string source-tab) "'")))))
 
 (defn- profile-substation-names-match?
   "Return an error message if the names of substation profile columns do not
@@ -205,31 +234,7 @@
               :let [substation (string/replace-first s "Substation: " "")]
               :when (not (contains? substations substation))]
           substation)]
-    
-    (case (count (set all-not-ok))
-      0 nil
-      1 (str "substation '" (first all-not-ok) "' referenced, "
-             "but not defined in sheet 'Supply substations'")
-      (str "substations '" (string/join "', '" (set all-not-ok)) "' referenced, "
-           "but not defined in sheet 'Supply substations'"))))
 
-(defn- plant-substation-names-match?
-  "Return an error message if the names of substations referenced in supply-plant
-   do not match those defined in supply-substations."
-  [{{:keys [supply-plant supply-substations]} :value} _]
-  (let [plant-substations
-        (for [plant (:rows supply-plant)
-              :let [s (:substation plant)]
-              :when (some? s)] s)
-
-        substations
-        (-> (for [substation (:rows supply-substations)] (:name substation))
-            (set))
-
-        all-not-ok
-        (for [s plant-substations
-              :when (not (contains? substations s))] s)]
-    
     (case (count (set all-not-ok))
       0 nil
       1 (str "substation '" (first all-not-ok) "' referenced, "
@@ -262,25 +267,6 @@
              "but pricing not defined in sheet 'Supply profiles'")
       (str "fuels '" (string/join "', '" (set all-not-ok)) "' referenced, "
            "but pricing not defined in sheet 'Supply profiles'"))))
-
-(defn- day-type-names-match?
-  "Return an error message if the names of day-types supply-day-types
-   do not match the day-type names in supply-profiles"
-  [{{:keys [supply-profiles supply-day-types]} :value} _]
-  (let [profiles
-        (->> (:rows supply-profiles)
-             (group-by :day-type))
-        
-        all-not-ok
-        (for [day-type (:rows supply-day-types)
-              :when (not (contains? profiles (:name day-type)))] (:name day-type))]
-    
-    (case (count (set all-not-ok))
-      0 nil
-      1 (str "day type '" (first all-not-ok) "' defined, "
-             "but no prices set in sheet 'Supply profiles'")
-      (str "day types '" (string/join "', '" (set all-not-ok)) "' defined, "
-           "but no prices set in sheet 'Supply profiles'"))))
 
 (defn- rows-per-day-type
   "Return an error message if the division counts in supply-day-types do not 
@@ -357,9 +343,9 @@
                             [:frequency number?]
                             [:spreadsheet/row int?]]]]]
       [:fn
-       {:error/fn day-types-unique?
+       {:error/fn (unique? :name)
         :error/path [:header :name]}
-       (no-error? day-types-unique?)]]]
+       (no-error? (unique? :name))]]]
 
     [:supply-storage
      [:map
@@ -396,9 +382,9 @@
                             [:alpha double?]
                             [:spreadsheet/row int?]]]]]
       [:fn
-       {:error/fn substations-unique?
+       {:error/fn (unique? :name)
         :error/path [:header :name]}
-       (no-error? substations-unique?)]]]
+       (no-error? (unique? :name))]]]
 
     [:supply-objective
      [:map
@@ -429,7 +415,8 @@
       [:rows [:sequential [:map
                            [:day-type string?]
                            [:interval number?]
-                           [:grid-offer number?]]]]]]]
+                           [:grid-offer number?]
+                           [:spreadsheet/row int?]]]]]]]
 
    [:fn
     {:error/fn rows-per-day-type
@@ -437,9 +424,14 @@
     (no-error? rows-per-day-type)]
 
    [:fn
-    {:error/fn day-type-names-match?
+    {:error/fn (references? :supply-profiles :day-type :supply-day-types :name)
      :error/path [:supply-day-types]}
-    (no-error? day-type-names-match?)]
+    (no-error? (references? :supply-profiles :day-type :supply-day-types :name))]
+
+   [:fn
+    {:error/fn (references? :supply-day-types :name :supply-profiles :day-type)
+     :error/path [:supply-profiles]}
+    (no-error? (references? :supply-day-types :name :supply-profiles :day-type))]
 
    [:fn
     {:error/fn fuel-names-match?
@@ -447,9 +439,9 @@
     (no-error? fuel-names-match?)]
 
    [:fn
-    {:error/fn plant-substation-names-match?
+    {:error/fn (references? :supply-substations :name :supply-plant :substation) 
      :error/path [:supply-plant]}
-    (no-error? plant-substation-names-match?)]
+    (no-error? (references? :supply-substations :name :supply-plant :substation))]
 
    [:fn
     {:error/fn profile-substation-names-match?
@@ -474,46 +466,29 @@
    
    Current attempted coercions are string-to-number and int-to-double."
   [ss]
-  (let [coercions (mt/transformer mt/string-transformer number-to-double-transformer
+  (let [coercions (mt/transformer mt/string-transformer
+                                  number-to-double-transformer
                                   number-to-boolean-transformer)
+        schema (schematise-dynamic-cols (get-in ss [:pipe-costs :header])
+                                        network-model-schema
+                                        [:pipe-costs :rows :sequential])
 
-        coerced (m/decode network-model-schema ss coercions)
-        ;; the variable pipe costs schema cannot properly check rows
-        ;; because I (tom) designed that datastructure badly: it
-        ;; contains a few special columns which are in the normal
-        ;; schema, that have to be removed before checking with
-        ;; variable schema
-
-        variable-pipe-costs (->> (:pipe-costs coerced)
-                                 (S/setval [(S/multi-path :headers [:rows S/ALL])
-                                            (S/multi-path :losses :capacity)]
-                                           S/NONE))
-
-        coerced-variable-pcs  (m/decode variable-pipe-costs-schema variable-pipe-costs coercions)
-
-
-        coerced (cond-> coerced
-                  (and coerced-variable-pcs (contains? coerced :pipe-costs))
-                  (update-in [:pipe-costs :rows]
-                             (fn [rows]
-                               (map merge rows (:rows coerced-variable-pcs)))))
-
-
-        errors (me/humanize (m/explain network-model-schema coerced))
-
-        pc-errors  (me/humanize (m/explain variable-pipe-costs-schema coerced-variable-pcs))]
-
-
-    (assoc coerced :import/errors (merge-errors (when pc-errors {:pipe-costs pc-errors}) errors))))
+        coerced (m/decode schema ss coercions)
+        errors (me/humanize (m/explain schema coerced))]
+    (assoc coerced :import/errors errors)))
 
 (defn validate-supply-model-ss [ss]
   (let [coercions (mt/transformer mt/string-transformer
                                   number-to-double-transformer
                                   number-to-boolean-transformer)
+        schema (schematise-dynamic-cols (get-in ss [:supply-profiles :header])
+                                        supply-model-schema
+                                        [0 :supply-profiles :rows :sequential])
 
-        coerced (m/decode supply-model-schema ss coercions)
-        errors (me/humanize (m/explain supply-model-schema coerced))]
+        coerced (m/decode schema ss coercions)
+        errors (me/humanize (m/explain schema coerced))]
     (assoc coerced :import/errors errors)))
+
 
 ;; Write default spreadsheet to disk
 (comment

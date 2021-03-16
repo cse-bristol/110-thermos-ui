@@ -100,6 +100,12 @@
             (assoc-in [:supply-day-types :rows] (vec (get-in default-sheet [:supply-day-types :rows])))
             (assoc-in [:supply-day-types :rows 0 :name] "bad day"))
 
+        bad-day-type-profile
+        (-> default-sheet
+            (assoc-in [:supply-profiles :rows] (vec (get-in default-sheet [:supply-profiles :rows])))
+            (assoc-in [:supply-profiles :rows 0 :day-type] "bad day")
+            (assoc-in [:supply-profiles :rows 0 :fuel-electricity-price] "bad day"))
+
         bad-fuel-name
         (-> default-sheet
             (assoc-in [:supply-plant :rows] (vec (get-in default-sheet [:supply-plant :rows])))
@@ -132,7 +138,11 @@
 
     (has-error (:import/errors (schema/validate-supply-model-ss bad-day-type-name))
                [:supply-day-types]
-               "day type 'bad day' defined, but no prices set in sheet 'Supply profiles'")
+               "value 'bad day' referenced, but not defined in sheet 'Supply profiles'")
+
+    (has-error (:import/errors (schema/validate-supply-model-ss bad-day-type-profile))
+               [:supply-profiles]
+               "value 'bad day' referenced, but not defined in sheet 'Supply day types'")
 
     (has-error (:import/errors (schema/validate-supply-model-ss bad-fuel-name))
                [:supply-plant]
@@ -140,7 +150,7 @@
 
     (has-error (:import/errors (schema/validate-supply-model-ss bad-substations))
                [:supply-plant]
-               "substation 'A substation' referenced, but not defined in sheet 'Supply substations'")
+               "value 'A substation' referenced, but not defined in sheet 'Supply substations'")
 
     (has-error (:import/errors (schema/validate-supply-model-ss bad-substations))
                [:supply-profiles]
@@ -148,8 +158,8 @@
 
     (has-error (:import/errors (schema/validate-supply-model-ss duplicate-substation))
                [:supply-substations :header :name]
-               "substation names not unique: 'A substation'")
+               "duplicate identifier: 'A substation'")
 
     (has-error (:import/errors (schema/validate-supply-model-ss duplicate-day-type))
                [:supply-day-types :header :name]
-               "day-type names not unique: 'Peak day'")))
+               "duplicate identifier: 'Peak day'")))
