@@ -21,6 +21,18 @@
   (:import  [org.apache.poi.xssf.usermodel XSSFWorkbook]
             [org.apache.poi.ss.usermodel DataFormatter CellType Cell]))
 
+(def profile-prefix "Profile: ")
+(def fuel-profile-prefix "Fuel: ")
+(def substation-profile-prefix "Substation: ")
+
+(defn has-profile-prefix? [s] (string/starts-with? s profile-prefix))
+(defn has-fuel-profile-prefix? [s] (string/starts-with? s fuel-profile-prefix))
+(defn has-substation-profile-prefix? [s] (string/starts-with? s substation-profile-prefix))
+
+(defn without-profile-prefix [s] (string/replace-first s profile-prefix ""))
+(defn without-fuel-profile-prefix [s] (string/replace-first s fuel-profile-prefix ""))
+(defn without-substation-profile-prefix [s] (string/replace-first s substation-profile-prefix ""))
+
 (defn empty-spreadsheet
   "Make a new empty spreadsheet."
   [] [])
@@ -67,17 +79,22 @@
 (defmethod dj/load-workbook java.io.File
   [^java.io.File f] (dj/load-workbook (.getCanonicalPath f)))
 
-(defn strip-units [s] (and s (string? s) (string/replace s #" *\(.+$" "")))
+(defn strip-units-except-kwp-kwh [s]
+  (if (and (string? s) (not (re-matches #".*\((?>kwp|kwh)\)$" (string/lower-case s))))
+    (string/replace s #" *\(.+$" "")
+    s))
 
 (defn to-keyword [s]
   (let [s (str s)
         s (string/lower-case s)
-        s (strip-units s)
+        s (strip-units-except-kwp-kwh s)
         s (and s (string/replace s "/" "-per-"))
         s (and s (string/replace s #"[- _:]+" "-"))
         s (and s (string/replace s "₂" "2"))
         s (and s (string/replace s "₅" "5"))
         s (and s (string/replace s "ₓ" "x"))
+        s (and s (string/replace s "(" ""))
+        s (and s (string/replace s ")" ""))
         ]
 
     (keyword s)))
@@ -119,7 +136,7 @@
                            (nil? %)
                            (= CellType/BLANK (.getCellType ^Cell %))))
                         header-cells)
-          header-text (map (comp strip-units cell-text) header-cells)
+          header-text (map (comp strip-units-except-kwp-kwh cell-text) header-cells)
           header-keys (map to-keyword header-text)
           n-cols      (count header-keys)
           ]

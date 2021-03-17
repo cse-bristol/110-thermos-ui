@@ -4,7 +4,8 @@
             [malli.error :as me]
             [malli.transform :as mt]
             [malli.util :as mu]
-            [clojure.string :as string]))
+            [clojure.string :as string]
+            [thermos-backend.spreadsheet.common :as sheet]))
 
 (defn- number-to-double-transformer []
   (mt/transformer
@@ -25,14 +26,19 @@
    {:name :boolean
     :decoders {'boolean? number-to-boolean, :boolean number-to-boolean}}))
 
-(defn- schematise-dynamic-cols [tab-header schema path]
-  (let [cols (keys tab-header)]
-    (mu/assoc-in
-     schema
-     path
-     (mu/merge
-      (reduce (fn [s col] (mu/assoc s col number?)) [:map] cols)
-      (mu/get-in schema path)))))
+
+(defn- schematise-dynamic-cols
+  "Modify the schema so that any unknown columns in the given sheet
+   have their cells validated and coerced."
+  [schema ss sheet validator-fn]
+  (if-let [header (get-in ss [sheet :header])]
+    (let [cols (keys header)
+          path [0 sheet :rows :sequential]
+          sheet-schema (mu/merge
+                        (reduce (fn [s col] (mu/assoc s col validator-fn)) [:map] cols)
+                        (mu/get-in schema path))]
+      (mu/assoc-in schema path sheet-schema))
+    schema))
 
 (defn- no-error?
   "Wrap a function in the format expected by malli's `:error/fn`, 
@@ -40,127 +46,6 @@
    which returns false if `error-fn`'s return value is non-nil, otherwise true."
   [error-fn]
   (fn [arg] (nil? (error-fn {:value arg} nil))))
-
-(def network-model-schema
-  [:map
-   {:error/message "missing sheet from spreadsheet"}
-   [:tariffs
-    [:map
-     [:header [:map
-               {:error/message "column missing"}
-               [:tariff-name string?]
-               [:unit-rate string?]
-               [:capacity-charge string?]
-               [:standing-charge string?]]]
-     [:rows [:sequential [:map
-                          [:tariff-name string?]
-                          [:unit-rate double?]
-                          [:capacity-charge double?]
-                          [:standing-charge double?]
-                          [:spreadsheet/row int?]]]]]]
-
-   [:connection-costs
-    [:map
-     [:header [:map
-               {:error/message "column missing"}
-               [:cost-name string?]
-               [:fixed-cost string?]
-               [:capacity-cost string?]]]
-     [:rows [:sequential [:map
-                          [:cost-name string?]
-                          [:fixed-cost double?]
-                          [:capacity-cost double?]]]]]]
-
-   [:capital-costs
-    [:map
-     [:header [:map {:error/message "column missing"}
-               [:name string?]
-               [:annualize string?]
-               [:recur string?]
-               [:period string?]
-               [:rate string?]]]
-     [:rows [:sequential [:map
-                          [:name [:enum
-                                  "Other heating"
-                                  "Connections"
-                                  "Insulation"
-                                  "Supply"
-                                  "Pipework"]]
-                          [:annualize boolean?]
-                          [:recur boolean?]
-                          [:period {:optional true} number?]
-                          [:rate {:optional true} double?]]]]]]
-
-   [:individual-systems
-    [:map
-     [:header [:map
-               {:error/message "column missing"}
-               [:name string?]
-               [:fixed-cost string?]
-               [:capacity-cost string?]
-               [:operating-cost string?]
-               [:heat-price string?]
-               [:co2 string?]
-               [:pm25 string?]
-               [:nox string?]
-               [:tank-factor string?]]]
-     [:rows [:sequential
-             [:map
-              [:spreadsheet/row int?]
-              [:fixed-cost double?]
-              [:name string?]
-              [:capacity-cost double?]
-              [:nox {:optional true} [:or double? nil?]]
-              [:pm25 {:optional true} [:or double? nil?]]
-              [:co2 {:optional true} [:or double? nil?]]
-              [:operating-cost double?]
-              [:tank-factor {:optional true} [:or double? nil?]]
-              [:heat-price double?]]]]]]
-
-   [:pipe-costs
-    [:map
-     [:header [:map
-               {:error/message "column missing"}
-               [:nb string?]
-               [:capacity {:optional true} string?]
-               [:losses {:optional true} string?]
-               [:pipe-cost string?]]]
-     [:rows [:sequential [:map
-                          [:nb number?]
-                          [:capacity {:optional true} [:or number? nil?]]
-                          [:losses {:optional true} [:or number? nil?]]
-                          [:pipe-cost number?]
-                          [:spreadsheet/row int?]]]]]]
-
-   [:insulation
-    [:map
-     [:header [:map
-               {:error/message "column missing"}
-               [:name string?]
-               [:fixed-cost string?]
-               [:cost-per-m2 string?]
-               [:maximum-reduction-% string?]
-               [:maximum-area-% string?]
-               [:surface string?]]]
-     [:rows [:sequential [:map
-                          [:name string?]
-                          [:fixed-cost double?]
-                          [:cost-per-m2 double?]
-                          [:maximum-reduction-% double?]
-                          [:maximum-area-% double?]
-                          [:surface string?]
-                          [:spreadsheet/row int?]]]]]]
-
-   [:other-parameters
-    [:map
-     [:header [:map
-               {:error/message "column missing"}
-               [:parameter string?]
-               [:value string?]]]
-     [:rows [:sequential [:map
-                          [:parameter string?]
-                          [:value any?]
-                          [:spreadsheet/row int?]]]]]]])
 
 (defn- duplicates 
   "Get the duplicate items in a collection"
@@ -227,11 +112,11 @@
 
         profile-cols
         (for [profile (vals (:header supply-profiles))
-              :when (string/starts-with? (name profile) "Substation: ")] profile)
+              :when (sheet/has-substation-profile-prefix? (name profile))] profile)
 
         all-not-ok
         (for [s profile-cols
-              :let [substation (string/replace-first s "Substation: " "")]
+              :let [substation (sheet/without-substation-profile-prefix s)]
               :when (not (contains? substations substation))]
           substation)]
 
@@ -254,12 +139,12 @@
 
         profile-cols
         (-> (for [profile (vals (:header supply-profiles))
-                  :when (string/starts-with? (name profile) "Fuel: ")] profile)
+                  :when (sheet/has-fuel-profile-prefix? (name profile))] profile)
             (set))
 
         all-not-ok
         (for [fuel fuels
-              :when (not (contains? profile-cols (str "Fuel: " fuel " price")))] fuel)]
+              :when (not (contains? profile-cols (str sheet/fuel-profile-prefix fuel " price")))] fuel)]
     
     (case (count (set all-not-ok))
       0 nil
@@ -290,10 +175,130 @@
     (when (seq all-not-ok)
       (string/join ". " all-not-ok))))
 
-(def supply-model-schema
+(def spreadsheet-schema
   [:and
    [:map
     {:error/message "missing sheet from spreadsheet"}
+    ;; Network model sheets
+    [:tariffs
+     [:map
+      [:header [:map
+                {:error/message "column missing"}
+                [:tariff-name string?]
+                [:unit-rate string?]
+                [:capacity-charge string?]
+                [:standing-charge string?]]]
+      [:rows [:sequential [:map
+                           [:tariff-name string?]
+                           [:unit-rate double?]
+                           [:capacity-charge double?]
+                           [:standing-charge double?]
+                           [:spreadsheet/row int?]]]]]]
+
+    [:connection-costs
+     [:map
+      [:header [:map
+                {:error/message "column missing"}
+                [:cost-name string?]
+                [:fixed-cost string?]
+                [:capacity-cost string?]]]
+      [:rows [:sequential [:map
+                           [:cost-name string?]
+                           [:fixed-cost double?]
+                           [:capacity-cost double?]]]]]]
+
+    [:capital-costs
+     [:map
+      [:header [:map {:error/message "column missing"}
+                [:name string?]
+                [:annualize string?]
+                [:recur string?]
+                [:period string?]
+                [:rate string?]]]
+      [:rows [:sequential [:map
+                           [:name [:enum
+                                   "Other heating"
+                                   "Connections"
+                                   "Insulation"
+                                   "Supply"
+                                   "Pipework"]]
+                           [:annualize boolean?]
+                           [:recur boolean?]
+                           [:period {:optional true} number?]
+                           [:rate {:optional true} double?]]]]]]
+
+    [:individual-systems
+     [:map
+      [:header [:map
+                {:error/message "column missing"}
+                [:name string?]
+                [:fixed-cost string?]
+                [:capacity-cost string?]
+                [:operating-cost string?]
+                [:heat-price string?]
+                [:co2 string?]
+                [:pm25 string?]
+                [:nox string?]
+                [:tank-factor string?]]]
+      [:rows [:sequential
+              [:map
+               [:spreadsheet/row int?]
+               [:fixed-cost double?]
+               [:name string?]
+               [:capacity-cost double?]
+               [:nox {:optional true} [:or double? nil?]]
+               [:pm25 {:optional true} [:or double? nil?]]
+               [:co2 {:optional true} [:or double? nil?]]
+               [:operating-cost double?]
+               [:tank-factor {:optional true} [:or double? nil?]]
+               [:heat-price double?]]]]]]
+
+    [:pipe-costs
+     [:map
+      [:header [:map
+                {:error/message "column missing"}
+                [:nb string?]
+                [:capacity {:optional true} string?]
+                [:losses {:optional true} string?]
+                [:pipe-cost string?]]]
+      [:rows [:sequential [:map
+                           [:nb number?]
+                           [:capacity {:optional true} [:or number? nil?]]
+                           [:losses {:optional true} [:or number? nil?]]
+                           [:pipe-cost number?]
+                           [:spreadsheet/row int?]]]]]]
+
+    [:insulation
+     [:map
+      [:header [:map
+                {:error/message "column missing"}
+                [:name string?]
+                [:fixed-cost string?]
+                [:cost-per-m2 string?]
+                [:maximum-reduction-% string?]
+                [:maximum-area-% string?]
+                [:surface string?]]]
+      [:rows [:sequential [:map
+                           [:name string?]
+                           [:fixed-cost double?]
+                           [:cost-per-m2 double?]
+                           [:maximum-reduction-% double?]
+                           [:maximum-area-% double?]
+                           [:surface string?]
+                           [:spreadsheet/row int?]]]]]]
+
+    [:other-parameters
+     [:map
+      [:header [:map
+                {:error/message "column missing"}
+                [:parameter string?]
+                [:value string?]]]
+      [:rows [:sequential [:map
+                           [:parameter string?]
+                           [:value any?]
+                           [:spreadsheet/row int?]]]]]]
+
+     ;; Supply model sheets
     [:supply-plant
      [:map
       [:header [:map
@@ -353,7 +358,8 @@
                 {:error/message "column missing"}
                 [:name string?]
                 [:lifetime string?]
-                [:capacity string?]
+                [:capacity-kwh string?]
+                [:capacity-kwp string?]
                 [:efficiency string?]
                 [:fixed-capex string?]
                 [:capex-per-kwp string?]
@@ -361,7 +367,8 @@
       [:rows [:sequential [:map
                            [:name string?]
                            [:lifetime number?]
-                           [:capacity number?]
+                           [:capacity-kwh number?]
+                           [:capacity-kwp number?]
                            [:efficiency double?]
                            [:fixed-capex number?]
                            [:capex-per-kwp number?]
@@ -374,11 +381,11 @@
        [:header [:map
                  {:error/message "column missing"}
                  [:name string?]
-                 [:headroom string?]
+                 [:headroom-kwp string?]
                  [:alpha string?]]]
        [:rows [:sequential [:map
                             [:name string?]
-                            [:headroom number?]
+                            [:headroom-kwp number?]
                             [:alpha double?]
                             [:spreadsheet/row int?]]]]]
       [:fn
@@ -448,46 +455,23 @@
      :error/path [:supply-profiles]}
     (no-error? profile-substation-names-match?)]])
 
-(defn merge-errors
-  "Recursively merges error maps."
-  [& maps]
-  (letfn [(do-merge [& xs]
-            (cond
-              (every? map? xs) (apply merge-with do-merge xs)
-              (every? sequential? xs) (apply mapv do-merge xs)
-              :else (last (remove nil? xs))))]
-    (reduce do-merge maps)))
-
-(defn validate-network-model-ss
-  "Coerce and validate a network model spreadsheet.
+(defn validate-spreadsheet
+  "Coerce and validate a spreadsheet.
    
    Returns the coerced input with an extra key, :import/errors,
-   which is either nil or an error map.
-   
-   Current attempted coercions are string-to-number and int-to-double."
+   which is either nil or an error map."
   [ss]
   (let [coercions (mt/transformer mt/string-transformer
                                   number-to-double-transformer
                                   number-to-boolean-transformer)
-        schema (schematise-dynamic-cols (get-in ss [:pipe-costs :header])
-                                        network-model-schema
-                                        [:pipe-costs :rows :sequential])
+        schema (-> spreadsheet-schema
+                   (schematise-dynamic-cols ss :pipe-costs number?)
+                   (schematise-dynamic-cols ss :supply-profiles number?))
 
         coerced (m/decode schema ss coercions)
         errors (me/humanize (m/explain schema coerced))]
     (assoc coerced :import/errors errors)))
 
-(defn validate-supply-model-ss [ss]
-  (let [coercions (mt/transformer mt/string-transformer
-                                  number-to-double-transformer
-                                  number-to-boolean-transformer)
-        schema (schematise-dynamic-cols (get-in ss [:supply-profiles :header])
-                                        supply-model-schema
-                                        [0 :supply-profiles :rows :sequential])
-
-        coerced (m/decode schema ss coercions)
-        errors (me/humanize (m/explain schema coerced))]
-    (assoc coerced :import/errors errors)))
 
 
 ;; Write default spreadsheet to disk
@@ -540,4 +524,4 @@
   (require '[thermos-backend.spreadsheet.common :as ss-common])
 
   (let [in-ss (ss-common/read-to-tables "/home/neil/tmp/spreadsheet.xlsx")]
-    (validate-network-model-ss in-ss)))
+    (validate-spreadsheet in-ss)))

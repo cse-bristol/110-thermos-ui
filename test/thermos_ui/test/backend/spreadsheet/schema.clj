@@ -19,9 +19,9 @@
         tarriff-with-int-unit-charge
         (assoc-in default-sheet [:thermos-specs.document/tariffs 1 :unit-charge] 5),]
     
-    (is (nil? (:import/errors (schema/validate-network-model-ss default-sheet))))
-    (is (nil? (:import/errors (schema/validate-network-model-ss tarriff-with-string-unit-charge))))
-    (is (nil? (:import/errors (schema/validate-network-model-ss tarriff-with-int-unit-charge))))))
+    (is (nil? (:import/errors (schema/validate-spreadsheet default-sheet))))
+    (is (nil? (:import/errors (schema/validate-spreadsheet tarriff-with-string-unit-charge))))
+    (is (nil? (:import/errors (schema/validate-spreadsheet tarriff-with-int-unit-charge))))))
 
 (deftest validation-error-reporting
   (let [no-tarriffs-sheet (dissoc default-sheet :tariffs)
@@ -37,11 +37,11 @@
                                    :standing-charge 50.0, 
                                    :spreadsheet/row 0}))]
     (is (= {:tariffs ["missing sheet from spreadsheet"]}
-           (:import/errors (schema/validate-network-model-ss no-tarriffs-sheet))))
+           (:import/errors (schema/validate-spreadsheet no-tarriffs-sheet))))
     (is (= {:tariffs {:rows [{:unit-rate ["missing required key"]}]}}
-           (:import/errors (schema/validate-network-model-ss no-unit-rate))))
+           (:import/errors (schema/validate-spreadsheet no-unit-rate))))
     (is (= {:tariffs {:rows [{:unit-rate ["should be a double"]}]}}
-           (:import/errors (schema/validate-network-model-ss bad-unit-rate))))))
+           (:import/errors (schema/validate-spreadsheet bad-unit-rate))))))
 
 (deftest pipe-cost-validation
   (let [no-pipe-costs-sheet (dissoc default-sheet :pipe-costs)
@@ -63,30 +63,19 @@
                          (assoc-in [:pipe-costs :rows 0 :soft] "aaa"))]
 
     (is (= {:pipe-costs ["missing sheet from spreadsheet"]}
-           (:import/errors (schema/validate-network-model-ss no-pipe-costs-sheet))))
-    (is (= nil (:import/errors (schema/validate-network-model-ss cols-need-coercing))))
+           (:import/errors (schema/validate-spreadsheet no-pipe-costs-sheet))))
+    (is (= nil (:import/errors (schema/validate-spreadsheet cols-need-coercing))))
 
     (is (= {:pipe-costs {:rows [{:nb ["should be a number"]}]}}
-           (:import/errors (schema/validate-network-model-ss bad-fixed-col))))
+           (:import/errors (schema/validate-spreadsheet bad-fixed-col))))
     (is (= {:pipe-costs {:rows [{:soft ["should be a number"]}]}}
-           (:import/errors (schema/validate-network-model-ss bad-variable-col))))
+           (:import/errors (schema/validate-spreadsheet bad-variable-col))))
     (is (= {:pipe-costs {:rows [{:nb ["should be a number"] :soft ["should be a number"]}]}}
-           (:import/errors (schema/validate-network-model-ss bad-both-col))))))
-
-
-(deftest merge-errors-test
-  (is (= nil (schema/merge-errors nil nil)))
-  (is (= {:a 1} (schema/merge-errors {:a 1} nil)))
-  (is (= {:a 1} (schema/merge-errors nil {:a 1})))
-  (is (= {:a 1} (schema/merge-errors {:a 2} {:a 1})))
-  (is (= {:a 1 :b 2} (schema/merge-errors {:b 2} {:a 1})))
-  (is (= {:a [{:c 2} {:b [1 2] :e [4 5]} {:d 3}]} 
-         (schema/merge-errors {:a [nil {:b [1 2]} {:d 3}]} {:a [{:c 2} {:e [4 5]} nil]}))))
+           (:import/errors (schema/validate-spreadsheet bad-both-col))))))
 
 (deftest supply-model
   (let [has-error
         (fn [errors ks v]
-          (println errors)
           (let [errors (get-in errors ks)]
             (is (contains? (set errors) v) (prn-str "Error " v " not in: " errors))))
 
@@ -132,34 +121,34 @@
                                                    :frequency 1
                                                    :spreadsheet/row 5}))]
 
-    (has-error (:import/errors (schema/validate-supply-model-ss bad-rows-per-day))
+    (has-error (:import/errors (schema/validate-spreadsheet bad-rows-per-day))
                [:supply-day-types]
                "day type 'Normal weekday' has 23 divisions, but had 24 entries in sheet 'supply profiles'")
 
-    (has-error (:import/errors (schema/validate-supply-model-ss bad-day-type-name))
+    (has-error (:import/errors (schema/validate-spreadsheet bad-day-type-name))
                [:supply-day-types]
                "value 'bad day' referenced, but not defined in sheet 'Supply profiles'")
 
-    (has-error (:import/errors (schema/validate-supply-model-ss bad-day-type-profile))
+    (has-error (:import/errors (schema/validate-spreadsheet bad-day-type-profile))
                [:supply-profiles]
                "value 'bad day' referenced, but not defined in sheet 'Supply day types'")
 
-    (has-error (:import/errors (schema/validate-supply-model-ss bad-fuel-name))
+    (has-error (:import/errors (schema/validate-spreadsheet bad-fuel-name))
                [:supply-plant]
                "fuel 'bad fuel' referenced, but pricing not defined in sheet 'Supply profiles'")
 
-    (has-error (:import/errors (schema/validate-supply-model-ss bad-substations))
+    (has-error (:import/errors (schema/validate-spreadsheet bad-substations))
                [:supply-plant]
                "value 'A substation' referenced, but not defined in sheet 'Supply substations'")
 
-    (has-error (:import/errors (schema/validate-supply-model-ss bad-substations))
+    (has-error (:import/errors (schema/validate-spreadsheet bad-substations))
                [:supply-profiles]
                "substation 'A substation' referenced, but not defined in sheet 'Supply substations'")
 
-    (has-error (:import/errors (schema/validate-supply-model-ss duplicate-substation))
+    (has-error (:import/errors (schema/validate-spreadsheet duplicate-substation))
                [:supply-substations :header :name]
                "duplicate identifier: 'A substation'")
 
-    (has-error (:import/errors (schema/validate-supply-model-ss duplicate-day-type))
+    (has-error (:import/errors (schema/validate-spreadsheet duplicate-day-type))
                [:supply-day-types :header :name]
                "duplicate identifier: 'Peak day'")))

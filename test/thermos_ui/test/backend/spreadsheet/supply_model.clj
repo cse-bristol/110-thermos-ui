@@ -23,9 +23,11 @@
     (.toByteArray baos)))
 
 (defn read-to-doc [bytearray]
-  (-> bytearray
-      (io/input-stream)
-      (ss-core/from-spreadsheet)))
+  (let [in (-> bytearray
+               (io/input-stream)
+               (ss-core/from-spreadsheet))]
+    (when (:import/errors in) (println (:import/errors in)))
+    in))
 
 (defn =? [o1 o2 & {:keys [key exclude-keys] }]
   (let [val
@@ -70,11 +72,11 @@
                 profile-id
                 (get (supply-model/id-lookup (::supply/heat-profiles doc)) profile-name)]
             (get-in doc [::supply/heat-profiles profile-id day-type-id])))]
-    
-    (doall (for [day-type ["Normal weekday" "Normal weekend" "Winter weekday" "Winter weekend" "Peak day"]
-                 profile ["Residential" "Commercial" "Flat"]]
-             (is (= (heat-profile round-tripped day-type profile)
-                    (heat-profile initial-doc day-type profile)))))))
+
+    (doseq [day-type ["Normal weekday" "Normal weekend" "Winter weekday" "Winter weekend" "Peak day"]
+            profile ["Residential" "Commercial" "Flat"]]
+      (is (= (heat-profile round-tripped day-type profile)
+             (heat-profile initial-doc day-type profile))))))
 
 (deftest fuels
   (let [round-tripped
