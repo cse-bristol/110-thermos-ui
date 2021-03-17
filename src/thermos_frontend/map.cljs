@@ -776,16 +776,26 @@
               :maxY (+ (:north bbox) (/ bbox-height 2))
               :minX (- (:west bbox) (/ bbox-width 2))
               :maxX (+ (:east bbox) (/ bbox-width 2))}
-        candidates-in-bbox-ids (spatial/find-candidates-ids-in-bbox @state/state bbox)
-        ;; Get all the candidates that are either selected or constrained
-        selected-candidates-ids (operations/selected-candidates-ids @state/state)
-        constrained-candidates-ids (operations/constrained-candidates-ids @state/state)
-        candidates-to-keep-ids (clojure.core/set (concat candidates-in-bbox-ids
-                                          selected-candidates-ids
-                                          constrained-candidates-ids))
-        candidates-to-keep (select-keys (::document/candidates @state/state)
-                                        candidates-to-keep-ids)
+
+        candidates-in-bbox-ids (set (spatial/find-candidates-ids-in-bbox @state/state bbox))
+        
+        keep-constraints #{:required :optional}
+        loaded-candidates (::document/candidates @state/state)
+        
+        
         ]
     ;; Remove all the candidates that we don't want to keep
-    (state/edit-geometry! state/state assoc ::document/candidates candidates-to-keep)
-    ))
+    (when (< (count candidates-in-bbox-ids)
+             (count loaded-candidates))
+      (let [candidates-to-keep
+            (persistent!
+             (reduce-kv (fn [out k v]
+                          (cond-> out
+                            (or (::candidate/selected v)
+                                (::candidate/modified v)
+                                (keep-constraints (::candidate/inclusion v))
+                                (contains? candidates-in-bbox-ids k))
+                            (assoc! k v)))
+                        (transient {})
+                        loaded-candidates))]
+        (state/edit-geometry! state/state assoc ::document/candidates candidates-to-keep)))))
