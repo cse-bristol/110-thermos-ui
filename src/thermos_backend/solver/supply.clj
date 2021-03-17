@@ -41,8 +41,6 @@
         
         mode     (document/mode doc)
         
-        supply (first supplies)
-
         day-types     (::supply/day-types doc)
         heat-profiles (::supply/heat-profiles doc)
         fuels         (::supply/fuels doc)
@@ -74,8 +72,8 @@
                        demand-loads
 
                        ;; and these are the target values for the combined curve
-                       (::solution/output-kwh supply 0)
-                       (::solution/capacity-kw supply 0))
+                       (reduce + 0 (keep ::solution/output-kwh supplies))
+                       (reduce + 0 (keep ::solution/capacity-kw supplies)))
 
         substations     (::supply/substations doc)
         
