@@ -6,11 +6,24 @@
             [thermos-backend.spreadsheet.common :as ss-common]
             [clojure.java.io :as io]))
 
+(def initial-doc
+  (merge defaults/default-document
+         #:thermos-specs.document
+          {:pumping-emissions {:co2 0.1 :pm25 0.2 :nox 0.3}
+           :emissions-cost {:co2 0.4 :pm25 0.5 :nox 0.6}
+           :emissions-limit {:co2 {:value 0.9 :enabled true}
+                             :pm25 {:value 0.8 :enabled true}
+                             :nox {:value 0.7 :enabled true}}}))
+
 (def default-sheet
-  (let [out-sheet (ss-core/to-spreadsheet defaults/default-document)
+  (let [out-sheet (ss-core/to-spreadsheet initial-doc)
         baos (java.io.ByteArrayOutputStream.)]
     (ss-common/write-to-stream out-sheet baos)
     (ss-common/read-to-tables (io/input-stream (.toByteArray baos)))))
+
+(defn has-error [errors ks v]
+  (let [errors (get-in errors ks)]
+    (is (contains? (set errors) v) (prn-str "Error " v " not in: " errors))))
 
 (deftest schema-coercion-works
   (let [tarriff-with-string-unit-charge 
@@ -73,13 +86,25 @@
     (is (= {:pipe-costs {:rows [{:nb ["should be a number"] :soft ["should be a number"]}]}}
            (:import/errors (schema/validate-spreadsheet bad-both-col))))))
 
-(deftest supply-model
-  (let [has-error
-        (fn [errors ks v]
-          (let [errors (get-in errors ks)]
-            (is (contains? (set errors) v) (prn-str "Error " v " not in: " errors))))
+(deftest other-parameters
+  (let [missing-param
+        (-> default-sheet
+            (assoc-in [:other-parameters :rows]
+                      (pop (vec (get-in default-sheet [:other-parameters :rows])))))
 
-        bad-rows-per-day
+        bad-value
+        (-> default-sheet
+            (assoc-in [:other-parameters :rows] (vec (get-in default-sheet [:other-parameters :rows])))
+            (assoc-in [:other-parameters :rows 0 :value] "something"))]
+    (has-error (:import/errors (schema/validate-spreadsheet missing-param))
+               [:other-parameters :header :parameter]
+               "missing required value: 'Max supplies'")
+    (has-error (:import/errors (schema/validate-spreadsheet bad-value))
+               [:other-parameters :rows 0 :value]
+               "should be either hot-water or saturated-steam")))
+
+(deftest supply-model
+  (let [bad-rows-per-day
         (-> default-sheet
             (assoc-in [:supply-day-types :rows] (vec (get-in default-sheet [:supply-day-types :rows])))
             (assoc-in [:supply-day-types :rows 0 :divisions] 23))
@@ -122,27 +147,27 @@
                                                    :spreadsheet/row 5}))]
 
     (has-error (:import/errors (schema/validate-spreadsheet bad-rows-per-day))
-               [:supply-day-types]
+               [:supply-day-types :header :name]
                "day type 'Normal weekday' has 23 divisions, but had 24 entries in sheet 'supply profiles'")
 
     (has-error (:import/errors (schema/validate-spreadsheet bad-day-type-name))
-               [:supply-day-types]
+               [:supply-day-types :header :name]
                "value 'bad day' referenced, but not defined in sheet 'Supply profiles'")
 
     (has-error (:import/errors (schema/validate-spreadsheet bad-day-type-profile))
-               [:supply-profiles]
+               [:supply-profiles :header :day-type]
                "value 'bad day' referenced, but not defined in sheet 'Supply day types'")
 
     (has-error (:import/errors (schema/validate-spreadsheet bad-fuel-name))
-               [:supply-plant]
+               [:supply-plant :header :fuel]
                "fuel 'bad fuel' referenced, but pricing not defined in sheet 'Supply profiles'")
 
     (has-error (:import/errors (schema/validate-spreadsheet bad-substations))
-               [:supply-plant]
+               [:supply-plant :header :substation]
                "value 'A substation' referenced, but not defined in sheet 'Supply substations'")
 
     (has-error (:import/errors (schema/validate-spreadsheet bad-substations))
-               [:supply-profiles]
+               [:supply-profiles :header :substation]
                "substation 'A substation' referenced, but not defined in sheet 'Supply substations'")
 
     (has-error (:import/errors (schema/validate-spreadsheet duplicate-substation))

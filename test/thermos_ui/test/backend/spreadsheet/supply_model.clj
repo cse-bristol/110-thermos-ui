@@ -14,7 +14,13 @@
          {0 vals 1 vals 2 vals 3 vals 4 vals}))
 
 (def initial-doc
-  (assoc-in defaults/default-document [:thermos-specs.supply/substations 0 :load-kw] (flat 1.23)))
+  (merge (assoc-in defaults/default-document [:thermos-specs.supply/substations 0 :load-kw] (flat 1.23))
+         #:thermos-specs.document
+          {:pumping-emissions {:co2 0.1 :pm25 0.2 :nox 0.3}
+           :emissions-cost {:co2 0.4 :pm25 0.5 :nox 0.6}
+           :emissions-limit {:co2 {:value 0.9 :enabled true}
+                             :pm25 {:value 0.8 :enabled true}
+                             :nox {:value 0.7 :enabled true}}}))
 
 (defn write-to-ss [doc]
   (let [out-sheet (ss-core/to-spreadsheet doc)
