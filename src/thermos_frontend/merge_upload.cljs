@@ -366,11 +366,11 @@
          [:div
           [inputs/check {:label "Use new parameters where names match"
                          :value (:join state)
-                         :on-change #(swap! *state :join not)}]]
+                         :on-change #(swap! *state update :join not)}]]
          [:div
           [inputs/check {:label "Keep old parameters with different names"
                          :value (:merge state)
-                         :on-change #(swap! *state :merge not)}]]
+                         :on-change #(swap! *state update :merge not)}]]
 
          [:div.align-right {:style {:margin-top "2em"}}
           [:button.button.button--danger
