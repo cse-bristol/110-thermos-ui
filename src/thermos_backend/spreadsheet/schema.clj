@@ -5,33 +5,35 @@
             [malli.transform :as mt]
             [malli.util :as mu]
             [clojure.string :as string]
+            [com.rpl.specter :as S]
             [thermos-backend.spreadsheet.common :as sheet]))
 
-(def required-parameters #{"Medium"
-                           "Flow temperature"
-                           "Return temperature"
-                           "Ground temperature"
-                           "Pumping overhead"
-                           "Pumping cost/kWh"
-                           "Pumping CO₂ (g/kWh)"
-                           "Pumping PM₂₅ (mg/kWh)"
-                           "Pumping NOₓ (mg/kWh)"
-                           "CO₂ cost"
-                           "PM₂₅ cost"
-                           "NOₓ cost"
-                           "CO₂ limit"
-                           "PM₂₅ limit"
-                           "NOₓ limit"
-                           "Objective"
-                           "Consider alternative systems"
-                           "Consider insulation"
-                           "NPV Term"
-                           "NPV Rate"
-                           "Loan Term"
-                           "Loan Rate"
-                           "MIP Gap"
-                           "Max runtime"
-                           "Max supplies"})
+(def required-parameters 
+  #{:medium
+    :flow-temperature
+    :return-temperature
+    :ground-temperature
+    :pumping-overhead
+    :pumping-cost-per-kwh
+    :objective
+    :consider-alternative-systems
+    :consider-insulation
+    :npv-term
+    :npv-rate
+    :loan-term
+    :loan-rate
+    :mip-gap
+    :max-runtime
+    :max-supplies})
+
+(def required-supply-parameters 
+  #{:accounting-period
+    :discount-rate
+    :curtailment-cost
+    :can-dump-heat
+    :mip-gap
+    :time-limit
+    :default-profile})
 
 (defn- number-to-double-transformer []
   (mt/transformer
@@ -92,15 +94,15 @@
       (when (seq dups)
         (str "duplicate identifier: '" (string/join "', '" dups) "'")))))
 
+(defn- keyword->string [k] (string/capitalize (string/replace (name k) \- \ )))
+
 (defn- has-required-values? [fieldname required]
   {:pre [(keyword? fieldname)]}
   (fn [{:keys [value]} _]
-    (let [present (set (for [entry (:rows value)] (fieldname entry)))
-          missing (apply (partial disj required) present)]
+    (let [present (set (for [entry (:rows value)] (sheet/to-keyword (fieldname entry))))
+          missing (map keyword->string (apply (partial disj required) present))]
       (when (seq missing)
         (str "missing required value: '" (string/join "', '" missing) "'")))))
-
-(defn- keyword->string [k] (string/capitalize (string/replace (name k) \- \ )))
 
 (defn- references?
   "Check the spreadsheet for referential integrity.
@@ -109,16 +111,11 @@
    `ref-field` are not also present in `source-field`. 
    
    Values may be present in `source-field` that are not in `ref-field`."
-  [source-tab source-field ref-tab ref-field]
-  (fn [{{ref ref-tab source source-tab} :value} _]
-    (let [ref-vals
-          (for [ref-row (:rows ref)
-                :let [ref-val (ref-field ref-row)]
-                :when (some? ref-val)] ref-val)
-
-          source-vals
-          (-> (for [source-row (:rows source)] (source-field source-row))
-              (set))
+  [source-path ref-path]
+  (fn [{ss :value} _]
+    (let [source-sheet (keyword->string (get source-path 0))
+          ref-vals (filter some? (S/select ref-path ss))
+          source-vals (set (S/select source-path ss))
 
           all-not-ok
           (for [ref-val ref-vals
@@ -127,62 +124,39 @@
       (case (count (set all-not-ok))
         0 nil
         1 (str "value '" (first all-not-ok) "' referenced, "
-               "but not defined in sheet '" (keyword->string source-tab) "'")
+               "but not defined in sheet '" source-sheet "'")
         (str "values '" (string/join "', '" (set all-not-ok)) "' referenced, "
-             "but not defined in sheet '" (keyword->string source-tab) "'")))))
+             "but not defined in sheet '" source-sheet "'")))))
 
 (defn- profile-substation-names-match?
   "Return an error message if the names of substation profile columns do not
    match those defined in supply-substations.
    
   Allows the load-kw profile column to be missing."
-  [{{:keys [supply-profiles supply-substations]} :value} _]
-  (let [substations
-        (-> (for [substation (:rows supply-substations)] (:name substation))
-            (set))
-
-        profile-cols
-        (for [profile (vals (:header supply-profiles))
-              :when (sheet/has-substation-profile-prefix? (name profile))] profile)
-
-        all-not-ok
-        (for [s profile-cols
-              :let [substation (sheet/without-substation-profile-prefix s)]
-              :when (not (contains? substations substation))]
-          substation)]
-
-    (case (count (set all-not-ok))
-      0 nil
-      1 (str "substation '" (first all-not-ok) "' referenced, "
-             "but not defined in sheet 'Supply substations'")
-      (str "substations '" (string/join "', '" (set all-not-ok)) "' referenced, "
-           "but not defined in sheet 'Supply substations'"))))
+  [a1 a2]
+  ((references?
+    [:supply-substations :rows S/ALL :name]
+    [:supply-profiles :header S/MAP-VALS (S/regex-nav #"^Substation: (.+)$") (S/nthpath 1)]) a1 a2))
 
 (defn- fuel-names-match?
-  "Return an error message if the names of fuel profile columns do not match 
+  "Return a function that returns error message if the names of fuel profile columns do not match 
    the fuels referenced in supply-plant.
    
    Allows the CO₂, NOₓ and PM₂₅ columns to be missing."
-  [{{:keys [supply-profiles supply-plant]} :value} _]
-  (let [fuels
-        (for [plant (:rows supply-plant)]
-          (:fuel plant))
+  [a1 a2]
+  ((references?
+    [:supply-profiles :header S/MAP-VALS (S/regex-nav #"^Fuel: (.+) price$") (S/nthpath 1)]
+    [:supply-plant :rows S/ALL :fuel]) a1 a2))
 
-        profile-cols
-        (-> (for [profile (vals (:header supply-profiles))
-                  :when (sheet/has-fuel-profile-prefix? (name profile))] profile)
-            (set))
-
-        all-not-ok
-        (for [fuel fuels
-              :when (not (contains? profile-cols (str sheet/fuel-profile-prefix fuel " price")))] fuel)]
-    
-    (case (count (set all-not-ok))
-      0 nil
-      1 (str "fuel '" (first all-not-ok) "' referenced, "
-             "but pricing not defined in sheet 'Supply profiles'")
-      (str "fuels '" (string/join "', '" (set all-not-ok)) "' referenced, "
-           "but pricing not defined in sheet 'Supply profiles'"))))
+(defn- default-heat-profile-matches?
+  "Return a function that returns error message if the default heat profile does
+   not match any of the heat profile columns in supply-profiles
+   
+   Allows the CO₂, NOₓ and PM₂₅ columns to be missing."
+  [a1 a2]
+  ((references?
+    [:supply-profiles :header S/MAP-VALS (S/regex-nav #"^Profile: (.+)$") (S/nthpath 1)]
+    [:supply-parameters :rows S/ALL #(= (:parameter %) "Default profile") :value]) a1 a2))
 
 (defn- rows-per-day-type
   "Return an error message if the division counts in supply-day-types do not 
@@ -344,33 +318,33 @@
                  [:parameter string?]
                  [:value string?]]]
        [:rows [:sequential
-               [:multi {:dispatch :parameter :error/message "Unknown parameter"}
-                ["Medium" [:map [:value [:enum "hot-water" "saturated-steam"]]]]
-                ["Flow temperature" [:map [:value number?]]]
-                ["Return temperature" [:map [:value number?]]]
-                ["Ground temperature" [:map [:value number?]]]
-                ["Pumping overhead" [:map [:value number?]]]
-                ["Pumping cost/kWh" [:map [:value number?]]]
-                ["Pumping CO₂ (g/kWh)" [:map [:value number?]]]
-                ["Pumping PM₂₅ (mg/kWh)" [:map [:value number?]]]
-                ["Pumping NOₓ (mg/kWh)" [:map [:value number?]]]
-                ["CO₂ cost" [:map [:value number?]]]
-                ["PM₂₅ cost" [:map [:value number?]]]
-                ["NOₓ cost" [:map [:value number?]]]
-                ["CO₂ limit" [:map [:value [:or number? [:enum "none"]]]]]
-                ["PM₂₅ limit" [:map [:value [:or number? [:enum "none"]]]]]
-                ["NOₓ limit" [:map [:value [:or number? [:enum "none"]]]]]
-                ["Objective" [:map [:value string?]]]
-                ["Consider alternative systems" [:map [:value boolean?]]]
-                ["Consider insulation" [:map [:value boolean?]]]
-                ["NPV Term" [:map [:value number?]]]
-                ["NPV Rate" [:map [:value number?]]]
-                ["Loan Term" [:map [:value number?]]]
-                ["Loan Rate" [:map [:value number?]]]
-                ["MIP Gap" [:map [:value number?]]]
-                ["Param Gap" [:map [:value [:or number? nil?]]]]
-                ["Max runtime" [:map [:value number?]]]
-                ["Max supplies" [:map [:value [:or number? [:enum "unlimited"]]]]]]]]]
+               [:multi {:dispatch (comp sheet/to-keyword :parameter) :error/message "unknown parameter"}
+                [:medium [:map [:value [:enum "hot-water" "saturated-steam"]]]]
+                [:flow-temperature [:map [:value number?]]]
+                [:return-temperature [:map [:value number?]]]
+                [:ground-temperature [:map [:value number?]]]
+                [:pumping-overhead [:map [:value number?]]]
+                [:pumping-cost-per-kwh [:map [:value number?]]]
+                [:pumping-co2 [:map [:value {:optional true} [:or number? nil?]]]]
+                [:pumping-pm25 [:map [:value {:optional true} [:or number? nil?]]]]
+                [:pumping-nox [:map [:value {:optional true} [:or number? nil?]]]]
+                [:co2-cost [:map [:value {:optional true} [:or number? nil?]]]]
+                [:pm25-cost [:map [:value {:optional true} [:or number? nil?]]]]
+                [:nox-cost [:map [:value {:optional true} [:or number? nil?]]]]
+                [:co2-limit [:map [:value {:optional true} [:or number? nil? [:enum "none"]]]]]
+                [:pm25-limit [:map [:value {:optional true} [:or number? nil? [:enum "none"]]]]]
+                [:nox-limit [:map [:value {:optional true} [:or number? nil? [:enum "none"]]]]]
+                [:objective [:map [:value string?]]]
+                [:consider-alternative-systems [:map [:value boolean?]]]
+                [:consider-insulation [:map [:value boolean?]]]
+                [:npv-term [:map [:value number?]]]
+                [:npv-rate [:map [:value number?]]]
+                [:loan-term [:map [:value number?]]]
+                [:loan-rate [:map [:value number?]]]
+                [:mip-gap [:map [:value number?]]]
+                [:param-gap [:map [:value {:optional true} [:or number? nil?]]]]
+                [:max-runtime [:map [:value number?]]]
+                [:max-supplies [:map [:value [:or number? [:enum "unlimited"]]]]]]]]]
       [:fn
        {:error/fn (has-required-values? :parameter required-parameters)
         :error/path [:header :parameter]}
@@ -471,24 +445,26 @@
         :error/path [:header :name]}
        (no-error? (unique? :name))]]]
 
-    [:supply-objective
-     [:map
-      [:header [:map
-                {:error/message "column missing"}
-                [:accounting-period string?]
-                [:discount-rate string?]
-                [:curtailment-cost string?]
-                [:can-dump-heat string?]
-                [:mip-gap string?]
-                [:time-limit string?]]]
-      [:rows [:sequential [:map
-                           [:accounting-period number?]
-                           [:discount-rate double?]
-                           [:curtailment-cost number?]
-                           [:can-dump-heat boolean?]
-                           [:mip-gap double?]
-                           [:time-limit number?]
-                           [:spreadsheet/row int?]]]]]]
+    [:supply-parameters
+     [:and
+      [:map
+       [:header [:map
+                 {:error/message "column missing"}
+                 [:parameter string?]
+                 [:value string?]]]
+       [:rows [:sequential
+               [:multi {:dispatch (comp sheet/to-keyword :parameter) :error/message "unknown parameter"}
+                [:accounting-period [:map [:value number?]]]
+                [:discount-rate [:map [:value double?]]]
+                [:curtailment-cost [:map [:value number?]]]
+                [:can-dump-heat [:map [:value boolean?]]]
+                [:mip-gap [:map [:value double?]]]
+                [:time-limit [:map [:value number?]]]
+                [:default-profile [:map [:value string?]]]]]]]
+      [:fn
+       {:error/fn (has-required-values? :parameter required-supply-parameters)
+        :error/path [:header :parameter]}
+       (no-error? (has-required-values? :parameter required-supply-parameters))]]]
 
     [:supply-profiles
      [:map
@@ -514,14 +490,18 @@
     (no-error? intervals-per-day-type)]
 
    [:fn
-    {:error/fn (references? :supply-profiles :day-type :supply-day-types :name)
+    {:error/fn (references? [:supply-profiles :rows S/ALL :day-type] 
+                            [:supply-day-types :rows S/ALL :name])
      :error/path [:supply-day-types :header :name]}
-    (no-error? (references? :supply-profiles :day-type :supply-day-types :name))]
+    (no-error? (references? [:supply-profiles :rows S/ALL :day-type] 
+                            [:supply-day-types :rows S/ALL :name]))]
 
    [:fn
-    {:error/fn (references? :supply-day-types :name :supply-profiles :day-type)
+    {:error/fn (references? [:supply-day-types :rows S/ALL :name] 
+                            [:supply-profiles :rows S/ALL :day-type])
      :error/path [:supply-profiles :header :day-type]}
-    (no-error? (references? :supply-day-types :name :supply-profiles :day-type))]
+    (no-error? (references? [:supply-day-types :rows S/ALL :name] 
+                            [:supply-profiles :rows S/ALL :day-type]))]
 
    [:fn
     {:error/fn fuel-names-match?
@@ -529,14 +509,21 @@
     (no-error? fuel-names-match?)]
 
    [:fn
-    {:error/fn (references? :supply-substations :name :supply-plant :substation) 
+    {:error/fn (references? [:supply-substations :rows S/ALL :name] 
+                            [:supply-plant :rows S/ALL :substation]) 
      :error/path [:supply-plant :header :substation]}
-    (no-error? (references? :supply-substations :name :supply-plant :substation))]
+    (no-error? (references? [:supply-substations :rows S/ALL :name]
+                            [:supply-plant :rows S/ALL :substation]))]
 
    [:fn
     {:error/fn profile-substation-names-match?
      :error/path [:supply-profiles :header :substation]}
-    (no-error? profile-substation-names-match?)]])
+    (no-error? profile-substation-names-match?)]
+
+   [:fn
+    {:error/fn default-heat-profile-matches?
+     :error/path [:supply-parameters :header :default-profile]}
+    (no-error? default-heat-profile-matches?)]])
 
 (defn validate-spreadsheet
   "Coerce and validate a spreadsheet.

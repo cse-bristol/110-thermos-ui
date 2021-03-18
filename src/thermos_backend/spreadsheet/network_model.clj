@@ -417,25 +417,22 @@
      {::document/pumping-emissions
       (->>
        (for [e candidate/emissions-types
-             :let [v (get parameters (common/to-keyword (str "pumping-" (name e))))]
-             :when (number? v)]
-         [e (/ v (candidate/emissions-factor-scales e))])
+             :let [v (get parameters (common/to-keyword (str "pumping-" (name e))))]]
+         [e (if (number? v) (/ v (candidate/emissions-factor-scales e)) 0)])
        (into {}))}
      
      {::document/emissions-cost
       (->>
        (for [e candidate/emissions-types
-             :let [c (get parameters (common/to-keyword (str (name e) "-cost")))]
-             :when (number? c)]
-         [e c])
+             :let [c (get parameters (common/to-keyword (str (name e) "-cost")))]]
+         [e (if (number? c) c 0)])
        (into {}))}
 
      {::document/emissions-limit
       (->>
        (for [e candidate/emissions-types
-             :let [c (get parameters (common/to-keyword (str (name e) "-limit")))]
-             :when (number? c)]
-         [e {:enabled true :value c}])
+             :let [c (get parameters (common/to-keyword (str (name e) "-limit")))]]
+         [e (if (number? c) {:enabled true :value c} {:enabled false :value nil})])
        (into {}))
       }
      

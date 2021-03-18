@@ -95,13 +95,21 @@
         bad-value
         (-> default-sheet
             (assoc-in [:other-parameters :rows] (vec (get-in default-sheet [:other-parameters :rows])))
-            (assoc-in [:other-parameters :rows 0 :value] "something"))]
+            (assoc-in [:other-parameters :rows 0 :value] "something"))
+
+        extra-param
+        (-> default-sheet
+            (assoc-in [:other-parameters :rows] (vec (get-in default-sheet [:other-parameters :rows])))
+            (assoc-in [:other-parameters :rows 0 :parameter] "something"))]
     (has-error (:import/errors (schema/validate-spreadsheet missing-param))
                [:other-parameters :header :parameter]
                "missing required value: 'Max supplies'")
     (has-error (:import/errors (schema/validate-spreadsheet bad-value))
                [:other-parameters :rows 0 :value]
-               "should be either hot-water or saturated-steam")))
+               "should be either hot-water or saturated-steam")
+    (has-error (:import/errors (schema/validate-spreadsheet extra-param))
+               [:other-parameters :rows 0]
+               "unknown parameter")))
 
 (deftest supply-model
   (let [bad-rows-per-day
@@ -144,8 +152,14 @@
             (assoc-in [:supply-day-types :rows 5] {:divisions 24
                                                    :name      "Peak day"
                                                    :frequency 1
-                                                   :spreadsheet/row 5}))]
+                                                   :spreadsheet/row 5}))
 
+        bad-default-profile
+        (-> default-sheet
+            (assoc-in [:supply-parameters :rows] (vec (get-in default-sheet [:supply-parameters :rows])))
+            (assoc-in [:supply-parameters :rows 6 :value] "non-existent profile"))]
+
+    (is (= (:import/errors default-sheet) nil))
     (has-error (:import/errors (schema/validate-spreadsheet bad-rows-per-day))
                [:supply-day-types :header :name]
                "day type 'Normal weekday' has 23 divisions, but had 24 entries in sheet 'supply profiles'")
@@ -160,7 +174,7 @@
 
     (has-error (:import/errors (schema/validate-spreadsheet bad-fuel-name))
                [:supply-plant :header :fuel]
-               "fuel 'bad fuel' referenced, but pricing not defined in sheet 'Supply profiles'")
+               "value 'bad fuel' referenced, but not defined in sheet 'Supply profiles'")
 
     (has-error (:import/errors (schema/validate-spreadsheet bad-substations))
                [:supply-plant :header :substation]
@@ -168,7 +182,7 @@
 
     (has-error (:import/errors (schema/validate-spreadsheet bad-substations))
                [:supply-profiles :header :substation]
-               "substation 'A substation' referenced, but not defined in sheet 'Supply substations'")
+               "value 'A substation' referenced, but not defined in sheet 'Supply substations'")
 
     (has-error (:import/errors (schema/validate-spreadsheet duplicate-substation))
                [:supply-substations :header :name]
@@ -176,4 +190,8 @@
 
     (has-error (:import/errors (schema/validate-spreadsheet duplicate-day-type))
                [:supply-day-types :header :name]
-               "duplicate identifier: 'Peak day'")))
+               "duplicate identifier: 'Peak day'")
+
+    (has-error (:import/errors (schema/validate-spreadsheet bad-default-profile))
+               [:supply-parameters :header :default-profile]
+               "value 'non-existent profile' referenced, but not defined in sheet 'Supply profiles'")))

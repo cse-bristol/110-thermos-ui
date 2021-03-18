@@ -99,18 +99,19 @@
            days*divisions))
         ss)
 
-        (sheet/add-tab
-         ss
-         "Supply Objective"
-         (into
-          [{:name "Accounting Period (years)" :key :accounting-period}
-           {:name "Discount Rate" :key :discount-rate}
-           {:name "Curtailment Cost (¤/kWh)" :key :curtailment-cost}
-           {:name "Can Dump Heat" :key :can-dump-heat}
-           {:name "MIP Gap" :key :mip-gap}
-           {:name "Time Limit (hours)" :key :time-limit}])
-         [(::supply/objective doc)])
-      )))
+      (sheet/add-tab
+       ss
+       "Supply parameters"
+       [{:name "Parameter" :key first}
+        {:name "Value" :key second}]
+
+       `[~["Accounting Period (years)" (get-in doc [::supply/objective :accounting-period])]
+         ~["Discount Rate" (get-in doc [::supply/objective :discount-rate])]
+         ~["Curtailment Cost (¤/kWh)" (get-in doc [::supply/objective :curtailment-cost])]
+         ~["Can Dump Heat" (get-in doc [::supply/objective :can-dump-heat])]
+         ~["MIP Gap" (get-in doc [::supply/objective :mip-gap])]
+         ~["Time Limit (hours)" (get-in doc [::supply/objective :time-limit])]
+         ~["Default profile" (get-in doc [::supply/heat-profiles (::supply/default-profile doc) :name])]]))))
 
 (defn output-technologies [ss doc]
   (let [fuels             (::supply/fuels doc)
@@ -269,6 +270,15 @@
          (S/transform [S/MAP-VALS] (fn [e] (group-by :day-type e)))
          (S/transform [S/MAP-VALS S/MAP-VALS S/ALL] :val))))
 
+(defn- read-heat-profiles [profiles profile-names]
+  (let [profiles (->> profiles
+                      (filter (fn [[k _]] (string/starts-with? (name k) "profile-")))
+                      (into {}))]
+    (-> (for [[profile-name profile] profiles]
+          {:name (sheet/without-profile-prefix (profile-name profile-names))
+           :demand profile})
+        (sheet/index))))
+
 (defn input-from-spreadsheet
   "Inverse function - takes a spreadsheet, as loaded by `common/read-to-tables`.
 
@@ -277,7 +287,13 @@
   (let [{:keys [supply-plant
                 supply-profiles
                 supply-storage
-                supply-objective]} spreadsheet
+                supply-parameters]} spreadsheet
+
+        parameters
+        (reduce
+         (fn [a {:keys [parameter value]}]
+           (assoc a (sheet/to-keyword parameter) value))
+         {} (:rows supply-parameters))
 
         profile-names (dissoc (:header supply-profiles) :day-type :interval)
         profiles (read-profiles spreadsheet)
@@ -286,7 +302,9 @@
         substation-ids (id-lookup substations)
 
         fuels (read-fuels profiles profile-names)
-        fuel-ids (id-lookup fuels)]
+        fuel-ids (id-lookup fuels)
+        
+        heat-profiles (read-heat-profiles profiles profile-names)]
     (merge
      {::supply/plants
       (-> (for [{:keys [fixed-capex capex-per-kwp capex-per-kwh
@@ -332,13 +350,7 @@
           (sheet/index))
 
       ::supply/heat-profiles
-      (let [profiles (->> profiles
-                          (filter (fn [[k _]] (string/starts-with? (name k) "profile-")))
-                          (into {}))]
-        (-> (for [[profile-name profile] profiles]
-              {:name (sheet/without-profile-prefix (profile-name profile-names))
-               :demand profile})
-            (sheet/index)))
+      heat-profiles
 
       ::supply/grid-offer
       (:grid-offer profiles)
@@ -350,7 +362,16 @@
       substations
 
       ::supply/objective
-      (dissoc (first (:rows supply-objective)) :spreadsheet/row)})))
+      (select-keys parameters [:accounting-period
+                               :discount-rate
+                               :curtailment-cost
+                               :can-dump-heat
+                               :mip-gap
+                               :time-limit])
+      
+      ::supply/default-profile
+      (let [default-name (:default-profile parameters)]
+        (get (id-lookup heat-profiles) default-name))})))
 
 (defn output-problem [ss doc]
   (-> ss

@@ -331,7 +331,7 @@
   (show-errors
    (->> row-errors
         (map #(apply (partial dissoc %) cols-to-exclude))
-        (zipmap (iterate inc 1))
+        (zipmap (iterate inc 2))
         (remove (fn [[_ v]] (empty? v)))
         (map (fn [[k v]] [(str "Row " k) v]))
         (into {}))))
