@@ -53,13 +53,15 @@
    :emissions [::document/emissions-cost ::document/emissions-limit]
    :pumping [::document/pumping-overhead ::document/pumping-emissions
              ::document/pumping-cost-per-kwh]
-   ;; ::supply/supply-profiles excluded from this list as it is handled separately:
+   ;; ::supply/heat-profiles excluded from this list as it is handled separately:
    :supply [::supply/day-types
             ::supply/plants
             ::supply/storages
             ::supply/substations
             ::supply/fuels
-            ::supply/objective]
+            ::supply/objective
+            ::supply/grid-offer
+            ::supply/default-profile]
    }
   )
 
@@ -284,11 +286,9 @@
     (merge-pipe-costs opts from to)
 
     :supply
-    (let [to
-          (->>
-           (category-keys category)
-           (select-keys from)
-           (merge to))]
+    (let [to (->> (category-keys category)
+                  (select-keys from)
+                  (merge to))]
       (merge-table
        opts from to ::supply/heat-profiles :name
        supply/remove-profile))

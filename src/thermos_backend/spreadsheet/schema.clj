@@ -8,7 +8,7 @@
             [com.rpl.specter :as S]
             [thermos-backend.spreadsheet.common :as sheet]))
 
-(def required-parameters 
+(def required-parameters
   #{:medium
     :flow-temperature
     :return-temperature
@@ -26,7 +26,7 @@
     :max-runtime
     :max-supplies})
 
-(def required-supply-parameters 
+(def required-supply-parameters
   #{:accounting-period
     :discount-rate
     :curtailment-cost
@@ -108,9 +108,9 @@
   "Check the spreadsheet for referential integrity.
    
    Returns a function that returns an error message if any values in 
-   `ref-field` are not also present in `source-field`. 
+   `ref-path` are not also present in `source-path`, except nil.
    
-   Values may be present in `source-field` that are not in `ref-field`."
+   Values may be present in `source-path` that are not in `ref-path`.`"
   [source-path ref-path]
   (fn [{ss :value} _]
     (let [source-sheet (keyword->string (get source-path 0))
@@ -139,7 +139,7 @@
     [:supply-profiles :header S/MAP-VALS (S/regex-nav #"^Substation: (.+)$") (S/nthpath 1)]) a1 a2))
 
 (defn- fuel-names-match?
-  "Return a function that returns error message if the names of fuel profile columns do not match 
+  "Return an error message if the names of fuel profile columns do not match 
    the fuels referenced in supply-plant.
    
    Allows the CO₂, NOₓ and PM₂₅ columns to be missing."
@@ -149,10 +149,8 @@
     [:supply-plant :rows S/ALL :fuel]) a1 a2))
 
 (defn- default-heat-profile-matches?
-  "Return a function that returns error message if the default heat profile does
-   not match any of the heat profile columns in supply-profiles
-   
-   Allows the CO₂, NOₓ and PM₂₅ columns to be missing."
+  "Return an error message if the default heat profile does
+   not match any of the heat profile columns in supply-profiles."
   [a1 a2]
   ((references?
     [:supply-profiles :header S/MAP-VALS (S/regex-nav #"^Profile: (.+)$") (S/nthpath 1)]
@@ -247,8 +245,8 @@
                                    "Pipework"]]
                            [:annualize boolean?]
                            [:recur boolean?]
-                           [:period {:optional true} number?]
-                           [:rate {:optional true} double?]]]]]]
+                           [:period {:optional true} [:or number? nil?]]
+                           [:rate {:optional true} [:or double? nil?]]]]]]]
 
     [:individual-systems
      [:map
