@@ -60,6 +60,7 @@
 
 (deftest basic-round-trip
   (let [round-tripped (-> initial-doc write-to-ss read-to-doc)]
+    (is (= nil (:import/errors round-tripped)))
     (is (=? (::supply/plants round-tripped) (::supply/plants initial-doc) :exclude-keys #{:fuel}))
     (is (=? (::supply/day-types round-tripped) (::supply/day-types initial-doc)))
     (is (=? (::supply/storages round-tripped) (::supply/storages initial-doc)))
