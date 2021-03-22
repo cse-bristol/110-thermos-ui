@@ -27,12 +27,12 @@ The :priority-queue-weight config value determines queue position. Lower numbers
 
 * Maximum jobs per week
 
-- basic user, basic project: limit jobs per week on that project. Jobs run also count towards the per-user job limit.
-- basic user, unlimited project: unlimited jobs per week on that project (in theory). However, jobs run still count towards the per-user job limit and they will not be able to run more than their per-user limit, even on unlimited projects. Other basic users could still run jobs on this unlimited project, though.
-- unlimited user, basic project: unlimited jobs per week on that project. However, basic users will not be able to run jobs on that project beyond the per-project limit (which the unlimited user could fill up for that project).
-- unlimited user, unlimited project: no limits.
+Maximum jobs per week is defined by 2 limits: per-user and per-project. Users cannot exceed either.
 
-This effectively reduces to the the user auth level.
+- basic user, basic project: limit jobs per week on that project. Jobs run also count towards the per-user job limit.
+- basic user, unlimited project: basic users will not be able to run more than their per-user limit, even on unlimited projects. Other basic users could still run jobs on this unlimited project, though.
+- unlimited user, basic project: The unlimited user will not be able to run more than the per-project limit.
+- unlimited user, unlimited project: no limits.
 
 * Maximum job runtime
 
@@ -41,4 +41,4 @@ This effectively reduces to the the user auth level.
 - unlimited user, basic project: job runtime limited.
 - unlimited user, unlimited project: no limits.
 
-The restriction is based entirely on the project auth level. This makes sense given that it's a setting on a project. But it's different from the other 3 restrictions which are mostly based on the user auth level, which seems a bit strange.
+The restriction is based entirely on the project auth level. This makes sense given that it's a setting on a project.

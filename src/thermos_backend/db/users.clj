@@ -21,6 +21,9 @@
 (defn most-permissive [auth1 auth2]
   (if (> (user-auth-comparator auth1 auth2) 0) auth1 auth2))
 
+(defn least-permissive [auth1 auth2]
+  (if (> (user-auth-comparator auth1 auth2) 0) auth1 auth2))
+
 (def user-auth-types 
   (sorted-set-by user-auth-comparator :admin :unlimited :intermediate :basic))
 

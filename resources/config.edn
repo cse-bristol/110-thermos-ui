@@ -29,9 +29,9 @@
  :lidar-directory "lidar"
  :error-dumps "error-dumps"
 
- :max-restricted-project-runtime {:basic 1.0}
- :max-restricted-jobs-per-week {:basic 7 :intermediate 14}
- :max-restricted-gis-features {:basic 1000000 :intermediate 1000000}
+ :max-project-runtime {:basic 1.0}
+ :max-jobs-per-week {:basic 7 :intermediate 14}
+ :max-gis-features {:basic 1000000 :intermediate 1000000}
  :priority-queue-weight {:basic 1}
  :default-user-auth :basic
  :contact-email "todo@cse.org.uk"

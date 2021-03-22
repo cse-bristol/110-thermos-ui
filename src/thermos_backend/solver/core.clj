@@ -32,16 +32,16 @@
   "Restrict the maximum runtime for problems that are part of restricted projects."
   [document map-id]
   (let [auth (projects/most-permissive-map-user-auth map-id)
-        max-restricted-project-runtime (auth (config :max-restricted-project-runtime))]
-    (if max-restricted-project-runtime
+        max-project-runtime (auth (config :max-project-runtime))]
+    (if max-project-runtime
 
       (let [max-runtime
             (min (::document/maximum-runtime document)
-                 max-restricted-project-runtime)
+                 max-project-runtime)
 
             max-supply-runtime
             (min (get-in [::supply/objective :time-limit] document)
-                 max-restricted-project-runtime)]
+                 max-project-runtime)]
 
         (-> document
             (assoc ::document/maximum-runtime max-runtime)

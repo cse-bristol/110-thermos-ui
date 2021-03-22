@@ -14,7 +14,7 @@
                    initial-mode
                    map-bounds
                    read-only
-                   auth]
+                   restriction-info]
   (str
    (html
     [:head
@@ -24,8 +24,7 @@
        :map-bounds map-bounds
        :mode initial-mode
        :read-only read-only
-       :max-restricted-project-runtime (auth (config :max-restricted-project-runtime))
-       :max-restricted-jobs-per-week (auth (config :max-restricted-jobs-per-week))})
+       :restriction-info restriction-info})
      [:title (str "THERMOS - " (or name "New network"))]
      [:meta {:charset "UTF-8"}]
      [:meta {:name :viewport :content "width=device-width, initial-scale=1"}]

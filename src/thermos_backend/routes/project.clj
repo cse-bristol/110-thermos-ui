@@ -234,7 +234,7 @@
       (response/response)
       (response/content-type "image/png")))
 
-(defn- new-network-page [{{:keys [mode map-id]} :params}]
+(defn- new-network-page [{{:keys [mode map-id project-id]} :params}]
   (auth/verify [:read :map map-id]
     (-> (editor/editor-page nil
                             nil
@@ -245,7 +245,7 @@
                             (nil? (projects/get-map-project-auth
                                    map-id
                                    (:id auth/*current-user*)))
-                            (projects/most-permissive-map-user-auth map-id))
+                            (restrictions/get-restriction-info auth/*current-user* project-id))
         (response/response)
         (response/status 200)
         (response/content-type "text/html"))))
@@ -256,8 +256,7 @@
           info   (projects/get-network net-id :include-content true)
           project-auth (projects/get-network-project-auth
                         net-id
-                        (:id auth/*current-user*))
-          auth (projects/most-permissive-project-user-auth project-id)]
+                        (:id auth/*current-user*))]
       (-> (cond
             (accept "application/edn")
             (-> (response/response (:content info))
@@ -271,7 +270,7 @@
                                     nil
                                     nil
                                     (nil? project-auth)
-                                    auth)
+                                    (restrictions/get-restriction-info auth/*current-user* project-id))
                 
                 (response/response)
                 (response/status 200)
