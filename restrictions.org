@@ -1,0 +1,44 @@
+#+TITLE: Restrictions
+#+CATEGORY: THERMOS
+
+Auth types: basic, intermediate, unlimited, admin.
+
+The auth type of a project is the max auth type of all project admins.
+
+* GIS object feature count
+
+- basic user, basic project: as expected.
+- basic user, unlimited project: GIS features still count towards limit.
+- unlimited user, basic project: no limits.
+- unlimited user, unlimited project: no limits.
+
+This is a simple case as the limit is entirely attached to the user.
+
+* Priority job queue
+
+- basic user, basic project: back of queue.
+- basic user, unlimited project: back of queue.
+- unlimited user, basic project: front of queue.
+- unlimited user, unlimited project: front of queue.
+
+This is also a simple case as the limit is based entirely on the user auth level.
+
+The :priority-queue-weight config value determines queue position. Lower numbers are given precedence over higher numbers. Nil is treated as zero.
+
+* Maximum jobs per week
+
+- basic user, basic project: limit jobs per week on that project. Jobs run also count towards the per-user job limit.
+- basic user, unlimited project: unlimited jobs per week on that project (in theory). However, jobs run still count towards the per-user job limit and they will not be able to run more than their per-user limit, even on unlimited projects. Other basic users could still run jobs on this unlimited project, though.
+- unlimited user, basic project: unlimited jobs per week on that project. However, basic users will not be able to run jobs on that project beyond the per-project limit (which the unlimited user could fill up for that project).
+- unlimited user, unlimited project: no limits.
+
+This effectively reduces to the the user auth level.
+
+* Maximum job runtime
+
+- basic user, basic project: job runtime limited
+- basic user, unlimited project: no runtime limit on jobs.
+- unlimited user, basic project: job runtime limited.
+- unlimited user, unlimited project: no limits.
+
+The restriction is based entirely on the project auth level. This makes sense given that it's a setting on a project. But it's different from the other 3 restrictions which are mostly based on the user auth level, which seems a bit strange.

@@ -2,28 +2,39 @@
 
 
 (defn show-user-restrictions [restriction-info & {:keys [as-card]}]
-  (when (:restricted-user? restriction-info)
-    (let [max-restricted-jobs-per-week (:max-restricted-jobs-per-week restriction-info)
-          user-jobs-run-in-week (:user-jobs-run-in-week restriction-info)
-          project-jobs-run-in-week (:project-jobs-run-in-week restriction-info)
-          num-gis-features (:num-gis-features restriction-info)
-          max-restricted-gis-features (:max-restricted-gis-features restriction-info)
-          max-restricted-project-runtime (:max-restricted-project-runtime restriction-info)
-          contact-email (:contact-email restriction-info)]
+  (when (:has-restrictions? restriction-info)
+    (let [{:keys [user-auth
+                  project-auth
+                  user-jobs-run-in-week
+                  project-jobs-run-in-week
+                  num-gis-features
+                  max-restricted-jobs-per-week
+                  max-restricted-gis-features
+                  max-restricted-project-runtime
+                  priority-queue-weight
+                  contact-email]} restriction-info]
       [:div {:class (when as-card :card)}
-       [:p "You currently have a trial user account:"]
+       [:p "Your user account level: " [:b (name user-auth)]]
+       (when (not= user-auth project-auth)
+         [:p "Project level: " [:b (name project-auth)]])
+
        [:ul
-        [:li "Your optimisations will only be run once there are no non-restricted projects waiting to run."]
-        [:li "You cannot load more than " max-restricted-gis-features " buildings or roads across all the projects you are part of. "
-         [:b num-gis-features "/" max-restricted-gis-features] " buildings and roads loaded."]
+        (when priority-queue-weight
+          [:li "Your optimisations will only be run once there are no non-restricted projects waiting to run."])
 
-        [:li "You cannot run more than " max-restricted-jobs-per-week " optimisations across all projects per 7-day period. "
-         [:b user-jobs-run-in-week "/" max-restricted-jobs-per-week] " optimisations run so far."]
+        (when max-restricted-gis-features
+          [:li "You cannot load more than " [:b max-restricted-gis-features] " buildings or roads across all the projects you are part of. "
+           [:b num-gis-features "/" max-restricted-gis-features] " buildings and roads loaded."])
 
-        (when project-jobs-run-in-week
-          [:li "No-one can run more than " max-restricted-jobs-per-week " optimisations on this project per 7-day period. "
+        (when max-restricted-jobs-per-week
+          [:li "You cannot run more than " [:b max-restricted-jobs-per-week] " optimisations across all projects per 7-day period. "
+           [:b user-jobs-run-in-week "/" max-restricted-jobs-per-week] " optimisations run so far."])
+
+        (when (and (some? project-jobs-run-in-week) max-restricted-jobs-per-week)
+          [:li "No-one can run more than " [:b max-restricted-jobs-per-week] " optimisations on this project per 7-day period. "
            [:b project-jobs-run-in-week "/" max-restricted-jobs-per-week] " optimisations run so far."])
 
-        [:li "Optimisations will automatically finish after " max-restricted-project-runtime " hours."]]
-       [:p "If you think you should not have a trial account, or if you would like to upgrade your account, "
-           "please contact " [:a {:href (str "mailto:" contact-email)} contact-email] "."]])))
+        (when max-restricted-project-runtime
+          [:li "Optimisations will automatically finish after " [:b max-restricted-project-runtime] " hour(s)."])]
+       [:p "If you think you should have a different user account level, or if you would like to upgrade your account, "
+        "please contact " [:a {:href (str "mailto:" contact-email)} contact-email] "."]])))

@@ -9,7 +9,20 @@
             [honeysql.core :as sql]
             [thermos-backend.email :as email]))
 
-(def user-auth-types (sorted-set :admin :normal :restricted))
+(def user-auth-ordering
+  {:basic 0
+   :intermediate 1
+   :unlimited 2
+   :admin 3})
+
+(defn user-auth-comparator [x y]
+  (- (x user-auth-ordering) (y user-auth-ordering)))
+
+(defn most-permissive [auth1 auth2]
+  (if (> (user-auth-comparator auth1 auth2) 0) auth1 auth2))
+
+(def user-auth-types 
+  (sorted-set-by user-auth-comparator :admin :unlimited :intermediate :basic))
 
 (defn as-project-auth [a]
   {:pre [(#{:admin :read :write} a)]}
@@ -145,7 +158,7 @@
                               :name name
                               :reset-token (and (not password) token)
                               :password (and password (hash/derive password))
-                              :auth (as-user-auth (or (config :default-user-auth) :normal))}])
+                              :auth (as-user-auth (or (config :default-user-auth) :unlimited))}])
                   (db/execute! conn))
               token)))))))
 

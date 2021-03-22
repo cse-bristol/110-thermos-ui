@@ -373,32 +373,32 @@
            (:auth)
            (keyword))))
 
-(defn is-restricted-project? [project-id]
+(defn most-permissive-project-user-auth [project-id]
   {:pre [(int? project-id)]}
-  (-> (h/select [(sql/call := :%count.* 0) :restricted])
+  (-> (h/select [(sql/call :max :users.auth) :auth])
       (h/from :projects)
       (h/join :users-projects [:= :projects.id :users-projects.project-id]
               :users [:= :users.id :users-projects.user-id])
       (h/where [:and
                 [:= project-id :projects.id]
-                [:= :users-projects.auth (sql/call :project_auth "admin")]
-                [:!= :users.auth (sql/call :user_auth "restricted")]])
+                [:= :users-projects.auth (sql/call :project_auth "admin")]])
       (db/fetch-one!)
-      (:restricted)))
+      (:auth)
+      (keyword)))
 
-(defn is-restricted-map? [map-id]
+(defn most-permissive-map-user-auth [map-id]
   {:pre [(int? map-id)]}
-  (-> (h/select [(sql/call := :%count.* 0) :restricted])
+  (-> (h/select [(sql/call :max :users.auth) :auth])
       (h/from :maps)
       (h/join :projects [:= :maps.project-id :projects.id]
               :users-projects [:= :projects.id :users-projects.project-id]
               :users [:= :users.id :users-projects.user-id])
       (h/where [:and
                 [:= map-id :maps.id]
-                [:= :users-projects.auth (sql/call :project_auth "admin")]
-                [:!= :users.auth (sql/call :user_auth "restricted")]])
+                [:= :users-projects.auth (sql/call :project_auth "admin")]])
       (db/fetch-one!)
-      (:restricted)))
+      (:auth)
+      (keyword)))
 
 (defn jobs-since [project-id days]
   {:pre [(int? project-id) (int? days)]}

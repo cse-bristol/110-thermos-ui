@@ -53,6 +53,10 @@
           (for [[queue-name {capacity :capacity}] consumers]
             [queue-name (max 0 (- capacity (count (running-jobs queue-name))))]))))
 
+(defn- queue-priority [auth]
+  (let [weight (auth (config :priority-queue-weight))]
+    (if (nil? weight) 0 weight)))
+
 (defn get-queue-query [queue-name n]
   (case queue-name
     :problems 
@@ -68,7 +72,10 @@
                    [:= :queue-name (name queue-name)]])
            (lock :mode :skip-locked)
            (order-by [(sql/call :case
-                                [:= :users.auth (sql/call :user_auth "restricted")] 1
+                                [:= :users.auth (sql/call :user_auth (name :basic))] (queue-priority :basic)
+                                [:= :users.auth (sql/call :user_auth (name :intermediate))] (queue-priority :intermediate)
+                                [:= :users.auth (sql/call :user_auth (name :unlimited))] (queue-priority :unlimited)
+                                [:= :users.auth (sql/call :user_auth (name :admin))] (queue-priority :admin)
                                 :else 0) :asc]
                      [:jobs.queued :desc])
            (limit n))

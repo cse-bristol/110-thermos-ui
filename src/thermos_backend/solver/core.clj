@@ -28,13 +28,13 @@
                                :solve problem-type})]
     (projects/associate-job! network-id job-id)))
 
-(defn- with-restricted-runtime 
-  "Restrict the maximum runtime for problems that are part of restricted
-   projects."
+(defn- with-restricted-runtime
+  "Restrict the maximum runtime for problems that are part of restricted projects."
   [document map-id]
-  (let [max-restricted-project-runtime (config :max-restricted-project-runtime)]
-    (if (projects/is-restricted-map? map-id)
-      
+  (let [auth (projects/most-permissive-map-user-auth map-id)
+        max-restricted-project-runtime (auth (config :max-restricted-project-runtime))]
+    (if max-restricted-project-runtime
+
       (let [max-runtime
             (min (::document/maximum-runtime document)
                  max-restricted-project-runtime)

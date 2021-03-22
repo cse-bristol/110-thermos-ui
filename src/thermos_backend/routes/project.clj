@@ -245,7 +245,7 @@
                             (nil? (projects/get-map-project-auth
                                    map-id
                                    (:id auth/*current-user*)))
-                            (projects/is-restricted-map? map-id))
+                            (projects/most-permissive-map-user-auth map-id))
         (response/response)
         (response/status 200)
         (response/content-type "text/html"))))
@@ -257,7 +257,7 @@
           project-auth (projects/get-network-project-auth
                         net-id
                         (:id auth/*current-user*))
-          restricted (projects/is-restricted-project? project-id)]
+          auth (projects/most-permissive-project-user-auth project-id)]
       (-> (cond
             (accept "application/edn")
             (-> (response/response (:content info))
@@ -271,7 +271,7 @@
                                     nil
                                     nil
                                     (nil? project-auth)
-                                    restricted)
+                                    auth)
                 
                 (response/response)
                 (response/status 200)

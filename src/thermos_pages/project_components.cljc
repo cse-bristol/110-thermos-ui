@@ -524,7 +524,7 @@
            ])
         
         (when user-auth
-          (if (and (:restricted? restriction-info)
+          (if (and (:max-restricted-gis-features restriction-info)
                    (> (:num-gis-features restriction-info) (:max-restricted-gis-features restriction-info)))
             [:button.button.button--disabled {:disabled true} "MAP " symbols/plus]
             [:a.button {:href "map/new"} "MAP " symbols/plus]))
