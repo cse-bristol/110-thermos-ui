@@ -30,8 +30,6 @@
   ([user project-id]
    {:pre [(int? project-id)]}
    (let [project-auth (projects/most-permissive-project-user-auth project-id)
-         user-auth (:auth user)
-         auth (users/most-permissive user-auth project-auth)
          max-project-runtime (project-auth (config :max-project-runtime))
          project-max-jobs-per-week (project-auth (config :max-jobs-per-week))]
      (merge
@@ -39,8 +37,7 @@
       {:project-jobs-run-in-week (projects/jobs-since project-id 7)
        :max-project-runtime max-project-runtime
        :project-max-jobs-per-week project-max-jobs-per-week
-       :project-auth project-auth
-       :auth auth}))))
+       :project-auth project-auth}))))
 
 (defn exceeded-gis-feature-count? [user]
   (let [auth (:auth user)
