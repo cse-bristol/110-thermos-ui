@@ -83,31 +83,34 @@
            [:p
             "The impact of non-network factors (individual systems, insulation, and emissions costs) can be accounted for using the " [:em "market"] " tariff, which chooses a price to beat the best non-network system."]]]
          
-         [:div
-          [:label {:style {:font-size :1.5em}}
-           [:input {:type :radio
-                    :value "objective-group"
-                    :checked (= :system @objective)
-                    :on-change #(reset! objective :system)
-                    }]
-           "Maximize whole-system NPV"]
-          [:div {:style {:margin-left :2em}}
-           [:p "In this mode, the goal is to choose how to " [:em "supply heat"] " to the buildings in the problem (or abate demand) at the " [:em "minimum overall cost"] ". The internal transfer of money between buildings and network operator is not considered, so there are no network revenues and tariffs have no effect."]
-           
-           [:div {:style {:display :flex}}
-            [:p {:style {:margin-right :1em}}
-             [inputs/check {:value @consider-insulation
-                            :on-change #(reset! consider-insulation %)
-                            :label "Offer insulation measures"}]]
-            [:p {:style {:flex 1}}
-             [inputs/check
-              {:value @consider-alternatives
-               :on-change #(reset! consider-alternatives %)
-               :label [:span.has-tt
-                       {:title "If checked, buildings have a choice of network, individual systems or sticking with their counterfactual system. Otherwise, the choice is just between network and counterfactual."
-                        }
-                       "Offer other heating systems"]}]]]]
-          ]
+         (let [is-system-mode (= :system @objective)]
+           [:div
+            [:label {:style {:font-size :1.5em}}
+             [:input {:type :radio
+                      :value "objective-group"
+                      :checked is-system-mode
+                      :on-change #(reset! objective :system)
+                      }]
+             "Maximize whole-system NPV"]
+            [:div {:style {:margin-left :2em}}
+             [:p "In this mode, the goal is to choose how to " [:em "supply heat"] " to the buildings in the problem (or abate demand) at the " [:em "minimum overall cost"] ". The internal transfer of money between buildings and network operator is not considered, so there are no network revenues and tariffs have no effect."]
+             
+             [:div {:style {:display :flex}}
+              [:p {:style {:margin-right :1em}}
+               [inputs/check {:value @consider-insulation
+                              :disabled (not is-system-mode)
+                              :on-change #(reset! consider-insulation %)
+                              :label "Offer insulation measures"}]]
+              [:p {:style {:flex 1}}
+               [inputs/check
+                {:value @consider-alternatives
+                 :disabled (not is-system-mode)
+                 :on-change #(reset! consider-alternatives %)
+                 :label [:span.has-tt
+                         {:title "If checked, buildings have a choice of network, individual systems or sticking with their counterfactual system. Otherwise, the choice is just between network and counterfactual."
+                          }
+                         "Offer other heating systems"]}]]]]
+            ])
          ]
         ]
        

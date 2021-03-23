@@ -200,11 +200,11 @@
         label])]))
 
 
-(defn check [{key :key label :label value :value on-change :on-change}]
+(defn check [{key :key label :label value :value on-change :on-change
+              disabled :disabled :or {disabled false}}]
   (let [chk (atom nil)
         paint
         (fn [value]
-
           (set! (.-checked @chk)
                 (and value (not= :indeterminate value)))
           (set! (.-indeterminate @chk)
@@ -212,9 +212,12 @@
         ]
     (reagent/create-class
      {:reagent-render
-      (fn [{key :key label :label value :value on-change :on-change}]
+      (fn [{key :key label :label value :value on-change :on-change
+            disabled :disabled :or {disabled false}}]
+        
         [:label {:key key}
          [:input.input {:type :checkbox
+                        :disabled disabled
                         :ref #(reset! chk %)
                         :on-change #(on-change (.. % -target -checked))}
           ] label]

@@ -69,11 +69,18 @@
      *market-rate      (reagent/cursor doc [::tariff/market-discount-rate])
      *market-term      (reagent/cursor doc [::tariff/market-term])
      *market-stick     (reagent/cursor doc [::tariff/market-stickiness])
+     *objective        (reagent/cursor doc [::document/objective])
      ]
     [:div
      [:div.card
       [:h2.card-header "Tariffs"]
-      [:p "Each building can have an associated tariff, which determines the revenue to the network operator."]
+      [:p "Each building can have an associated tariff, which determines the revenue to the network operator. "]
+
+      (when (= :system @*objective)
+        [:p [:b "Note: " ]
+         "these settings will have no effect while the objective is whole-system NPV. "
+         "Change to network NPV to make network revenue part of the objective."])
+      
       (when-not (seq @*tariffs)
         [:p "At the moment you have no tariffs, so connections will produce no revenue or cost. Click 'add' to define a tariff."])
 
