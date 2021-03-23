@@ -1,4 +1,23 @@
-[{:title "Feb 26th 2021"
+[{:title "Next Release"
+  :changes
+  [{:title "UI bug fixes"
+    :summary
+    [:ul
+     [:li "The selection info panel would incorrectly display a building's peak demand for its insulated demand, if it had not been included in a solution."]
+     [:li "Manually edited buildings or paths whose constraint status is forbidden were incorrectly reset to their original state when they were not visible on the map for a period of time. User edits are now remembered even when you can't see the edited candidate."]
+     [:li "Connection costs have been moved into the pipe costs page, for consistency."]
+     [:li "The checkboxes controlling insulation & individual systems are disabled when not in whole-system mode."]
+     ]}
+
+   {:title "Supply model bug fixes"
+    :summary
+    [:ul
+     [:li "The supply model incorrectly took the grid offer price as a cost rather than revenue, making a CHP worse value than an otherwise equivalent boiler, rather than better value as it should be."]
+     [:li [:p "The supply model's interface to the network model only considered the first supply location in networks with multiple supplies, so the supply model would be solving for only part of the system peak / annual demand."]
+      [:p "Now, if there are multiple supplies their peak and annual demands are summed for the supply model, which still solves them as a single system. "
+       "This is still a simplification, but hopefully a better one."]]]}]}
+ 
+ {:title "Feb 26th 2021"
   :changes
   [{:title "Features: upload your own lidar, auto HDD, hot water tank."
     :summary
