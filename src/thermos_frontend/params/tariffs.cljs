@@ -13,43 +13,7 @@
 (def standing-charge-unit "¤/yr")
 (def capacity-charge-unit "¤/kWp.yr")
 (def unit-rate-unit "c/kWh")
-(def conn-fixed-unit "¤")
-(def conn-var-unit "¤/kWp")
 
-(defn- connection-cost-row
-  [{id :key} *document *connection-costs]
-  (let [get #(get-in @*connection-costs [id %])
-        put #(swap! *connection-costs assoc-in [id %1] %2)
-        delete-connection-cost #(swap! *document document/remove-connection-cost id)]
-    [:tr {:key id}
-     [:td [inputs/text
-           { :placeholder (str "Connection cost " id)
-            :value (get ::tariff/name)
-            :on-change #(put ::tariff/name (target-value %))}]]
-     [:td [:label
-           [inputs/number
-            {:title "The fixed part of the capital cost of connecting a building."
-             :max 1000
-             :min 0
-             :value (get ::tariff/fixed-connection-cost)
-             :on-change #(put ::tariff/fixed-connection-cost %)
-             }]
-           " " conn-fixed-unit]]
-     [:td [:label
-           [inputs/number
-            {:title "The variable part of the capital cost of connecting a building."
-             :max 100
-             :min 0
-             :step 0.1
-             :value (get ::tariff/variable-connection-cost)
-             :on-change #(put ::tariff/variable-connection-cost %)
-             }]
-           " " conn-var-unit]]
-
-     [:td {:style {:width :1px}}
-      [:button.button {:on-click delete-connection-cost}
-       symbols/dustbin]]
-     ]))
 
 (defn- tariff-row
   [{id :key} *document *tariffs]
@@ -101,7 +65,7 @@
   [doc]
   (reagent/with-let
     [*tariffs          (reagent/cursor doc [::document/tariffs])
-     *connection-costs (reagent/cursor doc [::document/connection-costs])
+     
      *market-rate      (reagent/cursor doc [::tariff/market-discount-rate])
      *market-term      (reagent/cursor doc [::tariff/market-term])
      *market-stick     (reagent/cursor doc [::tariff/market-stickiness])
@@ -141,9 +105,6 @@
                                  ::tariff/standing-charge 0
                                  ::tariff/capacity-charge 0
                                  ::tariff/unit-charge 0
-
-                                 ::tariff/fixed-connection-cost 0
-                                 ::tariff/variable-connection-cost 0
                                  }))))}
         symbols/plus " Add tariff"]]
 
@@ -196,39 +157,4 @@
 
 
 
-
-     [:div.card
-      [:h2.card-header "Connection Costs"]
-      [:p "Each building also has associated connection costs, which determine the capital costs of connecting the building to the network. These costs are borne by the network operator."]
-
-      (when (seq @*connection-costs)
-        [:table.table {:style {:max-width :700px}}
-         [:thead
-          [:tr
-           [:th "Connection cost name"]
-           [:th "Fixed cost"]
-           [:th "Capacity cost"]
-           [:th]]]
-         [:tbody
-          (doall
-            (for [id (sort (keys @*connection-costs))]
-              [connection-cost-row {:key id} doc *connection-costs]))]])
-
-      [:div.centre {:style {:max-width :700px}}
-       [:button.button
-        {:style {:margin-top :1em}
-         :on-click #(swap! *connection-costs
-                           (fn [t]
-                             (let [id (inc (reduce max -1 (keys t)))]
-                               (assoc
-                                t
-                                id
-                                {::tariff/name ""
-                                 ::tariff/cc-id id
-                                 ::tariff/fixed-connection-cost 0
-                                 ::tariff/variable-connection-cost 0
-                                 }))))}
-        symbols/plus " Add connection cost"]]
-
-      ]
      ]))

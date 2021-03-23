@@ -183,7 +183,7 @@
             [switcher :parameters "Objective"]
             
             [switcher :tariffs "Tariffs"]
-            [switcher :pipe-costs "Pipe costs"]
+            [switcher :pipe-costs "Pipe & connection costs"]
             [switcher :insulation "Insulation"]
             [switcher :alternatives "Individual systems"]
             ]]
