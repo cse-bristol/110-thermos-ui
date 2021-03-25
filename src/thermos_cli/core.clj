@@ -147,7 +147,20 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
     "A file containing alternative technologies"
     :assoc-fn conj-arg]
    [nil "--supply FILE*"
-    "A file containing supply parameters for supply point"]
+    "A file containing supply parameters for supply point. See also --supply-capex etc"]
+
+   [nil "--supply-capex C"
+    "Instead of using --supply; add a supply with this fixed cost"
+    :parse-fn #(Double/parseDouble %)]
+   [nil "--supply-capex-per-kwp C" "Supply cost per kW"
+    :parse-fn #(Double/parseDouble %)]
+   [nil "--supply-capacity-kw C" "Supply max capacity in kW"
+    :parse-fn #(Double/parseDouble %)]
+   [nil "--supply-cents-per-kwh C" "Supply heat cost per cent/penny"
+    :parse-fn #(Double/parseDouble %)]
+   [nil "--supply-opex-per-kwp C" "Supply opex per kW per annum"
+    :parse-fn #(Double/parseDouble %)]
+   
    [nil "--pipe-costs FILE"
     "A file containing pipe cost parameters. Complex structure for this means not mergeable."]
    [nil "--tariffs FILE*"
@@ -851,6 +864,26 @@ The different options are those supplied after --retry, so mostly you can use th
 (defn- generate-ids [things id]
   (map-indexed (fn [i t] (assoc t id i)) things))
 
+(defn- construct-supply-from-args
+  "Deal with --supply-X arguments"
+  [options]
+  (cond-> options
+    (:supply-capex options)
+    (assoc-in [:supply ::supply/fixed-cost]
+              (:supply-capex options))
+    (:supply-capex-per-kwp options)
+    (assoc-in [:supply ::supply/capex-per-kwp]
+              (:supply-capex-per-kwp options))
+    (:supply-capacity-kw options)
+    (assoc-in [:supply ::supply/capacity-kwp]
+              (:supply-capacity-kw options))
+    (:supply-cents-per-kwh options)
+    (assoc-in [:supply ::supply/cost-per-kwh]
+              (/ (:supply-cents-per-kwh options) 100.0))
+    (:supply-opex-per-kwp options)
+    (assoc-in [:supply ::supply/opex-per-kwp]
+              (:supply-opex-per-kwp options))))
+
 (defn- finalize-options [options]
   (-> options
       (update :insulation   concat-edn)
@@ -861,7 +894,9 @@ The different options are those supplied after --retry, so mostly you can use th
       
       (update :insulation   generate-ids ::measure/id)
       (update :alternatives generate-ids ::supply/id)
-      (update :tariffs      generate-ids ::tariff/id)))
+      (update :tariffs      generate-ids ::tariff/id)
+
+      (construct-supply-from-args)))
 
 (defn -main [& args]
   (let [retries (loop [out []
