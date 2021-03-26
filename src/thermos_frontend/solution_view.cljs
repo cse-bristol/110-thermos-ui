@@ -7,6 +7,7 @@
             [thermos-specs.document :as document]
             [thermos-specs.candidate :as candidate]
             [thermos-frontend.inputs :as inputs]
+            [thermos-util.finance :as finance]
             [reagent.core :as reagent]
             [clojure.string :as s]
             [thermos-frontend.format :as format]
@@ -90,127 +91,182 @@
    [:tr {:style {:font-size :small}}
     (map-indexed (fn [i [_ l]] [:th {:key i :class (when (> i 0) "numeric")} l]) stuff)]])
 
+(defn- num-td [v] [:td.numeric (if v (format/si-number v) "--")])
 
-(defn- summary-card [{opex-mode :opex-mode
-                      capex-mode :capex-mode
-                      opex-label :opex-label
-                      capex-label :capex-label
+(defn- summary-card [{opex-mode        :opex-mode
+                      capex-mode       :capex-mode
+                      opex-label       :opex-label
+                      capex-label      :capex-label
                       solution-members :solution-members
-                      paths :paths
-                      buildings :buildings
-                      supplies :supplies
-                      alts :alternatives
-                      by-alt :by-alternative
-                      demands :demands
-                      insulated :insulated
-                      by-insulation :by-insulation}]
-  [:section
-   [:table.table.table--hover {:style {:max-width :900px}}
-    [:thead
-     [:tr
-      [:th "Item"]
-      [:th.numeric "Capital cost (" capex-label ")"]
-      [:th.numeric "Operating cost (" opex-label ")"]
-      [:th.numeric "Operating revenue (" opex-label ")"]
-      [:th.numeric "NPV (¤)" ]]]
+                      paths            :paths
+                      buildings        :buildings
+                      supplies         :supplies
+                      alts             :alternatives
+                      by-alt           :by-alternative
+                      demands          :demands
+                      insulated        :insulated
+                      by-insulation    :by-insulation}
+                     parameters
+                     ]
+  (let [{model-mode ::document/mode
+         npv-term   ::document/npv-term
+         npv-rate   ::document/npv-rate}
+        @parameters]
+    [:section
+     [:table.table.table--hover {:style {:max-width :900px}}
+      [:thead
+       [:tr
+        [:th "Item"]
+        [:th.numeric "Capital cost (" capex-label ")"]
+        [:th.numeric "Operating cost (" opex-label ")"]
+        [:th.numeric "Operating revenue (" opex-label ")"]
+        [:th.numeric.has-tt {:title "Equivalized cost - this is the present cost only (no revenues) divided by the (discounted) heat delivered."} "EC (c/kWh)"]
+        [:th.numeric "NPV (¤)" ]]]
 
-    (let [add-up
-          (fn [& {:keys [capex opex revenue]}]
-            (let [tcapex (when capex   (reduce + (map capex-mode capex)))
-                  topex  (when opex    (reduce + (map opex-mode opex)))
-                  trev   (when revenue (reduce + (map opex-mode revenue)))
-                  tpv    (- (reduce + 0 (map :present revenue))
-                            (+ (reduce + 0 (map :present capex))
-                               (reduce + 0 (map :present opex))))]
-              {:capex tcapex :opex topex :revenue trev :present tpv}))
+      (let [sum-cost-outputs
+            (fn [& {:keys [capex opex revenue]}]
+              (let [tcapex (when capex   (reduce + (map capex-mode capex)))
+                    topex  (when opex    (reduce + (map opex-mode opex)))
+                    trev   (when revenue (reduce + (map opex-mode revenue)))
+                    tpc    (+ (reduce + 0 (map :present capex))
+                              (reduce + 0 (map :present opex)))
+                    tpv    (reduce + 0 (map :present revenue))
+                    tnpv   (- tpv tpc)
+                    ]
+                {:capex tcapex :opex topex :revenue trev :present tnpv
+                 :present-cost tpc}))
 
-          rows
-          [["Network"
-            [["Pipework" (add-up :capex (map ::solution/pipe-capex paths))]
+            total-demand
+            (fn [bs]
+              (reduce
+               (fn [a c] (+ a (candidate/solved-annual-demand c model-mode))) 0
+               bs))
+            
+            rows
+            [{:name "Network"
+              :subcategories
+              [{:name "Pipework" :value (sum-cost-outputs :capex (map ::solution/pipe-capex paths))}
 
-             ["Heat supply"
-              (add-up
-               :capex (map ::solution/supply-capex supplies)
-               :opex  (mapcat (juxt ::solution/supply-opex
-                                    ::solution/heat-cost
-                                    ::solution/pumping-cost)
-                              supplies))]
+               {:name "Heat supply" :value
+                (sum-cost-outputs
+                 :capex (map ::solution/supply-capex supplies)
+                 :opex  (mapcat (juxt ::solution/supply-opex
+                                      ::solution/heat-cost
+                                      ::solution/pumping-cost)
+                                supplies))}
 
-             ["Demands"
-              (add-up
-               :capex   (map ::solution/connection-capex demands)
-               :revenue (map ::solution/heat-revenue demands))]
+               {:name "Demands" :value
+                (sum-cost-outputs
+                 :capex   (map ::solution/connection-capex demands)
+                 :revenue (map ::solution/heat-revenue demands))}
 
-             ["Emissions"
-              (add-up
-               :opex (mapcat (juxt (comp vals ::solution/supply-emissions)
-                                   (comp vals ::solution/pumping-emissions)) supplies))
-              ]
-             ]]
+               {:name "Emissions" :value
+                (sum-cost-outputs
+    {:name [:span.has-tt
+                           {:title "Emissions are also included in the individual system rows' operating costs."}
+                           "Emissions"]
+                    :value
+                    (sum-cost-outputs
+                     :opex (mapcat (comp vals :emissions ::solution/alternative) alts))
 
-           ["Individual systems"
-            (doall
-             (conj
-              (vec
-               (for [[alt-name alts] by-alt]
-                 [alt-name
-                  (add-up
-                   :capex (map (comp :capex ::solution/alternative) alts)
-                   :opex (mapcat (comp (juxt :heat-cost :opex) ::solution/alternative) alts))
-                  ]))
-              ["Emissions"
-               (add-up
-                :opex (mapcat (comp vals :emissions ::solution/alternative) alts))]))]
-           
+                    :kwh (total-demand alts)
+                    
+                    }             :opex (mapcat (juxt (comp vals ::solution/supply-emissions)
+                                     (comp vals ::solution/pumping-emissions)) supplies))
+                }
+               ]
 
+              :kwh (total-demand demands)
+              }
 
-           ["Insulation"
-            (doall (for [[ins-name ins] by-insulation]
-                     [ins-name (add-up :capex ins)]))]
-           ]
+             {:name "Individual Systems"
+              :subcategories
+              (-> (for [[alt-name alts] by-alt]
+                    {:name alt-name
+                     :value
+                     (sum-cost-outputs
+                      :capex (map (comp :capex ::solution/alternative) alts)
+                      :opex (mapcat
+                             (fn [b]
+                               (let [a (::solution/alternative b)]
+                                 (-> (vals (:emissions a))
+                                     (conj (:heat-cost a)
+                                           (:opex a)))))
+                             alts))
+                     :kwh  (total-demand alts)
+                     })
+                  (vec)
+                  (conj
+                   {:name [:span.has-tt
+                           {:title "Emissions are also included in the individual system rows' operating costs."}
+                           "Emissions"]
+                    :value
+                    (sum-cost-outputs
+                     :opex (mapcat (comp vals :emissions ::solution/alternative) alts))
+                    }))}
 
-          totalise
-          (fn [items thing]
-            (let [vs (keep thing items)]
-              (when (seq vs)
-                (format/si-number (reduce + vs))))
-            )
+             {:name "Insulation"
+              :subcategories
+              (vec (for [[ins-name ins] by-insulation]
+                     {:name ins-name :value (sum-cost-outputs :capex ins)}))
+              }
+             ]
 
-          ]
-      [:tbody
-       (for [[row-name rows] rows
-             :let [row-vals (map second rows)]]
-         (list
-          (doall
-           (for [[row-name {cap :capex op :opex rev :revenue p :present}] rows]
-             [:tr {:key row-name}
-              [:th row-name]
-              [:td.numeric (if cap (format/si-number cap) "--")]
-              [:td.numeric (if op (format/si-number op) "--")]
-              [:td.numeric (if rev (format/si-number rev) "--")]
-              [:td.numeric (format/si-number p)]]))
-          [:tr.totals-row {:key row-name}
-           [:th row-name]
-           [:td.numeric (or (totalise row-vals :capex) "--")]
-           [:td.numeric (or (totalise row-vals :opex) "--")]
-           [:td.numeric (or (totalise row-vals :revenue) "--")]
-           [:td.numeric (or (totalise row-vals :present) "--")]]))
+            sum-summed-costs ;; for adding up :value terms
+            (fn [a b]
+              (merge-with
+               (fn [a b] (and (or a b) (+ (or a 0) (or b 0))))
+               a b))
 
-       (let [rows (->> rows (mapcat second) (map second))]
-         [:tr.grand-totals-row
-          [:th "Whole system"]
-          [:td.numeric (totalise rows :capex)]
-          [:td.numeric (totalise rows :opex)]
-          [:td.numeric "n/a"]
+            equivalized-cost
+            (fn [thing]
+              (let [kwh (:kwh thing)
+                    pv  (:present-cost (:value thing))]
+                (and (number? kwh) (number? pv)
+                     (* 100
+                        (/ pv (finance/pv npv-rate (repeat npv-term kwh)))))))
+            ]
 
-          [:td.numeric.has-tt
-           {:title "This does not include network revenues"}
-           (format/si-number
-            (- (reduce + 0
-                       (keep :present rows))
-               (reduce + 0
-                       (keep :present (map (comp ::solution/heat-revenue) demands)))))
-           ]])])]])
+        [:tbody
+         (for [{:keys [name subcategories] :as row} rows]
+           [:<>
+            (for [{sub-name                                      :name
+                   {cap :capex op :opex rev :revenue p :present} :value
+                   :as                                           row}
+                  subcategories]
+              [:tr {:key sub-name}
+               [:th sub-name]
+               [num-td cap]
+               [num-td op]
+               [num-td rev]
+               [num-td (equivalized-cost row)]
+               [num-td p]])
+
+            (let [summed-costs (reduce sum-summed-costs (map :value subcategories))
+                  row          (assoc row :value summed-costs)]
+              [:tr.totals-row {:key name}
+               [:th name]
+               [num-td (:capex summed-costs)]
+               [num-td (:opex summed-costs)]
+               [num-td (:revenue summed-costs)]
+               [num-td (equivalized-cost row)]
+               [num-td (:present summed-costs)]])])
+         
+         (let [summed-costs (->> rows (mapcat :subcategories) (map :value)
+                                 (reduce sum-summed-costs))]
+           [:tr.grand-totals-row
+            [:th "Whole system"]
+            [num-td (:capex summed-costs)]
+            [num-td (:opex summed-costs)]
+            [:td.numeric "--"]
+            [:td.numeric "--"]
+            [:td.numeric.has-tt
+             {:title "This does not include network revenues"}
+             (format/si-number
+              (- (:present summed-costs)
+                 (reduce + 0
+                         (keep :present (map (comp ::solution/heat-revenue) demands)))))
+             ]])])]]))
 
 
 (defn- network-card [{opex-mode :opex-mode
@@ -676,6 +732,12 @@
                          ::solution/bounds
                          ::solution/objectives
                          ::solution/gap
+
+                         ::document/mode
+
+                         ;; urgh
+                         ::document/npv-term
+                         ::document/npv-rate
                          ])))
 
      *capex-mode (reagent/atom :total)
@@ -770,7 +832,7 @@
               name]))]
         [:ul.tabs__pages
          [:li.tabs__page {:class (when (= @active-tab :cost-summary) "tabs__page--active")}
-          [summary-card card-arguments]]
+          [summary-card card-arguments parameters]]
          [:li.tabs__page {:class (when (= @active-tab :network) "tabs__page--active")}
           [network-card card-arguments parameters]]
          [:li.tabs__page {:class (when (= @active-tab :alternatives) "tabs__page--active")}
