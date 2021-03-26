@@ -373,3 +373,42 @@
            (:auth)
            (keyword))))
 
+(defn most-permissive-project-user-auth [project-id]
+  {:pre [(int? project-id)]}
+  (-> (h/select [(sql/call :max :users.auth) :auth])
+      (h/from :projects)
+      (h/join :users-projects [:= :projects.id :users-projects.project-id]
+              :users [:= :users.id :users-projects.user-id])
+      (h/where [:and
+                [:= project-id :projects.id]
+                [:= :users-projects.auth (sql/call :project_auth "admin")]])
+      (db/fetch-one!)
+      (:auth)
+      (keyword)))
+
+(defn most-permissive-map-user-auth [map-id]
+  {:pre [(int? map-id)]}
+  (-> (h/select [(sql/call :max :users.auth) :auth])
+      (h/from :maps)
+      (h/join :projects [:= :maps.project-id :projects.id]
+              :users-projects [:= :projects.id :users-projects.project-id]
+              :users [:= :users.id :users-projects.user-id])
+      (h/where [:and
+                [:= map-id :maps.id]
+                [:= :users-projects.auth (sql/call :project_auth "admin")]])
+      (db/fetch-one!)
+      (:auth)
+      (keyword)))
+
+(defn jobs-since [project-id days]
+  {:pre [(int? project-id) (int? days)]}
+  (-> (h/select :%count.jobs.queued)
+      (h/from :jobs)
+      (h/join :networks [:= :jobs.id :networks.job-id]
+              :maps [:= :networks.map-id :maps.id]
+              :projects [:= :maps.project-id :projects.id])
+      (h/where [:and
+                [:> :jobs.queued (sql/raw ["now() - interval '" (str days) " days'"])]
+                [:= :projects.id project-id]])
+      (db/fetch-one!)
+      (:count)))

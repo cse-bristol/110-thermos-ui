@@ -28,4 +28,11 @@
  :import-directory "import-work"
  :lidar-directory "lidar"
  :error-dumps "error-dumps"
+
+ :max-project-runtime {:basic 1.0}
+ :max-jobs-per-week {:basic 7 :intermediate 14}
+ :max-gis-features {:basic 1000000 :intermediate 1000000}
+ :priority-queue-weight {:basic 1}
+ :default-user-auth :basic
+ :contact-email "todo@cse.org.uk"
  }

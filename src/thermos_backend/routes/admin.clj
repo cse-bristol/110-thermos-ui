@@ -53,11 +53,19 @@
   (auth/verify :sysadmin
     (json (maps/get-map-bounds-as-geojson))))
 
+(defn- update-users! [{updates :params}]
+  (auth/verify :sysadmin
+    (doseq [[user-id ops] updates]
+      (when (:auth ops) (users/set-user-auth! (name user-id) (keyword (:auth ops))))
+      (when (:delete ops) (users/delete-user! (name user-id))))
+    (response/response "")))
+
 (def admin-routes
   ["/admin"
    {""            admin-page
     "/send-email" {:get send-email-page :post send-email!}
     ["/job/" [long :job-id]] {:get view-job :post act-on-job!}
     ["/clean-queue/" :queue-name] clean-queue!
-    "/map-bounds" get-map-bounds}])
+    "/map-bounds" get-map-bounds
+    "/update-users" {:post update-users!}}])
 

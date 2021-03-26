@@ -200,19 +200,21 @@
   (xhr/send
    (if run (str "?run=" (name run)) "")
    (fn on-success [e]
-     (update-url
-      (.getResponseHeader (.. e -target) "Location"))
-     
-     (swap! save-state
-            assoc
-            :needs-save false
-            :needs-load false
-            :run-state (get-run-state e)
-            :queue-position (get-queue-position e))
-     
+     (let [status (.. e -target getStatus)]
+       (when (and (>= status 200) (< status 300))
+         (update-url
+          (.getResponseHeader (.. e -target) "Location"))
 
-     (when run (poll!))
-     (when callback (callback)))
+         (swap! save-state
+                assoc
+                :needs-save false
+                :needs-load false
+                :run-state (get-run-state e)
+                :queue-position (get-queue-position e))
+
+
+         (when run (poll!)))
+       (when callback (callback status))))
 
    "POST"
    (let [data (js/FormData.)

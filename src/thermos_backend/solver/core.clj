@@ -7,7 +7,8 @@
             [thermos-backend.queue :as queue]
             [mount.core :refer [defstate]]
             [clojure.tools.logging :as log]
-            [thermos-specs.document :as document]))
+            [thermos-specs.document :as document]
+            [thermos-specs.supply :as supply]))
 
 ;; TODO change the storage format to prevent inclusion of unknown tags?
 
@@ -27,24 +28,46 @@
                                :solve problem-type})]
     (projects/associate-job! network-id job-id)))
 
+(defn- with-restricted-runtime
+  "Restrict the maximum runtime for problems that are part of restricted projects."
+  [document map-id]
+  (let [auth (projects/most-permissive-map-user-auth map-id)
+        max-project-runtime (auth (config :max-project-runtime))]
+    (if max-project-runtime
+
+      (let [max-runtime
+            (min (::document/maximum-runtime document)
+                 max-project-runtime)
+
+            max-supply-runtime
+            (min (get-in [::supply/objective :time-limit] document)
+                 max-project-runtime)]
+
+        (-> document
+            (assoc ::document/maximum-runtime max-runtime)
+            (assoc-in [::supply/objective :time-limit] max-supply-runtime)))
+
+      document)))
+
 (defn consume-problem [{network-id :id problem-type :solve}
                        progress]
   {:pre [(int? network-id) (#{:network :supply :both} problem-type)]}
   (try
-    (-> (projects/get-network network-id :include-content true)
-        (:content)
-        (->> (edn/read-string {:default ->TaggedValue}))
+    (let [network (projects/get-network network-id :include-content true)
 
-        (cond->
-          (#{:network :both} problem-type)
-          (interop/try-solve progress)
-          
-          (#{:supply :both} problem-type)
-          (supply-solver/try-solve))
+          problem (with-restricted-runtime
+                    (edn/read-string {:default ->TaggedValue} (:content network))
+                    (:map-id network))
 
-        ;; stringify and save back to database
-        (pr-str)
-        (->> (projects/add-solution! network-id)))
+          solution (cond->> problem
+                     (#{:network :both} problem-type)
+                     (interop/try-solve progress)
+
+                     (#{:supply :both} problem-type)
+                     (supply-solver/try-solve))]
+
+      (projects/add-solution! network-id (pr-str solution)))
+
     (catch InterruptedException ex
       (log/info "Solver interrupted (probably user cancel) for" network-id)
       (projects/forget-run! network-id))

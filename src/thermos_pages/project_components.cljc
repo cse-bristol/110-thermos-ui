@@ -6,6 +6,7 @@
             [thermos-pages.spinner :refer [spinner]]
             [ajax.core :refer [POST DELETE]]
             [thermos-pages.symbols :as symbols]
+            [thermos-pages.restriction-components :as restriction-comps]
             #?@(:cljs
                 [[thermos-pages.dialog :refer [show-delete-dialog! show-dialog! close-dialog!]]])
             [clojure.string :as str]))
@@ -437,8 +438,11 @@
                       #(and (= :admin (:auth %))
                             (not= me (:id %)))
                       (:users project))
-        ]
+        restriction-info (:restriction-info project)]
     [:div
+     [:div
+      (restriction-comps/show-user-restrictions restriction-info :as-card true)]
+     
      [:div.card {:style {:margin-bottom "2em"}}
       [:div.flex-cols
        [:div {:style {:flex-grow 1}}
@@ -520,7 +524,10 @@
            ])
         
         (when user-auth
-          [:a.button {:href "map/new"} "MAP " symbols/plus])
+          (if (and (:max-gis-features restriction-info)
+                   (> (:num-gis-features restriction-info) (:max-gis-features restriction-info)))
+            [:button.button.button--disabled {:disabled true} "MAP " symbols/plus]
+            [:a.button {:href "map/new"} "MAP " symbols/plus]))
         
         (when user-auth
           [:a.button {:href "lidar"} "LIDAR"]))]]

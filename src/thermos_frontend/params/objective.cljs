@@ -4,7 +4,8 @@
             [thermos-specs.document :as document]
             [thermos-util.finance :as finance]
             [thermos-frontend.format :as format]
-            [thermos-specs.candidate :as candidate]))
+            [thermos-specs.candidate :as candidate]
+            [thermos-frontend.preload :as preload]))
 
 (defn- capital-cost [doc params name]
   [:tr
@@ -228,7 +229,13 @@
         [inputs/number {:value-atom param-gap :step 0.01 :min 0 :max 100 :scale 100}] "%"]
        [:p
         "Maximum runtime "
-        [inputs/number {:value-atom runtime :min 0 :max 50 :step 0.1}] "h"]
+        [inputs/number {:value-atom runtime
+                        :min 0
+                        :max (or (preload/get-value :max-restricted-project-runtime) 50)
+                        :step 0.1}] "h"]
+       (when-let [max-project-runtime (:max-project-runtime (preload/get-value :restriction-info))]
+         [:p "As this is a restricted project, maximum runtime cannot be above "
+          (str max-project-runtime) " hour(s). Any higher values will be ignored."])
        ]]]))
 
 

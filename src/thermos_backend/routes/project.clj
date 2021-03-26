@@ -10,8 +10,10 @@
             [thermos-backend.pages.maps :as map-pages]
             [thermos-backend.pages.editor :as editor]
             [thermos-backend.db.maps :as maps]
+            [thermos-backend.db.users :as users]
             [thermos-backend.config :refer [config]]
             [thermos-backend.importer.core :as importer]
+            [thermos-backend.restrictions :as restrictions]
             [thermos-backend.importer.heat-degree-days :as heat-degree-days]
             [clojure.java.io :as io]
             [ring.util.io :as ring-io]
@@ -71,7 +73,8 @@
         (assoc :user-is-admin
                (= :admin user-auth))
         (assoc :user-auth user-auth)
-        (assoc :user (:id auth/*current-user*)))))
+        (assoc :user (:id auth/*current-user*))
+        (assoc :restriction-info (restrictions/get-restriction-info auth/*current-user* id)))))
 
 (defn- project-page [{{:keys [project-id]} :params :as req}]
   (auth/verify [:read :project project-id]
@@ -127,12 +130,19 @@
 (defn- new-map-page [{{:keys [project-id]} :params}] (html (map-pages/create-map-form project-id)))
 (defn- create-new-map! [{{:keys [project-id name description] :as params} :params}]
   (auth/verify [:modify :project project-id]
-    (let [map-id (maps/create-map!
+               (if (restrictions/exceeded-gis-feature-count? auth/*current-user*)
+
+                 (-> "GIS feature count limit exceeded"
+                     (response/response)
+                     (response/status 403)
+                     (cache-control/no-store))
+                 
+                 (let [map-id (maps/create-map!
                   ;; why not store the args within the map object
-                  project-id name description
-                  params)]
-      (importer/queue-import {:map-id map-id})
-      (response/created (str "/project/" project-id)))))
+                               project-id name description
+                               params)]
+                   (importer/queue-import {:map-id map-id})
+                   (response/created (str "/project/" project-id))))))
 
 (defn- upload-map-data [{{:keys [file project-id]} :params}]
   (auth/verify [:modify :project project-id]
@@ -224,7 +234,7 @@
       (response/response)
       (response/content-type "image/png")))
 
-(defn- new-network-page [{{:keys [mode map-id]} :params}]
+(defn- new-network-page [{{:keys [mode map-id project-id]} :params}]
   (auth/verify [:read :map map-id]
     (-> (editor/editor-page nil
                             nil
@@ -234,12 +244,13 @@
                             (maps/get-map-bounds map-id)
                             (nil? (projects/get-map-project-auth
                                    map-id
-                                   (:id auth/*current-user*))))
+                                   (:id auth/*current-user*)))
+                            (restrictions/get-restriction-info auth/*current-user* project-id))
         (response/response)
         (response/status 200)
         (response/content-type "text/html"))))
 
-(defn- network-editor-page [{{:keys [net-id]} :params {accept "accept"} :headers}]
+(defn- network-editor-page [{{:keys [net-id project-id]} :params {accept "accept"} :headers}]
   (auth/verify [:read :network net-id]
     (let [accept (set (string/split accept #","))
           info   (projects/get-network net-id :include-content true)
@@ -258,7 +269,8 @@
                                     (:content info)
                                     nil
                                     nil
-                                    (nil? project-auth))
+                                    (nil? project-auth)
+                                    (restrictions/get-restriction-info auth/*current-user* project-id))
                 
                 (response/response)
                 (response/status 200)
@@ -292,10 +304,16 @@
           new-id (projects/save-network!
                   (:id auth/*current-user*)
                   project-id map-id name content)]
-      (when run
-        (solver/queue-problem new-id (keyword run)))
-      (-> (response/created (str new-id))
-          (response/header "X-ID" new-id)))))
+      
+      (if (and run (restrictions/exceeded-jobs-per-week? auth/*current-user* project-id))
+        (-> "Job limit exceeded"
+            (response/response)
+            (response/status 403)
+            (cache-control/no-store))
+        (do (when run
+              (solver/queue-problem new-id (keyword run)))
+            (-> (response/created (str new-id))
+                (response/header "X-ID" new-id)))))))
 
 (defn- network-geojson [{{:keys [net-id]} :params}]
   (auth/verify [:read :network net-id]

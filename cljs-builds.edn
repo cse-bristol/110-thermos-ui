@@ -17,6 +17,11 @@
   :output-to "target/resources/public/js/manage-lidar.js"
   :asset-path "/js/manage-lidar.out"
   :externs ["externs/leaflet-extra.js"]}
+ {:main thermos-frontend.pages.admin
+  :output-dir "target/resources/public/js/admin.out"
+  :output-to "target/resources/public/js/admin.js"
+  :asset-path "/js/admin.out"
+  :externs ["externs/leaflet-extra.js"]}
  {:main thermos-frontend.pages.help
   :output-dir "target/resources/public/js/help.out"
   :output-to "target/resources/public/js/help.js"

@@ -3,17 +3,36 @@
             [honeysql-postgres.helpers :as p]
             [buddy.hashers :as hash]
             [thermos-backend.db :as db]
+            [thermos-backend.config :refer [config]]
             [clojure.string :as string]
             [jdbc.core :as jdbc]
             [honeysql.core :as sql]
             [thermos-backend.email :as email]))
+
+(def user-auth-ordering
+  {:basic 0
+   :intermediate 1
+   :unlimited 2
+   :admin 3})
+
+(defn user-auth-comparator [x y]
+  (- (x user-auth-ordering) (y user-auth-ordering)))
+
+(defn most-permissive [auth1 auth2]
+  (if (> (user-auth-comparator auth1 auth2) 0) auth1 auth2))
+
+(defn least-permissive [auth1 auth2]
+  (if (> (user-auth-comparator auth1 auth2) 0) auth1 auth2))
+
+(def user-auth-types 
+  (sorted-set-by user-auth-comparator :admin :unlimited :intermediate :basic))
 
 (defn as-project-auth [a]
   {:pre [(#{:admin :read :write} a)]}
   (sql/call :project_auth (name a)))
 
 (defn- as-user-auth [a]
-  {:pre [(#{:admin :normal} a)]}
+  {:pre [(user-auth-types a)]}
   (sql/call :user_auth (name a)))
 
 (defn- max-auth [a b]
@@ -29,7 +48,7 @@
 (defn users []
   (-> (h/select :*)
       (h/from :users)
-      (h/order-by :auth :id)
+      (h/order-by :id)
       (db/fetch!)))
 
 (defn set-user-auth! [user-id auth]
@@ -142,7 +161,7 @@
                               :name name
                               :reset-token (and (not password) token)
                               :password (and password (hash/derive password))
-                              :auth (as-user-auth :normal)}])
+                              :auth (as-user-auth (or (config :default-user-auth) :unlimited))}])
                   (db/execute! conn))
               token)))))))
 
@@ -292,3 +311,30 @@
                   (db/fetch!))]
     (email/send-system-message users subject message)))
 
+(defn jobs-since 
+  "Returns the number of problem jobs queued by the user in the past `days` days."
+  [user-id days]
+  {:pre [(string? user-id) (int? days)]}
+  (-> (h/select :%count.jobs.queued)
+      (h/from :networks)
+      (h/join :jobs [:= :networks.job-id :jobs.id])
+      (h/where [:and
+                [:> :jobs.queued (sql/raw ["now() - interval '" (str days) " days'"])]
+                [:= :networks.user-id user-id]])
+      (db/fetch-one!)
+      (:count)))
+
+(defn num-gis-features 
+  "Returns the number of GIS features (i.e. entries in the `candidates` table)
+   associated with the user across all they projects they are in."
+  [user-id]
+  {:pre [(string? user-id)]}
+  (-> (h/select :%count.*)
+      (h/from :users)
+      (h/join :users-projects [:= :users.id :users-projects.user-id]
+              :projects [:= :users-projects.project-id :projects.id]
+              :maps [:= :maps.project-id :projects.id]
+              :candidates [:= :candidates.map-id :maps.id])
+      (h/where [:= user-id :users.id])
+      (db/fetch-one!)
+      (:count)))

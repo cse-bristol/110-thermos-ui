@@ -64,7 +64,11 @@
        name
        :run (when (and run? can-run) run?)
        :callback
-       #(when-not invalid
+       #(cond
+          (= % 403)
+          (toaster/show! [:div.toaster.toaster--error "You have exceeded your weekly job quota"])
+
+          (not invalid)
           (toaster/show! [:div.toaster.toaster--success "Project saved"]))))))
 
 
