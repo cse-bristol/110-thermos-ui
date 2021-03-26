@@ -719,15 +719,15 @@
                          :on-change #(swap! *form-state assoc :degree-days
                                             (as-int (.. % -target -value)))}] " °C × days"]
      [:p "The number of heating degree days per year in this location, relative to a 17° base temperature."]
-     [:p "This value was derived from " 
-      [:a {:href "https://ec.europa.eu/eurostat/cache/metadata/en/nrg_chdd_esms.htm" :target "_blank"} "Eurostat"] 
-      " heating degree day data for this region."]
-     (let [*hdd-from-server? (rum/cursor-in *form-state [:hdd-from-server?])]
-       (when-not @*hdd-from-server?
+     (if @(rum/cursor-in *form-state [:hdd-from-server?])
+         [:p "This value was derived from " 
+          [:a {:href "https://ec.europa.eu/eurostat/cache/metadata/en/nrg_chdd_esms.htm" :target "_blank"} "Eurostat"] 
+          " heating degree day data for this region."]
+         
          [:p "The default value above is not from Eurostat data as your map is outside the coverage area. "
           "You may want to use "
           [:a {:href "https://www.degreedays.net" :target "_blank"} "degree-days.net"]
-          " to generate a value."]))]
+          " to generate a value."])]
 
     [:div.card.flex-grow
      [:h1 "Automatic building groups"]
