@@ -59,7 +59,7 @@
                     (edn/read-string {:default ->TaggedValue} (:content network))
                     (:map-id network))
 
-          solution (cond->> problem
+          solution (cond-> problem
                      (#{:network :both} problem-type)
                      (interop/try-solve progress)
 
