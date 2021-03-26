@@ -1,6 +1,14 @@
 [{:title "Next Release"
   :changes
-  [{:title "UI bug fixes"
+  [{:title "Spreadsheet Upload for Supply Model"
+    :summary
+    [:p "The spreadsheet upload now loads supply model parameters."]}
+
+   {:title "Equivalized Cost"
+    :summary
+    [:p "The solution summary display now includes an equivalized cost column."]}
+
+   {:title "UI bug fixes"
     :summary
     [:ul
      [:li "The selection info panel would incorrectly display a building's peak demand for its insulated demand, if it had not been included in a solution."]
