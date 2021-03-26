@@ -7,6 +7,7 @@
             [clojure.string :as string]
             [jdbc.core :as jdbc]
             [honeysql.core :as sql]
+            [thermos-backend.changelog :refer [changelog]]
             [thermos-backend.email :as email]))
 
 (def user-auth-ordering
@@ -161,6 +162,7 @@
                               :name name
                               :reset-token (and (not password) token)
                               :password (and password (hash/derive password))
+                              :changelog-seen (count changelog)
                               :auth (as-user-auth (or (config :default-user-auth) :unlimited))}])
                   (db/execute! conn))
               token)))))))
