@@ -11,8 +11,7 @@
             [thermos-util.pipes :as pipes]
             [thermos-specs.measure :as measure]
             [clojure.set :as set]
-            [thermos-backend.spreadsheet.common :as common]
-            [thermos-backend.spreadsheet.schema :as schema]))
+            [thermos-backend.spreadsheet.common :as common]))
 
 (def *100 (partial * 100.0))
 (defn or-zero [f] (fn [x] (or (f x) 0.0)))
@@ -328,13 +327,12 @@
       (output-network-parameters doc)
       ))
 
-(defn index [entries & [id-key]]
-  (into {}
-        (map-indexed
-         (fn [i v] [i (cond-> v id-key (assoc id-key i))])
-         entries)))
+(defn input-from-spreadsheet
+  "Inverse function - takes a spreadsheet, as loaded by `common/read-to-tables`.
 
-(defn validated-input-from-ss
+   So far this ignores everything to do with candidates.
+
+   Assumes validation has happened already."
   [ss]
   (let [{:keys [tariffs
                 connection-costs
@@ -419,25 +417,22 @@
      {::document/pumping-emissions
       (->>
        (for [e candidate/emissions-types
-             :let [v (get parameters (common/to-keyword (str "pumping-" (name e))))]
-             :when (number? v)]
-         [e (/ v (candidate/emissions-factor-scales e))])
+             :let [v (get parameters (common/to-keyword (str "pumping-" (name e))))]]
+         [e (if (number? v) (/ v (candidate/emissions-factor-scales e)) 0)])
        (into {}))}
      
      {::document/emissions-cost
       (->>
        (for [e candidate/emissions-types
-             :let [c (get parameters (common/to-keyword (str (name e) "-cost")))]
-             :when (number? c)]
-         [e c])
+             :let [c (get parameters (common/to-keyword (str (name e) "-cost")))]]
+         [e (if (number? c) c 0)])
        (into {}))}
 
      {::document/emissions-limit
       (->>
        (for [e candidate/emissions-types
-             :let [c (get parameters (common/to-keyword (str (name e) "-limit")))]
-             :when (number? c)]
-         [e {:enabled true :value c}])
+             :let [c (get parameters (common/to-keyword (str (name e) "-limit")))]]
+         [e (if (number? c) {:enabled true :value c} {:enabled false :value nil})])
        (into {}))
       }
      
@@ -449,7 +444,7 @@
              :standing-charge standing-charge
              :unit-charge (/ unit-rate 100)
              :capacity-charge capacity-charge})
-          (index ::tariff/id))
+          (common/index ::tariff/id))
       
       ::document/connection-costs
       (-> (for [{:keys [cost-name fixed-cost capacity-cost]}
@@ -458,7 +453,7 @@
             {:name cost-name
              :fixed-connection-cost fixed-cost
              :variable-connection-cost capacity-cost})
-          (index ::tariff/cc-id))
+          (common/index ::tariff/cc-id))
       
       ::document/alternatives
       (-> (for [{:keys [name fixed-cost capacity-cost operating-cost heat-price
@@ -476,7 +471,7 @@
              {:co2  (/ (or co2 0.0) (candidate/emissions-factor-scales :co2))
               :pm25 (/ (or pm25 0.0) (candidate/emissions-factor-scales :pm25))
               :nox  (/ (or nox 0.0) (candidate/emissions-factor-scales :nox))}})
-          (index ::supply/id))
+          (common/index ::supply/id))
       
       ::document/insulation
       (-> (for [{:keys [name fixed-cost cost-per-m2
@@ -490,12 +485,12 @@
              :maximum-effect (/ maximum-reduction-% 100.0)
              :maximum-area (/ maximum-area-% 100.0)
              :surface (keyword surface)})
-          (index ::measure/id))
+          (common/index ::measure/id))
       
       ::document/pipe-costs
       (let [civils-keys (-> (:header pipe-costs)
                             (dissoc :nb :capacity :losses :pipe-cost))
-            civils-ids   (index (set (vals civils-keys)))
+            civils-ids   (common/index (set (vals civils-keys)))
             inverse      (set/map-invert civils-ids)
 
             civils-keys* (->> (for [[kwd s] civils-keys] [kwd (inverse s)])
@@ -519,14 +514,3 @@
                 basics
                 civils-keys*))])
           (into {}))})})))
-
-
-(defn input-from-spreadsheet
-  "Inverse function - takes a spreadsheet, as loaded by `common/read-to-tables`.
-
-  So far this ignores everything to do with supply model & candidates."
-  [spreadsheet]
-  (let [{errors :import/errors :as spreadsheet} (schema/validate-network-model-ss spreadsheet)]
-    (if (nil? errors) 
-      (validated-input-from-ss spreadsheet)
-      {:import/errors errors})))

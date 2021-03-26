@@ -27,7 +27,8 @@
    :alternatives
    :insulation
    :tariffs
-   :connection-costs])
+   :connection-costs
+   :supply])
 
 (def category-keys
   {:objective [::document/medium
@@ -52,6 +53,15 @@
    :emissions [::document/emissions-cost ::document/emissions-limit]
    :pumping [::document/pumping-overhead ::document/pumping-emissions
              ::document/pumping-cost-per-kwh]
+   ;; ::supply/heat-profiles excluded from this list as it is handled separately:
+   :supply [::supply/day-types
+            ::supply/plants
+            ::supply/storages
+            ::supply/substations
+            ::supply/fuels
+            ::supply/objective
+            ::supply/grid-offer
+            ::supply/default-profile]
    }
   )
 
@@ -274,7 +284,14 @@
     ;; and pipe costs is more complicated still
     :pipe-costs
     (merge-pipe-costs opts from to)
-    
+
+    :supply
+    (let [to (->> (category-keys category)
+                  (select-keys from)
+                  (merge to))]
+      (merge-table
+       opts from to ::supply/heat-profiles :name
+       supply/remove-profile))
     to))
 
 (defn- merge-categories [old-state new-state opts]
@@ -287,38 +304,49 @@
 
 (defn- show-errors
   ""
-  ([error] 
+  ([error]
    (cond
-     (or (nil? error) (empty? error)) nil
-     (map? error) [:ul {:style {:list-style :square}} (map (fn [[k v]] (show-errors k v)) error)]
-     (sequential? error) [:ul {:style {:list-style :square}} (map show-errors error)]
-     :else [:li {:key (str error)} (str error)]))
-  ([k v] [:li {:key k} [:b (if (keyword? k) (keyword->string k) k)] ": " (show-errors v)]))
+     (or (nil? error) (empty? error))
+     nil
 
-(defn- show-row-errors 
+     (map? error)
+     [:ul {:style {:list-style :square}}
+      (map (fn [[k v]] (show-errors k v)) error)]
+
+     (sequential? error)
+     [:ul {:style {:list-style :square}}
+      (map show-errors error)]
+
+     :else
+     [:li {:key (str error)} (str error)]))
+
+  ([k v]
+   [:li {:key k}
+    [:b (if (keyword? k) (keyword->string k) k)] ": " (show-errors v)]))
+
+(defn- show-row-errors
   "Special-case handling for row errors - add key with row number and remove
    any entries where there is already an error for the header."
   [row-errors cols-to-exclude]
   (show-errors
    (->> row-errors
         (map #(apply (partial dissoc %) cols-to-exclude))
-        (zipmap (iterate inc 1))
+        (zipmap (iterate inc 2))
         (remove (fn [[_ v]] (empty? v)))
         (map (fn [[k v]] [(str "Row " k) v]))
         (into {}))))
 
 (defn- show-sheet-errors [[sheet errors]]
-   [:li 
-    {:key sheet}
-    [:span "Sheet " [:b (keyword->string sheet)] ": "] 
-    (cond
-      (sequential? errors) (show-errors errors)
-      (map? errors)
-      (let [header-errors (:header errors)
-            row-errors (:rows errors)]
-        [:div
-         (show-errors header-errors)
-         (show-row-errors row-errors (keys header-errors))]))])
+  [:li {:key sheet}
+   [:span "Sheet " [:b (keyword->string sheet)] ": "]
+   (cond
+     (sequential? errors) (show-errors errors)
+     (map? errors)
+     (let [header-errors (:header errors)
+           row-errors (:rows errors)]
+       [:div
+        (show-errors header-errors)
+        (show-row-errors row-errors (keys header-errors))]))])
 
 (defn- merge-dialog [result]
   (reagent/with-let [*state
@@ -366,11 +394,11 @@
          [:div
           [inputs/check {:label "Use new parameters where names match"
                          :value (:join state)
-                         :on-change #(swap! *state :join not)}]]
+                         :on-change #(swap! *state update :join not)}]]
          [:div
           [inputs/check {:label "Keep old parameters with different names"
                          :value (:merge state)
-                         :on-change #(swap! *state :merge not)}]]
+                         :on-change #(swap! *state update :merge not)}]]
 
          [:div.align-right {:style {:margin-top "2em"}}
           [:button.button.button--danger
