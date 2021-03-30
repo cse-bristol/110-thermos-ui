@@ -99,6 +99,8 @@
                
                :default-value s-value
                :ref #(reset! element %)}
+              
+              (when-not value-atom {:key s-value})
 
               (dissoc ks :value-atom :scale :value :empty-value)
 
