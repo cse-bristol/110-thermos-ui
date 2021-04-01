@@ -11,7 +11,8 @@
             [thermos-util.pipes :as pipes]
             [thermos-specs.measure :as measure]
             [clojure.set :as set]
-            [thermos-backend.spreadsheet.common :as common]))
+            [thermos-backend.spreadsheet.common :as common]
+            [thermos-util.solution-summary :as solution-summary]))
 
 (def *100 (partial * 100.0))
 (defn or-zero [f] (fn [x] (or (f x) 0.0)))
@@ -319,12 +320,40 @@
        (cost-columns :capex "Capital cost" ::solution/pipe-capex)
        )))
    (filter candidate/is-path? (vals (::document/candidates doc)))))
+             
+(defn output-solution-summary [ss doc]
+  (if (document/has-solution? doc)
+    (let [{:keys [rows grand-total]} (solution-summary/data-table doc :total :total)]
+      (sheet/add-tab
+       ss
+       "Network solution summary"
+       [{:name "Item" :key :name}
+        {:name "Capital cost (¤)" :key :capex}
+        {:name "Operating cost (¤)" :key :opex}
+        {:name "Operating revenue (¤)" :key :revenue}
+        {:name "EC (c/kWh)" :key :equivalized-cost}
+        {:name "NPV (¤)" :key :present}]
+       (flatten
+        (concat
+         (for [{:keys [name subcategories total]} rows]
+           (concat
+            (for [{sub-name :name value :value} subcategories]
+              (assoc value :name sub-name))
+            [(assoc total :name name)]
+            [{}])) ; Add an empty row between categories
+         
+         [{:name "Whole system"
+           :capex (:capex grand-total)
+           :opex (:opex grand-total)
+           :present (:present grand-total)}]))))
+    ss))
 
 (defn output-to-spreadsheet [ss doc]
   (-> ss
       (output-buildings doc)
       (output-paths doc)
       (output-network-parameters doc)
+      (output-solution-summary doc)
       ))
 
 (defn input-from-spreadsheet
