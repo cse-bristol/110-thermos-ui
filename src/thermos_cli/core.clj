@@ -295,9 +295,10 @@ The different options are those supplied after --retry, so mostly you can use th
               confidence (and confidence-field
                               (#{:use :max} (get b confidence-field)))
               
-              count (or (and count-field
-                             (as-integer (get b count-field)))
-                        1)]
+              count (max 1
+                         (or (and count-field
+                                  (as-integer (get b count-field)))
+                             1))]
           
           (-> b
               (assoc :residential is-resi
