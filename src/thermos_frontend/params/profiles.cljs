@@ -116,7 +116,10 @@
 
 (defn- day-type-parameters [doc day-type]
   (let [*divisions (reagent/cursor doc [::supply/day-types day-type :divisions])
-        *frequency (reagent/cursor doc [::supply/day-types day-type :frequency])]
+        *frequency (reagent/cursor doc [::supply/day-types day-type :frequency])
+        *total-frequency (reagent/track
+                          #(let [day-types (::supply/day-types @doc)]
+                             (reduce + 0 (map :frequency (vals day-types)))))]
     [:div
      [:label "Relative frequency: "
       [inputs/number {:value-atom *frequency
@@ -124,7 +127,12 @@
                       ;; re-render. Otherwise reagent sees it as same element
                       :max 365
                       :min 0
-                      :step 1}]]
+                      :step 1}]
+      " of " @*total-frequency " (or ~"
+      (int (* 365 (/ (double @*frequency)
+                     (double @*total-frequency))))
+      " days per year)"]
+     
      
      [:label {:style {:margin-left :1em}}
       "Time precision: "
