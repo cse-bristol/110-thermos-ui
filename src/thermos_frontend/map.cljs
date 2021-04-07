@@ -700,7 +700,20 @@
              {:value "Edit buildings (e)"
               :key "edit-demands"
               :on-select #(candidate-editor/show-editor! document buildings)}
-
+             {:value "Edit groups"
+              :key "grouping"
+              :sub-menu
+              [{:value "Group buildings (G)"
+                :key "group-buildings"
+                :on-select #(state/fire-event! [:group-selection])}
+               {:value "Ungroup buildings (U)"
+                :key "ungroup-buildings"
+                :on-select #(state/fire-event! [:ungroup-selection])}
+               {:key "Select same group (g)"
+                :key "select-group"
+                :on-select #(state/fire-event! [:group-select-members])}]}
+             
+             
              {:value [:div.popover-menu__divider] :key "divider-2"}))
         
 
