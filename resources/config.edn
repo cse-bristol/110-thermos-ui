@@ -34,5 +34,5 @@
  :max-gis-features {:basic 1000000 :intermediate 1000000}
  :priority-queue-weight {:basic 1}
  :default-user-auth :basic
- :contact-email "todo@cse.org.uk"
+ :contact-email "info@thermos-project.eu"
  }
