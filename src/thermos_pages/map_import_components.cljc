@@ -504,7 +504,8 @@
            " - don't forget to include the "
            [:b ".shp"] ", " [:b ".dbf"] ", "
            [:b ".shx"] ", " [:b ".prj"] " and "
-           [:b ".cpg"] " files!"]]
+           [:b ".cpg"] " files!"]
+          [:li [:a {:href "https://www.geopackage.org/" :target "_blank"} "GeoPackage"]]]
          
          (file-uploader {} *data-files)
 
