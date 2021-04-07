@@ -709,7 +709,7 @@
                {:value "Ungroup buildings (U)"
                 :key "ungroup-buildings"
                 :on-select #(state/fire-event! [:ungroup-selection])}
-               {:key "Select same group (g)"
+               {:value "Select same group (g)"
                 :key "select-group"
                 :on-select #(state/fire-event! [:group-select-members])}]}
              
