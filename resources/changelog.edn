@@ -1,6 +1,14 @@
-[{:title "Next Release"
+[{:title "9th April 2021"
   :changes
-  [{:title "Spreadsheet Upload for Supply Model"
+  [{:title "Solution summary in spreadsheet output"
+    :summary
+    [:p "The spreadsheet download now contains the solution summary page"]}
+
+   {:title "Documentation updated"
+    :summary
+    [:p "The help documentation has been updated to reflect new features in the application."]}
+
+   {:title "Spreadsheet Upload for Supply Model"
     :summary
     [:p "The spreadsheet upload now loads supply model parameters."]}
 
