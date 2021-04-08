@@ -8,6 +8,6 @@
             ["/search" (fn [{{q :q} :params :as req}]
                          (html (help-search q)))]
             ["/changelog" (constantly (html (help-changelog)))]
-            [["/" :page-name] (fn [{{p :page-name} :params}]
+            [["/" [#".+" :page-name]] (fn [{{p :page-name} :params}]
                                 (html (help-page p)))]]])
 
