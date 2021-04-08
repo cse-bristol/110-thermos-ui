@@ -442,7 +442,7 @@
   [instance candidate market]
   (merge
    {:required  (boolean (candidate/required? candidate))
-    :count     (int     (::demand/connection-count candidate 1))}
+    :count     (int     (max 1 (::demand/connection-count candidate 1)))}
    (demand-value-terms instance candidate market)
 
    (when (::demand/group candidate) {:group (::demand/group candidate)})
