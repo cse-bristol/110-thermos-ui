@@ -37,7 +37,6 @@
 
         sum-cost-outputs
         (fn [& {:keys [capex opex revenue]}]
-          (println capex)
           (let [tcapex (when capex   (reduce + (map capex-mode capex)))
                 topex  (when opex    (reduce + (map opex-mode opex)))
                 trev   (when revenue (reduce + (map opex-mode revenue)))
