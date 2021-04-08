@@ -1,0 +1,66 @@
+#+TITLE: Frequently Asked Questions
+
+* How can I save a selection and come back to it later?
+
+In the network editor you might build up a selection, but then realise you want to do something else and come back to it.
+
+You can "save" the selection by editing everything that's selected with the *e* key, going to the *Other Fields* tab, Clicking *+* to add a user field, enter a new value into the header (say =MARK=), and then putting a value into the rows (e.g. =A=).
+
+Later you can find this selection by selecting everything and using the selection info panel on the right to restrict the selection to candidates for which =MARK= is =A=.
+
+* How can I quickly find the supply location?
+
+1. Switch to the map view
+2. Press *a* to select everything
+3. In the selection info panel, find the *Type* row and click on the chip for *supply*
+4. Press *z* to zoom to the (now selected) supply point.
+
+* When I edit demands or other details, what is affected?
+
+Edits made in the network editor by pressing the *e* key are stored only in the network problem, and only in saves from after you made the edits.
+
+* How can I represent an existing network?
+
+To tell THERMOS about an existing network you can select the paths that are in the existing network and press *e* to edit them.
+
+In that dialog you can tick *Exists* and set *Maximum diameter*, which will make it free to install pipe on that path, but only up to the maximum diameter.
+
+At the moment THERMOS can't upgrade an existing pipe to a larger one. You would have to model two scenarios to evaluate this option.
+
+* How can I make the model run faster?
+
+The model runs slower when it has more decisions to make, or when the decisions it has to make are more difficult because the outcomes are closer together numerically. To reduce the number of decisions you can:
+
+1. Model a smaller problem first
+2. Make some decisions fixed (by setting the constraint to required for some parts)
+3. Use building groups to reduce the number of combinations of buildings being considered
+4. Avoid offering multiple supplies
+5. If there are a lot of different networks possible because you have included a lot of paths, try cutting down the number of paths you are considering.
+
+   It is more difficult for the model if there are many different ways of getting between any two places.
+
+You can also get a worse answer out quicker by going to the objective settings and increasing the gap or the tolerance for the effect of parameter fixing.
+
+* How can I get THERMOS data into other programs?
+
+THERMOS map data can be downloaded from the project page, by the *Download* button.
+
+THERMOS network solutions can be downloaded from within the network editor by the links in the *Import / Export Data* section. You can download GIS data or a spreadsheet.
+
+* How can I get external data into THERMOS?
+
+THERMOS can accept GIS and LIDAR data during map creation.
+
+Once you have a map with a network problem you can upload new parameters into the network problem by using the links under *Import / Export Data* in the sidebar.
+
+* What are the currency units in THERMOS?
+
+All currency in THERMOS is displayed using the unicode symbol for currency (¤).
+
+This does not represent a specific currency.
+
+The default values in THERMOS are in GBP (£).
+
+You can change these to euros by downloading the parameters spreadsheet, editing the parameters with an exchange rate, and uploading the new parameters into new problems that you make.
+
+However, if you are doing this you should probably try and find your own cost figures that are more locally correct in any case.

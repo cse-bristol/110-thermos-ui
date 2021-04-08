@@ -1,0 +1,239 @@
+#+TITLE: THERMOS Supply Model Description
+#+AUTHOR: CSE
+
+THERMOS includes a supply optimisation model.
+This part of THERMOS tries to determine a set of choices about how to build an energy center which can meet a certain heat demand at least cost.
+
+It is coupled to the network optimisation model through the network model's choice of which buildings to connect, via a method described in the section describing [[file:network-model-interface.org][the relationship between network and supply models]].
+
+* Day types and intervals
+:PROPERTIES:
+:CUSTOM_ID: day-types-and-intervals
+:END:
+
+The key difference between the supply model and the network model is a trade-off between the representation of time and the representation of space.
+
+In the network model, the representation of space is quite detailed, as the model knows about the topology of the network. However, the representation of time is very simple, containing only peak and average operating conditions.
+
+In the supply model this is the other way around. The representation of space is removed, and every decision about the network is fixed. Only the demand at the supply remains. However the representation of time is much more detailed, as the supply model decides about the operation of the system at many more than just two times.
+
+The supply model's view of time is broken up into a large number of representative periods. At the first level of this are *day types*.
+
+** Day types
+
+A day type is a kind of archetypal day. In principle the supply model could have 365 different days in a year, or 3650 for ten years, and so on.
+
+Instead it is more reasonable and easier for the model if we go in the other direction and characterise the year in terms of a few types of day. For example in the default inputs the supply model considers the following day types (days / year in parentheses):
+
+- Normal Weekday (197/365)
+- Normal Weekend (78/365)
+- Winter Weekday (62/365)
+- Winter Weekend (27/365)
+- Peak Day (1/365)
+
+Each day type is then divided into a number of equal *intervals*
+
+** Intervals
+
+Within a given day type there are a certain number of intervals, which all have equal length. The standard inputs have 24 intervals in each day type, so each interval represents 1 hour from the day of that type.
+
+This means that the optimiser can make different decisions about what happens down to that hour, but not to the half-hour or below.
+
+* Decision variables
+
+The supply optimiser's job is to make a choice about how to meet a given demand for heat, at minimum cost.
+
+The primary decisions available to the supply optimiser are:
+
+- What *plant* to purchase?
+
+  This is effectively equipment that produces heat at a certain unit cost.
+  In the user interface a 'menu' of supply options can be defined; for each of these, the optimiser can choose what capacity to purchase.
+
+- What *heat storage* to purchase?
+
+  This is equipment which can be charged up with heat at one time during a day, and discharged later, with some loss.
+  Again, as a user you can define a menu of storage options, from which the optimiser can choose what to purchase.
+
+Along with these decisions the supply optimiser must make operational decisions
+
+- In each interval of time, how much heat to *generate* from each item of plant, and
+- How much heat to *store* into each item of storage
+
+* Supply cost
+
+Now we have a demand profile we can think about the cost of producing heat to meet that profile. The costs considered are:
+
+1. Capital and operating costs for plant & storage
+2. Fuel and emissions costs for plant
+3. Grid export for CHP plant
+4. Curtailment costs for any unmet demand
+
+** Capital and operating costs
+
+Plant and storage definitions each have capital cost terms, broken down as a fixed cost, cost per kW capacity, and cost per kWh.
+
+The capital cost for plant is
+
+\[
+\text{fixed cost} + [ \text{cost per kW} \times \max_{t \in T} \text{output}_t ] + [ \text{cost per kWh} \times \sum_{t \in T} \text{output}_t \times \text{weight}_t ]
+\]
+
+Where $\text{weight}_t$ is the number of kWh per year that interval $t$ would contribute at an output of 1 kW; for example, an interval representing half an hour, in a day that occurs 50 days per year, would have a weight of 25. $T$ is the set of all the intervals modelled in the profile.
+
+The capital cost for storage is similar, except that the cost per kWh is in terms of kWh /storage capacity/ rather than kWh /output/:
+
+\[
+\text{fixed cost} + [ \text{cost per kW} \times \max_{t \in T} \text{flow}_t ] + [ \text{cost per kWh} \times \max_{t \in T} \text{charge}_t ]
+\]
+
+Where $\text{flow}_t$ is the charging rate during interval $t$ (so the maximum of this is the capacity of the connection between the store and the plant), and $\text{charge}_t$ is the number of kWh of heat that are in the store at time $t$ (so the maximum of this is the capacity of store required).
+
+Both plant and storage have a given lifetime - if the plant or store must be replaced during the accounting period of the optimisation, the capital costs are paid again each time the lifetime is reached.
+
+Operating costs are only calculated for the plant, and follow the same formula as the plant capital cost formula; the resulting cost is incurred every year the plant operates.
+
+** Fuel and emissions costs
+
+Fuel costs are incurred by plant when it operates; for each plant, in every time interval $t$ there is a fuel price per kWh entered by the user. Each plant also has a heat production efficiency. The annual fuel cost for the plant is then given by
+
+\[
+\sum_{t\in T} \frac{\text{output}_t}{\text{efficiency}} \times \text{price}_t \times \text{weight}_t
+\]
+
+Emissions costs are similar, except with an additional time-varying emissions factor for the fuel:
+
+\[
+\sum_{t\in T, e \in E} \frac{\text{output}_t}{\text{efficiency}} \times \text{factor}_{t,e} \times \text{weight}_t \times \text{unit cost}_e
+\]
+
+where $e$ is an emissions type (CO_2, NO_X, ...) from the set of modelled emissions types $E$
+
+** Grid export
+
+Some plant is marked as CHP, and has a power efficiency as well as a heat efficiency. 
+For these types of plant, an additional revenue (or potentially cost) is incurred when the plant runs, as it produces power to sell to the grid.
+
+The value for this is analogous to the fuel cost, but with a different price and efficiency.
+
+** Substation headroom
+
+An important consideration for both CHP and electrically powered plant is substation headroom. In THERMOS, substation capacity is modelled as a hard constraint on how much power the substation can deliver or accept in any time interval.
+
+Each substation also has a user-input timeseries of pre-existing demand, which determines the headroom (spare capacity); in every modelled interval the sum of pre-existing demand and new demand net of any CHP generation must not exceed the substation's capacity.
+
+** Curtailment
+
+Curtailment gives the optimiser the possibility to undersupply heat in a given interval. It is included mostly so that the problem cannot become infeasible. Each kWh of heat un-supplied due to curtailment incurs a very high cost, so the optimiser should only choose to undersupply if the maximum possible plant capacity is insufficient, or if the cost of producing heat is exceedingly large.
+
+* Formal description
+
+The problem is defined over the following sets and parameters. All costs are adjusted for replacement lifetime, accounting period and discount rate before doing any optimisation, so operating and capital costs are combined, and fuel prices and emissions costs are combined.
+
+- Time intervals :: $T$, usually indexed by $t$
+  - Weight :: $w_t$, a parameter indicating how many hours per year interval $t$ stands for
+  - Heat demand :: $h_t$, the heat demand in kW in interval $t$
+  - Fuel cost :: $Price_{t,p}$ the cost per kWh of fuel for plant $p$ in time $t$
+  - Substation load :: $Load_{t,s}$, the existing demand on substation $s$ in time $t$ in kW
+  - Grid offer :: $Grid_{t}$, the price offered by the grid per kWh of electricity in time $t$
+- Plant :: $P$, usually indexed by $p$
+  - Capacity :: $MaxCap_p$, the maximum output in kW from a plant of type $p$
+  - Heat Efficiency :: $eH_{p}$, the rate of heat production per fuel for plant $p$
+  - Power Efficiency :: $eP_{p}$, the rate of electricity production per fuel for plant $p$, if it is a CHP
+  - Substation :: $Sub_{p}$, one of the substations in $N$, if the plant is connected to a substation we are interested in
+  - Cost :: $CFix_p$, $CCap_p$, $COut_p$ as fixed, per-kw, and per-kwh capital and operating costs for $p$.
+- Storage :: $S$, usually indexed by $s$
+  - Capacity :: $MaxCapF_s$, the maximum connection size in kW, and $MaxCapS_s$ the maximum storage size in kWh
+  - Cycle efficiency :: $e_{s}$, the proportion of heat output per unit of heat stored.
+  - Cost :: $CFix_s$, $CCapF_s$, $CCapS_s$ as fixed, per-kw, and per-kwh capital costs for $s$.
+- Substation :: $N$, indexed by $n$
+  - Capacity :: $Cap_n$, the substation forward capacity in kW, and $R_n$, the ratio of reverse capacity to forward
+  - Load :: $L_{n, t}$, the prior load on the substation in kW in time $t$
+
+** Objective
+
+The decisions to be made are then
+
+- $Purchase_p$, whether to buy plant $p$ (binary)
+  - $Cap_p$, the capacity of that plant to buy
+- $Purchase_s$, whether to buy storage $s$ (binary)
+  - $CapF_s$, the flow capacity to buy for $s$
+  - $CapS_s$, the storage capacity to buy for $s$
+- $Output_{p, t}$, the heat output from plant $p$ in interval $t$
+- $FlowIn_{s, t}$ and $FlowOut_{s, t}$ the heat flow in and out of store $s$ in time $t$
+- $Curtailment_{t}$, the curtailment in time $t$.
+
+The objective is to minimize
+
+\[ TotalCost = PlantCost + StoreCost + FuelCost + CurtailmentCost - GridRevenue \]
+
+Where
+
+\[
+PlantCost =  \sum_p Purchase_p \times CFix_p + Cap_p \times CCap_p + (\sum_t w_t \times COut_p \times Output_{p, t}) 
+\]
+
+and
+
+\[
+StoreCost =  \sum_s Purchase_s \times CFix_s + CapF_s \times CCapF_s + CapS_s \times CCapS_s
+\]
+
+and
+
+\[
+FuelCost = \sum_{t, p} w_t \times Price_{t, p} \times Output_{p, t} / eH_{p}
+\]
+
+and 
+
+\[
+CurtailmentCost = \sum_t w_t \times Curtailment_t \times C
+\]
+
+where $C$ is a big number
+
+and 
+
+\[
+GridRevenue = \sum_{t, p} w_t \times Grid_{t} \times eP_{p} \times Output_{p, t} / eH_{p}
+\]
+
+summing over CHP plants only
+
+** Constraints
+
+To make the optimiser pay for what it uses, the objective is solved subject to:
+
+- Satisfied demand :: $\forall t : \sum_p Output_{p, t} + \sum_s (e_s \times FlowOut_{s, t} - FlowIn_{s, t}) + Curtailment_t \geq h_t$
+
+  Ensures that in each time slice, at least as much heat is produced as is needed.
+  Storage cycle efficiency is applied here, through the multiplication with $e_s$.
+
+  This can be made an equality, if overproduction of heat to sell power is not allowed.
+- Indicators :: $\forall p : Cap_p \leq Purchase_p \times MaxCap_p$ and $\forall s : CapF_s \leq Purchase_s \times MaxCapF_s$
+
+  These constraints ensure that the fixed costs are paid if any storage or plant capacity is used.
+- Plant capacity sufficient :: $\forall p, t: Output_{p, t} \leq Cap_p$
+- Store flow sufficient :: $\forall s, t: FlowIn_{s, t} \leq CapF_s$, and $\forall s, t: FlowOut_{s, t} \times e_s \leq CapF_s$
+- Store size sufficient :: $\forall s, t: Charge_{s, t} \leq CapC_s$
+- Store charge balance :: $\forall s, t: Charge_{s, t} = Charge_{s, t-1} + H_t \times (FlowIn_{s, t-1} - FlowOut{s, t-1})$
+
+  Where $H_t$ is the number of hours time-slice $t$ represents in the day, and $t-1$ wraps around within the day at the start (so the charge state at the end of the day comes back to the start of the day).
+
+  Because of this, charge within the store cannot be passed between representative day /types/, or stored for more than a single day.
+
+- Substation headroom :: $\forall t, n : \sum_{p | Sub_p = n} -R_n \times Cap_n \leq L_{n, t} - eP_p \times Output_n/eH_p \leq Cap_n$
+
+  Where $eP_p = -1$ if the plant is not a CHP but is electrically powered.
+
+* Future work
+
+It would be useful to support two further features
+
+1. Binary output variables; some plant either runs or doesn't
+2. Limited switch-ons; some plant should not be turned on and off too frequently
+
+* Footnotes
+
+[fn:1] Perhaps the modelling for this should be improved - for example, load diversity might be better represented by some smoothing kernel.

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Eurostat Heating Degree Days</title>
+<meta name="generator" content="Org mode" />
+<meta name="author" content="CSE" />
+</head>
+<body>
+<div id="content">
+<h1 class="title">Eurostat Heating Degree Days</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#inputs">1. Inputs</a></li>
+<li><a href="#method">2. Method</a>
+<ul>
+<li>
+<ul>
+<li><a href="#hddcopenhagen-17c">2.0.1. <code>HDD(Copenhagen, 17°C)</code>:</a></li>
+<li><a href="#hddcopenhagen-eurostat">2.0.2. <code>HDD(Copenhagen, Eurostat)</code></a></li>
+<li><a href="#conclusion">2.0.3. Conclusion</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<p>
+This file documents the process for creating <code>hdd.json</code>, which defines a
+heat degree day value for a set of polygons.
+</p>
+
+<div id="outline-container-inputs" class="outline-2">
+<h2 id="inputs"><span class="section-number-2">1</span> Inputs</h2>
+<div class="outline-text-2" id="text-inputs">
+<ul class="org-ul">
+<li>file <code>nrg_chdd_a</code> from
+<a href="https://ec.europa.eu/eurostat/web/energy/data/database">eurostat's HDD data</a> - yearly HDD data for the member states of the EU.</li>
+<li>small scale cultural geography map from <a href="https://www.naturalearthdata.com/downloads/">naturalearthdata</a>.</li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-method" class="outline-2">
+<h2 id="method"><span class="section-number-2">2</span> Method</h2>
+<div class="outline-text-2" id="text-method">
+<p>
+Eurostat HDD data is defined as follows (<a href="https://ec.europa.eu/eurostat/cache/metadata/en/nrg_chdd_esms.htm#stat_pres1599744381054">source</a>):
+</p>
+
+<p>
+<code>If Tₘ ≤ 15°C Then [HDD = ∑ᵢ(18°C - Tⁱₘ)] Else [HDD = 0]</code> where Tⁱₘ is
+the mean air temperature of day i.
+</p>
+
+<p>
+As HDD values are trending upwards over time, despite Eurostat data
+going back to 1979 only the average of the last 5 years was used.
+</p>
+
+<p>
+However, the THERMOS heat demand model was trained using HDD data for
+Copenhagen where the base temperature was 17°C: <code>HDD = ∑ᵢ(17°C - Tⁱₘ)</code>.
+</p>
+
+<p>
+To remove this discrepancy, the Eurostat HDD values are multiplied by
+<code>HDD(Copenhagen, 17°C)/HDD(Copenhagen, Eurostat)</code>.
+</p>
+</div>
+
+<div id="outline-container-hddcopenhagen-17c" class="outline-4">
+<h4 id="hddcopenhagen-17c"><span class="section-number-4">2.0.1</span> <code>HDD(Copenhagen, 17°C)</code>:</h4>
+<div class="outline-text-4" id="text-hddcopenhagen-17c">
+<pre class="example" id="orge237b01">
+2006  2990.5
+2007  2819.8
+2008  2901.1
+2009  3134.4
+2010  3642
+2011  3007.6
+2012  3248
+2013  3190.9
+2014  2745
+2015  2885.8
+2016  2910.7
+2017  2986.8
+
+avg   3038.55
+</pre>
+
+<p>
+For HDD(Copenhagen, 17°C), the average of all the years was used as the
+model was trained on all the years.
+</p>
+</div>
+</div>
+
+<div id="outline-container-hddcopenhagen-eurostat" class="outline-4">
+<h4 id="hddcopenhagen-eurostat"><span class="section-number-4">2.0.2</span> <code>HDD(Copenhagen, Eurostat)</code></h4>
+<div class="outline-text-4" id="text-hddcopenhagen-eurostat">
+<p>
+<code>2943.88466666667</code>
+</p>
+
+<p>
+The average of the latest 5 years was used as in the other data from
+Eurostat.
+</p>
+</div>
+</div>
+
+<div id="outline-container-conclusion" class="outline-4">
+<h4 id="conclusion"><span class="section-number-4">2.0.3</span> Conclusion</h4>
+<div class="outline-text-4" id="text-conclusion">
+<p>
+All Eurostat HDD values were multiplied by <code>3038.55 / 2943.88</code> =
+<code>1.03215660396116</code>, and added as properties to the geoJSON from
+naturalearthdata.
+</p>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

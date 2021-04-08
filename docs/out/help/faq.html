@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Frequently Asked Questions</title>
+<meta name="generator" content="Org mode" />
+</head>
+<body>
+<div id="content">
+<h1 class="title">Frequently Asked Questions</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#org39c2693">1. How can I save a selection and come back to it later?</a></li>
+<li><a href="#org62f4ec7">2. How can I quickly find the supply location?</a></li>
+<li><a href="#org746aae8">3. When I edit demands or other details, what is affected?</a></li>
+<li><a href="#orgc52b829">4. How can I represent an existing network?</a></li>
+<li><a href="#org98b7a73">5. How can I make the model run faster?</a></li>
+<li><a href="#org100e0f6">6. How can I get THERMOS data into other programs?</a></li>
+<li><a href="#org93a8779">7. How can I get external data into THERMOS?</a></li>
+<li><a href="#orgc1b968d">8. What are the currency units in THERMOS?</a></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-org39c2693" class="outline-2">
+<h2 id="org39c2693"><span class="section-number-2">1</span> How can I save a selection and come back to it later?</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+In the network editor you might build up a selection, but then realise you want to do something else and come back to it.
+</p>
+
+<p>
+You can "save" the selection by editing everything that's selected with the <b>e</b> key, going to the <b>Other Fields</b> tab, Clicking <b>+</b> to add a user field, enter a new value into the header (say <code>MARK</code>), and then putting a value into the rows (e.g. <code>A</code>).
+</p>
+
+<p>
+Later you can find this selection by selecting everything and using the selection info panel on the right to restrict the selection to candidates for which <code>MARK</code> is <code>A</code>.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org62f4ec7" class="outline-2">
+<h2 id="org62f4ec7"><span class="section-number-2">2</span> How can I quickly find the supply location?</h2>
+<div class="outline-text-2" id="text-2">
+<ol class="org-ol">
+<li>Switch to the map view</li>
+<li>Press <b>a</b> to select everything</li>
+<li>In the selection info panel, find the <b>Type</b> row and click on the chip for <b>supply</b></li>
+<li>Press <b>z</b> to zoom to the (now selected) supply point.</li>
+</ol>
+</div>
+</div>
+
+<div id="outline-container-org746aae8" class="outline-2">
+<h2 id="org746aae8"><span class="section-number-2">3</span> When I edit demands or other details, what is affected?</h2>
+<div class="outline-text-2" id="text-3">
+<p>
+Edits made in the network editor by pressing the <b>e</b> key are stored only in the network problem, and only in saves from after you made the edits.
+</p>
+</div>
+</div>
+
+<div id="outline-container-orgc52b829" class="outline-2">
+<h2 id="orgc52b829"><span class="section-number-2">4</span> How can I represent an existing network?</h2>
+<div class="outline-text-2" id="text-4">
+<p>
+To tell THERMOS about an existing network you can select the paths that are in the existing network and press <b>e</b> to edit them.
+</p>
+
+<p>
+In that dialog you can tick <b>Exists</b> and set <b>Maximum diameter</b>, which will make it free to install pipe on that path, but only up to the maximum diameter.
+</p>
+
+<p>
+At the moment THERMOS can't upgrade an existing pipe to a larger one. You would have to model two scenarios to evaluate this option.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org98b7a73" class="outline-2">
+<h2 id="org98b7a73"><span class="section-number-2">5</span> How can I make the model run faster?</h2>
+<div class="outline-text-2" id="text-5">
+<p>
+The model runs slower when it has more decisions to make, or when the decisions it has to make are more difficult because the outcomes are closer together numerically. To reduce the number of decisions you can:
+</p>
+
+<ol class="org-ol">
+<li>Model a smaller problem first</li>
+<li>Make some decisions fixed (by setting the constraint to required for some parts)</li>
+<li>Use building groups to reduce the number of combinations of buildings being considered</li>
+<li>Avoid offering multiple supplies</li>
+<li><p>
+If there are a lot of different networks possible because you have included a lot of paths, try cutting down the number of paths you are considering.
+</p>
+
+<p>
+It is more difficult for the model if there are many different ways of getting between any two places.
+</p></li>
+</ol>
+
+<p>
+You can also get a worse answer out quicker by going to the objective settings and increasing the gap or the tolerance for the effect of parameter fixing.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org100e0f6" class="outline-2">
+<h2 id="org100e0f6"><span class="section-number-2">6</span> How can I get THERMOS data into other programs?</h2>
+<div class="outline-text-2" id="text-6">
+<p>
+THERMOS map data can be downloaded from the project page, by the <b>Download</b> button.
+</p>
+
+<p>
+THERMOS network solutions can be downloaded from within the network editor by the links in the <b>Import / Export Data</b> section. You can download GIS data or a spreadsheet.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org93a8779" class="outline-2">
+<h2 id="org93a8779"><span class="section-number-2">7</span> How can I get external data into THERMOS?</h2>
+<div class="outline-text-2" id="text-7">
+<p>
+THERMOS can accept GIS and LIDAR data during map creation.
+</p>
+
+<p>
+Once you have a map with a network problem you can upload new parameters into the network problem by using the links under <b>Import / Export Data</b> in the sidebar.
+</p>
+</div>
+</div>
+
+<div id="outline-container-orgc1b968d" class="outline-2">
+<h2 id="orgc1b968d"><span class="section-number-2">8</span> What are the currency units in THERMOS?</h2>
+<div class="outline-text-2" id="text-8">
+<p>
+All currency in THERMOS is displayed using the unicode symbol for currency (¤).
+</p>
+
+<p>
+This does not represent a specific currency.
+</p>
+
+<p>
+The default values in THERMOS are in GBP (£).
+</p>
+
+<p>
+You can change these to euros by downloading the parameters spreadsheet, editing the parameters with an exchange rate, and uploading the new parameters into new problems that you make.
+</p>
+
+<p>
+However, if you are doing this you should probably try and find your own cost figures that are more locally correct in any case.
+</p>
+</div>
+</div>
+</div>
+</body>
+</html>
