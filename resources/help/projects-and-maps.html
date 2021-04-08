@@ -1,0 +1,571 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>THERMOS Projects and Maps</title>
+<meta name="generator" content="Org mode" />
+<meta name="author" content="CSE" />
+</head>
+<body>
+<div id="content">
+<h1 class="title">THERMOS Projects and Maps</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#org8a782c3">1. The home page</a></li>
+<li><a href="#org8503215">2. Project pages</a></li>
+<li><a href="#org026a7e1">3. Changing user access to projects</a></li>
+<li><a href="#org5971784">4. Creating maps</a>
+<ul>
+<li><a href="#org0336ce3">4.1. Spatial data</a></li>
+<li><a href="#org54bda0f">4.2. Using OpenStreetMap</a></li>
+<li><a href="#orgdf76010">4.3. Using GIS data</a></li>
+<li><a href="#orgf1daf13">4.4. Using fields in GIS data</a></li>
+<li><a href="#orgdae5050">4.5. Field meanings</a></li>
+<li><a href="#new-map-lidar">4.6. Check LIDAR coverage</a></li>
+<li><a href="#org9081ef9">4.7. Other parameters</a>
+<ul>
+<li><a href="#org99c7368">4.7.1. Heating degree days</a></li>
+<li><a href="#org032ae7d">4.7.2. Automatic building groups</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#orgb5d4641">5. Uploading LIDAR to projects</a></li>
+<li><a href="#org91c220f">6. Managing saves</a></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-org8a782c3" class="outline-2">
+<h2 id="org8a782c3"><span class="section-number-2">1</span> The home page</h2>
+<div class="outline-text-2" id="text-1">
+
+<div id="org97cab9b" class="figure">
+<p><img src="./screenshots/thermos-homepage.png" alt="thermos-homepage.png" />
+</p>
+<p><span class="figure-number">Figure 1: </span>The THERMOS home page, after logging in</p>
+</div>
+
+<p>
+The home page does not do very much; the important parts are
+</p>
+
+<ul class="org-ul">
+<li>The top bar, containing
+<ul class="org-ul">
+<li><b>Settings</b>, which will let you change how THERMOS shows your name, change your password, and select whether you want to receive emails from the system</li>
+<li><b>Help</b>, which you are looking at right now</li>
+<li><b>Forum</b>, which links to a discussion forum in which you can ask questions</li>
+<li><b>Logout</b> which is self-explanatory</li>
+</ul></li>
+<li>A description of your user account level (in some cases), which shows how much of your limited server resources you have used up,</li>
+<li>The button to create a new project, and</li>
+<li>A list of projects underneath, each displayed as a box with a link in it.</li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-org8503215" class="outline-2">
+<h2 id="org8503215"><span class="section-number-2">2</span> Project pages</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+From the home page you can reach the project page for each project, which will look something like this:
+</p>
+
+
+<div id="org285e200" class="figure">
+<p><img src="./screenshots/project-buttons.png" alt="project-buttons.png" />
+</p>
+<p><span class="figure-number">Figure 2: </span>A project page with a map in it</p>
+</div>
+
+<p>
+Project pages always have a bar at the top, whose controls pertain to the project:
+</p>
+
+<dl class="org-dl">
+<dt>N User(s)</dt><dd>The users button lets you see and perhaps control who has access to the project. More on this below.</dd>
+<dt>Delete</dt><dd>This will delete the project entirely.</dd>
+<dt>Leave</dt><dd>This will remove you from the project, but not delete it. You will no longer be able to access the project. The button is only displayed if there are other users than you on the project.</dd>
+<dt>Map +</dt><dd>This button lets you add a map. More on this below.</dd>
+<dt>LIDAR</dt><dd>This lets you add LIDAR to the project, which will make better maps. More on this below too.</dd>
+</dl>
+
+<p>
+Some of these controls will not be shown if you do not have permission to change the project.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org026a7e1" class="outline-2">
+<h2 id="org026a7e1"><span class="section-number-2">3</span> Changing user access to projects</h2>
+<div class="outline-text-2" id="text-3">
+<p>
+If you click on the users button on a project page you can change who can view a project. However you must be the project admin to do this. Whoever creates a project is an admin for that project, and any admin can make any other user an admin.
+</p>
+
+
+<div id="orgb64a04c" class="figure">
+<p><img src="./screenshots/project-users.png" alt="project-users.png" />
+</p>
+<p><span class="figure-number">Figure 3: </span>Project participants box.</p>
+</div>
+
+<p>
+In the project participants box you can add, remove, promote and demote users on the project.
+The ↑ and ↓ buttons promote a user to or from being a project admin. The red cross button will remove a user, and the add button will add users whose usernames / email addresses are listed in the box on the left.
+</p>
+
+<p>
+Finally at the bottom is a tickbox to make a project <b>globally visible</b>. If you tick this box, then you can share the URL for the project with anyone and they will be able to see the maps and networks it contains (whether or not they have a login on the THERMOS system).
+</p>
+
+<p>
+People who don't know the URL will not be able to see the project, but URLs are not hard to guess as they contain sequentially generated numbers, so you should not rely on this to secure any important data.
+</p>
+</div>
+</div>
+<div id="outline-container-org5971784" class="outline-2">
+<h2 id="org5971784"><span class="section-number-2">4</span> Creating maps</h2>
+<div class="outline-text-2" id="text-4">
+<p>
+You can create a map from OpenStreetMap data, or from your own GIS data.
+</p>
+
+<p>
+Once a map is created, its contents are fixed and will not change.
+</p>
+
+<p>
+You can modify things from the map within the network editor, but this change is only in the network problem you have created, not in the underlying map.
+</p>
+
+<p>
+To start making a map click <b>Map +</b> on the project page. This will take you to a step-by-step process for map creation.
+</p>
+
+<p>
+The first page is just for a name and description, but it's useful to show a picture as it illustrates something else:
+</p>
+
+
+<div id="org11734d2" class="figure">
+<p><img src="./screenshots/create-map-1.png" alt="create-map-1.png" />
+</p>
+<p><span class="figure-number">Figure 4: </span>Entering the name and description for a map - at the bottom you can see that the <b>Next</b> button is "greyed out" so you can't proceed. The problem is displayed above; you must enter a name for your map.</p>
+</div>
+</div>
+
+<div id="outline-container-org0336ce3" class="outline-3">
+<h3 id="org0336ce3"><span class="section-number-3">4.1</span> Spatial data</h3>
+<div class="outline-text-3" id="text-4-1">
+<p>
+After the name page you must acquire spatial data for the map.
+There are two options here:
+</p>
+
+<ol class="org-ol">
+<li>Use OpenStreetMap (OSM)</li>
+<li>Upload your own GIS files</li>
+</ol>
+</div>
+</div>
+
+<div id="outline-container-org54bda0f" class="outline-3">
+<h3 id="org54bda0f"><span class="section-number-3">4.2</span> Using OpenStreetMap</h3>
+<div class="outline-text-3" id="text-4-2">
+
+<div id="orgbef5c9b" class="figure">
+<p><img src="./screenshots/create-map-osm.png" alt="create-map-osm.png" />
+</p>
+<p><span class="figure-number">Figure 5: </span>Creating a map from OSM. Use the search box or controls on the left to select an area to load the map from.</p>
+</div>
+
+<p>
+Using OSM is easiest, but you are restricted by how well mapped the area you're interested in is. Some OSM tags (the OSM term for data fields) are used when loading data:
+</p>
+
+<ul class="org-ul">
+<li><code>landuse</code> <code>building</code> and <code>amenity</code> tags are used to populate THERMOS' category field</li>
+<li>the <code>height</code> and <code>building:levels</code> tags are used as inputs to the demand model, if LIDAR is not available</li>
+<li>the <code>name</code> field is used to populate THERMOS' name field. This is often a street or building name.</li>
+</ul>
+
+<p>
+The application will only let you load a certain area from OSM at once. If the area you have selected is too large, you won't be able to continue to the next step.
+</p>
+</div>
+</div>
+
+<div id="outline-container-orgdf76010" class="outline-3">
+<h3 id="orgdf76010"><span class="section-number-3">4.3</span> Using GIS data</h3>
+<div class="outline-text-3" id="text-4-3">
+<p>
+If you have your own GIS data you can upload that instead of using OSM.
+</p>
+
+
+<div id="org4f791dc" class="figure">
+<p><img src="./screenshots/create-map-gis.png" alt="create-map-gis.png" />
+</p>
+<p><span class="figure-number">Figure 6: </span>Uploading GIS data.</p>
+</div>
+
+<p>
+You can do this by dragging and dropping data in one of the supported formats into the dotted rectangle. When you do this a progress bar will be shown for each file as it is uploaded. Once they are uploaded and each row is green, you can continue. All the geometry GIS files you upload will be added into the map.
+</p>
+
+<p>
+If the GIS files contain linestring or multilinestring data, these geometries will be used for potential pipe routes. All other geometries will be assumed to be buildings.
+</p>
+
+<p>
+If you have no linestring or multilinestring data, the box to <b>Also import roads from OpenStreetMap</b> will be checked; in this case OSM is queried for roads and footpaths in the same area to use for pipe routes. Otherwise, the box will be unchecked, but you can check it yourself if you want to use OSM paths as well as what is in your GIS data.
+</p>
+</div>
+</div>
+
+<div id="outline-container-orgf1daf13" class="outline-3">
+<h3 id="orgf1daf13"><span class="section-number-3">4.4</span> Using fields in GIS data</h3>
+<div class="outline-text-3" id="text-4-4">
+<p>
+Your GIS data may contain other fields than just geometry. Some of these may have special meaning that THERMOS could make use of, and you might also want to keep some to view in the network editor.
+</p>
+
+
+<div id="org9b43b3f" class="figure">
+<p><img src="./screenshots/create-map-field-alloc.png" alt="create-map-field-alloc.png" />
+</p>
+<p><span class="figure-number">Figure 7: </span>Building field allocation. On the left is the name of a field (AKA attribute) in the GIS file, and on the right is the meaning THERMOS should use for the field. Clicking the question mark button at the top will give an explanation of each meaning.</p>
+</div>
+
+<p>
+This is made possible on the next page after uploading GIS data, which will show a list of each field in each input GIS file, and allow you to instruct THERMOS about what the field means.
+</p>
+</div>
+</div>
+
+<div id="outline-container-orgdae5050" class="outline-3">
+<h3 id="orgdae5050"><span class="section-number-3">4.5</span> Field meanings</h3>
+<div class="outline-text-3" id="text-4-5">
+<p>
+The meaning choices for buildings have these effects:
+</p>
+
+<dl class="org-dl">
+<dt>Annual heat demand (kWh/yr)</dt><dd>A value for annual demand will be used in preference to any other estimate. Otherwise, a benchmark estimate will be used if available, or the built-in regression model otherwise.</dd>
+<dt>Max. heat demand (kWh/yr)</dt><dd>An upper bound to apply to the modelled annual heat demand. If the demand estimation model is used, and it produces an annual demand above this value, this value will be used instead.</dd>
+<dt>Min. heat demand (kWh/yr)</dt><dd>A lower bound to apply to the modelled annual heat demand. If the demand estimation model is used, and it produces an annual demand below this value, this value will be used instead.</dd>
+<dt>Annual cooling demand (kWh/yr)</dt><dd>A value for annual cooling demand will be used in preference to a cooling estimate.</dd>
+<dt>Peak cooling demand (kW)</dt><dd>A value for peak cooling demand will be used in preference to an estimate.</dd>
+<dt>Peak heat demand (kW)</dt><dd>A value for peak demand will be used in preference to any other estimate. Otherwise, the peak/base ratio will be applied to the demand if available, or the - build in regression model otherwise.</dd>
+<dt>Building height (m)</dt><dd>A value for building height will be used in preference to any LIDAR data on the server.</dd>
+</dl>
+<p>
+Building height will improve the quality of any demand estimates produced from the built-in regression model.
+</p>
+<dl class="org-dl">
+<dt>Fallback building height (m)</dt><dd>A value for building height to be used if LIDAR data on the server and the building height field are missing.</dd>
+<dt>Floor area (m2)</dt><dd>A value for floor area will be used in benchmark-based estimates. If no value is provided, a value will be estimated from the building geometry and height (if known).</dd>
+<dt>Heat benchmark (kWh/yr)</dt><dd>A constant benchmark - this is used in combination with the variable benchmark term. If a building has associated benchmarks and no specified demand, demand will be estimated as this constant plus floor area times the variable benchmark.</dd>
+<dt>Heat benchmark (kWh/m2/yr)</dt><dd>A variable benchmark per floor area.</dd>
+<dt>Cooling benchmark (kWh/yr)</dt><dd>A constant benchmark - this is used in combination with the variable benchmark term. If a building has associated benchmarks and no specified demand, demand will be estimated as this constant plus floor area times the variable benchmark.</dd>
+<dt>Cooling benchmark (kWh/m2/yr)</dt><dd>A variable benchmark per floor area.</dd>
+<dt>Peak/base ratio</dt><dd>If present, and no peak demand value is known, the peak demand will be estimated as the annual demand (converted into kW) multiplied with this factor.</dd>
+</dl>
+<p>
+Otherwise, a built in regression will be used.
+</p>
+<dl class="org-dl">
+<dt>Connection count</dt><dd>The number of end-user connections the building contains. This affects only the application of diversity curves within the model.</dd>
+<dt>Identity (text)</dt><dd>An identifier - these are stored on the buildings in the database and visible in downloaded GIS files.</dd>
+<dt>User-defined field (any)</dt><dd>Any other field you want to keep, like a classification, address, etc.</dd>
+<dt>Residential (logical)</dt><dd>A logical value, represented either as a boolean column, or the text values yes, no, true, false, 1 or 0. If available, this will improve the quality of built-in regression model results. Otherwise, this is assumed to be true.</dd>
+<dt>Building group (any value)</dt><dd>Any buildings which have the same value in this field (except null or an empty string) will be grouped together. Buildings in a group must all be connected to a network at once, or not at all.</dd>
+</dl>
+
+<p>
+For paths the meanings are just for <b>Identity</b> and <b>User-defined field</b>.
+</p>
+
+<p>
+The <b>Guess</b> button in the top right will give fields meanings based on the field name.
+</p>
+
+<p>
+This is done by taking the field name, lowercasing it, replacing any series of non-alphanumeric characters with a single hyphen, and then using the following table to choose a meaning:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Normalized name</th>
+<th scope="col" class="org-left">Guessed meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">annual-demand</td>
+<td class="org-left">Annual heat demand (kWh/yr)</td>
+</tr>
+
+<tr>
+<td class="org-left">maximum-annual-demand</td>
+<td class="org-left">Max. heat demand (kWh/yr)</td>
+</tr>
+
+<tr>
+<td class="org-left">minimum-annual-demand</td>
+<td class="org-left">Min. heat demand (kWh/yr)</td>
+</tr>
+
+<tr>
+<td class="org-left">annual-cooling-demand</td>
+<td class="org-left">Annual cooling demand (kWh/yr)</td>
+</tr>
+
+<tr>
+<td class="org-left">cooling-peak</td>
+<td class="org-left">Peak cooling demand (kW)</td>
+</tr>
+
+<tr>
+<td class="org-left">peak-demand</td>
+<td class="org-left">Peak heat demand (kW)</td>
+</tr>
+
+<tr>
+<td class="org-left">height</td>
+<td class="org-left">Building height (m)</td>
+</tr>
+
+<tr>
+<td class="org-left">fallback-height</td>
+<td class="org-left">Fallback building height (m)</td>
+</tr>
+
+<tr>
+<td class="org-left">floor-area</td>
+<td class="org-left">Floor area (m2)</td>
+</tr>
+
+<tr>
+<td class="org-left">benchmark-c</td>
+<td class="org-left">Heat benchmark (kWh/yr)</td>
+</tr>
+
+<tr>
+<td class="org-left">benchmark-m</td>
+<td class="org-left">Heat benchmark (kWh/m2/yr)</td>
+</tr>
+
+<tr>
+<td class="org-left">cooling-benchmark-c</td>
+<td class="org-left">Cooling benchmark (kWh/yr)</td>
+</tr>
+
+<tr>
+<td class="org-left">cooling-benchmark-m</td>
+<td class="org-left">Cooling benchmark (kWh/m2/yr)</td>
+</tr>
+
+<tr>
+<td class="org-left">peak-base-ratio</td>
+<td class="org-left">Peak/base ratio</td>
+</tr>
+
+<tr>
+<td class="org-left">connection-count</td>
+<td class="org-left">Connection count</td>
+</tr>
+
+<tr>
+<td class="org-left">identity</td>
+<td class="org-left">Identity (text)</td>
+</tr>
+
+<tr>
+<td class="org-left">residential</td>
+<td class="org-left">Residential (logical)</td>
+</tr>
+
+<tr>
+<td class="org-left">group</td>
+<td class="org-left">Building group (any value)</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+If you press the <b>Guess</b> button with the control key help down on the keyboard, every non-matched field will be passed through as a user-defined field.
+</p>
+</div>
+</div>
+<div id="outline-container-new-map-lidar" class="outline-3">
+<h3 id="new-map-lidar"><span class="section-number-3">4.6</span> Check LIDAR coverage</h3>
+<div class="outline-text-3" id="text-new-map-lidar">
+<p>
+When creating a map from OSM or GIS data THERMOS will use any LIDAR information it has to try and determine building size. This will improve the quality of the model's heat demand estimates.
+</p>
+
+<p>
+THERMOS takes LIDAR from two places
+</p>
+
+<ol class="org-ol">
+<li>A list of LIDAR files associated with the project</li>
+<li>A list of LIDAR files that are available for all projects</li>
+</ol>
+
+<p>
+After uploading map data you will see a section like this:
+</p>
+
+
+<div id="orgfc4eb97" class="figure">
+<p><img src="./screenshots/create-map-lidar.png" alt="create-map-lidar.png" />
+</p>
+<p><span class="figure-number">Figure 8: </span>Checking LIDAR coverage. We have uploaded data in the blue rectangle in the top left. Unfortunately the LIDAR coverage in the system is in the pink area in the bottom right, so the demand estimates will be poor unless we upload some LIDAR for the area we are using.</p>
+</div>
+
+<p>
+The map shows where the map is to cover in blue, any project-specific LIDAR areas in green, and any other LIDAR In pink.
+</p>
+
+<p>
+At this stage if you have some LIDAR that covers the area you are mapping and it isn't already covered, uploading that LIDAR will help THERMOS' demand model with its estimates.
+</p>
+</div>
+</div>
+<div id="outline-container-org9081ef9" class="outline-3">
+<h3 id="org9081ef9"><span class="section-number-3">4.7</span> Other parameters</h3>
+<div class="outline-text-3" id="text-4-7">
+<p>
+<img src="./screenshots/create-map-other.png" alt="create-map-other.png" />
+Once you have checked and uploaded any LIDAR, you're nearly there. You will see a section like the above, in which you can enter a heating degree days number to calibrate the demand model, and choose whether to set up some initial building groups.
+</p>
+</div>
+<div id="outline-container-org99c7368" class="outline-4">
+<h4 id="org99c7368"><span class="section-number-4">4.7.1</span> Heating degree days</h4>
+<div class="outline-text-4" id="text-4-7-1">
+<p>
+The THERMOS demand model bases its predictions on building size and shape, but these need to be calibrated geographically using heating degree days (HDD) for the area. THERMOS will try and estimate an HDD value using data from Eurostat (more details <a href="heating-degree-days.html">here</a>) if it can. Otherwise you will need to find your own value.
+</p>
+</div>
+</div>
+<div id="outline-container-org032ae7d" class="outline-4">
+<h4 id="org032ae7d"><span class="section-number-4">4.7.2</span> Automatic building groups</h4>
+<div class="outline-text-4" id="text-4-7-2">
+<p>
+The THERMOS network can put buildings into groups. Either every building in a group gets connected or none does. You can create and change groups yourself <a href="network/interface.html">using the network editor</a>.
+</p>
+
+<p>
+The option here lets you set them up automatically in the map by the path they are connected to. You can either group by road segment, or (if using GIS data) any field that is on the paths. Grouping by road segment will make all buildings which get connected to the same segment of road belong to the same group. A segment of road is any section which does not have a junction in it with another road.
+</p>
+
+<p>
+Grouping by another field simply groups together all buildings for which their connected road has the same value in the given field.
+</p>
+</div>
+</div>
+</div>
+</div>
+<div id="outline-container-orgb5d4641" class="outline-2">
+<h2 id="orgb5d4641"><span class="section-number-2">5</span> Uploading LIDAR to projects</h2>
+<div class="outline-text-2" id="text-5">
+
+<div id="orga3439d3" class="figure">
+<p><img src="./screenshots/lidar-management.png" alt="lidar-management.png" />
+</p>
+<p><span class="figure-number">Figure 9: </span>The LIDAR management page for a project. Green squares on the map are the tiles listed beneath the map. Pink squares are built-in LIDAR on the server, which appear in every project.</p>
+</div>
+
+<p>
+By clicking the <b>LIDAR</b> button on a project page, you reach the project's LIDAR management page. This is another way to manage the LIDAR data associated with a project, similar to the <a href="#new-map-lidar">LIDAR screen</a> in the map creation process.
+</p>
+
+<p>
+Any LIDAR data you add on this page will be used when running demand estimates for newly created maps (old maps are not affected by adding new LIDAR).
+</p>
+</div>
+</div>
+<div id="outline-container-org91c220f" class="outline-2">
+<h2 id="org91c220f"><span class="section-number-2">6</span> Managing saves</h2>
+<div class="outline-text-2" id="text-6">
+<p>
+Each time you save or run the model a new network problem is saved on the server. These problems do not replace one another, so old saves are still available.
+</p>
+
+<p>
+Normally maps are displayed on the project page like this:
+</p>
+
+
+<div id="org4ccf143" class="figure">
+<p><img src="./screenshots/project-map-collapsed.png" alt="project-map-collapsed.png" />
+</p>
+<p><span class="figure-number">Figure 10: </span>An example of how a map looks on the project page by default. Although there are only two networks shown here, the history column indicates that more saves exist.</p>
+</div>
+
+<p>
+Each row shows the status of the most recent network problem that has a given name within this map. On the rows you can see a few indicators
+</p>
+
+<ul class="org-ul">
+<li><p>
+On the left the run status is shown.
+</p>
+
+<p>
+A tick means that this specific save has been optimised, a spinning THERMOS icon shows it's running, and anything else indicates that save has not been run. If it contains a solution, the solution is from a previous save.
+</p>
+
+<p>
+When the spinning icon is shown, you can click on it to cancel the job before it has finished.
+</p></li>
+
+<li>The <b>Name</b> is what is used to relate versions together</li>
+
+<li>The <b>Author</b> is the username of the person who saved the latest version</li>
+
+<li>The <b>Date</b> is when the save was made</li>
+
+<li>The <b>History</b> cell shows how many previous versions there are with the same name</li>
+
+<li>The red cross deletes this network <b>and its history</b></li>
+
+<li>The down arrow downloads the latest version of this network as GeoJSON for GIS use.</li>
+</ul>
+
+<p>
+However, if you click on the value in the <b>History</b> column for a given row the view will change:
+</p>
+
+
+<div id="org297c59b" class="figure">
+<p><img src="./screenshots/project-map-expanded.png" alt="project-map-expanded.png" />
+</p>
+<p><span class="figure-number">Figure 11: </span>Viewing the history of a network in a map. Note how there are several old versions of the network problem still running, and you can view or download the older versions by clicking on the links in their rows.</p>
+</div>
+
+<p>
+Each previous save for the given name is shown beneath it, somewhat indented. Clicking on the links (which will have a label like <b>v1234</b>) for previous saves will let you look at them in the editor.
+</p>
+</div>
+</div>
+</div>
+</body>
+</html>

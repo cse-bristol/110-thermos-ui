@@ -1,4 +1,7 @@
+
 #+TITLE: How is the supply model joined to the network model?
+
+* Outputs from the network model
 
 Two outputs from THERMOS' network model are:
 
@@ -8,6 +11,8 @@ Two outputs from THERMOS' network model are:
 
 2. A peak demand and annual demand for the network's supply point
 
+* Inputs to the supply model
+
 These demands are not detailed enough for supply-side modelling, which depends on prices that vary on an hourly or half-hourly basis across the year. 
 More detail of this is given below, but for now the important point is that the supply model's decisions are over a large number of time intervals representing a typical operating year.
 
@@ -15,6 +20,8 @@ For example, if modelling the year as 5 representative "day types", each having 
 However, we only have two facts (peak and average demand) about heat at the supply point, and at each building.
 
 Because of this, THERMOS needs a way to convert these summary statistics into a /load profile/ for the supply location which says how much heat is required in each modelled interval.
+
+* Creating a load profile
 
 This is done in two stages:
 
@@ -29,7 +36,7 @@ This is done in two stages:
 
    Since the values in the normalized shape range from 0 to 1, no choice of α can move any of the intervals outside that range. An α of 1 makes no change to the shape; an α of 2 makes the shape "peakier" (since all of the sub-peak intervals are squared, and being less than 1 this reduces them); an α of 0.5 makes the shape flatter (each interval is square-rooted). In the limit, an α of infinity makes every point except the peak have value 0, and an alpha of 1 makes every point have value 1.
 
-   #+BEGIN_SRC gnuplot :exports results :file img/profile-shaping.png
+   #+BEGIN_SRC gnuplot :exports results :file profile-shaping.png
      reset
      set title "Effect of profile shaping parameter"
 
@@ -43,7 +50,7 @@ This is done in two stages:
    #+END_SRC
 
    #+RESULTS:
-   [[file:img/profile-shaping.png]]
+   [[file:profile-shaping.png]]
    #+CAPTION: How the profile shaping parameter α can be used to flatten or sharpen a normalised shape so that it has more or less area-under-curve. Larger α pushes all but the peak towards zero, whereas greater α pulls all points up towards 1.
 
    The required value of α is determined numerically, allowing the construction of a per-building load profile which has a peak & average demand that reflect the values seen by the network model.

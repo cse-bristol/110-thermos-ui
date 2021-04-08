@@ -1,0 +1,446 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>THERMOS Overview</title>
+<meta name="generator" content="Org mode" />
+</head>
+<body>
+<div id="content">
+<h1 class="title">THERMOS Overview</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#orgc30af86">1. Creating a THERMOS user</a></li>
+<li><a href="#org72012dd">2. Projects, maps, and networks</a></li>
+<li><a href="#orgc806d20">3. A run through: how to make a project, a map, and a heat network</a>
+<ul>
+<li><a href="#org944a27e">3.1. Making a project</a></li>
+<li><a href="#orgf2e3420">3.2. Making a map</a></li>
+<li><a href="#org5797db6">3.3. Making a network</a></li>
+<li><a href="#orge8fc22e">3.4. Running the model</a></li>
+<li><a href="#org5da2da8">3.5. Looking at the results</a></li>
+<li><a href="#org3b0824f">3.6. Downloading outputs</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<p>
+THERMOS is a program for helping with heat and cooling network design. It incorporates
+</p>
+
+<ul class="org-ul">
+<li>A model for estimating heat demand in buildings</li>
+<li>An optimisation model for suggesting good heat networks</li>
+<li>A second optimisation model for suggesting how to set up an energy center for a network</li>
+<li>Tools for processing GIS and OpenStreetMap data into what's needed for network modelling.</li>
+</ul>
+
+<p>
+These parts are presented through a web interface, so you can use THERMOS without any special setup on your computer.
+</p>
+
+<div id="outline-container-orgc30af86" class="outline-2">
+<h2 id="orgc30af86"><span class="section-number-2">1</span> Creating a THERMOS user</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+To work on THERMOS you need a user account.
+This keeps your work separate from other people's.
+</p>
+
+<ol class="org-ol">
+<li>Go to <a href="https://tool.thermos-project.eu/">https://tool.thermos-project.eu/</a></li>
+<li><p>
+Enter a username and a password:
+</p>
+
+
+<div id="org027c5bf" class="figure">
+<p><img src="./screenshots/create-account.png" alt="create-account.png" />
+</p>
+<p><span class="figure-number">Figure 1: </span>The create account form - note the <b>Create</b> button.</p>
+</div>
+
+<p>
+If you use your email address for a username, the system can send you emails for password recovery and so on, so this is advisable.
+</p></li>
+<li><p>
+Click the <b>Create</b> button to create an account
+</p>
+
+<p>
+This will log you in and take you to the THERMOS homepage for your user.
+</p></li>
+
+<li><p>
+(Optional) Change your settings
+</p>
+
+<p>
+If you click settings in the top right after logging in you can change your settings:
+</p>
+
+
+<div id="orge24a000" class="figure">
+<p><img src="./screenshots/account-settings.png" alt="account-settings.png" />
+</p>
+<p><span class="figure-number">Figure 2: </span>Settings page</p>
+</div>
+
+<p>
+Here you can change your display name, which will be shown instead of your login as a nicety, and decide whether you want THERMOS to send you emails.
+</p></li>
+</ol>
+</div>
+</div>
+
+<div id="outline-container-org72012dd" class="outline-2">
+<h2 id="org72012dd"><span class="section-number-2">2</span> Projects, maps, and networks</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+THERMOS organises work into a hierarchy:
+</p>
+
+<ul class="org-ul">
+<li><p>
+<b>Projects</b> are the top-level category.
+</p>
+
+<p>
+A project is a collection of work which may be made accessible to multiple people.
+</p>
+
+<p>
+Projects that you can see are listed on the front page of THERMOS after logging in.
+</p>
+
+<p>
+When you make a project you can invite other THERMOS users to work on it, in which case they will be able to see it too.
+</p>
+
+<p>
+Within projects are:
+</p>
+
+<ul class="org-ul">
+<li><p>
+<b>Maps</b>: a THERMOS map contains the buildings and potential pipe routes for a geographic area.
+</p>
+
+<p>
+The map records estimated heat and cooling demands for the buildings.
+</p>
+
+<p>
+Within a map you can create:
+</p>
+
+<ul class="org-ul">
+<li><b>Networks</b>: a network contains a question about a heat network, in which some of the elements from a map are considered for creating a heat network and energy center.</li>
+</ul></li>
+
+<li><b>LIDAR</b> images, which help the THERMOS heat demand model estimate heat demand more effectively.</li>
+</ul></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-orgc806d20" class="outline-2">
+<h2 id="orgc806d20"><span class="section-number-2">3</span> A run through: how to make a project, a map, and a heat network</h2>
+<div class="outline-text-2" id="text-3">
+</div>
+<div id="outline-container-org944a27e" class="outline-3">
+<h3 id="org944a27e"><span class="section-number-3">3.1</span> Making a project</h3>
+<div class="outline-text-3" id="text-3-1">
+<p>
+Once you have logged into THERMOS and made an account you will probably see a front page like this:
+</p>
+
+
+<div id="org23297e5" class="figure">
+<p><img src="./screenshots/blank-front-page.png" alt="blank-front-page.png" />
+</p>
+<p><span class="figure-number">Figure 3: </span>A blank front page for THERMOS, with no projects</p>
+</div>
+
+<p>
+Although if someone has invited you to join an existing THERMOS project you might see it listed below.
+</p>
+
+<p>
+To get started, click the <b>New Project</b> button, which will show you this:
+</p>
+
+
+<div id="org34f627f" class="figure">
+<p><img src="./screenshots/new-project.png" alt="new-project.png" />
+</p>
+<p><span class="figure-number">Figure 4: </span>The new project page</p>
+</div>
+
+<p>
+In here you need to fill in <b>Project name</b> - you can leave the other fields blank. If you wanted to collaborate with others on the project you could list their email addresses at the bottom.
+</p>
+
+<p>
+Once you have entered a project name click <b>Create Project</b>, and THERMOS will take you to the project's home page:
+</p>
+
+
+<div id="org796b549" class="figure">
+<p><img src="./screenshots/empty-project-page.png" alt="empty-project-page.png" />
+</p>
+<p><span class="figure-number">Figure 5: </span>An empty project's home page</p>
+</div>
+
+<p>
+The blue buttons across the top let you change things about the project. The one we are interested in is the <b>MAP +</b> button, which lets us create a new map.
+</p>
+</div>
+</div>
+
+<div id="outline-container-orgf2e3420" class="outline-3">
+<h3 id="orgf2e3420"><span class="section-number-3">3.2</span> Making a map</h3>
+<div class="outline-text-3" id="text-3-2">
+<p>
+Click <b>MAP+</b> to make a new map, which takes you to the map creation form:
+</p>
+
+
+<div id="org1a3eb78" class="figure">
+<p><img src="./screenshots/new-map-1.png" alt="new-map-1.png" />
+</p>
+<p><span class="figure-number">Figure 6: </span>Entering name and description for a new map</p>
+</div>
+
+<p>
+As when creating a project, you have to give it a name and you can give it a description.  Enter a name and click <b>Next</b> to get to the geometry input page:
+</p>
+
+
+<div id="org76971fb" class="figure">
+<p><img src="./screenshots/new-map-2.png" alt="new-map-2.png" />
+</p>
+<p><span class="figure-number">Figure 7: </span>Entering geometry for a new map</p>
+</div>
+
+<p>
+On this page you have two choices:
+</p>
+
+<ol class="org-ol">
+<li>Use OpenStreetMap data</li>
+<li>Upload your own GIS data</li>
+</ol>
+
+<p>
+For now we will use option 1 - you can search for a location in OpenStreetMap with the search box, or you can select a rectangular area by clicking on <img src="./screenshots/new-map-rect.png" alt="new-map-rect.png" />.
+</p>
+
+<p>
+Let's draw a rectangle as this is easy to do. Click the rectangle button, click in the map to start drawing, and click again to close the rectangle. You should see it highlighted in blue:
+</p>
+
+
+<div id="org45dfd3a" class="figure">
+<p><img src="./screenshots/new-map-highlight-rect.png" alt="new-map-highlight-rect.png" />
+</p>
+<p><span class="figure-number">Figure 8: </span>A highlighted area - buildings and roads in this area will be in our map</p>
+</div>
+
+<p>
+Clicking <b>Next</b> again will show us about LIDAR coverage:
+</p>
+
+
+<div id="org9fc670d" class="figure">
+<p><img src="./screenshots/new-map-lidar.png" alt="new-map-lidar.png" />
+</p>
+<p><span class="figure-number">Figure 9: </span>Checking LIDAR coverage in a new map</p>
+</div>
+
+<p>
+In this screenshot the THERMOS installation has some built-in LIDAR for the area we are mapping, shown by the pink rectangles on the map. If we had our own LIDAR for the area instead, we could upload it here. For now, let's click <b>Next</b>:
+</p>
+
+
+<div id="org1096087" class="figure">
+<p><img src="./screenshots/new-map-other.png" alt="new-map-other.png" />
+</p>
+<p><span class="figure-number">Figure 10: </span>Other settings for a new map</p>
+</div>
+
+<p>
+These are the last inputs THERMOS needs to make a map. The <b>Heating degree days</b> will be used to calibrate the heat demand estimates. You should make sure the value here reflects the heating degree days in your area. See, for example, <a href="https://degree-days.net/">https://degree-days.net/</a> for data about this.
+</p>
+
+<p>
+If you tick <b>Automatic building groups</b> nearby buildings will be combined into groups, which can help make large problems more tractable. Click <b>Create map</b> and THERMOS will start making a map for you:
+</p>
+
+
+<div id="org15c35d0" class="figure">
+<p><img src="./screenshots/project-with-map.png" alt="project-with-map.png" />
+</p>
+<p><span class="figure-number">Figure 11: </span>Project page with a map being loaded</p>
+</div>
+
+<p>
+THERMOS has returned us to the project page. While the map is being constructed a spinning THERMOS icon will appear on it. Once the map is ready, it will look like this:
+</p>
+
+
+<div id="org320251c" class="figure">
+<p><img src="./screenshots/project-with-ready-map.png" alt="project-with-ready-map.png" />
+</p>
+<p><span class="figure-number">Figure 12: </span>Project with completed map. On the left of the map box is a small icon showing the outline of the geometry in the map. To the right are buttons relevant to this map.</p>
+</div>
+
+<p>
+If the project contained more maps, they would be listed below on the project page. Now we are ready to model a heat (or cold) network.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org5797db6" class="outline-3">
+<h3 id="org5797db6"><span class="section-number-3">3.3</span> Making a network</h3>
+<div class="outline-text-3" id="text-3-3">
+<p>
+To start making a (heat) network click the <b>HEAT NET+</b> button on the map. This will show you the heat network editor's main interface, where most action in THERMOS takes place:
+</p>
+
+
+<div id="orgefc9608" class="figure">
+<p><img src="./screenshots/heat-network-editor.png" alt="heat-network-editor.png" />
+</p>
+<p><span class="figure-number">Figure 13: </span>The main page in the heat network editor. On the left is a view of the mapped area, on the right a panel that shows information about the selected items, and at the bottom a panel that lists potential network elements.</p>
+</div>
+
+<p>
+The parts of the heat network editor are described in more detail in the <a href="network/interface.html">network model user interface</a> section. For now we will define a quick problem and run it.
+</p>
+
+<p>
+First, zoom in on an area in the map with a few buildings in it. You can zoom in either by using the scroll-wheel on your mouse, if it has one, or by clicking the <b>+</b> and <b>-</b> buttons in the top left.
+</p>
+
+<p>
+Now we want to select some buildings and pipe routes. One way to do this is by drawing an area on the map, using these buttons: <img src="./screenshots/area-buttons.png" alt="area-buttons.png" />. The square button lets you draw a square, like when we were creating a map. Use this to draw a square with some buildings and pipe routes in it:
+</p>
+
+
+<div id="orgde05906" class="figure">
+<p><img src="./screenshots/selected-stuff.png" alt="selected-stuff.png" />
+</p>
+<p><span class="figure-number">Figure 14: </span>New map with some buildings and pipes selected. The selected items are highlighted on the map, and the panel on the right shows information about them.</p>
+</div>
+
+<p>
+Now we have selected some stuff, there is some detail displayed in the selection info panel on the right. This tells you about all the things which are selected, and you can also use it to narrow down your selection.
+</p>
+
+<p>
+The important thing in this picture at the moment is the <b>Constraint</b> row on the right: <img src="./screenshots/constraint-forbidden.png" alt="constraint-forbidden.png" />. To start with it says <b>forbidden</b>. This means that the selected items will <b>not</b> being considered for a network - we want to change this so they may be considered. One way to do this is to press the <b>c</b> key; this should change the picture to look like this:
+</p>
+
+
+<div id="org2864e49" class="figure">
+<p><img src="./screenshots/selected-optional-stuff.png" alt="selected-optional-stuff.png" />
+</p>
+<p><span class="figure-number">Figure 15: </span>New map with the selection changed to optional. Note that (a) the selected items have turned blue and (b) they have appeared in the list at the bottom of the screen.</p>
+</div>
+
+<p>
+You can build up a network problem like this, by selecting things and pressing <b>c</b> to include them for consideration. In this picture the candidates are <b>optional</b>, which means they will be networked <b>if profitable to do so</b>.
+</p>
+
+<p>
+Finally, before we can run a problem we need to define a supply location. Select a single building by clicking on it - the selection info panel should display information about that building alone.
+</p>
+
+<p>
+Now press <b>s</b> to change the building into a supply:
+</p>
+
+
+<div id="org826382a" class="figure">
+<p><img src="./screenshots/edit-supply.png" alt="edit-supply.png" />
+</p>
+<p><span class="figure-number">Figure 16: </span>Editing the parameters for a supply location.</p>
+</div>
+
+<p>
+The meaning of these fields is explained in more detail elsewhere. For now let's enter something for <b>maximum capacity</b>, like 1MW, and something for the cost of heat under <b>supply cost</b>, like 3c/kWh. Press <b>OK</b>, and you will see the building change colour on the map to show it is a supply point.
+</p>
+
+<p>
+Now we can run the model!
+</p>
+</div>
+</div>
+
+<div id="outline-container-orge8fc22e" class="outline-3">
+<h3 id="orge8fc22e"><span class="section-number-3">3.4</span> Running the model</h3>
+<div class="outline-text-3" id="text-3-4">
+<p>
+First enter a name in the name field at the top of the page. Next click <b>Optimise</b>, in the top right, then click <b>Both</b>. THERMOS will run the network optimiser and then the supply optimiser. While the model is running, a panel will appear showing information about progress. When this is finished, you can change the map to colour-code by solution rather than constraints:
+</p>
+
+
+<div id="org1f564f4" class="figure">
+<p><img src="./screenshots/map-colouring.png" alt="map-colouring.png" />
+</p>
+<p><span class="figure-number">Figure 17: </span>The map view controls - clicking <b>Constraints</b> shows the "question" for the optimiser, and clicking <b>Solution</b> shows the "answer" the optimiser has produced. Click <b>Map legend</b> for a description of what the colours mean.</p>
+</div>
+</div>
+</div>
+
+
+<div id="outline-container-org5da2da8" class="outline-3">
+<h3 id="org5da2da8"><span class="section-number-3">3.5</span> Looking at the results</h3>
+<div class="outline-text-3" id="text-3-5">
+<p>
+In solution view you can look at the proposed solution on the map:
+</p>
+
+
+<div id="orgc767d79" class="figure">
+<p><img src="./screenshots/solution-map.png" alt="solution-map.png" />
+</p>
+<p><span class="figure-number">Figure 18: </span>A small network solution displayed on the map. Pipework and buildings in the system are shown in red.</p>
+</div>
+
+<p>
+You can also look at a techno-economic summary of the results, visible on another page of the application. Clicking the THERMOS icon in the top left of the page will show a page-selecting menu on the left:
+</p>
+
+
+<div id="org66a380e" class="figure">
+<p><img src="./screenshots/page-with-sidebar.png" alt="page-with-sidebar.png" />
+</p>
+<p><span class="figure-number">Figure 19: </span>THERMOS sidebar menu</p>
+</div>
+
+<p>
+The pages in here are described in more detail elsewhere. To see information about the network model solution click <b>Solution summary</b> under <b>Network solution</b>. To see more informaiton about the supply model solution click <b>Solution summary</b> under <b>Supply solution</b>.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org3b0824f" class="outline-3">
+<h3 id="org3b0824f"><span class="section-number-3">3.6</span> Downloading outputs</h3>
+<div class="outline-text-3" id="text-3-6">
+<p>
+You can download model outputs as GIS or Excel data from the sidebar - scroll down to <b>Import / Export Data</b> for links.
+</p>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

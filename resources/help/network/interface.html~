@@ -1,0 +1,1834 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>THERMOS network model user interface</title>
+<meta name="generator" content="Org mode" />
+</head>
+<body>
+<div id="content">
+<h1 class="title">THERMOS network model user interface</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#orgc9c3ac8">1. Concepts</a>
+<ul>
+<li><a href="#concept-constraints">1.1. Constraint status</a></li>
+<li><a href="#concept-tariffs">1.2. Tariffs</a></li>
+<li><a href="#concept-market-tariff">1.3. Market tariff</a></li>
+<li><a href="#concept-civils">1.4. Civil costs</a></li>
+<li><a href="#concept-concost">1.5. Connection costs</a></li>
+<li><a href="#concept-demand">1.6. Annual and peak demand</a></li>
+<li><a href="#concept-tank-factor">1.7. Tank factor</a></li>
+<li><a href="#concept-heat-loss">1.8. Pipe heat loss</a></li>
+<li><a href="#concept-diversity">1.9. Diversity / coincidence</a></li>
+<li><a href="#org8236921">1.10. Capital costs and finance</a></li>
+<li><a href="#concept-objective">1.11. Objective</a></li>
+</ul>
+</li>
+<li><a href="#org6779671">2. Top bar and sidebar</a></li>
+<li><a href="#org2cf2dfe">3. Map view</a>
+<ul>
+<li><a href="#org4ce8b7e">3.1. Keyboard shortcuts</a></li>
+<li><a href="#org169a2f8">3.2. Resizing and toggling panels</a></li>
+<li><a href="#orged5d80c">3.3. Selecting things</a></li>
+<li><a href="#org9372c1f">3.4. Map controls</a>
+<ul>
+<li><a href="#org49eb2a5">3.4.1. Moving the map</a></li>
+<li><a href="#selecting-with-area">3.4.2. Area selection</a></li>
+<li><a href="#org19103eb">3.4.3. Hide/show forbidden</a></li>
+<li><a href="#orgd6ed811">3.4.4. Zoom to network / selection</a></li>
+<li><a href="#org318b0d7">3.4.5. Draw connector</a></li>
+<li><a href="#draw-building-tool">3.4.6. Draw building</a></li>
+<li><a href="#org5e7ba6b">3.4.7. Map display controls</a></li>
+<li><a href="#orge104948">3.4.8. Map view / solution display</a></li>
+</ul>
+</li>
+<li><a href="#org56971e2">3.5. Selection info panel</a>
+<ul>
+<li><a href="#selecting-with-chips">3.5.1. Narrowing the selection by category</a></li>
+<li><a href="#org748fd7f">3.5.2. Type</a></li>
+<li><a href="#org1d22d70">3.5.3. Constraint</a></li>
+<li><a href="#orgf18ffd9">3.5.4. Tariff</a></li>
+<li><a href="#org0da0ec4">3.5.5. Edited</a></li>
+<li><a href="#edit-profile">3.5.6. Profile</a></li>
+<li><a href="#org3142444">3.5.7. Civils</a></li>
+<li><a href="#org0f9c39d">3.5.8. Length</a></li>
+<li><a href="#org0eda2d2">3.5.9. Base cost</a></li>
+<li><a href="#org499f5e1">3.5.10. Heat (or cold) demand</a></li>
+<li><a href="#orga4e02ca">3.5.11. Heat (or cold) peak</a></li>
+<li><a href="#org1cf0e76">3.5.12. Insulated demand</a></li>
+<li><a href="#org6b929ef">3.5.13. System peak</a></li>
+<li><a href="#org20540e8">3.5.14. Lin. density</a></li>
+<li><a href="#orgc41811e">3.5.15. In solution</a></li>
+<li><a href="#org06d596d">3.5.16. Losses</a></li>
+<li><a href="#org3e70651">3.5.17. Coincidence</a></li>
+<li><a href="#orgaa617d2">3.5.18. Capacity</a></li>
+<li><a href="#org8fa20a6">3.5.19. Principal / PV Capex / Σ Capex</a></li>
+<li><a href="#org3db7542">3.5.20. Revenue</a></li>
+<li><a href="#orgef56aa7">3.5.21. Market rate</a></li>
+<li><a href="#org0ca8a9a">3.5.22. Other user-defined fields</a></li>
+</ul>
+</li>
+<li><a href="#orgd6b6e9c">3.6. Network candidates panel</a>
+<ul>
+<li><a href="#selecting-with-table">3.6.1. Selection column</a></li>
+<li><a href="#org6679998">3.6.2. Sorting and filtering</a></li>
+</ul>
+</li>
+<li><a href="#orgb48db8b">3.7. Editing candidates</a>
+<ul>
+<li><a href="#org8c92eb0">3.7.1. Editing demands</a></li>
+<li><a href="#editing-tariffs">3.7.2. Editing tariff &amp; connection costs</a></li>
+<li><a href="#editing-systems">3.7.3. Editing insulation &amp; systems</a></li>
+<li><a href="#edit-paths">3.7.4. Editing paths</a></li>
+<li><a href="#org2db3a01">3.7.5. Editing other fields</a></li>
+</ul>
+</li>
+<li><a href="#orga32a98c">3.8. Adding supplies &amp; changing supply parameters</a></li>
+<li><a href="#org18a86fd">3.9. Grouping buildings</a></li>
+<li><a href="#org03534b3">3.10. Deleting things from the map</a></li>
+</ul>
+</li>
+<li><a href="#orgb902b97">4. Objective</a>
+<ul>
+<li><a href="#objective-mode">4.1. Choice of objective</a></li>
+<li><a href="#orgd158532">4.2. Accounting period</a></li>
+<li><a href="#org4df92c2">4.3. Capital costs</a></li>
+<li><a href="#obj-emissions">4.4. Emissions costs and limits</a></li>
+<li><a href="#orgd2eea81">4.5. Supply limit</a></li>
+<li><a href="#org5af31da">4.6. Computing resources</a></li>
+</ul>
+</li>
+<li><a href="#define-tariffs">5. Tariffs</a>
+<ul>
+<li><a href="#orgdb3ba63">5.1. Tariff definitions</a></li>
+<li><a href="#orgbd7aa82">5.2. Market tariff</a></li>
+</ul>
+</li>
+<li><a href="#org45345d5">6. Pipe &amp; connection costs</a>
+<ul>
+<li><a href="#orgf759c3c">6.1. Pipe costs table</a></li>
+<li><a href="#org0701923">6.2. Capacity &amp; loss model</a></li>
+<li><a href="#org6424fd5">6.3. Connection costs</a></li>
+<li><a href="#pumping-costs">6.4. Pumping costs</a></li>
+</ul>
+</li>
+<li><a href="#org7c4ea17">7. Insulation</a></li>
+<li><a href="#def-individual-systems">8. Individual systems</a></li>
+<li><a href="#org644ff37">9. Solution summary</a>
+<ul>
+<li><a href="#org39af129">9.1. Display options</a></li>
+<li><a href="#org09803c1">9.2. Cost summary</a></li>
+<li><a href="#org467db74">9.3. Network (Pipework)</a></li>
+<li><a href="#orga9accbe">9.4. Network (Demands)</a></li>
+<li><a href="#orgc6d1e75">9.5. Network (Supplies)</a></li>
+<li><a href="#org0da1c36">9.6. Individual systems</a></li>
+<li><a href="#org4342cff">9.7. Insulation</a></li>
+<li><a href="#org20df867">9.8. Emissions</a></li>
+<li><a href="#org03cb17a">9.9. Optimisation</a></li>
+</ul>
+</li>
+<li><a href="#org62faa9a">10. Run log</a></li>
+<li><a href="#org432208b">11. Importing and exporting data</a>
+<ul>
+<li><a href="#orga078c8d">11.1. Uploadable parameters</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-orgc9c3ac8" class="outline-2">
+<h2 id="orgc9c3ac8"><span class="section-number-2">1</span> Concepts</h2>
+<div class="outline-text-2" id="text-1">
+</div>
+<div id="outline-container-concept-constraints" class="outline-3">
+<h3 id="concept-constraints"><span class="section-number-3">1.1</span> Constraint status</h3>
+<div class="outline-text-3" id="text-concept-constraints">
+</div>
+</div>
+<div id="outline-container-concept-tariffs" class="outline-3">
+<h3 id="concept-tariffs"><span class="section-number-3">1.2</span> Tariffs</h3>
+<div class="outline-text-3" id="text-concept-tariffs">
+</div>
+</div>
+<div id="outline-container-concept-market-tariff" class="outline-3">
+<h3 id="concept-market-tariff"><span class="section-number-3">1.3</span> Market tariff</h3>
+<div class="outline-text-3" id="text-concept-market-tariff">
+</div>
+</div>
+<div id="outline-container-concept-civils" class="outline-3">
+<h3 id="concept-civils"><span class="section-number-3">1.4</span> Civil costs</h3>
+<div class="outline-text-3" id="text-concept-civils">
+</div>
+</div>
+<div id="outline-container-concept-concost" class="outline-3">
+<h3 id="concept-concost"><span class="section-number-3">1.5</span> Connection costs</h3>
+<div class="outline-text-3" id="text-concept-concost">
+</div>
+</div>
+<div id="outline-container-concept-demand" class="outline-3">
+<h3 id="concept-demand"><span class="section-number-3">1.6</span> Annual and peak demand</h3>
+<div class="outline-text-3" id="text-concept-demand">
+</div>
+</div>
+<div id="outline-container-concept-tank-factor" class="outline-3">
+<h3 id="concept-tank-factor"><span class="section-number-3">1.7</span> Tank factor</h3>
+<div class="outline-text-3" id="text-concept-tank-factor">
+</div>
+</div>
+<div id="outline-container-concept-heat-loss" class="outline-3">
+<h3 id="concept-heat-loss"><span class="section-number-3">1.8</span> Pipe heat loss</h3>
+<div class="outline-text-3" id="text-concept-heat-loss">
+</div>
+</div>
+<div id="outline-container-concept-diversity" class="outline-3">
+<h3 id="concept-diversity"><span class="section-number-3">1.9</span> Diversity / coincidence</h3>
+<div class="outline-text-3" id="text-concept-diversity">
+</div>
+</div>
+<div id="outline-container-org8236921" class="outline-3">
+<h3 id="org8236921"><span class="section-number-3">1.10</span> Capital costs and finance</h3>
+</div>
+<div id="outline-container-concept-objective" class="outline-3">
+<h3 id="concept-objective"><span class="section-number-3">1.11</span> Objective</h3>
+<div class="outline-text-3" id="text-concept-objective">
+</div>
+</div>
+</div>
+<div id="outline-container-org6779671" class="outline-2">
+<h2 id="org6779671"><span class="section-number-2">2</span> Top bar and sidebar</h2>
+<div class="outline-text-2" id="text-2">
+
+<div id="orgff0baef" class="figure">
+<p><img src="../screenshots/top-bar.png" alt="top-bar.png" />
+</p>
+<p><span class="figure-number">Figure 1: </span>THERMOS top bar, from left to right: sidebar button, problem name, save button and optimise button.</p>
+</div>
+
+<p>
+The top bar is always visible.
+</p>
+
+<ul class="org-ul">
+<li>On the left is the THERMOS logo. Click this to open the sidebar to change pages.</li>
+<li>In the middle is the problem name. The latest save for each name is shown in the project page (although you can access earlier versions).
+<ul class="org-ul">
+<li>To "Save As", change the name and press save</li>
+</ul></li>
+<li>The <b>Save</b> button. Can't hurt to click this</li>
+<li><p>
+The <b>Optimise</b> button, to run the model.
+</p>
+
+<p>
+When you click this it will show three options:
+</p>
+<ul class="org-ul">
+<li><b>Network</b> : run the network model only</li>
+<li><p>
+<b>Supply</b> : run the supply model only, using the last network model solution.
+</p>
+
+<p>
+There must be a network model solution for this to do anything.
+</p></li>
+
+<li><b>Both</b> : run the network model, and then run the supply model using the results from the network model.</li>
+</ul></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-org2cf2dfe" class="outline-2">
+<h2 id="org2cf2dfe"><span class="section-number-2">3</span> Map view</h2>
+<div class="outline-text-2" id="text-3">
+</div>
+<div id="outline-container-org4ce8b7e" class="outline-3">
+<h3 id="org4ce8b7e"><span class="section-number-3">3.1</span> Keyboard shortcuts</h3>
+<div class="outline-text-3" id="text-3-1">
+<p>
+There are a few single-key shortcuts in the map view:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Key</th>
+<th scope="col" class="org-left">Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><b>c</b></td>
+<td class="org-left">Cycle the constraint status of the selection</td>
+</tr>
+
+<tr>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">(press repeatedly to cycle through the options)</td>
+</tr>
+
+<tr>
+<td class="org-left"><b>e</b></td>
+<td class="org-left">Show the candidate editor for the selection</td>
+</tr>
+
+<tr>
+<td class="org-left"><b>s</b></td>
+<td class="org-left">Show the supply editor for the selected buildings</td>
+</tr>
+
+<tr>
+<td class="org-left"><b>g</b></td>
+<td class="org-left">Select all buildings in same <i>groups</i> as any selected buildings</td>
+</tr>
+
+<tr>
+<td class="org-left"><b>G</b></td>
+<td class="org-left">Make all the selected buildings belong to a single <i>group</i></td>
+</tr>
+
+<tr>
+<td class="org-left"><b>U</b></td>
+<td class="org-left">Remove all the selected buildings from any <i>group</i></td>
+</tr>
+
+<tr>
+<td class="org-left"><b>z</b></td>
+<td class="org-left">Zoom to show the selection, or the whole problem if no selection</td>
+</tr>
+
+<tr>
+<td class="org-left"><b>a</b></td>
+<td class="org-left">Select every un-forbidden candidate</td>
+</tr>
+
+<tr>
+<td class="org-left"><b>A</b></td>
+<td class="org-left">Flip the selection (select unselected, and deselect selected)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div id="outline-container-org169a2f8" class="outline-3">
+<h3 id="org169a2f8"><span class="section-number-3">3.2</span> Resizing and toggling panels</h3>
+<div class="outline-text-3" id="text-3-2">
+<p>
+The map view is split into three regions: a map, the selection info panel on the right, and the network candidates panel at the bottom.
+</p>
+
+<p>
+You can change the size of the panels by clicking and dragging on the grey border between them.
+</p>
+
+<p>
+You can quickly hide or show a panel by clicking on the little arrow button in the middle of the grey border: <img src="./../screenshots/hideshow-button.png" alt="hideshow-button.png" />.
+</p>
+</div>
+</div>
+<div id="outline-container-orged5d80c" class="outline-3">
+<h3 id="orged5d80c"><span class="section-number-3">3.3</span> Selecting things</h3>
+<div class="outline-text-3" id="text-3-3">
+<p>
+The main purpose of the map view is to <i>select</i> candidates (these are buildings or pipe routes), and then to manipulate or investigate them. The <i>selection</i> refers to the set of candidates which are selected at any time.
+</p>
+
+<p>
+The selection is ephemeral and only one selection exists at a time, much like a selection in a spreadsheet program. There is no quick way to save or recall a selection, so if you want to do something very complicated it is best to do it a bit at a time.
+</p>
+
+
+<div id="org49cdeaf" class="figure">
+<p><img src="./../screenshots/selected.png" alt="selected.png" />
+</p>
+<p><span class="figure-number">Figure 2: </span>Difference in appearance due to selection. On the left nothing is selected, on the right the top-left building is selected.</p>
+</div>
+
+<p>
+You can see on the map whether something is selected by the style with which it is drawn. Selected buildings are drawn with a darker colour, and selected paths or buildings are drawn with a thicker line.
+</p>
+
+<p>
+Clicking on a thing with the mouse is the simplest way to select it. This will also deselect whatever is currently selected. Clicking in an empty space will therefore clear the selection.
+</p>
+
+<p>
+If you want to select several things by clicking on them, you can use <i>modifier keys</i> to change what happens. Holding down a modifier key while clicking will control how the selection is affected:
+</p>
+
+<dl class="org-dl">
+<dt><b>Shift+click</b></dt><dd>Holding the <b>Shift</b> key while clicking will <b>add</b> whatever is clicked to the selection, without unselecting what was selected before.</dd>
+<dt><b>Control+click</b></dt><dd>Holding the <b>Control</b> key while clicking will <b>invert</b> membership of the selection, without changing the rest of the selection. For example if you Control-click something that is in the selection, that thing will be deselected. If you control click something which isn't selected, it will be added to the selection.</dd>
+</dl>
+
+<p>
+There are other ways to control the selection, which we will come onto in:
+</p>
+
+<ul class="org-ul">
+<li><a href="#selecting-with-area">Area selection</a></li>
+<li><a href="#selecting-with-chips">Narrowing the selection by category</a></li>
+<li><a href="#selecting-with-table">Selection column</a></li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-org9372c1f" class="outline-3">
+<h3 id="org9372c1f"><span class="section-number-3">3.4</span> Map controls</h3>
+<div class="outline-text-3" id="text-3-4">
+<p>
+Around the edge of the map are some control buttons:
+</p>
+
+
+<div id="orgde9d536" class="figure">
+<p><img src="./../screenshots/left-map-controls.png" alt="left-map-controls.png" />
+</p>
+<p><span class="figure-number">Figure 3: </span>Map controls on the left. From top to bottom: Zoom In, Zoom Out, Select Polygon, Select Rectangle, Hide/show forbidden, Zoom to network, Add Connector and Add Building buttons.</p>
+</div>
+
+
+<div id="org53c0263" class="figure">
+<p><img src="./../screenshots/right-map-controls.png" alt="right-map-controls.png" />
+</p>
+<p><span class="figure-number">Figure 4: </span>Map controls on the right. The search box searches <a href="https://nominatim.org/">Nominatim</a> for places (it does not unfortunately search THERMOS map data specifically). The box below controls what is displayed on the map.</p>
+</div>
+</div>
+<div id="outline-container-org49eb2a5" class="outline-4">
+<h4 id="org49eb2a5"><span class="section-number-4">3.4.1</span> Moving the map</h4>
+<div class="outline-text-4" id="text-3-4-1">
+<p>
+To change the area displayed on the map you can:
+</p>
+<ul class="org-ul">
+<li><b>Pan</b> by clicking and dragging with the mouse</li>
+<li><b>Zoom</b> in and out by
+<ul class="org-ul">
+<li>clicking the buttons in the top left</li>
+<li>scrolling your mouse scroll-wheel if you have one</li>
+<li>pressing the <b>-</b> or <b>+</b> keys on the keyboard</li>
+<li>holding <b>Shift</b> and then dragging a rectangle on the map</li>
+</ul></li>
+<li><b>Search</b> for a location using the search box in the top right.
+This searches an index of place names, rather than information within the map</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-selecting-with-area" class="outline-4">
+<h4 id="selecting-with-area"><span class="section-number-4">3.4.2</span> Area selection</h4>
+<div class="outline-text-4" id="text-selecting-with-area">
+<p>
+You can select several buildings in an area with the area selection buttons, below the zoom buttons.
+</p>
+
+<p>
+The first one (with a pentagon on it) lets you select using an irregular polygon. Click this to start selecting an area, and then click at points on the map to make a shape.
+</p>
+
+<p>
+When you click on the last point, every candidate intersecting with the shape will be selected.
+</p>
+
+<p>
+The second button (with a square on it) lets you select by drawing a rectangle. Click the button, then click the map at the top left and bottom right corners of the rectangle you want to select.
+</p>
+</div>
+</div>
+<div id="outline-container-org19103eb" class="outline-4">
+<h4 id="org19103eb"><span class="section-number-4">3.4.3</span> Hide/show forbidden</h4>
+<div class="outline-text-4" id="text-3-4-3">
+<p>
+Below the area selection buttons is the Hide/show forbidden button, illustrated by a grid of four squares. This button will toggle the map between displaying forbidden candidates or not - turning off forbidden candidates may make it easier to focus on your problem once you have decided what is in it.
+</p>
+</div>
+</div>
+<div id="outline-container-orgd6ed811" class="outline-4">
+<h4 id="orgd6ed811"><span class="section-number-4">3.4.4</span> Zoom to network / selection</h4>
+<div class="outline-text-4" id="text-3-4-4">
+<p>
+This button has a crosshair on it - clicking it will center and zoom the map to the selection, or all non-forbidden candidates if the selection is empty. You can also press the <b>z</b> key for this.
+</p>
+</div>
+</div>
+<div id="outline-container-org318b0d7" class="outline-4">
+<h4 id="org318b0d7"><span class="section-number-4">3.4.5</span> Draw connector</h4>
+<div class="outline-text-4" id="text-3-4-5">
+<p>
+Next is the connector drawing tool (<img src="./../screenshots/connector-button.png" alt="connector-button.png" />).
+</p>
+
+<p>
+Clicking this puts the map into a special mode where you can draw new connecting lines. To add a connecting line:
+</p>
+
+<ol class="org-ol">
+<li>Click the connector drawing tool button</li>
+<li><p>
+Click on the candidate where you want the line to start - for example on a building whose connector is in the wrong place.
+</p>
+
+<p>
+The starting candidate will be highlighted with a thick dotted line
+</p></li>
+<li><p>
+Click on any intermediate points on the map you want the connector to go via.
+</p>
+
+<p>
+As you click the connector will be shown as a dotted line:
+</p>
+
+
+<div id="org4b922be" class="figure">
+<p><img src="./../screenshots/drawing-connector.png" alt="drawing-connector.png" />
+</p>
+<p><span class="figure-number">Figure 5: </span>Halfway through drawing a connector</p>
+</div></li>
+
+<li><p>
+To finish the connector click where you want it to connect to.
+Generally you will want to go from a building to a path, a path to a building, or a path to a path.
+</p>
+
+<p>
+Connecting two buildings will have no effect unless one is a supply point.
+</p>
+
+<p>
+To cancel drawing a connector, click the connector tool button rather than finishing the line.
+</p></li>
+</ol>
+</div>
+</div>
+<div id="outline-container-draw-building-tool" class="outline-4">
+<h4 id="draw-building-tool"><span class="section-number-4">3.4.6</span> Draw building</h4>
+<div class="outline-text-4" id="text-draw-building-tool">
+<p>
+Below the connector drawing button is the button to add a new building. To use it, click the button, and then click where you want the building to go.
+</p>
+
+<p>
+The new building will always be rendered as a circle, and you will probably immediately want to edit it with the <b>e</b> key or <b>s</b> key since new buildings have no demand or supply information set on them.
+</p>
+</div>
+</div>
+<div id="outline-container-org5e7ba6b" class="outline-4">
+<h4 id="org5e7ba6b"><span class="section-number-4">3.4.7</span> Map display controls</h4>
+<div class="outline-text-4" id="text-3-4-7">
+<p>
+On the right you can control what is shown on the map.
+</p>
+
+<p>
+There are two sets of controls:
+</p>
+
+<ol class="org-ol">
+<li>Controls for the basemap, which is displayed underneath the candidates. This is a single exclusive choice between:
+<dl class="org-dl">
+<dt>None</dt><dd>This displays a blank grey background, which helps the candidates stand out</dd>
+<dt>Maps</dt><dd>This displays a black &amp; white cartographic map called <a href="http://maps.stamen.com/toner/">Stamen Toner</a>, which uses OpenStreetMap data</dd>
+<dt>Satellite</dt><dd>This displays satellite or aerial imagery from ESRI</dd>
+</dl></li>
+<li>Controls for what is on top of the basemap, which is a multiple choice of:
+<dl class="org-dl">
+<dt>Candidates</dt><dd><p>
+the network candidates (buildings and paths).
+</p>
+
+<p>
+When zoomed out a lot, this will show only buildings and paths from any solution network.
+</p></dd>
+<dt>Heatmap</dt><dd>an indicative heat density layer drawn on top of the candidates</dd>
+<dt>Labels</dt><dd>a layer showing street names (also part of Stamen Toner).</dd>
+</dl></li>
+</ol>
+</div>
+</div>
+
+<div id="outline-container-orge104948" class="outline-4">
+<h4 id="orge104948"><span class="section-number-4">3.4.8</span> Map view / solution display</h4>
+<div class="outline-text-4" id="text-3-4-8">
+<p>
+At the bottom of the map is a control which switches the map display between two modes:
+</p>
+
+
+<div id="orgbf5a43b" class="figure">
+<p><img src="./../screenshots/map-view-switch.png" alt="map-view-switch.png" />
+</p>
+<p><span class="figure-number">Figure 6: </span>Map view control, set to solution display. You can use the <b>Map legend</b> button on the right to get a reminder of what colours on the map indicate.</p>
+</div>
+
+<p>
+Clicking either of the two buttons on the left of this section change how colour is used in the map.
+</p>
+
+<p>
+When <b>Constraints</b> is selected, the colours in the map show information about the <i>problem</i>:
+</p>
+
+<ul class="org-ul">
+<li>Blue elements are optional for inclusion in the network, if they improve the solution</li>
+<li>Red elements are required to be included in the network, whether or not this improves the solution</li>
+<li>Supply sites are coloured in orange</li>
+<li>Everything else is forbidden</li>
+</ul>
+
+<p>
+However when there is a solution and <b>Solution</b> is selected, the map changes to show information about that solution. In this case:
+</p>
+
+<ul class="org-ul">
+<li>Red elements are in the network</li>
+<li>Yellow elements are peripheral pipes, reachable by the network but not useful</li>
+<li>Magenta elements are not reachable from any supply location, so could never be connected</li>
+<li>Green elements have alternative heating systems selected (when the objective allows this)</li>
+<li>Supplies that have been built are coloured in orange</li>
+<li>Everything else is drawn in grey</li>
+</ul>
+
+<p>
+To the right of these you can also toggle whether to show pipe sizes.
+</p>
+
+<p>
+This will scale the thickness of line used according to pipe diameter, making bigger pipes draw with thicker lines. This can help you see the network structure on the map.
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-org56971e2" class="outline-3">
+<h3 id="org56971e2"><span class="section-number-3">3.5</span> Selection info panel</h3>
+<div class="outline-text-3" id="text-3-5">
+<p>
+The selection info panel is the region on the right hand side of the map view. Typically it will look something like this:
+</p>
+
+
+<div id="org25bb08e" class="figure">
+<p><img src="./../screenshots/selection-info-panel.png" alt="selection-info-panel.png" />
+</p>
+<p><span class="figure-number">Figure 7: </span>Example of the selection info panel. The <b>Category</b> and <b>Name</b> rows are elided.</p>
+</div>
+
+<p>
+This panel tells you all about the currently selected candidates.
+At the top, you can see how many candidates are selected.
+</p>
+
+<p>
+Below that are a number of rows - which rows are visible will depend on what is selected. Each row has a label on the left, and information on the right.
+</p>
+
+<p>
+These rows typically display two types of information: <i>categorical</i> values or <i>numeric</i> ones. Categories are displayed as a series of <i>chips</i>, where each chip indicates how many of the selected candidates fall into that category.
+</p>
+
+<p>
+Sometimes category rows are elided, to keep the panel short. For example in the image above <b>Category</b> and <b>Name</b> are elided. Clicking on the triangular arrow by the label will show or hide the different categories.
+</p>
+
+<p>
+Numerical values are aggregated up in a sensible way, depending on what is being displayed - some will be summed up, others averaged and so on. Most numerical values will show you some more detail (min, max, etc) if you hover the mouse over the value - this is usually indicated by a little superscript blue letter <code>i</code>.
+</p>
+</div>
+<div id="outline-container-selecting-with-chips" class="outline-4">
+<h4 id="selecting-with-chips"><span class="section-number-4">3.5.1</span> Narrowing the selection by category</h4>
+<div class="outline-text-4" id="text-selecting-with-chips">
+<p>
+All the categorical rows in the selection info panel can be used to narrow down the selection. This is a useful way to quickly find particular buildings or roads.
+</p>
+
+
+<div id="orge6c31d0" class="figure">
+<p><img src="./../screenshots/type-category.png" alt="type-category.png" />
+</p>
+<p><span class="figure-number">Figure 8: </span>The category row for candidate type. This shows that in the selection, 239 candidates are paths, 118 are demand buildings, and 1 is a supply building. Note how each chip has a little cross on the right.</p>
+</div>
+
+<dl class="org-dl">
+<dt>Deselecting a category</dt><dd>To deselect all candidates in a category click the cross on the right of the chip. For example in the picture above, you could deselect all paths by clicking the <b>×</b> next to paths.</dd>
+<dt>Selecting a single category</dt><dd><p>
+To select only candidates in a category, click the name on the chip. For example, above you could find the supply by clicking <b>supply</b>. This would be like clicking <b>×</b> on <b>path</b> and <b>demand</b>.
+</p>
+
+<p>
+After this you might want to press <b>z</b> to find the selected thing on the map.
+</p></dd>
+</dl>
+</div>
+</div>
+<div id="outline-container-org748fd7f" class="outline-4">
+<h4 id="org748fd7f"><span class="section-number-4">3.5.2</span> Type</h4>
+<div class="outline-text-4" id="text-3-5-2">
+<p>
+The <code>type</code> field will always show one of three values: <code>path</code>, <code>demand</code> or <code>supply</code>, which are self-explanatory. A detail is that <i>supply</i> and <i>demand</i> are exclusive here, although they are not exclusive for the model. If a building is both a demand and a supply, the <code>type</code> field will say <code>supply</code>
+</p>
+</div>
+</div>
+<div id="outline-container-org1d22d70" class="outline-4">
+<h4 id="org1d22d70"><span class="section-number-4">3.5.3</span> Constraint</h4>
+<div class="outline-text-4" id="text-3-5-3">
+<p>
+The <code>constraint</code> field will always show one of three values: <code>forbidden</code>, <code>optional</code> and <code>required</code>. These are colour-coded to match the display on the map, when the map is set to show constraints. See <a href="#concept-constraints">Constraint status</a> above for more information about what these mean.
+</p>
+</div>
+</div>
+<div id="outline-container-orgf18ffd9" class="outline-4">
+<h4 id="orgf18ffd9"><span class="section-number-4">3.5.4</span> Tariff</h4>
+<div class="outline-text-4" id="text-3-5-4">
+<p>
+The <code>tariff</code> field says what tariff a building is on. This affects how much revenue the network would receive if it were to sell heat to the building.
+</p>
+
+<p>
+For more on tariffs see <a href="#concept-tariffs">Tariffs</a> above under concepts. To define tariffs see the section below about <a href="#define-tariffs">Tariff definitions</a>.
+</p>
+</div>
+</div>
+<div id="outline-container-org0da0ec4" class="outline-4">
+<h4 id="org0da0ec4"><span class="section-number-4">3.5.5</span> Edited</h4>
+<div class="outline-text-4" id="text-3-5-5">
+<p>
+If you have edited something about a building in this problem, this will say <code>yes</code>. Otherwise <code>no</code>. Note that edits live within a problem, so the underlying map will not be affected - new problems in the same map will start from the original status in the map.
+</p>
+</div>
+</div>
+<div id="outline-container-edit-profile" class="outline-4">
+<h4 id="edit-profile"><span class="section-number-4">3.5.6</span> Profile</h4>
+<div class="outline-text-4" id="text-edit-profile">
+<p>
+A building's profile is part of its connection to the supply model - for more detail see the section on <a href="file:///home/hinton/p/110-thermos/docs/supply/network-model-interface.html">how the supply model is joined to the network model</a>.
+</p>
+</div>
+</div>
+<div id="outline-container-org3142444" class="outline-4">
+<h4 id="org3142444"><span class="section-number-4">3.5.7</span> Civils</h4>
+<div class="outline-text-4" id="text-3-5-7">
+<p>
+A path's Civils affect the cost for putting in a pipe.
+For more about civils see <a href="#concept-civils">Civil costs</a> in the concepts section above.
+</p>
+</div>
+</div>
+<div id="outline-container-org0f9c39d" class="outline-4">
+<h4 id="org0f9c39d"><span class="section-number-4">3.5.8</span> Length</h4>
+<div class="outline-text-4" id="text-3-5-8">
+<p>
+A path's length in metres. If multiple paths are selected, gives the total length.
+</p>
+</div>
+</div>
+<div id="outline-container-org0eda2d2" class="outline-4">
+<h4 id="org0eda2d2"><span class="section-number-4">3.5.9</span> Base cost</h4>
+<div class="outline-text-4" id="text-3-5-9">
+<p>
+Depending on what is selected, gives an indicative cost. For buildings, this is the <a href="#concept-concost">connection cost</a>. For paths it is the minimum pipe cost on that path.
+</p>
+</div>
+</div>
+<div id="outline-container-org499f5e1" class="outline-4">
+<h4 id="org499f5e1"><span class="section-number-4">3.5.10</span> Heat (or cold) demand</h4>
+<div class="outline-text-4" id="text-3-5-10">
+<p>
+This shows the summed <a href="#concept-demand">annual heat demand</a> for selected buildings. This is without any insulation applied.
+</p>
+</div>
+</div>
+<div id="outline-container-orga4e02ca" class="outline-4">
+<h4 id="orga4e02ca"><span class="section-number-4">3.5.11</span> Heat (or cold) peak</h4>
+<div class="outline-text-4" id="text-3-5-11">
+<p>
+This shows the summed <a href="#concept-demand">peak heat demand</a> for selected buildings. This does not account for diversity, nor the installation of individual systems which may smooth the peak, so it may be lower than the peak output from network supplies or individual systems.
+</p>
+</div>
+</div>
+<div id="outline-container-org1cf0e76" class="outline-4">
+<h4 id="org1cf0e76"><span class="section-number-4">3.5.12</span> Insulated demand</h4>
+<div class="outline-text-4" id="text-3-5-12">
+<p>
+When displayed, this shows the total heat demand that the selected buildings required in the solution. This can be lower than the heat demand row, because the model may install insulation.
+</p>
+</div>
+</div>
+<div id="outline-container-org6b929ef" class="outline-4">
+<h4 id="org6b929ef"><span class="section-number-4">3.5.13</span> System peak</h4>
+<div class="outline-text-4" id="text-3-5-13">
+<p>
+When displayed, this shows the total peak demand that the selected buildings required in the solution. This can be lower than the peak row, if the buildings were allocated individual systems for which the <a href="#concept-tank-factor">tank factor</a> is set.
+</p>
+</div>
+</div>
+<div id="outline-container-org20540e8" class="outline-4">
+<h4 id="org20540e8"><span class="section-number-4">3.5.14</span> Lin. density</h4>
+<div class="outline-text-4" id="text-3-5-14">
+<p>
+Shows the linear heat density of the selected candidates. This is calculated as the total annual heat demand of the candidates (without insulation) divided by the total length of any selected paths.
+</p>
+</div>
+</div>
+<div id="outline-container-orgc41811e" class="outline-4">
+<h4 id="orgc41811e"><span class="section-number-4">3.5.15</span> In solution</h4>
+<div class="outline-text-4" id="text-3-5-15">
+<p>
+When a problem has been solved this row will be displayed. It can take a few values:
+</p>
+<dl class="org-dl">
+<dt>network</dt><dd>the candidate is part of a heat network</dd>
+<dt>no</dt><dd><p>
+the candidate is not part of a network, nor has it been given an individual system.
+</p>
+
+<p>
+For buildings, this can happen if (a) the objective is network NPV or (b) the objective is whole-system NPV but no individual system is on offer because (i) individual systems are not enabled, or (ii) they are enabled but this building has no counterfactual or alternative heating choices set.
+</p>
+
+<p>
+For paths this just means they are not in a network
+</p></dd>
+<dt>impossible</dt><dd>this means that the candidate was never considered for networking, because it is not reachable by any route from any supply location.</dd>
+<dt>peripheral</dt><dd>this is only shown for paths; it means that a path is reachable from a supply, but it does not connect that supply to any demands, so was ignored.</dd>
+<dt>other options</dt><dd>if a building has been given an individual system, the name of that system will be shown here.</dd>
+</dl>
+</div>
+</div>
+<div id="outline-container-org06d596d" class="outline-4">
+<h4 id="org06d596d"><span class="section-number-4">3.5.16</span> Losses</h4>
+<div class="outline-text-4" id="text-3-5-16">
+<p>
+Shown for paths, this is the summed annual <a href="#concept-heat-loss">heat loss</a> calculated for these paths, given in total and per-metre.
+</p>
+</div>
+</div>
+<div id="outline-container-org3e70651" class="outline-4">
+<h4 id="org3e70651"><span class="section-number-4">3.5.17</span> Coincidence</h4>
+<div class="outline-text-4" id="text-3-5-17">
+<p>
+Shown for paths, this is the biggest <a href="#concept-diversity">diversity effect</a> that has been applied to any of the selected paths. This shows how much smaller the pipe's maximum capacity is than the sum of the peak demands it is serving.
+</p>
+</div>
+</div>
+<div id="outline-container-orgaa617d2" class="outline-4">
+<h4 id="orgaa617d2"><span class="section-number-4">3.5.18</span> Capacity</h4>
+<div class="outline-text-4" id="text-3-5-18">
+<p>
+Shown for paths and supply points, this is the largest capacity in kW required across the selected candidates in the model's solution.
+</p>
+</div>
+</div>
+<div id="outline-container-org8fa20a6" class="outline-4">
+<h4 id="org8fa20a6"><span class="section-number-4">3.5.19</span> Principal / PV Capex / Σ Capex</h4>
+<div class="outline-text-4" id="text-3-5-19">
+<p>
+This row has a menu on the left to change what is shown. It is shown for anything that the model has spent money on in a solution.
+</p>
+
+<p>
+This shows the capital cost spent on the selected items. For paths, this is the cost of pipes. For buildings, this the capital cost part of <a href="#concept-concost">connection cost</a>, plant cost, individual system cost and insulation cost.
+</p>
+
+<p>
+The different choices are:
+</p>
+
+<dl class="org-dl">
+<dt>Principal</dt><dd>This is the upfront capital cost, without any cost of replacement or financing</dd>
+<dt>PV Capex</dt><dd>This is the present value of the capital cost, replacement costs, and any finance costs</dd>
+<dt>Σ Capex</dt><dd>This is the undiscounted version of PV capex, so all capital costs and finance costs</dd>
+</dl>
+</div>
+</div>
+<div id="outline-container-org3db7542" class="outline-4">
+<h4 id="org3db7542"><span class="section-number-4">3.5.20</span> Revenue</h4>
+<div class="outline-text-4" id="text-3-5-20">
+<p>
+Shown for buildings, this is the annual revenue that building provides to the network operator
+</p>
+</div>
+</div>
+<div id="outline-container-orgef56aa7" class="outline-4">
+<h4 id="orgef56aa7"><span class="section-number-4">3.5.21</span> Market rate</h4>
+<div class="outline-text-4" id="text-3-5-21">
+<p>
+Shown for buildings in a network on the <a href="#concept-market-tariff">market tariff</a>, this is the unit rate the system has decided to offer them.
+</p>
+</div>
+</div>
+<div id="outline-container-org0ca8a9a" class="outline-4">
+<h4 id="org0ca8a9a"><span class="section-number-4">3.5.22</span> Other user-defined fields</h4>
+<div class="outline-text-4" id="text-3-5-22">
+<p>
+Candidates may have arbitrary other fields added to them, either when uploading GIS data for a map, or within a problem by using the candidate editor (explained below).
+</p>
+
+<p>
+If these fields are categorical they will be displayed as chips (like built-in categorical information); if numeric as numbers, where the sum will be displayed across the selection.
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-orgd6b6e9c" class="outline-3">
+<h3 id="orgd6b6e9c"><span class="section-number-3">3.6</span> Network candidates panel</h3>
+<div class="outline-text-3" id="text-3-6">
+<p>
+The network candidates panel is at the bottom of the screen.
+It is a table, listing all of the candidates whose status is not <code>forbidden</code>.
+</p>
+
+
+<div id="orgc51ab90" class="figure">
+<p><img src="./../screenshots/candidates-panel.png" alt="candidates-panel.png" />
+</p>
+<p><span class="figure-number">Figure 9: </span>An example of the network candidates panel</p>
+</div>
+
+<p>
+At the top are column headers; below that each row corresponds to a candidate.
+</p>
+</div>
+
+<div id="outline-container-selecting-with-table" class="outline-4">
+<h4 id="selecting-with-table"><span class="section-number-4">3.6.1</span> Selection column</h4>
+<div class="outline-text-4" id="text-selecting-with-table">
+<p>
+In the header and in each row of the panel is a checkbox (little square).
+</p>
+
+<p>
+Clicking the checkbox in the header row will select or unselect all candidates (this is like pressing <b>a</b> or <b>a A</b>). Clicking the checkbox on a given row will select or deselect that row. The selection is reflected on the map and in the selection info panel.
+</p>
+</div>
+</div>
+<div id="outline-container-org6679998" class="outline-4">
+<h4 id="org6679998"><span class="section-number-4">3.6.2</span> Sorting and filtering</h4>
+<div class="outline-text-4" id="text-3-6-2">
+<p>
+The selection info panel can be sorted by any of its columns, by clicking on the header label. One of the small up/down arrows will be highlighted blue to show what the sort order is.
+</p>
+
+<p>
+The panel can also be filtered by any of the columns, by clicking the small icon that looks like a funnel (<img src="./../screenshots/filter.png" alt="filter.png" />). This will show a filter dialog, that lets you restrict which rows are displayed.
+</p>
+
+<p>
+Candidates whose rows have been filtered out are made slightly transparent on the map:
+</p>
+
+
+<div id="orge893691" class="figure">
+<p><img src="./../screenshots/filtered.png" alt="filtered.png" />
+</p>
+<p><span class="figure-number">Figure 10: </span>Filtered selection info panel. Note that the <b>In?</b> column is filtered (its filter icon is blue), and the map is highlighting those elements which are on a network.</p>
+</div>
+</div>
+</div>
+</div>
+<div id="outline-container-orgb48db8b" class="outline-3">
+<h3 id="orgb48db8b"><span class="section-number-3">3.7</span> Editing candidates</h3>
+<div class="outline-text-3" id="text-3-7">
+<p>
+When you have some candidates selected you can edit what the model knows about them by pressing the <b>e</b> key (or by right clicking on them).
+</p>
+
+<p>
+This will bring up a box with several sections which let you change information about the selected candidates.
+</p>
+</div>
+<div id="outline-container-org8c92eb0" class="outline-4">
+<h4 id="org8c92eb0"><span class="section-number-4">3.7.1</span> Editing demands</h4>
+<div class="outline-text-4" id="text-3-7-1">
+<p>
+Shown only when the selection includes some buildings.
+</p>
+
+
+<div id="org6ca74bc" class="figure">
+<p><img src="./../screenshots/edit-demands.png" alt="edit-demands.png" />
+</p>
+<p><span class="figure-number">Figure 11: </span>Editing all selected demands</p>
+</div>
+
+<p>
+The first thing to notice here is the menu saying <code>Edit demands by: Nothing</code>.
+When you have several candidates selected, you might want to edit them differently depending on information about them.
+</p>
+
+<p>
+For example, here is the same edit window with the menu changed to the <code>Category</code> field:
+</p>
+
+
+<div id="org515bd67" class="figure">
+<p><img src="./../screenshots/edit-demands-category.png" alt="edit-demands-category.png" />
+</p>
+<p><span class="figure-number">Figure 12: </span>Editing demands by category</p>
+</div>
+
+<p>
+Now the single row representing everything is split into four rows for the four selected categories.
+</p>
+
+<p>
+Changes to the <code>Retail</code> row will affect the single selected apartment, whereas changes to the <code>Residential</code> row will affect the three selected <code>Residential</code> buildings.
+</p>
+
+<p>
+In each row you can see four columns that you can edit. The numeric columns have a checkbox next to them - to edit a cell, check the checkbox. The profile column has a special <code>Unchanged</code> value to leave the profile setting alone.
+</p>
+
+<dl class="org-dl">
+<dt>Connections</dt><dd>changes the connection count for each of the selected buildings. This affects <a href="#concept-diversity">diversity</a> calculations.</dd>
+<dt>Demand</dt><dd>sets the annual demand for <i>each</i> selected buildings</dd>
+<dt>Peak</dt><dd>sets the peak demand for <i>each</i> selected building</dd>
+<dt>Profile</dt><dd>sets the profile class for each selected building. This is used to produce a load profile <a href="../supply/network-model-interface.html">for the supply model</a>.</dd>
+</dl>
+</div>
+</div>
+<div id="outline-container-editing-tariffs" class="outline-4">
+<h4 id="editing-tariffs"><span class="section-number-4">3.7.2</span> Editing tariff &amp; connection costs</h4>
+<div class="outline-text-4" id="text-editing-tariffs">
+
+<div id="orgbe4dc44" class="figure">
+<p><img src="./../screenshots/edit-tariffs.png" alt="edit-tariffs.png" />
+</p>
+<p><span class="figure-number">Figure 13: </span>Editing tariffs</p>
+</div>
+
+<p>
+This page lets you set the tariff and connection cost applied to the selected buildings
+</p>
+</div>
+</div>
+<div id="outline-container-editing-systems" class="outline-4">
+<h4 id="editing-systems"><span class="section-number-4">3.7.3</span> Editing insulation &amp; systems</h4>
+<div class="outline-text-4" id="text-editing-systems">
+
+<div id="org6ae2f72" class="figure">
+<p><img src="./../screenshots/edit-alternatives.png" alt="edit-alternatives.png" />
+</p>
+<p><span class="figure-number">Figure 14: </span>Editing insulation and systems</p>
+</div>
+
+<p>
+This page lets you select the other technologies offered to the building, when in <a href="#concept-objective">whole-system optimisation mode</a>.
+</p>
+<dl class="org-dl">
+<dt>Insulation</dt><dd>Selecting or unselecting these checkboxes will make the selected buildings eligible or ineligible for these types of insulation</dd>
+<dt>Alternatives</dt><dd>Selected checkboxes here determine which alternatives to a networked heating system are offered</dd>
+<dt>Counterfacetual</dt><dd>This lets you tell the model what heating system a building already has, making it available as a "do-nothing" option with no upfront capital cost.</dd>
+</dl>
+</div>
+</div>
+<div id="outline-container-edit-paths" class="outline-4">
+<h4 id="edit-paths"><span class="section-number-4">3.7.4</span> Editing paths</h4>
+<div class="outline-text-4" id="text-edit-paths">
+
+<div id="orgcc4cb4f" class="figure">
+<p><img src="./../screenshots/editing-paths.png" alt="editing-paths.png" />
+</p>
+<p><span class="figure-number">Figure 15: </span>Editing paths</p>
+</div>
+
+<p>
+For paths you can set:
+</p>
+
+<dl class="org-dl">
+<dt>Maximum diameter</dt><dd>This will prevent the model from installing a pipe larger than this diameter</dd>
+<dt>Exists</dt><dd>If checked, the path already has a pipe in it, so its initial capital cost will be zero</dd>
+<dt>Civil cost</dt><dd>Controls the civil cost category for the path, which affects the cost of installing a pipe</dd>
+</dl>
+</div>
+</div>
+
+<div id="outline-container-org2db3a01" class="outline-4">
+<h4 id="org2db3a01"><span class="section-number-4">3.7.5</span> Editing other fields</h4>
+<div class="outline-text-4" id="text-3-7-5">
+
+<div id="org9bfb0ce" class="figure">
+<p><img src="./../screenshots/editing-user-fields.png" alt="editing-user-fields.png" />
+</p>
+<p><span class="figure-number">Figure 16: </span>Editing other fields</p>
+</div>
+
+<p>
+Other fields have no effect on the model itself, but are visible in the selection info panel.
+</p>
+
+<p>
+You can use them to mark particular buildings to keep track of them, and they can be loaded in from external GIS data when creating a new map.
+</p>
+
+<p>
+To set a custom field:
+</p>
+
+<ol class="org-ol">
+<li>Click the <b>+</b> button in the header. This will add a new column.</li>
+<li><p>
+Type the field name in the cell that appears in the header for the new column.
+</p>
+
+<p>
+A dropdown menu will let you select existing fields for the selection, or you can type an entirely new name to create a new field.
+</p></li>
+<li>Type the values you want into the cells underneath.</li>
+</ol>
+</div>
+</div>
+</div>
+<div id="outline-container-orga32a98c" class="outline-3">
+<h3 id="orga32a98c"><span class="section-number-3">3.8</span> Adding supplies &amp; changing supply parameters</h3>
+<div class="outline-text-3" id="text-3-8">
+<p>
+Any building can be made into a supply point, and to model a heat network you'll have to make at least one - THERMOS doesn't know about where any supply locations are unless you tell it. If you want to consider a supply that is not in an existing building, you can use the <a href="#draw-building-tool">draw building tool</a> to make a new building.
+</p>
+
+<p>
+To make a building into a supply, select it and press the <b>s</b> key (or right click and choose from the menu).
+</p>
+
+<p>
+This will show the supply parameters box:
+</p>
+
+
+<div id="org58382ba" class="figure">
+<p><img src="./../screenshots/edit-supply.png" alt="edit-supply.png" />
+</p>
+<p><span class="figure-number">Figure 17: </span>A supply parameters window; to make the selected building(s) into supply points, enter a nonzero capacity.</p>
+</div>
+
+<p>
+The parameters in this box determine the cost and size of the supply for the network model
+</p>
+
+<dl class="org-dl">
+<dt>Maximum capacity</dt><dd>This is the maximum amount of <i>diversified</i> peak load a supply built here could provide. The model may build a smaller supply if that will suit, but never a larger one.</dd>
+<dt>Fixed cost</dt><dd>If any supply is built, no matter its size, this fixed capital cost will be incurred. See above for information about the treatment of capital costs.</dd>
+<dt>Capacity cost</dt><dd>This is a variable capital cost per unit of diversified peak capacity that is built, reflecting the increased cost of building a bigger plant.</dd>
+<dt>Annual cost</dt><dd>This is an annual operating cost per kW diversified peak capacity.</dd>
+<dt>Supply cost</dt><dd><p>
+This is the price of producing a unit of heat at the supply. This is multiplied with the system's output and losses each year to determine the cost of heat that was produced.
+</p>
+
+<p>
+If you have a fuel cost A and a nominal efficiency B this should probably be A/B
+</p></dd>
+<dt>Emissions factors</dt><dd>These determine the emissions the supply is responsible for, per unit of heat output. Similarly to fuel cost, you will probably need to incorporate an efficiency into these values.</dd>
+</dl>
+</div>
+</div>
+<div id="outline-container-org18a86fd" class="outline-3">
+<h3 id="org18a86fd"><span class="section-number-3">3.9</span> Grouping buildings</h3>
+<div class="outline-text-3" id="text-3-9">
+<p>
+Sometimes you may want the model to connect a set of buildings all together or not at all - this could represent a development that has several buildings in it, for example. It can also help simplify the optimisation problem, as the optimiser has fewer decisions to make.
+</p>
+
+<p>
+Each building can belong to a single group of buildings - the optimiser will treat that group as a single decision.
+</p>
+
+
+<div id="org703afbc" class="figure">
+<p><img src="./../screenshots/group-rendering.png" alt="group-rendering.png" />
+</p>
+<p><span class="figure-number">Figure 18: </span>The centre building is selected. The leftmost building is in the same group, which is why it is filled in white. The optimiser can choose either to connect both these two or neither, but nothing in between.</p>
+</div>
+
+<p>
+To create a group, select a set of buildings and press <b>Shift+G</b>. The selected buildings will be made into a group.
+</p>
+
+<p>
+If any of them were previously in other groups, they will be taken out from these groups.
+</p>
+
+<p>
+When you have some buildings selected you can see any other buildings which are in a group with any of them coloured in white. You can select everything in the same group by pressing <b>g</b>.
+</p>
+</div>
+</div>
+<div id="outline-container-org03534b3" class="outline-3">
+<h3 id="org03534b3"><span class="section-number-3">3.10</span> Deleting things from the map</h3>
+<div class="outline-text-3" id="text-3-10">
+<p>
+Sometimes you may want to delete something from the map; for the optimiser this is no different than marking it forbidden, but it can make things easier to look at. You can do this by right-clicking on the item you want to delete, and choosing <code>Delete</code>.
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-orgb902b97" class="outline-2">
+<h2 id="orgb902b97"><span class="section-number-2">4</span> Objective</h2>
+<div class="outline-text-2" id="text-4">
+<p>
+See also <a href="#concept-objective">the section above</a>.
+</p>
+
+<p>
+The objective setttings page lets you control things about the model's objective function, and how the optimiser behaves.
+</p>
+</div>
+<div id="outline-container-objective-mode" class="outline-3">
+<h3 id="objective-mode"><span class="section-number-3">4.1</span> Choice of objective</h3>
+<div class="outline-text-3" id="text-objective-mode">
+<p>
+The model has two main objectives, selectable on the objective page in the sidebar:
+</p>
+
+<ol class="org-ol">
+<li><p>
+Maximise network NPV
+</p>
+
+<p>
+In this mode, the goal is to choose which demands to connect to the network so as to maximize the NPV for the network operator. This is the sum of the revenues from demands minus the sum of costs for the network.
+</p>
+
+<p>
+The impact of non-network factors (individual systems, insulation, and emissions costs) can be accounted for using the <a href="#concept-market-tariff">market tariff</a>, which chooses a price to beat the best non-network system.
+</p></li>
+
+<li><p>
+Maximise whole-system NPV
+</p>
+
+<p>
+In this mode, the goal is to choose how to supply heat to the buildings in the problem (or abate demand) at the minimum overall cost. The internal transfer of money between buildings and network operator is not considered, so there are no network revenues and tariffs have no effect.
+</p>
+
+<p>
+Under this you can control whether or not to
+</p>
+
+<ul class="org-ul">
+<li>Offer insulation measures</li>
+<li>Offer other heating systems</li>
+</ul>
+
+<p>
+These choices are not relevant when maximizing network NPV, because they can never improve the network operator's NPV so would never be chosen.
+</p></li>
+</ol>
+</div>
+</div>
+<div id="outline-container-orgd158532" class="outline-3">
+<h3 id="orgd158532"><span class="section-number-3">4.2</span> Accounting period</h3>
+<div class="outline-text-3" id="text-4-2">
+<p>
+Future costs and benefits are combined using geometric discounting. The accounting period controls let you set the number of years into the future to consider, and how much to discount a cost by for each year from the start of the simulation.
+</p>
+</div>
+</div>
+<div id="outline-container-org4df92c2" class="outline-3">
+<h3 id="org4df92c2"><span class="section-number-3">4.3</span> Capital costs</h3>
+<div class="outline-text-3" id="text-4-3">
+<p>
+Capital costs have two types of special treatment:
+</p>
+
+<dl class="org-dl">
+<dt>Annualizing</dt><dd>capital costs can be annualized, which means converting them into a fixed repayment loan</dd>
+<dt>Recurrence</dt><dd>capital costs can recur, which means that the equipment they represent needs replacing every so often, so the original capital cost is incurred again after this time.</dd>
+</dl>
+
+<p>
+The capital costs section lets you control for each part of a solution:
+</p>
+
+<ul class="org-ul">
+<li>Whether it should be annualized and whether it should recur</li>
+<li><p>
+If so, a period and a rate.
+</p>
+
+<p>
+The period is used to determine both the term of the annualizing loan, if enabled, and the replacement period if the capital cost is set to recur.
+</p>
+
+<p>
+The rate is used to determine the repayments on the loan, if annualizing is enabled.
+</p></li>
+</ul>
+
+<p>
+If both annualizing and recurrence are enabled, the recurring payments will themselves be annualized, turning the capital costs into a repeating equal yearly cost.
+</p>
+
+<p>
+Future payments due to annualizing or recurrence are discounted in the same way as other future costs.
+</p>
+</div>
+</div>
+<div id="outline-container-obj-emissions" class="outline-3">
+<h3 id="obj-emissions"><span class="section-number-3">4.4</span> Emissions costs and limits</h3>
+<div class="outline-text-3" id="text-obj-emissions">
+<p>
+Emissions costs are applied in both whole-system and network NPV modes to anything within the objective which produces emissions. These are things for which you can set emissions factors.
+</p>
+
+<p>
+Emissions limits are hard constraints on the solution - if enabled, the optimisation will not be allowed to produce a result where emissions exceed the annual limit.
+</p>
+
+<p>
+Often it will be easier for the optimiser to find a good solution if you express emissions goals using costs rather than hard limits.
+</p>
+</div>
+</div>
+<div id="outline-container-orgd2eea81" class="outline-3">
+<h3 id="orgd2eea81"><span class="section-number-3">4.5</span> Supply limit</h3>
+<div class="outline-text-3" id="text-4-5">
+<p>
+If you have several possible supply locations on the map but you do not want the model to use all of them, you can set a limit on the number of supply locations the model can build.
+</p>
+
+<p>
+For example, if you set this to one the model will only build a single supply.
+</p>
+</div>
+</div>
+<div id="outline-container-org5af31da" class="outline-3">
+<h3 id="org5af31da"><span class="section-number-3">4.6</span> Computing resources</h3>
+<div class="outline-text-3" id="text-4-6">
+<p>
+There are three controls displayed for computing resources:
+</p>
+
+<ol class="org-ol">
+<li><p>
+Distance from optimum
+</p>
+
+<p>
+Also known as MIP gap, this tells the optimiser to stop work if it finds a solution which it can prove is within this percentage of the best possible solution.
+</p></li>
+
+<li><p>
+Effect of parameter fixing
+</p>
+
+<p>
+The optimisation involves making an estimate of some key parameters, solving a question assuming these estimates, and then looking at the result to see how good the estimate turned out to be. Here you can tell the optimisation that if this guessing is fairly close to the mark, it might as well stop
+</p></li>
+
+<li><p>
+Maximum runtime
+</p>
+
+<p>
+This setting says how long you are willing to wait for an answer. If the optimisation reaches this time limit without stopping because of the previous two settings, it will terminate. In this case you may get no solution, or you may get a solution whose distance from optimum is worse than the limit you have entered.
+</p></li>
+</ol>
+</div>
+</div>
+</div>
+<div id="outline-container-define-tariffs" class="outline-2">
+<h2 id="define-tariffs"><span class="section-number-2">5</span> Tariffs</h2>
+<div class="outline-text-2" id="text-define-tariffs">
+</div>
+<div id="outline-container-orgdb3ba63" class="outline-3">
+<h3 id="orgdb3ba63"><span class="section-number-3">5.1</span> Tariff definitions</h3>
+<div class="outline-text-3" id="text-5-1">
+<p>
+At the top of the tariffs page you can define tariffs.
+</p>
+
+<p>
+For these to take effect, you must
+</p>
+
+<ol class="org-ol">
+<li>Have the optimisation in network NPV mode - in whole-system mode the 'system boundary' considers only the fuel input for heat, whether that fuel goes into an individual system or a network supply point. The transaction between the building and the network operator is inside that boundary and doesn't affect the objective.</li>
+<li>Put some buildings on that tariff using the <a href="#editing-tariffs">editor controls</a>.</li>
+</ol>
+
+<p>
+A tariff has three parts:
+</p>
+
+<ul class="org-ul">
+<li>A fixed <b>standing charge</b>, which the building pays to the network every year.</li>
+<li>A variable per-kw <b>capacity charge</b>, which the building pays to the network every year multiplied with the building's peak demand.</li>
+<li>A variable per-kwh <b>unit rate</b>, which the building pays every year multiplied with the building's annual demand.</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-orgbd7aa82" class="outline-3">
+<h3 id="orgbd7aa82"><span class="section-number-3">5.2</span> Market tariff</h3>
+<div class="outline-text-3" id="text-5-2">
+<p>
+The <i>market tariff</i> is a special tariff whose price is dynamically determined from the other options available to a building.
+</p>
+
+<p>
+When a building is offered the market tariff, the model will decide a price by looking for each individual system <a href="#editing-systems">marked as available to the building</a> at what unit rate for heat has the same NPV as that system (including considering insulation). The market rate is then selected to be the cheapest of these rates, minus a bit (the <i>stickiness</i>) to account for the nuisance of switching.
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-org45345d5" class="outline-2">
+<h2 id="org45345d5"><span class="section-number-2">6</span> Pipe &amp; connection costs</h2>
+<div class="outline-text-2" id="text-6">
+<p>
+The pipe and connection costs parameter control all the costs for network equipment apart from those for the supply plant.
+</p>
+</div>
+<div id="outline-container-orgf759c3c" class="outline-3">
+<h3 id="orgf759c3c"><span class="section-number-3">6.1</span> Pipe costs table</h3>
+<div class="outline-text-3" id="text-6-1">
+
+<div id="org85b0b82" class="figure">
+<p><img src="./../screenshots/pipe-costs-table.png" alt="pipe-costs-table.png" />
+</p>
+<p><span class="figure-number">Figure 19: </span>The pipe costs table</p>
+</div>
+
+<p>
+Each row in the pipe costs table describes the cost of installing a length of flow <i>and return</i> pipe of a given diameter (Nominal Bore). When the model chooses to install a pipe, it will select the first row from this table whose capacity exceeds the diversified peak capacity that pipe needs to carry.
+</p>
+
+<p>
+The columns are:
+</p>
+
+<dl class="org-dl">
+<dt>NB</dt><dd>The nominal bore diameter of flow or return in mm. You can add more diameters (rows) using the <b>Add diameter</b> button below.</dd>
+<dt>Capacity</dt><dd>The power that can be transmitted by a flow/return pair of this nominal bore. If you don't fill this in, the cell will show THERMOS' estimate, which is controlled by the capacity &amp; loss model below.</dd>
+<dt>Losses</dt><dd>The heat losses THERMOS estimates for a flow/return pair per meter. Again, you can enter your own values here, or use the computed values THERMOS estimates.</dd>
+<dt>Pipe cost</dt><dd>The cost of the pipe itself, per metre flow/return pair. This is the minimum cost that the model will pay for pipework.</dd>
+<dt>Civil cost</dt><dd><p>
+To the right are multiple civil cost columns. These cover the cost of digging a hole for pipework to go in, for a given diameter, depending on the surface or any other local factors.
+</p>
+
+<p>
+You can add more of these with the <b>Add civil costs</b> button below, and you can set which civil costs pertain for <a href="#edit-paths">paths in the candidate editor</a>. Any path for which civil costs are not selected by hand will take the <b>default civil costs</b> set below the table.
+</p>
+
+<p>
+Civil cost names are editable in the table header.
+</p></dd>
+</dl>
+
+<p>
+To delete a row click the red cross to its right. To delete a civil cost column, click the red cross by its name.
+</p>
+</div>
+</div>
+<div id="outline-container-org0701923" class="outline-3">
+<h3 id="org0701923"><span class="section-number-3">6.2</span> Capacity &amp; loss model</h3>
+<div class="outline-text-3" id="text-6-2">
+<p>
+The capacity and loss model controls affect how the capacity and losses columns in the table above are calculated. There is more detail about this in <a href="technical-description.html">the technical description of the model</a>.
+</p>
+
+<p>
+You can see the effect by changing the parameters and seeing what happens in the pipe cost table above. Note that changing the medium or flow / return temperature does not affect the cost of supply or cost of heat exchangers, so you must consider these effects yourself.
+</p>
+</div>
+</div>
+<div id="outline-container-org6424fd5" class="outline-3">
+<h3 id="org6424fd5"><span class="section-number-3">6.3</span> Connection costs</h3>
+<div class="outline-text-3" id="text-6-3">
+<p>
+Connection costs are intended for covering the cost of equipment within the building, like heat exchangers.
+</p>
+
+<p>
+After defining a connection cost here, you can use the candidate editor to assign it to some buildings.
+</p>
+
+<p>
+This will determine an extra capital cost, incurred by the network operator in network NPV mode, or by the system in whole-system mode.
+</p>
+</div>
+</div>
+<div id="outline-container-pumping-costs" class="outline-3">
+<h3 id="pumping-costs"><span class="section-number-3">6.4</span> Pumping costs</h3>
+<div class="outline-text-3" id="text-pumping-costs">
+<p>
+THERMOS' pumping costs model is simple: pumping overheads are a fixed share of the kWh output from the system, which may have a different price and emissions factor (since they are produced electrically).
+</p>
+
+<p>
+In a heat network, pumping overheads offset some heat output from the plant, since the waste heat produced is still useful. In a cold network the opposite is true, and pumping overheads are added to the output needed from the plant.
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-org7c4ea17" class="outline-2">
+<h2 id="org7c4ea17"><span class="section-number-2">7</span> Insulation</h2>
+<div class="outline-text-2" id="text-7">
+
+<div id="org90e72e0" class="figure">
+<p><img src="./../screenshots/insulation-defs.png" alt="insulation-defs.png" />
+</p>
+<p><span class="figure-number">Figure 20: </span>The insulation definitions. Each row defines a type of insulation.</p>
+</div>
+
+<p>
+To use insulation you must first put the model into in <a href="#objective-mode">whole-system mode</a> and enable insulation.
+</p>
+
+<p>
+Then you can add some types of insulation using the <b>Add measure</b> button. For each type of insulation you will have to say:
+</p>
+
+<dl class="org-dl">
+<dt>Name</dt><dd>this is just descriptive text</dd>
+<dt>Applies to</dt><dd>this is the surface the insulation applies to. THERMOS estimates the available area for insulation using the building's footprint, height, and exposed perimeter. The roof and floor areas are taken from the footprint, and the wall area from the exposed (i.e. not touching another building) perimeter multiplied with the height.</dd>
+<dt>Fixed cost</dt><dd>this capital cost will be spent if any of this insulation is installed on a building</dd>
+<dt>Variable cost</dt><dd>this capital cost is spent per unit area insulated, in addition to the fixed cost</dd>
+<dt>Maximum effect</dt><dd>this parameter determines by how much the insulation can reduce overall demand. For example, if maximum effect is 15%, and a building has 200m<sup>2</sup> of insulatable area and 5MWh/yr of heat demand, installing all 200m<sup>2</sup> will reduce heat demand by 5×0.15 = 0.75 MWh/yr. The model can choose to install any amount between 0 and 200m<sup>2</sup>, with the effect being pro-rata.</dd>
+<dt>Maximum area</dt><dd>this determines the maximum insulatable area as a percentage of the overall area (described above under <b>Applies to</b>). This is to represent things like windows and doors in walls, which would not be covered by insulation.</dd>
+</dl>
+
+<p>
+Finally you will need to <a href="#editing-systems">mark some buildings as eligible for insulation</a> using the candidate editor (described above).
+</p>
+
+<p>
+Insulation definitions can be deleted by clicking the red X button on their row.
+</p>
+</div>
+</div>
+<div id="outline-container-def-individual-systems" class="outline-2">
+<h2 id="def-individual-systems"><span class="section-number-2">8</span> Individual systems</h2>
+<div class="outline-text-2" id="text-def-individual-systems">
+
+<div id="orgb51adff" class="figure">
+<p><img src="./../screenshots/individual-defs.png" alt="individual-defs.png" />
+</p>
+<p><span class="figure-number">Figure 21: </span>Definitions for an individual system. More can be added by clicking <b>Add system</b>.</p>
+</div>
+
+<p>
+To use individual systems you must first put the model into in <a href="#objective-mode">whole-system mode</a> and enable their use (the checkbox is called "Offer other heating systems" on the objective page).
+</p>
+
+<p>
+In network NPV mode, the model will only use individual system definitions when computing the rate for the <a href="#concept-market-tariff">market tariff</a>.
+</p>
+
+<p>
+Then you can add some types of individual systems using the <b>Add system</b> button. For each type of system you will have to say:
+</p>
+
+<dl class="org-dl">
+<dt>A name</dt><dd>This is editable by clicking the heading; in the image above clicking "Gas CH" would let you edit the name.</dd>
+<dt>Heat cost</dt><dd>This is the cost per kWh delivered heat. If you have a fuel price you need to divide it by system efficiency to get this value.</dd>
+<dt>Fixed capex</dt><dd>If this system is installed in a building, this capital cost must be paid.</dd>
+<dt>Variable capex</dt><dd>If this system is installed in a building, this capacity-related capital cost is paid per kW of peak demand in the building.</dd>
+<dt>Tank factor</dt><dd><p>
+THERMOS' default peak demand estimates include hot water demand, which makes up most of the peak. This is because heat networks typically provide hot water direct through the heat exchanger, rather than by charging a storage tank.
+</p>
+
+<p>
+However, some individual systems do use a hot water tank, and so require a lower peak output. This is represented in THERMOS by the 'tank factor', which is a multiple of the base heat output.
+</p>
+
+<p>
+For example, say a building uses 20MWh/yr of heat. Changing the units for this to kW you get about 2.3 kW as the minimum possible peak value (if it were uniformly spread out).
+</p>
+
+<p>
+With tank factor set to 1, the peak would be 2.3kW; with tank factor set to 2, it would be 4.6 kW, and so on.
+</p>
+
+<p>
+A realistic value for a domestic building is probably in the region of 6.
+</p></dd>
+<dt>Emissions factors</dt><dd><p>
+These factors determine the emissions per unit heat produced by the individual system; like the heat cost, you will need to roll any conversion efficiency from fuel into these factors yourself.
+</p>
+
+<p>
+They will affect the system cost if there are any <a href="#obj-emissions">emissions prices or limits</a> in effect.
+</p></dd>
+</dl>
+
+<p>
+System definitions can be deleted by clicking the red X button to the right of the name.
+</p>
+</div>
+</div>
+<div id="outline-container-org644ff37" class="outline-2">
+<h2 id="org644ff37"><span class="section-number-2">9</span> Solution summary</h2>
+<div class="outline-text-2" id="text-9">
+<p>
+This section only appears after a network problem has run through the optimiser.
+</p>
+
+<p>
+It quantitatively describes the solution, without any spatial component.
+</p>
+</div>
+<div id="outline-container-org39af129" class="outline-3">
+<h3 id="org39af129"><span class="section-number-3">9.1</span> Display options</h3>
+<div class="outline-text-3" id="text-9-1">
+
+<div id="org01f3b65" class="figure">
+<p><img src="./../screenshots/ss-display-options.png" alt="ss-display-options.png" />
+</p>
+<p><span class="figure-number">Figure 22: </span>Solution summary display options controls</p>
+</div>
+
+<p>
+The display options at the top of the solution summary page control how financial information is rendered in the tables below. The options mean:
+</p>
+
+<dl class="org-dl">
+<dt>Total</dt><dd><p>
+The total un-discounted amount of money spent over the accounting period. This includes all recurring capital costs for replacement equipment, interest payments on annualized capital costs, and all annual operating costs and revenues.
+</p>
+
+<p>
+These values are shown in table headers with (¤) as the unit.
+</p></dd>
+<dt>Present value</dt><dd><p>
+The discounted version of the total cost; all present and future costs and revenues, discounted and summed.
+</p>
+
+<p>
+These values are shown in table headers with (¤<sub>PV</sub>) as the unit
+</p></dd>
+<dt>Principal</dt><dd><p>
+(only shown for capital costs) shows just the principal for a single purchase of the item or items, ignoring repeat payments or interest payments on an annualized cost
+</p>
+
+<p>
+These values are shown in table headers with (¤<sub>0</sub>) as the unit.
+</p></dd>
+<dt>Annual</dt><dd><p>
+(only shown for non-capital costs) shows the annual cost or revenue for all costs where this makes sense.
+</p>
+
+<p>
+These values are shown in table headers with (¤/yr) as the unit.
+</p></dd>
+</dl>
+
+<p>
+Below the display options are a series of subsections and sub-subsections which can be selected by clicking on them:
+</p>
+</div>
+</div>
+<div id="outline-container-org09803c1" class="outline-3">
+<h3 id="org09803c1"><span class="section-number-3">9.2</span> Cost summary</h3>
+<div class="outline-text-3" id="text-9-2">
+<p>
+The cost summary gives the headline information the model is working on:
+</p>
+
+
+<div id="org3a417ac" class="figure">
+<p><img src="./../screenshots/ss-cost-summary.png" alt="ss-cost-summary.png" />
+</p>
+<p><span class="figure-number">Figure 23: </span>An example of the cost summary table</p>
+</div>
+
+<p>
+The two most important figures in the cost summary table are the <b>Network NPV</b> (in the middle on the right) and the <b>Whole system NPV</b> (at the bottom right).
+</p>
+
+<p>
+These are the values the model will try and maximize, depending on the choice of objective setting.
+</p>
+
+<p>
+The whole system NPV will always be negative, because the model only displays costs - the benefit is in terms of delivered heat, which is assumed to be a non-negotiable good desirable at any price.
+</p>
+</div>
+</div>
+<div id="outline-container-org467db74" class="outline-3">
+<h3 id="org467db74"><span class="section-number-3">9.3</span> Network (Pipework)</h3>
+<div class="outline-text-3" id="text-9-3">
+<p>
+The pipework section of the network tab lists all the pipe used in the network, broken down by <a href="#concept-civils">civil cost</a> category and installed diameter.
+</p>
+
+<p>
+For more detailed breakdowns you will want to download the results in a spreadsheet and analyse them outside the application.
+</p>
+</div>
+</div>
+<div id="outline-container-orga9accbe" class="outline-3">
+<h3 id="orga9accbe"><span class="section-number-3">9.4</span> Network (Demands)</h3>
+<div class="outline-text-3" id="text-9-4">
+<p>
+The demands section lists all demands connected to the network, and shows the cost and revenue associated with them. If they have user-defined fields, you can group them by these fields with the menu in the top left of the table.
+</p>
+</div>
+</div>
+<div id="outline-container-orgc6d1e75" class="outline-3">
+<h3 id="orgc6d1e75"><span class="section-number-3">9.5</span> Network (Supplies)</h3>
+<div class="outline-text-3" id="text-9-5">
+<p>
+The supplies section describes each supply point in the network; the columns are:
+</p>
+
+<dl class="org-dl">
+<dt>Capacity</dt><dd>This is the size of plant needed to meet the diversified peak load</dd>
+<dt>Output</dt><dd>This is the heat output needed from the plant, including losses. In heat network mode this is net of pumping energy, in cold network mode it will include pumping energy.</dd>
+<dt>Pumping</dt><dd>The power required for pumping (see <a href="#pumping-costs">above</a> for how to set pumping costs).</dd>
+<dt>Capital</dt><dd>The capital cost for the plant (units determined by display options above)</dd>
+<dt>Capacity</dt><dd>The operating cost related to plant capacity</dd>
+<dt>Heat</dt><dd>The operating cost related to production of heat (in the output column)</dd>
+<dt>Pumping</dt><dd>The operating cost from pumping energy</dd>
+<dt>Coincidence</dt><dd>The coincidence factor applied to the peak loads this plant is serving.</dd>
+</dl>
+</div>
+</div>
+<div id="outline-container-org0da1c36" class="outline-3">
+<h3 id="org0da1c36"><span class="section-number-3">9.6</span> Individual systems</h3>
+<div class="outline-text-3" id="text-9-6">
+<p>
+If the model has installed any individual systems (see <a href="#def-individual-systems">above</a> for individual system definitions), this will list the buildings which got them, and their costs.
+</p>
+</div>
+</div>
+<div id="outline-container-org4342cff" class="outline-3">
+<h3 id="org4342cff"><span class="section-number-3">9.7</span> Insulation</h3>
+<div class="outline-text-3" id="text-9-7">
+<p>
+If the model has installed any insulation on buildings this section lists the quantity, cost and effect of insulation installed.
+</p>
+</div>
+</div>
+<div id="outline-container-org20df867" class="outline-3">
+<h3 id="org20df867"><span class="section-number-3">9.8</span> Emissions</h3>
+<div class="outline-text-3" id="text-9-8">
+<p>
+This gives a breakdown of the emissions in the solution by cause, in terms of their quantities and their costs. Costs are affected by the <a href="#obj-emissions">emissions cost</a> settings in the objective page.
+</p>
+</div>
+</div>
+<div id="outline-container-org03cb17a" class="outline-3">
+<h3 id="org03cb17a"><span class="section-number-3">9.9</span> Optimisation</h3>
+<div class="outline-text-3" id="text-9-9">
+<p>
+This page shows some technical information about the optimisation itself. The values displayed are:
+</p>
+
+<dl class="org-dl">
+<dt>Objective value</dt><dd>This is the objective value as seen by the optimiser <i>after</i> correcting the diversity and heat loss parameters, but without rounding up pipe diameters.</dd>
+<dt>Runtime</dt><dd>The time spent in the optimiser</dd>
+<dt>Iterations</dt><dd>The number of mixed-integer programs solved</dd>
+<dt>Iteration range</dt><dd>The range in objective value encountered while iterating to find good parameters.</dd>
+<dt>Gap</dt><dd>The MIP gap; this is an upper bound on how close the optimiser is to finding the best possible solution; if zero, the solution is optimal. However, this number is confounded by the effect of parameter fixing. The value shown is the gap for the solution based on estimated parameters.</dd>
+<dt>Bounds</dt><dd>These are the bounds on the optimum value of the best solution found, again confounded by parameter estimation. The true optimum is probably somewhere in this range. Note that the <b>objective value</b> shown above may lie <i>outside</i> this range because it is the value for a slightly different problem in which the parameters have been re-estimated.</dd>
+</dl>
+</div>
+</div>
+</div>
+<div id="outline-container-org62faa9a" class="outline-2">
+<h2 id="org62faa9a"><span class="section-number-2">10</span> Run log</h2>
+<div class="outline-text-2" id="text-10">
+<p>
+The run log is displayed when there is a solution; it contains some diagnostic text output from the optimisation model. The text is not guaranteed to stay the same or to mean anything useful.
+</p>
+</div>
+</div>
+<div id="outline-container-org432208b" class="outline-2">
+<h2 id="org432208b"><span class="section-number-2">11</span> Importing and exporting data</h2>
+<div class="outline-text-2" id="text-11">
+<p>
+Near the bottom of the sidebar is a section titled <b>Import / Export Data</b>, under which are three links:
+</p>
+
+<dl class="org-dl">
+<dt>↓ Excel spreadsheet</dt><dd>This link will download the information shown in the editor as an excel spreadsheet.</dd>
+<dt>↑ Excel spreadsheet</dt><dd>This link will ask you to upload an excel spreadsheet, in the same form as the previous link downloads. Some data from the uploaded spreadsheet will be loaded into the problem, detailed below.</dd>
+<dt>↓ Geojson</dt><dd>This link will download a GIS representation of the problem, which contains the information you can see on the map.</dd>
+</dl>
+</div>
+
+<div id="outline-container-orga078c8d" class="outline-3">
+<h3 id="orga078c8d"><span class="section-number-3">11.1</span> Uploadable parameters</h3>
+<div class="outline-text-3" id="text-11-1">
+<p>
+Only information from these sheets in the output spreadsheet will be loaded when you import it by uploading:
+</p>
+
+<ul class="org-ul">
+<li>Tariffs</li>
+<li>Connection costs</li>
+<li>Individual systems</li>
+<li>Pipe costs</li>
+<li>Insulation</li>
+<li>Other parameters</li>
+<li>Capital costs</li>
+<li>Supply plant</li>
+<li>Supply profiles</li>
+<li>Supply storage</li>
+<li>Supply parameters</li>
+</ul>
+
+<p>
+These all contain parameters that control the model, but no information about specific buildings or roads.
+</p>
+
+<p>
+When you upload a spreadsheet the application will show a dialog asking what parameters you want to use and two other questions:
+</p>
+
+<ul class="org-ul">
+<li>Whether to use new parameters where names match</li>
+<li>Whether to keep old parameters with different names</li>
+</ul>
+
+<p>
+These settings control how existing relationships between buildings and parameters are affected by an upload.
+</p>
+
+<p>
+For example, if you have some paths with a civil cost of "Hard Dig" in your problem and you upload a spreadsheet and select to use the pipe costs data, the possible outcomes are:
+</p>
+
+<ul class="org-ul">
+<li><i>If</i> the uploaded spreadsheet contains a civil cost called "Hard Dig" as well:
+<ul class="org-ul">
+<li><i>If</i> you have selected to new parameters where names match
+<ul class="org-ul">
+<li>The paths that previously used "Hard Dig" will now use the new civil cost called "Hard Dig"</li>
+</ul></li>
+<li><i>If</i> you have selected <i>not</i> to use new parameters where names match
+<ul class="org-ul">
+<li>Existing assignments to "Hard Dig" will be cleared</li>
+</ul></li>
+</ul></li>
+<li><i>If</i> the spreadsheet does <i>not</i> contain "Hard Dig"
+<ul class="org-ul">
+<li><i>If</i> you have selected to keep parameters with different names
+<ul class="org-ul">
+<li>The existing paths will be unaffected</li>
+</ul></li>
+<li><i>If</i> you have selected <i>not</i> to keep parameters with different names
+<ul class="org-ul">
+<li>The "Hard Dig" civil cost will be removed entirely from the problem</li>
+</ul></li>
+</ul></li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

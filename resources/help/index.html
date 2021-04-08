@@ -5,59 +5,73 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>THERMOS help</title>
+<title>THERMOS Documentation</title>
 <meta name="generator" content="Org mode" />
 </head>
 <body>
 <div id="content">
-<h1 class="title">THERMOS help</h1>
-<p>
-Welcome to the help for THERMOS. You can search the help if you know what you are looking for:
-</p>
+<h1 class="title">THERMOS Documentation</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#org665d716">1. Application overview</a></li>
+<li><a href="#org6077723">2. Network model</a></li>
+<li><a href="#org62e6f79">3. Supply model</a></li>
+<li><a href="#orgccd7861">4. Demand estimator</a></li>
+<li><a href="#orgae1bf63">5. Data sources</a></li>
+</ul>
+</div>
+</div>
 
-<form action="search">
-<input type="search" name="q">
-<input type="submit" value="Search">
-</form>
-
-<div id="outline-container-orgd37a10d" class="outline-2">
-<h2 id="orgd37a10d"><span class="section-number-2">1</span> Introductory materials</h2>
+<div id="outline-container-org665d716" class="outline-2">
+<h2 id="org665d716"><span class="section-number-2">1</span> Application overview</h2>
 <div class="outline-text-2" id="text-1">
 <dl class="org-dl">
-<dt><a href="introduction.html">Introduction</a></dt><dd>If you have no idea what THERMOS is, this introduction might help</dd>
-<dt><a href="quick-start.html">Quick start overview</a></dt><dd>If you want a quick walkthrough of how to use THERMOS, this may help</dd>
-<dt><a href="/help/changelog">Changelog</a></dt><dd>A history of changes to the THERMOS application</dd>
+<dt><a href="overview.html">An overview of THERMOS - start here</a></dt><dd>An introduction to THERMOS, if you have never used it before</dd>
+<dt><a href="projects-and-maps.html">Projects and maps</a></dt><dd>Describes what's in project pages and how to create maps with OpenStreetMap or your own GIS data</dd>
+<dt><a href="faq.html">FAQs</a></dt><dd>This section answers some frequently asked questions</dd>
 </dl>
 </div>
 </div>
-<div id="outline-container-orgb9b7440" class="outline-2">
-<h2 id="orgb9b7440"><span class="section-number-2">2</span> Help using the program</h2>
+
+<div id="outline-container-org6077723" class="outline-2">
+<h2 id="org6077723"><span class="section-number-2">2</span> Network model</h2>
 <div class="outline-text-2" id="text-2">
 <dl class="org-dl">
-<dt><a href="maps.html">Creating maps</a></dt><dd>Explains the different options for creating THERMOS maps from OpenStreetMap or your own GIS data</dd>
-<dt><a href="networks.html">Designing heat networks</a></dt><dd>Explains the user interface for the heat network editor</dd>
+<dt><a href="network/interface.html">Network model user interface</a></dt><dd>Describes in detail the parts of the user interface for the network model.</dd>
+<dt><a href="network/technical-description.html">Technical description</a></dt><dd>An introductory description of what the network model does, and a more precise technical definition</dd>
+<dt><a href="network/validation.html">Network model validation</a></dt><dd>A summary of the validation work done on the network model</dd>
 </dl>
 </div>
 </div>
-<div id="outline-container-orgdf0446b" class="outline-2">
-<h2 id="orgdf0446b"><span class="section-number-2">3</span> Help about model details</h2>
+
+<div id="outline-container-org62e6f79" class="outline-2">
+<h2 id="org62e6f79"><span class="section-number-2">3</span> Supply model</h2>
 <div class="outline-text-2" id="text-3">
 <dl class="org-dl">
-<dt><a href="calculations.html">Network model calculations</a></dt><dd>Explains what THERMOS is calculating when it evaluates a network.</dd>
-<dt><a href="demand-models.html">Heat demand estimation method</a></dt><dd>Explains how heat demand estimates are made</dd>
-<dt><a href="formulation.html">Network optimisation formulation</a></dt><dd>A technical description of how the network optimisation works</dd>
-<dt><a href="insulation.html">Insulation</a></dt><dd>Describes how insulation is modelled</dd>
-<dt><a href="supply.html">Supply model calculations</a></dt><dd>Explains what THERMOS is calculating when evaluating a supply problem</dd>
+<dt><a href="supply/supply-user-interface.html">Supply model user interface</a></dt><dd>Describes in detail the supply model's user interface</dd>
+<dt><a href="supply/network-model-interface.html">Relationship to the network model</a></dt><dd>Describes how a network model's results are used as input to the supply model</dd>
+<dt><a href="supply/technical-description.html">Technical description</a></dt><dd>A description of what the supply model actually estimates</dd>
 </dl>
 </div>
 </div>
-<div id="outline-container-org3b9cee6" class="outline-2">
-<h2 id="org3b9cee6"><span class="section-number-2">4</span> Help about data</h2>
+
+<div id="outline-container-orgccd7861" class="outline-2">
+<h2 id="orgccd7861"><span class="section-number-2">4</span> Demand estimator</h2>
 <div class="outline-text-2" id="text-4">
 <dl class="org-dl">
-<dt>Data used to make THERMOS</dt><dd>Explains what data we used to build the models in THERMOS</dd>
-<dt><a href="parameters.html">Index of parameters</a></dt><dd>Describes all the different kinds of data you might need to put into THERMOS to use it effectively, how the model uses it, and suggestions where to find information</dd>
-<dt>List of references</dt><dd>Links to places where you can read more about the concepts THERMOS uses</dd>
+<dt>Demand estimation methodology</dt><dd>This document is not ready yet</dd>
+</dl>
+</div>
+</div>
+
+<div id="outline-container-orgae1bf63" class="outline-2">
+<h2 id="orgae1bf63"><span class="section-number-2">5</span> Data sources</h2>
+<div class="outline-text-2" id="text-5">
+<dl class="org-dl">
+<dt>Suggested values for parameters and default values</dt><dd>This document is not ready yet</dd>
+<dt>References for data used in THERMOS</dt><dd>This document is not ready yet</dd>
 </dl>
 </div>
 </div>

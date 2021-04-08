@@ -1,47 +1,5 @@
 #+TITLE: THERMOS network model user interface
 
-* Concepts
-** Constraint status
-:PROPERTIES:
-:CUSTOM_ID: concept-constraints
-:END:
-** Tariffs
-:PROPERTIES:
-:CUSTOM_ID: concept-tariffs
-:END:
-** Market tariff
-:PROPERTIES:
-:CUSTOM_ID: concept-market-tariff
-:END:
-** Civil costs
-:PROPERTIES:
-:CUSTOM_ID: concept-civils
-:END:
-** Connection costs
-:PROPERTIES:
-:CUSTOM_ID: concept-concost
-:END:
-** Annual and peak demand
-:PROPERTIES:
-:CUSTOM_ID: concept-demand
-:END:
-** Tank factor
-:PROPERTIES:
-:CUSTOM_ID: concept-tank-factor
-:END:
-** Pipe heat loss
-:PROPERTIES:
-:CUSTOM_ID: concept-heat-loss
-:END:
-** Diversity / coincidence
-:PROPERTIES:
-:CUSTOM_ID: concept-diversity
-:END:
-** Capital costs and finance
-** Objective
-:PROPERTIES:
-:CUSTOM_ID: concept-objective
-:END:
 * Top bar and sidebar
 
 #+CAPTION: THERMOS top bar, from left to right: sidebar button, problem name, save button and optimise button.
@@ -739,3 +697,99 @@ For example, if you have some paths with a civil cost of "Hard Dig" in your prob
     - The existing paths will be unaffected
   - /If/ you have selected /not/ to keep parameters with different names
     - The "Hard Dig" civil cost will be removed entirely from the problem
+* Concepts
+** Constraint status
+:PROPERTIES:
+:CUSTOM_ID: concept-constraints
+:END:
+THERMOS is an optimising model which means it makes some decisions.
+
+The main decision is whether to put something in a heat network.
+
+The constraint status of an item affects whether the optimiser can or must use it in a network.
+
+- If the status is forbidden, the item is ignored
+- If the status is optional, the item will be included in a network if that is an improvement on any alternative
+- If the status is required, the item must be connected to a network if at all possible
+** Tariffs
+:PROPERTIES:
+:CUSTOM_ID: concept-tariffs
+:END:
+
+THERMOS uses tariffs when it is in network NPV mode to decide how much revenue the network will get from a customer.
+** Market tariff
+:PROPERTIES:
+:CUSTOM_ID: concept-market-tariff
+:END:
+
+The market tariff is a special tariff THERMOS uses, in which a unit rate for heat is chosen that is a bit better than the next best alternative for the building.
+** Civil costs
+:PROPERTIES:
+:CUSTOM_ID: concept-civils
+:END:
+Civil engineering costs are one of the costs associated with installing a pipe.
+
+They are to do with digging a hole and filling it back in and making good, so they are affected by the surface being dug, the location of the dig and so on.
+
+They don't include the cost that is the same anywhere in a city: this is the cost of the pipe and mechanical engineering (welding etc) required to fit the pipe.
+** Connection costs
+:PROPERTIES:
+:CUSTOM_ID: concept-concost
+:END:
+Connection costs represent the cost of all the equipment required within a building to connect it to a heat network.
+
+Typically this would be a heat exchanger, and maybe some internal pipework.
+** Annual and peak demand
+:PROPERTIES:
+:CUSTOM_ID: concept-demand
+:END:
+THERMOS' network model considers only two types of demand:
+
+- The annual demand in kWh/yr
+- The peak demand in kW
+
+This is because, by and large, a network connection's size is determined by peak demand, and its operations are determined by annual demand.
+** Tank factor
+:PROPERTIES:
+:CUSTOM_ID: concept-tank-factor
+:END:
+THERMOS includes an invented quantity called the "Tank factor".
+
+This exists to reflect the fact that whilst heat network connections are usually sized for hot water production on demand, other heating systems are not. Heat pumps, for example, would have to be very large to deliver the ~20-30 kW of heat needed for instant hot water.
+
+These systems are instead installed with a hot water tank which acts as storage.
+
+The tank factor is used to adjust the peak demand for these systems, by expressing it as a multiple of the minimum possible peak demand (i.e. the annual demand expressed in kW).
+** Pipe heat loss
+:PROPERTIES:
+:CUSTOM_ID: concept-heat-loss
+:END:
+Heat network pipes lose heat into the the ground, because they are warmer than the ground.
+
+In THERMOS you can either enter your own losses per metre, or use the built-in model.
+
+If you use the built-in model you probably want to set the ground temperature. If this is higher, the heat losses will be reduced.
+** Diversity / coincidence
+:PROPERTIES:
+:CUSTOM_ID: concept-diversity
+:END:
+Load diversity and coincidence are two sides of the same coin.
+
+As mentioned above, heat networks are usually sized for hot water.
+
+When there are several buildings connected to a network, it is not often a requirement for them all to have hot water on demand at the same time, because hot water usage is a bit stochastic (moreso than heat usage).
+
+Diversity or coincidence is a factor used to approximate this effect.
+
+For example if two buildings have a peak demand of 30kW, we might only supply them using a shared pipe with capacity to deliver 48kW, which is not 30kW + 30kW. This would be a coincidence of 80% - we only size for 80% of the shared demand.
+** Objective
+:PROPERTIES:
+:CUSTOM_ID: concept-objective
+:END:
+The objective is the technical term for a number that the model is trying to make as large as possible.
+
+For THERMOS this number is always the present value (or minus the present cost).
+
+In network NPV mode it is the present value to the network operator of their revenues less their costs.
+
+In whole-system mode it is minus the present cost of all the costs of delivering the heat.
