@@ -113,7 +113,7 @@
 
       [:tbody
        (for [{:keys [name subcategories total]} (:rows summary)]
-         [:<>
+         [:<> {:key name}
           (for [{sub-name :name values :value} subcategories]
             [:tr {:key sub-name}
              [:th sub-name]
@@ -213,14 +213,16 @@
                   pipework-groups
                   (sort-by first
                            (group-by
-                            (juxt ::path/civil-cost-id ::solution/diameter-mm)
+                            (fn [path]
+                              [(if (::path/exists path) :exists (::path/civil-cost-id path))
+                               (::solution/diameter-mm path)])
                             paths))]
               (list
                (doall
                 (for [[[civ sz] paths] pipework-groups]
                   [pipework-row
                    {:key [civ sz]}
-                   (document/civil-cost-name @parameters civ)
+                   (if (= civ :exists) "Existing pipe" (document/civil-cost-name @parameters civ))
                    sz
                    paths]))
                (when (> (count pipework-groups) 1)
