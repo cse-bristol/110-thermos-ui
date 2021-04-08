@@ -308,7 +308,8 @@
    (concat
     (candidate-columns doc)
     [{ :name "Length"              :key ::path/length}
-     { :name "Civils"   :key #(document/civil-cost-name doc (::path/civil-cost-id %)) }]
+     { :name "Civils"   :key #(document/civil-cost-name doc (::path/civil-cost-id %)) }
+     { :name "Exists"    :key ::path/exists }]
     (when (document/has-solution? doc)
       (concat
        [{:name "In solution" :key ::solution/included}
@@ -316,6 +317,7 @@
         {:name "Capacity (kW)" :key ::solution/capacity-kw}
         {:name "Losses (kWh/yr)" :key ::solution/losses-kwh}
         {:name "Coincidence" :key ::solution/diversity}
+
         ]
        (cost-columns :capex "Capital cost" ::solution/pipe-capex)
        )))
