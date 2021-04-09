@@ -1,10 +1,21 @@
-#+TITLE: THERMOS Documentation
+#+TITLE: THERMOS Help
+#+OPTIONS: toc:nil
+
+Welcome to the help for THERMOS. You can search the help if you know what you are looking for:
+
+#+BEGIN_EXPORT html
+<form action="search">
+<input type="search" name="q">
+<input type="submit" value="Search">
+</form>
+#+END_EXPORT
 
 * Application overview
 
 - [[file:overview.org][An overview of THERMOS - start here]] :: An introduction to THERMOS, if you have never used it before
 - [[file:projects-and-maps.org][Projects and maps]] :: Describes what's in project pages and how to create maps with OpenStreetMap or your own GIS data
 - [[file:faq.org][FAQs]] :: This section answers some frequently asked questions
+- [[bare:/help/changelog][Changelog]] :: A history of changes to the THERMOS application
   
 * Network model
 
