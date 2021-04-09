@@ -16,6 +16,7 @@ Welcome to the help for THERMOS. You can search the help if you know what you ar
 - [[file:projects-and-maps.org][Projects and maps]] :: Describes what's in project pages and how to create maps with OpenStreetMap or your own GIS data
 - [[file:faq.org][FAQs]] :: This section answers some frequently asked questions
 - [[bare:/help/changelog][Changelog]] :: A history of changes to the THERMOS application
+- [[file:data-projection.org][Licensing and data protection]] :: How THERMOS is licensed, and what we do with your data.
   
 * Network model
 
@@ -37,3 +38,5 @@ Welcome to the help for THERMOS. You can search the help if you know what you ar
 
 - Suggested values for parameters and default values :: This document is not ready yet
 - References for data used in THERMOS :: This document is not ready yet
+
+ 
