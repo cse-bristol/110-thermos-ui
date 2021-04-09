@@ -29,9 +29,9 @@
  :lidar-directory "lidar"
  :error-dumps "error-dumps"
 
- :max-project-runtime {:basic 1.0}
- :max-jobs-per-week {:basic 7 :intermediate 14}
- :max-gis-features {:basic 1000000 :intermediate 1000000}
+ :max-project-runtime {:basic 1.0 :intermediate 2.0}
+ :max-jobs-per-week {:basic 10 :intermediate 20}
+ :max-gis-features {:basic 8000 :intermediate 16000}
  :priority-queue-weight {:basic 1}
  :default-user-auth :basic
  :contact-email "info@thermos-project.eu"
