@@ -15,10 +15,7 @@ You are allowed to use this copy of the application subject to the understanding
 
    The application may disappear at any time. However, we will provide you with your own data on request, so long as we still have access to it.
 2. There is no warranty of any kind for the service or its outputs.
-3. If you use this facility in work where you produce outputs for a third party (for example an academic publication or commercial report) you should include the following citation:
-
-   This work uses results from the THERMOS heat network model (https://www.thermos-project.eu).
-   For more information about THERMOS contact the Centre for Sustainable Energy (https://www.cse.org.uk / thermos@cse.org.uk).
+3. If you use this facility in work where you produce outputs for a third party (for example an academic publication or commercial report) you should include the acknowledgement further down on this page.
 
 * User data
 
@@ -84,8 +81,8 @@ tool is done entirely at the user's risk and with regard to the above
 terms. Such work or results should include an acknowledgement as follows:
 
 #+BEGIN_QUOTE
-This work was done using THERMOS (Thermal Energy Resource Modelling
-and Optimisation System). THERMOS is an EU Horizon 2020 funded
+This work uses results from the THERMOS (Thermal Energy Resource Modelling
+and Optimisation System) model. THERMOS is an EU Horizon 2020 funded
 research project (grant agreement No 723636) coordinated by the Centre
 for Sustainable Energy.
 
@@ -93,5 +90,5 @@ THERMOS provides heat network data and modelling tools in a
 user-friendly open-source application which makes network
 planning faster, easier, and more cost effective.
 
-For more on THERMOS please visit https://www.thermos-project.eu/.
+For more information about THERMOS see the THERMOS website at https://www.thermos-project.eu/, or contact the Centre for Sustainable Energy (https://www.cse.org.uk / thermos@cse.org.uk).
 #+END_QUOTE
