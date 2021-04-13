@@ -111,7 +111,7 @@
         [:th.numeric "Capital cost (" capex-label ")"]
         [:th.numeric "Operating cost (" opex-label ")"]
         [:th.numeric "Operating revenue (" opex-label ")"]
-        [:th.numeric.has-tt {:title "Equivalized cost - this is the present cost only (no revenues) divided by the (discounted) heat delivered."} "EC (c/kWh)"]
+        [:th.numeric.has-tt {:title "Levelized cost of heat - this is the present cost (no revenues) divided by the (discounted) heat delivered."} "LCH (c/kWh)"]
         [:th.numeric "NPV (¤)"]]]
 
       [:tbody
