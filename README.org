@@ -5,9 +5,9 @@ See LICENSE for licensing information.
 THERMOS as a whole is split into a few parts, which see:
 
 - https://github.com/cse-bristol/clj-lp :: a library for driving MIP solvers from clojure
-- https://github.com/cse-bristol/thermos-models :: a library containing most of the core THERMOS MIP / heuristic models
-- https://github.com/cse-bristol/thermos-importer :: a library containing utility code, mostly for processing GIS data
-- https://github.com/cse-bristol/thermos-ui :: this repository, containing the THERMOS frontend application.
+- https://github.com/cse-bristol/110-thermos-models :: a library containing most of the core THERMOS MIP / heuristic models
+- https://github.com/cse-bristol/110-thermos-importer :: a library containing utility code, mostly for processing GIS data
+- https://github.com/cse-bristol/110-thermos-ui :: this repository, containing the THERMOS frontend application.
 
   A certain amount of model code is also in this repository, since the thermos-models interfaces accept a boiled down version in which some simplifications have been made already. In particular, the rules for heat losses, pipe diameters, and pipe costs are all found in here.
 
