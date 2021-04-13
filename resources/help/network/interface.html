@@ -103,7 +103,7 @@
 <li><a href="#pumping-costs">5.4. Pumping costs</a></li>
 </ul>
 </li>
-<li><a href="#org0f8ebb4">6. Insulation</a></li>
+<li><a href="#org9f97a5b">6. Insulation</a></li>
 <li><a href="#def-individual-systems">7. Individual systems</a></li>
 <li><a href="#org644ff37">8. Solution summary</a>
 <ul>
@@ -113,7 +113,7 @@
 <li><a href="#orga9accbe">8.4. Network (Demands)</a></li>
 <li><a href="#orgc6d1e75">8.5. Network (Supplies)</a></li>
 <li><a href="#org0da1c36">8.6. Individual systems</a></li>
-<li><a href="#org9f97a5b">8.7. Insulation</a></li>
+<li><a href="#org56912b5">8.7. Insulation</a></li>
 <li><a href="#org20df867">8.8. Emissions</a></li>
 <li><a href="#org03cb17a">8.9. Optimisation</a></li>
 </ul>
@@ -146,7 +146,7 @@
 <h2 id="org6779671"><span class="section-number-2">1</span> Top bar and sidebar</h2>
 <div class="outline-text-2" id="text-1">
 
-<div id="org111aa6c" class="figure">
+<div id="orgde0ea65" class="figure">
 <p><img src="../screenshots/top-bar.png" alt="top-bar.png" />
 </p>
 <p><span class="figure-number">Figure 1: </span>THERMOS top bar, from left to right: sidebar button, problem name, save button and optimise button.</p>
@@ -294,7 +294,7 @@ The selection is ephemeral and only one selection exists at a time, much like a 
 </p>
 
 
-<div id="orgea671f6" class="figure">
+<div id="org0199e2f" class="figure">
 <p><img src="./../screenshots/selected.png" alt="selected.png" />
 </p>
 <p><span class="figure-number">Figure 2: </span>Difference in appearance due to selection. On the left nothing is selected, on the right the top-left building is selected.</p>
@@ -337,14 +337,14 @@ Around the edge of the map are some control buttons:
 </p>
 
 
-<div id="org22ed7c9" class="figure">
+<div id="org223ef67" class="figure">
 <p><img src="./../screenshots/left-map-controls.png" alt="left-map-controls.png" />
 </p>
 <p><span class="figure-number">Figure 3: </span>Map controls on the left. From top to bottom: Zoom In, Zoom Out, Select Polygon, Select Rectangle, Hide/show forbidden, Zoom to network, Add Connector and Add Building buttons.</p>
 </div>
 
 
-<div id="org0cdb56c" class="figure">
+<div id="orgac60f98" class="figure">
 <p><img src="./../screenshots/right-map-controls.png" alt="right-map-controls.png" />
 </p>
 <p><span class="figure-number">Figure 4: </span>Map controls on the right. The search box searches <a href="https://nominatim.org/">Nominatim</a> for places (it does not unfortunately search THERMOS map data specifically). The box below controls what is displayed on the map.</p>
@@ -435,7 +435,7 @@ As you click the connector will be shown as a dotted line:
 </p>
 
 
-<div id="orgf1d7958" class="figure">
+<div id="org4571fac" class="figure">
 <p><img src="./../screenshots/drawing-connector.png" alt="drawing-connector.png" />
 </p>
 <p><span class="figure-number">Figure 5: </span>Halfway through drawing a connector</p>
@@ -510,7 +510,7 @@ At the bottom of the map is a control which switches the map display between two
 </p>
 
 
-<div id="orgea6ee31" class="figure">
+<div id="org15ea2b6" class="figure">
 <p><img src="./../screenshots/map-view-switch.png" alt="map-view-switch.png" />
 </p>
 <p><span class="figure-number">Figure 6: </span>Map view control, set to solution display. You can use the <b>Map legend</b> button on the right to get a reminder of what colours on the map indicate.</p>
@@ -562,7 +562,7 @@ The selection info panel is the region on the right hand side of the map view. T
 </p>
 
 
-<div id="org4faccf2" class="figure">
+<div id="org612887c" class="figure">
 <p><img src="./../screenshots/selection-info-panel.png" alt="selection-info-panel.png" />
 </p>
 <p><span class="figure-number">Figure 7: </span>Example of the selection info panel. The <b>Category</b> and <b>Name</b> rows are elided.</p>
@@ -597,7 +597,7 @@ All the categorical rows in the selection info panel can be used to narrow down 
 </p>
 
 
-<div id="org55199b3" class="figure">
+<div id="orgd27a580" class="figure">
 <p><img src="./../screenshots/type-category.png" alt="type-category.png" />
 </p>
 <p><span class="figure-number">Figure 8: </span>The category row for candidate type. This shows that in the selection, 239 candidates are paths, 118 are demand buildings, and 1 is a supply building. Note how each chip has a little cross on the right.</p>
@@ -833,7 +833,7 @@ It is a table, listing all of the candidates whose status is not <code>forbidden
 </p>
 
 
-<div id="org4fbf220" class="figure">
+<div id="org2e7705a" class="figure">
 <p><img src="./../screenshots/candidates-panel.png" alt="candidates-panel.png" />
 </p>
 <p><span class="figure-number">Figure 9: </span>An example of the network candidates panel</p>
@@ -872,7 +872,7 @@ Candidates whose rows have been filtered out are made slightly transparent on th
 </p>
 
 
-<div id="orga01478c" class="figure">
+<div id="orgc4502ae" class="figure">
 <p><img src="./../screenshots/filtered.png" alt="filtered.png" />
 </p>
 <p><span class="figure-number">Figure 10: </span>Filtered selection info panel. Note that the <b>In?</b> column is filtered (its filter icon is blue), and the map is highlighting those elements which are on a network.</p>
@@ -899,7 +899,7 @@ Shown only when the selection includes some buildings.
 </p>
 
 
-<div id="orgb50f275" class="figure">
+<div id="orgd9b1979" class="figure">
 <p><img src="./../screenshots/edit-demands.png" alt="edit-demands.png" />
 </p>
 <p><span class="figure-number">Figure 11: </span>Editing all selected demands</p>
@@ -915,7 +915,7 @@ For example, here is the same edit window with the menu changed to the <code>Cat
 </p>
 
 
-<div id="org10a53e1" class="figure">
+<div id="org9407ebb" class="figure">
 <p><img src="./../screenshots/edit-demands-category.png" alt="edit-demands-category.png" />
 </p>
 <p><span class="figure-number">Figure 12: </span>Editing demands by category</p>
@@ -945,7 +945,7 @@ In each row you can see four columns that you can edit. The numeric columns have
 <h4 id="editing-tariffs"><span class="section-number-4">2.7.2</span> Editing tariff &amp; connection costs</h4>
 <div class="outline-text-4" id="text-editing-tariffs">
 
-<div id="org496075e" class="figure">
+<div id="org351f837" class="figure">
 <p><img src="./../screenshots/edit-tariffs.png" alt="edit-tariffs.png" />
 </p>
 <p><span class="figure-number">Figure 13: </span>Editing tariffs</p>
@@ -960,7 +960,7 @@ This page lets you set the tariff and connection cost applied to the selected bu
 <h4 id="editing-systems"><span class="section-number-4">2.7.3</span> Editing insulation &amp; systems</h4>
 <div class="outline-text-4" id="text-editing-systems">
 
-<div id="org3c50724" class="figure">
+<div id="orgdc681be" class="figure">
 <p><img src="./../screenshots/edit-alternatives.png" alt="edit-alternatives.png" />
 </p>
 <p><span class="figure-number">Figure 14: </span>Editing insulation and systems</p>
@@ -980,7 +980,7 @@ This page lets you select the other technologies offered to the building, when i
 <h4 id="edit-paths"><span class="section-number-4">2.7.4</span> Editing paths</h4>
 <div class="outline-text-4" id="text-edit-paths">
 
-<div id="org6878062" class="figure">
+<div id="org79317b5" class="figure">
 <p><img src="./../screenshots/editing-paths.png" alt="editing-paths.png" />
 </p>
 <p><span class="figure-number">Figure 15: </span>Editing paths</p>
@@ -1002,7 +1002,7 @@ For paths you can set:
 <h4 id="org2db3a01"><span class="section-number-4">2.7.5</span> Editing other fields</h4>
 <div class="outline-text-4" id="text-2-7-5">
 
-<div id="org173c3b7" class="figure">
+<div id="org2ae38cf" class="figure">
 <p><img src="./../screenshots/editing-user-fields.png" alt="editing-user-fields.png" />
 </p>
 <p><span class="figure-number">Figure 16: </span>Editing other fields</p>
@@ -1050,7 +1050,7 @@ This will show the supply parameters box:
 </p>
 
 
-<div id="org59a034c" class="figure">
+<div id="org19635f8" class="figure">
 <p><img src="./../screenshots/edit-supply.png" alt="edit-supply.png" />
 </p>
 <p><span class="figure-number">Figure 17: </span>A supply parameters window; to make the selected building(s) into supply points, enter a nonzero capacity.</p>
@@ -1088,7 +1088,7 @@ Each building can belong to a single group of buildings - the optimiser will tre
 </p>
 
 
-<div id="orgb71eae1" class="figure">
+<div id="org6261465" class="figure">
 <p><img src="./../screenshots/group-rendering.png" alt="group-rendering.png" />
 </p>
 <p><span class="figure-number">Figure 18: </span>The centre building is selected. The leftmost building is in the same group, which is why it is filled in white. The optimiser can choose either to connect both these two or neither, but nothing in between.</p>
@@ -1336,7 +1336,7 @@ The pipe and connection costs parameter control all the costs for network equipm
 <h3 id="orgf759c3c"><span class="section-number-3">5.1</span> Pipe costs table</h3>
 <div class="outline-text-3" id="text-5-1">
 
-<div id="orga22c563" class="figure">
+<div id="org45dfd76" class="figure">
 <p><img src="./../screenshots/pipe-costs-table.png" alt="pipe-costs-table.png" />
 </p>
 <p><span class="figure-number">Figure 19: </span>The pipe costs table</p>
@@ -1414,11 +1414,11 @@ In a heat network, pumping overheads offset some heat output from the plant, sin
 </div>
 </div>
 </div>
-<div id="outline-container-org0f8ebb4" class="outline-2">
-<h2 id="org0f8ebb4"><span class="section-number-2">6</span> Insulation</h2>
+<div id="outline-container-org9f97a5b" class="outline-2">
+<h2 id="org9f97a5b"><span class="section-number-2">6</span> Insulation</h2>
 <div class="outline-text-2" id="text-6">
 
-<div id="orgeeae33d" class="figure">
+<div id="org636b53b" class="figure">
 <p><img src="./../screenshots/insulation-defs.png" alt="insulation-defs.png" />
 </p>
 <p><span class="figure-number">Figure 20: </span>The insulation definitions. Each row defines a type of insulation.</p>
@@ -1454,7 +1454,7 @@ Insulation definitions can be deleted by clicking the red X button on their row.
 <h2 id="def-individual-systems"><span class="section-number-2">7</span> Individual systems</h2>
 <div class="outline-text-2" id="text-def-individual-systems">
 
-<div id="orgd39fca7" class="figure">
+<div id="orgdc4b7b6" class="figure">
 <p><img src="./../screenshots/individual-defs.png" alt="individual-defs.png" />
 </p>
 <p><span class="figure-number">Figure 21: </span>Definitions for an individual system. More can be added by clicking <b>Add system</b>.</p>
@@ -1525,7 +1525,7 @@ It quantitatively describes the solution, without any spatial component.
 <h3 id="org39af129"><span class="section-number-3">8.1</span> Display options</h3>
 <div class="outline-text-3" id="text-8-1">
 
-<div id="orgea0064b" class="figure">
+<div id="org77802b6" class="figure">
 <p><img src="./../screenshots/ss-display-options.png" alt="ss-display-options.png" />
 </p>
 <p><span class="figure-number">Figure 22: </span>Solution summary display options controls</p>
@@ -1579,7 +1579,7 @@ The cost summary gives the headline information the model is working on:
 </p>
 
 
-<div id="org0b9f22d" class="figure">
+<div id="org93b266f" class="figure">
 <p><img src="./../screenshots/ss-cost-summary.png" alt="ss-cost-summary.png" />
 </p>
 <p><span class="figure-number">Figure 23: </span>An example of the cost summary table</p>
@@ -1645,8 +1645,8 @@ If the model has installed any individual systems (see <a href="#def-individual-
 </p>
 </div>
 </div>
-<div id="outline-container-org9f97a5b" class="outline-3">
-<h3 id="org9f97a5b"><span class="section-number-3">8.7</span> Insulation</h3>
+<div id="outline-container-org56912b5" class="outline-3">
+<h3 id="org56912b5"><span class="section-number-3">8.7</span> Insulation</h3>
 <div class="outline-text-3" id="text-8-7">
 <p>
 If the model has installed any insulation on buildings this section lists the quantity, cost and effect of insulation installed.
