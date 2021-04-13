@@ -1,3 +1,6 @@
+;; This file is part of THERMOS, copyright © Centre for Sustainable Energy, 2017-2021
+;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
+
 (ns thermos-test.specs.document
   (:require [thermos-specs.document :as doc]
             [thermos-specs.candidate :as can]

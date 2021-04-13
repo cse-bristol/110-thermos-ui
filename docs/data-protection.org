@@ -4,6 +4,7 @@
 This document enumerates all the ways in which we (as in, the THERMOS project consortium) may use data entered into a THERMOS installation.
 
 If you don't like this, you will may run your own copy of THERMOS, in which case you will be in charge of your data. The source code is available under an open-source license from https://github.com/cse-bristol/thermos-ui.
+If you would like help with this, contact the Centre for Sustainable Energy (https://www.cse.org.uk / thermos@cse.org.uk).
 
 * This service
 
@@ -13,7 +14,11 @@ You are allowed to use this copy of the application subject to the understanding
 1. There is no guarantee of service
 
    The application may disappear at any time. However, we will provide you with your own data on request, so long as we still have access to it.
-2. There is no warranty of any kind for the service or its outputs
+2. There is no warranty of any kind for the service or its outputs.
+3. If you use this facility in work where you produce outputs for a third party (for example an academic publication or commercial report) you should include the following citation:
+
+   This work uses results from the THERMOS heat network model (https://www.thermos-project.eu).
+   For more information about THERMOS contact the Centre for Sustainable Energy (https://www.cse.org.uk / thermos@cse.org.uk).
 
 * User data
 

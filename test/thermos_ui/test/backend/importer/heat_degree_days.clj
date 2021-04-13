@@ -1,3 +1,6 @@
+;; This file is part of THERMOS, copyright © Centre for Sustainable Energy, 2017-2021
+;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
+
 (ns thermos-test.backend.importer.heat-degree-days
   (:require [clojure.test :refer :all]
             [thermos-backend.importer.heat-degree-days :as heat-degree-days]))

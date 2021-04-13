@@ -1,3 +1,6 @@
+;; This file is part of THERMOS, copyright © Centre for Sustainable Energy, 2017-2021
+;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
+
 (ns thermos-backend.pages.login-form
   (:require [thermos-backend.pages.common :refer [page]]
             [thermos-pages.common :refer [style]]))
@@ -67,8 +70,7 @@
        [:li "Asking you about how you are using the application or why you are interested in it"]]
       [:p "If you do not use your email address, that's fine, but you won't be able to recover your password."]
       [:p "You can read more about how THERMOS uses your data and the terms under which this is offered "
-       [:a {:href "/help/data-protection.html"} "here"] "."]
-      
+       [:a {:href "/help/data-protection.html"} "here"] " - by using the service you agree to these terms."]
       
       ]]]
    
@@ -82,6 +84,11 @@
      [:p "For news and information, visit " [:a {:href "http://www.thermos-project.eu/"}
                                              "the project website."]]
 
-     [:p "This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No 723636. Thanks EU!"]]]))
+     [:p "This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No 723636. Thanks EU!"]
+     [:p "The THERMOS tool is Copyright Centre for Sustainable Energy, 2017-2021."]
+     [:p "If you use this software's source code, documentation, or outputs in your own work, academic or commercial, please include a citation along these lines:"]
+     [:blockquote
+      "This work includes results from the THERMOS heat network model (https://www.thermos-project.eu). For more information about THERMOS contact the Centre for Sustainable Energy (https://www.cse.org.uk / thermos@cse.org.uk)."]
+     ]]))
 
 

@@ -1,3 +1,6 @@
+;; This file is part of THERMOS, copyright © Centre for Sustainable Energy, 2017-2021
+;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
+
 (ns thermos-backend.config
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
