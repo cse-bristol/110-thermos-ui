@@ -3,7 +3,7 @@
 
 This document enumerates all the ways in which we (as in, the THERMOS project consortium) may use data entered into a THERMOS installation.
 
-If you don't like this, you will may run your own copy of THERMOS, in which case you will be in charge of your data. The source code is available under an open-source license from https://github.com/cse-bristol/thermos-ui.
+If you don't like this, you will may run your own copy of THERMOS, in which case you will be in charge of your data. The source code is available under an open-source license from https://github.com/cse-bristol/110-thermos-ui.
 If you would like help with this, contact the Centre for Sustainable Energy (https://www.cse.org.uk / thermos@cse.org.uk).
 
 * This service
