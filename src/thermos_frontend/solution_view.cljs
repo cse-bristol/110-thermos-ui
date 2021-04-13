@@ -217,17 +217,14 @@
                   (sort-by first
                            (group-by
                             (fn [path]
-                              [(if (::path/exists path) :exists (::path/civil-cost-id path))
+                              [(if (::path/exists path) "Existing pipe"
+                                   (document/civil-cost-name @parameters (::path/civil-cost-id path)))
                                (::solution/diameter-mm path)])
                             paths))]
               (list
                (doall
                 (for [[[civ sz] paths] pipework-groups]
-                  [pipework-row
-                   {:key [civ sz]}
-                   (if (= civ :exists) "Existing pipe" (document/civil-cost-name @parameters civ))
-                   sz
-                   paths]))
+                  [pipework-row {:key [civ sz]} civ sz paths]))
                (when (> (count pipework-groups) 1)
                  (pipework-row
                   {:key :all}
