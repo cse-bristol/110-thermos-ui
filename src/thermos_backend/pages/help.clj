@@ -75,7 +75,7 @@
   Each bit is a map which contains :content, :path, :title, and :id"
   [url]
 
-  (log/info "Extracting headings from" (.getPath url) "for help index")
+  (log/info "Help in" (.getPath (io/as-url url)))
   (try (with-open [stream (io/input-stream url)]
 
          (let [x (-> stream
