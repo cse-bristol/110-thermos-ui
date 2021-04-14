@@ -75,7 +75,7 @@
   Each bit is a map which contains :content, :path, :title, and :id"
   [url]
 
-  (log/info "Extracting headings from" url "for help index")
+  (log/info "Extracting headings from" (.getPath url) "for help index")
   (try (with-open [stream (io/input-stream url)]
 
          (let [x (-> stream
@@ -133,7 +133,11 @@
 (def analyzer (analysis/standard-analyzer))
 (def index (let [index (store/memory-store)
                  headings (->> (resauce/resource-dir "help")
-                               (remove #(.endsWith (str %) "index.html"))
+                               (concat (resauce/resource-dir "help/network"))
+                               (concat (resauce/resource-dir "help/supply"))
+                               (remove #(let [name (.getFile %)]
+                                          (or (= "index.html" name)
+                                              (not (.endsWith name "html")))))
                                (mapcat extract-headings))
                  ]
              
