@@ -135,7 +135,8 @@
                  headings (->> (resauce/resource-dir "help")
                                (concat (resauce/resource-dir "help/network"))
                                (concat (resauce/resource-dir "help/supply"))
-                               (remove #(let [name (.getFile %)]
+                               (remove #(let [% (io/as-url %)
+                                              name (.getFile %)]
                                           (or (= "index.html" name)
                                               (not (.endsWith name "html")))))
                                (mapcat extract-headings))
