@@ -39,11 +39,11 @@
     (if max-project-runtime
 
       (let [max-runtime
-            (min (::document/maximum-runtime document)
+            (min (or (::document/maximum-runtime document) 1.0)
                  max-project-runtime)
 
             max-supply-runtime
-            (min (get-in [::supply/objective :time-limit] document)
+            (min (or (get-in document [::supply/objective :time-limit]) 1.0)
                  max-project-runtime)]
 
         (-> document
