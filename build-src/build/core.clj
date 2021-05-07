@@ -28,6 +28,9 @@
 
       :heat-pkg (do (require 'build.pkg)
                     ((resolve 'build.pkg/build-heatmap-only-tool)))
+
+      :noder-pkg (do (require 'build.pkg)
+                     ((resolve 'build.pkg/build-noder)))
       
       :dev (do
              (require 'build.dev)
