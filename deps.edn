@@ -70,7 +70,7 @@
     thermos/importer
     {:git/url "ssh://git@github.com/cse-bristol/110-thermos-importer.git"
      :tag "HEAD"
-     :sha "56247e181b2c04e0298db90288bd53383002186c"}
+     :sha "635a1580c6035351a3f663647e4eca2bd20c8013"}
     org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"}
     log4j/log4j
     {:mvn/version "1.2.17"

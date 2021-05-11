@@ -9,7 +9,7 @@
 
             [thermos-importer.geoio :as geoio]
             [thermos-importer.spatial :as spatial])
-
+  (:import  [org.geotools.referencing CRS])
   (:gen-class))
 
 (defn- conj-arg [m k v] (update m k conj v))
@@ -36,6 +36,9 @@
     :parse-fn #(Double/parseDouble %)]
    
    [nil "--trim-paths" "Remove paths that don't go anywhere."]
+
+   [nil "--transfer-field FIELD"
+    "Set FIELD on buildings to the value of FIELD on the road the connect to."]
 
    [nil "--ignore-paths FIELD=VALUE*" "Ignore paths where FIELD=VALUE"
     :assoc-fn conj-arg
@@ -75,11 +78,16 @@
          (spatial/trim-dangling-paths buildings))
        buildings])))
 
+(defn- fields [{crs ::geoio/crs features ::geoio/features} extra-fields]
+  (let [epsg (CRS/lookupEpsgCode (CRS/decode crs true) true)
+        inferred-fields (geoio/infer-fields epsg features)]
+    (merge inferred-fields extra-fields)))
+
 (defn --main [options]
   (let [geodata (when (seq (:input options))
                   (geoio/read-from-multiple (:input options)
                                             :key-transform identity))
-        
+
         crs (::geoio/crs geodata)
 
         geodata (cond-> geodata
@@ -97,9 +105,22 @@
                                  "paths of" (count features) "geoms")
                                 out)))))
 
-        [paths buildings] (node-connect geodata options)]
-    (geoio/write-to {::geoio/features paths ::geoio/crs crs} (:path-out options))
-    (geoio/write-to {::geoio/features buildings ::geoio/crs crs} (:building-out options))))
+        [paths buildings] (node-connect geodata options)
+
+        paths {::geoio/features paths ::geoio/crs crs}
+        buildings {::geoio/features buildings ::geoio/crs crs}
+
+        extra-path-fields
+        {"start_id" {:type "String" :value #(get-in % [::spatial/start-node ::geoio/id])}
+         "end_id"   {:type "String" :value #(get-in % [::spatial/end-node ::geoio/id])}}
+
+        extra-building-fields
+        {"connects_to_node" {:type "String" :value #(first (::spatial/connects-to-node %))}}]
+
+    (geoio/write-to paths (:path-out options)
+                    :fields (fields paths extra-path-fields))
+    (geoio/write-to buildings (:building-out options)
+                    :fields (fields buildings extra-building-fields))))
 
 (defn -main [& args]
   (let [{:keys [options arguments errors summary]} (parse-opts args cli-options)]
