@@ -19,6 +19,7 @@
               --secret_key=$(cat /run/keys/spaces-secret-key) \
               --host ams3.digitaloceanspaces.com \
               --host-bucket='%(bucket)s.ams3.digitaloceanspaces.com' \
+              --force \
            put ${config.services.postgresqlBackup.location}/all.sql.gz \
            s3://thermos-backup/$(cat /run/keys/backup-file-name)-$(date +%a)
       '';
