@@ -136,11 +136,13 @@
   (with-open [w (output path)]
     (binding [*out* w]
       (tsv-write
-       (cond-> ["lon" "lat" "system" "kwh" "kwp" "insulation" "systemcapex" "systemfuel" "systemopex" "networkrevenue" "count" "supplykwp" "supplycapex" "supplyfuel" "supplyopex" "insulationcapex"
-                "insulationarea"
-                "systemcapexpv"
-                "systemopexpv"
-                "insulationcapexpv"]
+       (cond-> ["lon" "lat" "system"
+                "kwh" "kwp" "count"
+                "insulation" "insulationarea" "insulationcapex"
+                "systemcapex" "systemfuel" "systemopex" 
+                "networkrevenue"
+                "supplykwp" "supplycapex" "supplyfuel" "supplyopex" 
+                ]
          *problem-id* (conj "problem")
          *id-field*   (conj "id")
          ))
@@ -163,12 +165,12 @@
 
                             kwp        (ndp (candidate/solved-peak-demand c mode) 0)
 
-                            capex   (ndp ;; capex of heatex or individual system
+                            syscapex   (ndp ;; capex of heatex or individual system
                                      (+ (-> c ::solution/alternative :capex (:principal 0))
                                         (-> c ::solution/connection-capex   (:principal 0)))
                                      0)
-                            opex    (ndp (-> c ::solution/alternative :opex (:annual 0)) 0)
-                            aheat   (ndp (-> c ::solution/alternative :heat-cost (:annual 0)) 0)
+                            sysopex    (ndp (-> c ::solution/alternative :opex (:annual 0)) 0)
+                            sysfuel   (ndp (-> c ::solution/alternative :heat-cost (:annual 0)) 0)
                             revenue (ndp (-> c ::solution/heat-revenue (:annual 0)) 0)
                             
                             ccount  (::demand/connection-count c 1)
@@ -193,11 +195,14 @@
                             (ndp (reduce + 0 (keep :present (::solution/insulation c))) 0)
                             
                             ]
-                        (cond-> [lon lat system kwh kwp insulation
-                                 capex aheat opex revenue ccount
-                                 skwp scapex sheat sopex icapex
-                                 iarea
-                                 system-pv-capex system-pv-opex insulation-pv-capex
+                        (cond-> [lon lat system
+                                 kwh kwp ccount
+
+                                 insulation iarea icapex
+                                 syscapex sysfuel sysopex
+
+                                 revenue
+                                 skwp scapex sheat sopex
                                  ]
                           
                           *problem-id* (conj *problem-id*)
