@@ -10,6 +10,8 @@
             [cljts.core :as jts]
             [clojure.tools.logging :as log]
             [clojure.string :as string]
+
+            [thermos.cli.noder :as noder]
             
             [thermos-backend.importer.process :as importer]
             [thermos-backend.solver.interop :as interop]
@@ -219,34 +221,6 @@ The different options are those supplied after --retry, so mostly you can use th
 
 (defn- line? [feature]
   (-> feature ::geoio/type #{:line-string :multi-line-string} boolean))
-
-(defn- node-connect
-  "Given a set of shapes, do the noding and connecting dance"
-  [{crs ::geoio/crs features ::geoio/features}
-
-   {:keys [shortest-face
-           snap-tolerance trim-paths
-           transfer-field]}
-   ]
-  (when (seq features)
-    (let [{lines true not-lines false}
-          (group-by line? features)
-
-          lines (spatial/node-paths lines :snap-tolerance snap-tolerance :crs crs)
-
-          [buildings roads]
-          (if lines
-            (spatial/add-connections
-             crs not-lines lines
-             :copy-field (and transfer-field [transfer-field transfer-field])
-             :shortest-face-length shortest-face
-             :connect-to-connectors false)
-            [not-lines nil])]
-
-      [(cond-> roads
-         trim-paths
-         (spatial/trim-dangling-paths buildings))
-       buildings])))
 
 (defn- generate-demands [buildings
 
@@ -724,7 +698,7 @@ The different options are those supplied after --retry, so mostly you can use th
                                           out)
                                         ))))
         
-        [paths buildings] (node-connect geodata options)
+        [paths buildings] (noder/node-connect geodata options)
         
         
         buildings         (when (seq buildings)
