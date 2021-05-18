@@ -11,7 +11,7 @@
             [clojure.tools.logging :as log]
             [clojure.string :as string]
 
-            [thermos.cli.noder :as noder]
+            [thermos-cli.noder :as noder]
             
             [thermos-backend.importer.process :as importer]
             [thermos-backend.solver.interop :as interop]
