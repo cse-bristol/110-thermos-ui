@@ -447,12 +447,11 @@
 (defn ungroup-candidates
   "Clear the ::demand/group on all these candidates"
   [doc candidates-ids]
-  (sr/setval
+  (sr/transform
    [::candidates
     (sr/submap candidates-ids)
-    sr/MAP-VALS
-    ::demand/group]
-   sr/NONE
+    sr/MAP-VALS]
+   #(-> % (dissoc ::demand/group) (assoc ::candidate/modified true))
    doc))
 
 (defn- next-group [doc]
@@ -476,8 +475,8 @@
              2 {} 3 {::demand/group 0}}}
            (group-candidates (list 0 1))
            (= {::candidates
-               {0 {::demand/group 1}
-                1 {::demand/group 1}
+               {0 {::demand/group 1 ::candidate/modified true}
+                1 {::demand/group 1 ::candidate/modified true}
                 2 {} 3 {::demand/group 0}}})))
       (test/is
        (-> {::candidates
@@ -485,8 +484,8 @@
              2 {} 3 {}}}
            (group-candidates (list 0 1))
            (= {::candidates
-               {0 {::demand/group 0}
-                1 {::demand/group 0}
+               {0 {::demand/group 0 ::candidate/modified true}
+                1 {::demand/group 0 ::candidate/modified true}
                 2 {} 3 {}}})))
 
       (test/is
@@ -494,7 +493,7 @@
             {0 {::demand/group 0} 1 {::demand/group 0}}}
            (group-candidates (list 0))
            (= {::candidates
-               {0 {} 1 {::demand/group 0}}})))
+               {0 {} 1 {::demand/group 0 ::candidate/modified true}}})))
       )}
 
   [doc candidates-ids]
@@ -507,14 +506,15 @@
                                             ;; same as ungrouping it.
     :else
     (let [next-group (next-group doc)]
-      (sr/setval
+      (sr/transform
        [::candidates
         (sr/submap candidates-ids)
         sr/MAP-VALS
         (sr/selected?
          [(sr/must ::candidate/type) #{:building}] )
-        ::demand/group]
-       next-group
+        
+        ]
+       #(assoc % ::demand/group next-group ::candidate/modified true)
        doc))))
 
 (defn select-group-members [doc]
