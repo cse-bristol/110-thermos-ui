@@ -912,11 +912,13 @@ The different options are those supplied after --retry, so mostly you can use th
       :else
       (loop [optionses (mapv (comp finalize-options :options) parses)]
         (let [[options & optionses] optionses
-              outcome (--main options)
-              ]
-          (when (and (= outcome :timeout) (seq optionses))
-            (log/info "No solution, retry with next options")
-            (recur optionses)))))))
+              outcome (--main options)]
+
+          (if (and (= outcome :timeout) (seq optionses))
+            (do (log/info "No solution, retry with next options")
+                (recur optionses))
+            (shutdown-agents)
+            ))))))
 
 (comment
   (binding [lp.io/*keep-temp-dir* true]
