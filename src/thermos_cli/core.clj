@@ -109,6 +109,8 @@ If there are buildings, they will have demand and peak demand computed, subject 
     :parse-fn #(Double/parseDouble %)]
    [nil "--trim-paths" "Remove paths that don't go anywhere."]
 
+   [nil "--ignore-all-paths" "Remove all paths (for alternatives-only solution)"]
+   
    [nil "--ignore-paths FIELD=VALUE*" "Ignore paths where FIELD=VALUE"
     :assoc-fn conj-arg
     :parse-fn #(string/split % #"=")]
@@ -683,7 +685,16 @@ The different options are those supplied after --retry, so mostly you can use th
                                                       :key-transform identity))
 
         geodata           (cond-> geodata
-
+                            (:ignore-all-paths options)
+                            (update ::geoio/features
+                                    (fn [features]
+                                      (remove
+                                       (fn [feature]
+                                         (let [type (::geoio/type feature)]
+                                           (or (= :line-string type)
+                                               (= :multi-line-string type))))
+                                       features)))
+                            
                             (seq (:ignore-paths options))
                             (update ::geoio/features
                                     (let [ignore-fields (:ignore-paths options)
@@ -699,8 +710,7 @@ The different options are those supplied after --retry, so mostly you can use th
                                         ))))
         
         [paths buildings] (noder/node-connect geodata options)
-        
-        
+
         buildings         (when (seq buildings)
                             (-> {::geoio/features buildings
                                  ::geoio/crs (::geoio/crs geodata)}
