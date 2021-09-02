@@ -515,8 +515,8 @@
          [:div
           (let [has-roads (some pos? (map road-count (vals data-files)))]
             [:label [:input {:type :checkbox
-                             :disabled (not has-roads)
-                             :checked (or (not has-roads) osm-roads)
+                             :disabled (boolean has-roads)
+                             :checked (if has-roads false osm-roads)
                              :on-change #(swap! *osm-roads not)}]
              "Also import roads from OpenStreetMap for the area covered by these files"])
           
