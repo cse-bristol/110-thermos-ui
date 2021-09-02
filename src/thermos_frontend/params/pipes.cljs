@@ -154,7 +154,7 @@
                :value (:capacity-kwp costs)
                :style {:max-width :5em}
                :on-change
-               (fn [v]
+               (fn [_ v]
                  (f/fire!
                   flow [:pipe/change-capacity dia
                         (if (= :empty v) nil v)]))
