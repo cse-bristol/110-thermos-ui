@@ -68,11 +68,11 @@
   [state [_ dia capacity-kw]]
   (if (number? capacity-kw)
     (assoc-in state
-              [::document/pipe-costs :rows dia :capacity-kwp]
+              [::document/pipe-costs :rows dia :capacity-kw]
               capacity-kw)
     (update-in state
                [::document/pipe-costs :rows dia]
-               dissoc :capacity-kwp)))
+               dissoc :capacity-kw)))
 
 (defmethod handle :pipe/change-losses
   [state [_ dia losses-kwh]]
