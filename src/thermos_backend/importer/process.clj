@@ -676,7 +676,7 @@
   (reduce
    (fn [a f]
      (if (= :multi-line-string (::geoio/type f))
-       (concat a (geoio/explode-multi f))
+       (into a (geoio/explode-multi f))
        (conj a f)))
    []
    features))
