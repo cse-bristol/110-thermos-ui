@@ -37,10 +37,9 @@
         (flatten
          (for [[metric-name metrics] (group-by :name metrics)]
            
-           (let [metric-name (str "thermos_" metric-name)
-                 type-info (get types metric-name :gauge)
+           (let [type-info (get types metric-name :gauge)
                  type-doc (get doc metric-name "Undocumented")
-                 metric-name (clean-name metric-name)]
+                 metric-name (str "thermos_" (clean-name metric-name))]
              [(str "# HELP " metric-name " " type-doc)
               (str "# TYPE " metric-name " " (name type-info))
               (for [metric metrics]
