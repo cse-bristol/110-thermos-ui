@@ -37,7 +37,8 @@
         (flatten
          (for [[metric-name metrics] (group-by :name metrics)]
            
-           (let [type-info (get types metric-name :gauge)
+           (let [metric-name (str "thermos_" metric-name)
+                 type-info (get types metric-name :gauge)
                  type-doc (get doc metric-name "Undocumented")
                  metric-name (clean-name metric-name)]
              [(str "# HELP " metric-name " " type-doc)
@@ -88,5 +89,5 @@
    (system-metrics)
    :doc {:queue-count "The number of entries in each queue"
          :object-count "The number of rows in database tables"
-         :queue-max-age ""
+         :oldest-task "The age of the oldest task in each state / queue"
          }))

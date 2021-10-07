@@ -47,7 +47,7 @@
 
 
 (defroutes monitoring-routes
-  (GET "/_prometheus" []
+  (GET "/thermos-metrics" []
     (-> (response/response (monitoring/formatted-metrics))
         (response/content-type "text/plain; version=0.0.4")
         (response/charset "UTF-8")
