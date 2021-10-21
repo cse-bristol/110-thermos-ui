@@ -16,14 +16,14 @@
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#org2b30180">1. Running the supply model</a></li>
-<li><a href="#org0975e52">2. Supply model parameters</a>
+<li><a href="#orgf16588e">1. Running the supply model</a></li>
+<li><a href="#orga612a4b">2. Supply model parameters</a>
 <ul>
 <li><a href="#profiles">2.1. Profiles</a>
 <ul>
-<li><a href="#orge779cd0">2.1.1. Default profile</a></li>
-<li><a href="#org84ceea9">2.1.2. Day types</a></li>
-<li><a href="#org4e105be">2.1.3. Heat profiles</a></li>
+<li><a href="#org3b0d0b8">2.1.1. Default profile</a></li>
+<li><a href="#org3fe6845">2.1.2. Day types</a></li>
+<li><a href="#org7c01a7a">2.1.3. Heat profiles</a></li>
 <li><a href="#fuel-def">2.1.4. Fuels</a></li>
 <li><a href="#substation-load">2.1.5. Substation load</a></li>
 </ul>
@@ -32,23 +32,23 @@
 <ul>
 <li><a href="#supply-technologies">2.2.1. Supply technologies</a></li>
 <li><a href="#substations">2.2.2. Substations</a></li>
-<li><a href="#orga4f3ffb">2.2.3. Storage technologies</a></li>
+<li><a href="#org8771b05">2.2.3. Storage technologies</a></li>
 </ul>
 </li>
 <li><a href="#objective">2.3. Objective</a></li>
 </ul>
 </li>
-<li><a href="#orgd33d80f">3. Supply solution</a>
+<li><a href="#orgac4a5b7">3. Supply solution</a>
 <ul>
-<li><a href="#orgca924fb">3.1. Total cost summary</a></li>
-<li><a href="#org15cfee0">3.2. Plant and storage</a></li>
-<li><a href="#orgeb3bed3">3.3. Heat production</a></li>
-<li><a href="#org1b234d6">3.4. Fuel consumption and grid export</a></li>
-<li><a href="#org006f4c4">3.5. Emissions</a></li>
+<li><a href="#org807d7fc">3.1. Total cost summary</a></li>
+<li><a href="#org9f2efaf">3.2. Plant and storage</a></li>
+<li><a href="#org09eaac8">3.3. Heat production</a></li>
+<li><a href="#org631972c">3.4. Fuel consumption and grid export</a></li>
+<li><a href="#orge3e4f74">3.5. Emissions</a></li>
 </ul>
 </li>
-<li><a href="#org2e4c0e7">4. Downloading results and parameters</a></li>
-<li><a href="#orgde06d4f">5. Uploading parameters</a></li>
+<li><a href="#org8bd32ac">4. Downloading results and parameters</a></li>
+<li><a href="#org62bb7ea">5. Uploading parameters</a></li>
 </ul>
 </div>
 </div>
@@ -69,8 +69,8 @@ This is because the demand profile that the supply model must meet is defined by
 To understand the meaning of the day types and intervals described below you may also want to read the relevant section <a href="technical-description.html#day-types-and-intervals">in the technical description</a> before continuing.
 </p>
 
-<div id="outline-container-org2b30180" class="outline-2">
-<h2 id="org2b30180"><span class="section-number-2">1</span> Running the supply model</h2>
+<div id="outline-container-orgf16588e" class="outline-2">
+<h2 id="orgf16588e"><span class="section-number-2">1.</span> Running the supply model</h2>
 <div class="outline-text-2" id="text-1">
 <p>
 To run the supply model, click the Optimise button in the top right corner, and select either <b>Supply</b> or <b>Both</b>.
@@ -82,8 +82,8 @@ Because the supply model is quite fast compared to the network model, once you h
 </div>
 </div>
 
-<div id="outline-container-org0975e52" class="outline-2">
-<h2 id="org0975e52"><span class="section-number-2">2</span> Supply model parameters</h2>
+<div id="outline-container-orga612a4b" class="outline-2">
+<h2 id="orga612a4b"><span class="section-number-2">2.</span> Supply model parameters</h2>
 <div class="outline-text-2" id="text-2">
 <p>
 Apart from the connection to the network model, all supply parameters are found in the application sidebar under <b>Supply Problem</b>.
@@ -91,7 +91,7 @@ Apart from the connection to the network model, all supply parameters are found 
 </div>
 
 <div id="outline-container-profiles" class="outline-3">
-<h3 id="profiles"><span class="section-number-3">2.1</span> Profiles</h3>
+<h3 id="profiles"><span class="section-number-3">2.1.</span> Profiles</h3>
 <div class="outline-text-3" id="text-profiles">
 <p>
 The profiles section is all about how the supply model represents time.
@@ -110,8 +110,8 @@ Heat profiles for all connected buildings are combined together to produce a sin
 </p>
 </div>
 
-<div id="outline-container-orge779cd0" class="outline-4">
-<h4 id="orge779cd0"><span class="section-number-4">2.1.1</span> Default profile</h4>
+<div id="outline-container-org3b0d0b8" class="outline-4">
+<h4 id="org3b0d0b8"><span class="section-number-4">2.1.1.</span> Default profile</h4>
 <div class="outline-text-4" id="text-2-1-1">
 <p>
 This lets you set which profile buildings should have, if you have not set a profile.
@@ -122,11 +122,11 @@ The <a href="../network/interface.html#edit-profile">network model help</a> desc
 </p>
 </div>
 </div>
-<div id="outline-container-org84ceea9" class="outline-4">
-<h4 id="org84ceea9"><span class="section-number-4">2.1.2</span> Day types</h4>
+<div id="outline-container-org3fe6845" class="outline-4">
+<h4 id="org3fe6845"><span class="section-number-4">2.1.2.</span> Day types</h4>
 <div class="outline-text-4" id="text-2-1-2">
 
-<div id="org83430f8" class="figure">
+<div id="orgfa46a46" class="figure">
 <p><img src="./../screenshots/supply-day-types.png" alt="supply-day-types.png" />
 </p>
 <p><span class="figure-number">Figure 1: </span>Setting up supply day types.</p>
@@ -158,11 +158,11 @@ Below the list of day types are two fields that let you change how important the
 </dl>
 </div>
 </div>
-<div id="outline-container-org4e105be" class="outline-4">
-<h4 id="org4e105be"><span class="section-number-4">2.1.3</span> Heat profiles</h4>
+<div id="outline-container-org7c01a7a" class="outline-4">
+<h4 id="org7c01a7a"><span class="section-number-4">2.1.3.</span> Heat profiles</h4>
 <div class="outline-text-4" id="text-2-1-3">
 
-<div id="orge801cac" class="figure">
+<div id="orgff4cdd6" class="figure">
 <p><img src="./../screenshots/supply-heat-profiles.png" alt="supply-heat-profiles.png" />
 </p>
 <p><span class="figure-number">Figure 2: </span>Supply heat profiles section showing some of the default profiles.</p>
@@ -191,14 +191,14 @@ The values to the right require a little explanation:
 </div>
 </div>
 <div id="outline-container-fuel-def" class="outline-4">
-<h4 id="fuel-def"><span class="section-number-4">2.1.4</span> Fuels</h4>
+<h4 id="fuel-def"><span class="section-number-4">2.1.4.</span> Fuels</h4>
 <div class="outline-text-4" id="text-fuel-def">
 <p>
 Below the heat profiles are the fuels' prices and emissions.
 </p>
 
 
-<div id="org6f460cb" class="figure">
+<div id="org938ac4f" class="figure">
 <p><img src="./../screenshots/supply-fuels.png" alt="supply-fuels.png" />
 </p>
 <p><span class="figure-number">Figure 3: </span>Some of the supply fuels section</p>
@@ -226,7 +226,7 @@ This key also works in all the other rows, but it is most likely to be useful he
 </div>
 </div>
 <div id="outline-container-substation-load" class="outline-4">
-<h4 id="substation-load"><span class="section-number-4">2.1.5</span> Substation load</h4>
+<h4 id="substation-load"><span class="section-number-4">2.1.5.</span> Substation load</h4>
 <div class="outline-text-4" id="text-substation-load">
 <p>
 Each row in the substation load section describes the pre-existing load on one of the substations defined in the technologies page (described <a href="#substations">below</a>) in MW substation output. This affects the headroom at the substation in that interval.
@@ -235,14 +235,14 @@ Each row in the substation load section describes the pre-existing load on one o
 </div>
 </div>
 <div id="outline-container-supply-tech" class="outline-3">
-<h3 id="supply-tech"><span class="section-number-3">2.2</span> Technologies</h3>
+<h3 id="supply-tech"><span class="section-number-3">2.2.</span> Technologies</h3>
 <div class="outline-text-3" id="text-supply-tech">
 <p>
 The technologies page contains three sections, for each of the system components that the supply model considers:
 </p>
 
 
-<div id="orga9248af" class="figure">
+<div id="org15ec965" class="figure">
 <p><img src="./../screenshots/supply-tech.png" alt="supply-tech.png" />
 </p>
 <p><span class="figure-number">Figure 4: </span>Supply technologies page</p>
@@ -250,7 +250,7 @@ The technologies page contains three sections, for each of the system components
 </div>
 
 <div id="outline-container-supply-technologies" class="outline-4">
-<h4 id="supply-technologies"><span class="section-number-4">2.2.1</span> Supply technologies</h4>
+<h4 id="supply-technologies"><span class="section-number-4">2.2.1.</span> Supply technologies</h4>
 <div class="outline-text-4" id="text-supply-technologies">
 <p>
 The first section gives the plant types.
@@ -311,7 +311,7 @@ Conversely, CHP plant is assumed to put power into the substation, possibly incr
 </div>
 </div>
 <div id="outline-container-substations" class="outline-4">
-<h4 id="substations"><span class="section-number-4">2.2.2</span> Substations</h4>
+<h4 id="substations"><span class="section-number-4">2.2.2.</span> Substations</h4>
 <div class="outline-text-4" id="text-substations">
 <p>
 A substation represents a limited connection to the electrical grid. Each substation has only 3 parameters:
@@ -334,8 +334,8 @@ In every time interval, the total power output from a substation must be between
 </p>
 </div>
 </div>
-<div id="outline-container-orga4f3ffb" class="outline-4">
-<h4 id="orga4f3ffb"><span class="section-number-4">2.2.3</span> Storage technologies</h4>
+<div id="outline-container-org8771b05" class="outline-4">
+<h4 id="org8771b05"><span class="section-number-4">2.2.3.</span> Storage technologies</h4>
 <div class="outline-text-4" id="text-2-2-3">
 <p>
 Heat storage technologies are another component the plant can buy. The model only understands within-day storage at the moment.
@@ -371,10 +371,10 @@ The storage parameters are:
 </div>
 
 <div id="outline-container-objective" class="outline-3">
-<h3 id="objective"><span class="section-number-3">2.3</span> Objective</h3>
+<h3 id="objective"><span class="section-number-3">2.3.</span> Objective</h3>
 <div class="outline-text-3" id="text-objective">
 
-<div id="org9b5c452" class="figure">
+<div id="org363571b" class="figure">
 <p><img src="./../screenshots/supply-objective.png" alt="supply-objective.png" />
 </p>
 <p><span class="figure-number">Figure 5: </span>Supply objective parameters</p>
@@ -404,26 +404,26 @@ The default value for this is probably fine, but you could increase it if you fo
 </div>
 </div>
 </div>
-<div id="outline-container-orgd33d80f" class="outline-2">
-<h2 id="orgd33d80f"><span class="section-number-2">3</span> Supply solution</h2>
+<div id="outline-container-orgac4a5b7" class="outline-2">
+<h2 id="orgac4a5b7"><span class="section-number-2">3.</span> Supply solution</h2>
 <div class="outline-text-2" id="text-3">
 <p>
 The supply solution page is broken into sections which you can hide or show by clicking on their headings:
 </p>
 
 
-<div id="org52a2907" class="figure">
+<div id="orgae19338" class="figure">
 <p><img src="./../screenshots/supply-solution-headings.png" alt="supply-solution-headings.png" />
 </p>
 <p><span class="figure-number">Figure 6: </span>Supply solution headings. Clicking on one of the headings will rotate the triangle and show some more information.</p>
 </div>
 </div>
 
-<div id="outline-container-orgca924fb" class="outline-3">
-<h3 id="orgca924fb"><span class="section-number-3">3.1</span> Total cost summary</h3>
+<div id="outline-container-org807d7fc" class="outline-3">
+<h3 id="org807d7fc"><span class="section-number-3">3.1.</span> Total cost summary</h3>
 <div class="outline-text-3" id="text-3-1">
 
-<div id="orga9fab01" class="figure">
+<div id="org6c90498" class="figure">
 <p><img src="./../screenshots/supply-total-cost-summary.png" alt="supply-total-cost-summary.png" />
 </p>
 <p><span class="figure-number">Figure 7: </span>The total cost summary section showing headline results for the supply model</p>
@@ -444,11 +444,11 @@ The average unit cost shown at the bottom simply divides the total heat output b
 </p>
 </div>
 </div>
-<div id="outline-container-org15cfee0" class="outline-3">
-<h3 id="org15cfee0"><span class="section-number-3">3.2</span> Plant and storage</h3>
+<div id="outline-container-org9f2efaf" class="outline-3">
+<h3 id="org9f2efaf"><span class="section-number-3">3.2.</span> Plant and storage</h3>
 <div class="outline-text-3" id="text-3-2">
 
-<div id="org453c003" class="figure">
+<div id="org0c10bbb" class="figure">
 <p><img src="./../screenshots/supply-solution-plant-storage.png" alt="supply-solution-plant-storage.png" />
 </p>
 <p><span class="figure-number">Figure 8: </span>The plant and storage section, showing details of the technologies purchased.</p>
@@ -463,22 +463,22 @@ Below that are two tables, one describing all the heat plant built, and one all 
 </p>
 </div>
 </div>
-<div id="outline-container-orgeb3bed3" class="outline-3">
-<h3 id="orgeb3bed3"><span class="section-number-3">3.3</span> Heat production</h3>
+<div id="outline-container-org09eaac8" class="outline-3">
+<h3 id="org09eaac8"><span class="section-number-3">3.3.</span> Heat production</h3>
 <div class="outline-text-3" id="text-3-3">
 <p>
 The heat production section shows two types of information - a series of bar charts which show how the system is making its required output on each day type in each interval, and then a series of summary tables for each day type describing the peak and total output.
 </p>
 
 
-<div id="org9645569" class="figure">
+<div id="org831ed10" class="figure">
 <p><img src="./../screenshots/supply-solution-heat-production-graph.png" alt="supply-solution-heat-production-graph.png" />
 </p>
 <p><span class="figure-number">Figure 9: </span>A single graph from the heat production section. The bars give the power output from storage and supply technologies in each time interval of a day. The caption at the bottom describes the dimensions of the graph. In this case, it is for the "Peak day" day type. Next to that you can see the peak output and then the area under the graph (for a single day of this type). In this case you can see the heat pump runs nearly continuously, with the absolute peak being made up by storage.</p>
 </div>
 
 
-<div id="orgbca885a" class="figure">
+<div id="org30a16b7" class="figure">
 <p><img src="./../screenshots/supply-solution-heat-production-table.png" alt="supply-solution-heat-production-table.png" />
 </p>
 <p><span class="figure-number">Figure 10: </span>The corresponding table for the peak day. The table's header line gives the day type, and the rows the peak and total production of heat on that day. The columns to the right show how much this day type contributes to the year and to the whole accounting period.</p>
@@ -486,16 +486,16 @@ The heat production section shows two types of information - a series of bar cha
 </div>
 </div>
 
-<div id="outline-container-org1b234d6" class="outline-3">
-<h3 id="org1b234d6"><span class="section-number-3">3.4</span> Fuel consumption and grid export</h3>
+<div id="outline-container-org631972c" class="outline-3">
+<h3 id="org631972c"><span class="section-number-3">3.4.</span> Fuel consumption and grid export</h3>
 <div class="outline-text-3" id="text-3-4">
 <p>
 The fuel consumption and grid export section is very similar to the heat production section. However, instead of showing heat output by system, the graphs and tables show fuel input by type of fuel.
 </p>
 </div>
 </div>
-<div id="outline-container-org006f4c4" class="outline-3">
-<h3 id="org006f4c4"><span class="section-number-3">3.5</span> Emissions</h3>
+<div id="outline-container-orge3e4f74" class="outline-3">
+<h3 id="orge3e4f74"><span class="section-number-3">3.5.</span> Emissions</h3>
 <div class="outline-text-3" id="text-3-5">
 <p>
 The emissions section displays an overall summary table for annual or lifetime emissions from the system, giving their amount and cost.
@@ -503,8 +503,8 @@ The emissions section displays an overall summary table for annual or lifetime e
 </div>
 </div>
 </div>
-<div id="outline-container-org2e4c0e7" class="outline-2">
-<h2 id="org2e4c0e7"><span class="section-number-2">4</span> Downloading results and parameters</h2>
+<div id="outline-container-org8bd32ac" class="outline-2">
+<h2 id="org8bd32ac"><span class="section-number-2">4.</span> Downloading results and parameters</h2>
 <div class="outline-text-2" id="text-4">
 <p>
 The results and parameters for the supply model can be downloaded in the same way as those for the network model. Click the THERMOS logo in the top left to open the sidebar, and then choose <b>↓ Excel Spreadsheet</b> under the <b>Import/Export Data</b> heading.
@@ -523,8 +523,8 @@ This will give you a spreadsheet in which the following pages are about the supp
 </dl>
 </div>
 </div>
-<div id="outline-container-orgde06d4f" class="outline-2">
-<h2 id="orgde06d4f"><span class="section-number-2">5</span> Uploading parameters</h2>
+<div id="outline-container-org62bb7ea" class="outline-2">
+<h2 id="org62bb7ea"><span class="section-number-2">5.</span> Uploading parameters</h2>
 <div class="outline-text-2" id="text-5">
 <p>
 All of the supply parameters above will be loaded in if you upload a spreadsheet via the sidebar's <b>↑ Excel Spreadsheet</b> option, so you can edit profiles and other datasets this way.

@@ -40,27 +40,27 @@
 <ul>
 <li><a href="#day-types-and-intervals">1. Day types and intervals</a>
 <ul>
-<li><a href="#orge844765">1.1. Day types</a></li>
-<li><a href="#orgf986279">1.2. Intervals</a></li>
+<li><a href="#org4dd5800">1.1. Day types</a></li>
+<li><a href="#org239e77b">1.2. Intervals</a></li>
 </ul>
 </li>
-<li><a href="#org6bd5166">2. Decision variables</a></li>
-<li><a href="#orgce28bdf">3. Supply cost</a>
+<li><a href="#org35c336b">2. Decision variables</a></li>
+<li><a href="#orga447afb">3. Supply cost</a>
 <ul>
-<li><a href="#org6291ddb">3.1. Capital and operating costs</a></li>
-<li><a href="#orgc4c449c">3.2. Fuel and emissions costs</a></li>
-<li><a href="#org85785fb">3.3. Grid export</a></li>
-<li><a href="#org7c543ab">3.4. Substation headroom</a></li>
-<li><a href="#org069252e">3.5. Curtailment</a></li>
+<li><a href="#orge75a7d1">3.1. Capital and operating costs</a></li>
+<li><a href="#org594fa5d">3.2. Fuel and emissions costs</a></li>
+<li><a href="#orgf3cdace">3.3. Grid export</a></li>
+<li><a href="#orgdd2bb32">3.4. Substation headroom</a></li>
+<li><a href="#orgd87df7f">3.5. Curtailment</a></li>
 </ul>
 </li>
-<li><a href="#org56de7c8">4. Formal description</a>
+<li><a href="#org36f6c30">4. Formal description</a>
 <ul>
-<li><a href="#org1e9f2b2">4.1. Objective</a></li>
-<li><a href="#org118e848">4.2. Constraints</a></li>
+<li><a href="#org05e298d">4.1. Objective</a></li>
+<li><a href="#org2634752">4.2. Constraints</a></li>
 </ul>
 </li>
-<li><a href="#orga8f302c">5. Future work</a></li>
+<li><a href="#orgf60fbbd">5. Future work</a></li>
 </ul>
 </div>
 </div>
@@ -74,7 +74,7 @@ It is coupled to the network optimisation model through the network model's choi
 </p>
 
 <div id="outline-container-day-types-and-intervals" class="outline-2">
-<h2 id="day-types-and-intervals"><span class="section-number-2">1</span> Day types and intervals</h2>
+<h2 id="day-types-and-intervals"><span class="section-number-2">1.</span> Day types and intervals</h2>
 <div class="outline-text-2" id="text-day-types-and-intervals">
 <p>
 The key difference between the supply model and the network model is a trade-off between the representation of time and the representation of space.
@@ -93,8 +93,8 @@ The supply model's view of time is broken up into a large number of representati
 </p>
 </div>
 
-<div id="outline-container-orge844765" class="outline-3">
-<h3 id="orge844765"><span class="section-number-3">1.1</span> Day types</h3>
+<div id="outline-container-org4dd5800" class="outline-3">
+<h3 id="org4dd5800"><span class="section-number-3">1.1.</span> Day types</h3>
 <div class="outline-text-3" id="text-1-1">
 <p>
 A day type is a kind of archetypal day. In principle the supply model could have 365 different days in a year, or 3650 for ten years, and so on.
@@ -118,8 +118,8 @@ Each day type is then divided into a number of equal <b>intervals</b>
 </div>
 </div>
 
-<div id="outline-container-orgf986279" class="outline-3">
-<h3 id="orgf986279"><span class="section-number-3">1.2</span> Intervals</h3>
+<div id="outline-container-org239e77b" class="outline-3">
+<h3 id="org239e77b"><span class="section-number-3">1.2.</span> Intervals</h3>
 <div class="outline-text-3" id="text-1-2">
 <p>
 Within a given day type there are a certain number of intervals, which all have equal length. The standard inputs have 24 intervals in each day type, so each interval represents 1 hour from the day of that type.
@@ -132,8 +132,8 @@ This means that the optimiser can make different decisions about what happens do
 </div>
 </div>
 
-<div id="outline-container-org6bd5166" class="outline-2">
-<h2 id="org6bd5166"><span class="section-number-2">2</span> Decision variables</h2>
+<div id="outline-container-org35c336b" class="outline-2">
+<h2 id="org35c336b"><span class="section-number-2">2.</span> Decision variables</h2>
 <div class="outline-text-2" id="text-2">
 <p>
 The supply optimiser's job is to make a choice about how to meet a given demand for heat, at minimum cost.
@@ -174,8 +174,8 @@ Along with these decisions the supply optimiser must make operational decisions
 </div>
 </div>
 
-<div id="outline-container-orgce28bdf" class="outline-2">
-<h2 id="orgce28bdf"><span class="section-number-2">3</span> Supply cost</h2>
+<div id="outline-container-orga447afb" class="outline-2">
+<h2 id="orga447afb"><span class="section-number-2">3.</span> Supply cost</h2>
 <div class="outline-text-2" id="text-3">
 <p>
 Now we have a demand profile we can think about the cost of producing heat to meet that profile. The costs considered are:
@@ -189,8 +189,8 @@ Now we have a demand profile we can think about the cost of producing heat to me
 </ol>
 </div>
 
-<div id="outline-container-org6291ddb" class="outline-3">
-<h3 id="org6291ddb"><span class="section-number-3">3.1</span> Capital and operating costs</h3>
+<div id="outline-container-orge75a7d1" class="outline-3">
+<h3 id="orge75a7d1"><span class="section-number-3">3.1.</span> Capital and operating costs</h3>
 <div class="outline-text-3" id="text-3-1">
 <p>
 Plant and storage definitions each have capital cost terms, broken down as a fixed cost, cost per kW capacity, and cost per kWh.
@@ -234,8 +234,8 @@ Operating costs are only calculated for the plant, and follow the same formula a
 </div>
 </div>
 
-<div id="outline-container-orgc4c449c" class="outline-3">
-<h3 id="orgc4c449c"><span class="section-number-3">3.2</span> Fuel and emissions costs</h3>
+<div id="outline-container-org594fa5d" class="outline-3">
+<h3 id="org594fa5d"><span class="section-number-3">3.2.</span> Fuel and emissions costs</h3>
 <div class="outline-text-3" id="text-3-2">
 <p>
 Fuel costs are incurred by plant when it operates; for each plant, in every time interval \(t\) there is a fuel price per kWh entered by the user. Each plant also has a heat production efficiency. The annual fuel cost for the plant is then given by
@@ -263,8 +263,8 @@ where \(e\) is an emissions type (CO<sub>2</sub>, NO<sub>X</sub>, &#x2026;) from
 </div>
 </div>
 
-<div id="outline-container-org85785fb" class="outline-3">
-<h3 id="org85785fb"><span class="section-number-3">3.3</span> Grid export</h3>
+<div id="outline-container-orgf3cdace" class="outline-3">
+<h3 id="orgf3cdace"><span class="section-number-3">3.3.</span> Grid export</h3>
 <div class="outline-text-3" id="text-3-3">
 <p>
 Some plant is marked as CHP, and has a power efficiency as well as a heat efficiency. 
@@ -277,8 +277,8 @@ The value for this is analogous to the fuel cost, but with a different price and
 </div>
 </div>
 
-<div id="outline-container-org7c543ab" class="outline-3">
-<h3 id="org7c543ab"><span class="section-number-3">3.4</span> Substation headroom</h3>
+<div id="outline-container-orgdd2bb32" class="outline-3">
+<h3 id="orgdd2bb32"><span class="section-number-3">3.4.</span> Substation headroom</h3>
 <div class="outline-text-3" id="text-3-4">
 <p>
 An important consideration for both CHP and electrically powered plant is substation headroom. In THERMOS, substation capacity is modelled as a hard constraint on how much power the substation can deliver or accept in any time interval.
@@ -290,8 +290,8 @@ Each substation also has a user-input timeseries of pre-existing demand, which d
 </div>
 </div>
 
-<div id="outline-container-org069252e" class="outline-3">
-<h3 id="org069252e"><span class="section-number-3">3.5</span> Curtailment</h3>
+<div id="outline-container-orgd87df7f" class="outline-3">
+<h3 id="orgd87df7f"><span class="section-number-3">3.5.</span> Curtailment</h3>
 <div class="outline-text-3" id="text-3-5">
 <p>
 Curtailment gives the optimiser the possibility to undersupply heat in a given interval. It is included mostly so that the problem cannot become infeasible. Each kWh of heat un-supplied due to curtailment incurs a very high cost, so the optimiser should only choose to undersupply if the maximum possible plant capacity is insufficient, or if the cost of producing heat is exceedingly large.
@@ -300,8 +300,8 @@ Curtailment gives the optimiser the possibility to undersupply heat in a given i
 </div>
 </div>
 
-<div id="outline-container-org56de7c8" class="outline-2">
-<h2 id="org56de7c8"><span class="section-number-2">4</span> Formal description</h2>
+<div id="outline-container-org36f6c30" class="outline-2">
+<h2 id="org36f6c30"><span class="section-number-2">4.</span> Formal description</h2>
 <div class="outline-text-2" id="text-4">
 <p>
 The problem is defined over the following sets and parameters. All costs are adjusted for replacement lifetime, accounting period and discount rate before doing any optimisation, so operating and capital costs are combined, and fuel prices and emissions costs are combined.
@@ -338,8 +338,8 @@ The problem is defined over the following sets and parameters. All costs are adj
 </dl>
 </div>
 
-<div id="outline-container-org1e9f2b2" class="outline-3">
-<h3 id="org1e9f2b2"><span class="section-number-3">4.1</span> Objective</h3>
+<div id="outline-container-org05e298d" class="outline-3">
+<h3 id="org05e298d"><span class="section-number-3">4.1.</span> Objective</h3>
 <div class="outline-text-3" id="text-4-1">
 <p>
 The decisions to be made are then
@@ -428,8 +428,8 @@ summing over CHP plants only
 </div>
 </div>
 
-<div id="outline-container-org118e848" class="outline-3">
-<h3 id="org118e848"><span class="section-number-3">4.2</span> Constraints</h3>
+<div id="outline-container-org2634752" class="outline-3">
+<h3 id="org2634752"><span class="section-number-3">4.2.</span> Constraints</h3>
 <div class="outline-text-3" id="text-4-2">
 <p>
 To make the optimiser pay for what it uses, the objective is solved subject to:
@@ -482,8 +482,8 @@ Where \(eP_p = -1\) if the plant is not a CHP but is electrically powered.
 </div>
 </div>
 
-<div id="outline-container-orga8f302c" class="outline-2">
-<h2 id="orga8f302c"><span class="section-number-2">5</span> Future work</h2>
+<div id="outline-container-orgf60fbbd" class="outline-2">
+<h2 id="orgf60fbbd"><span class="section-number-2">5.</span> Future work</h2>
 <div class="outline-text-2" id="text-5">
 <p>
 It would be useful to support two further features
