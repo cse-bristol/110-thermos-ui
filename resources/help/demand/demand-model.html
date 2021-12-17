@@ -1,0 +1,348 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>THERMOS Heat Demand Model</title>
+<meta name="generator" content="Org mode" />
+<meta name="author" content="CSE" />
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        displayAlign: "center",
+        displayIndent: "0em",
+
+        "HTML-CSS": { scale: 100,
+                        linebreaks: { automatic: "false" },
+                        webFont: "TeX"
+                       },
+        SVG: {scale: 100,
+              linebreaks: { automatic: "false" },
+              font: "TeX"},
+        NativeMML: {scale: 100},
+        TeX: { equationNumbers: {autoNumber: "AMS"},
+               MultLineWidth: "85%",
+               TagSide: "right",
+               TagIndent: ".8em"
+             }
+});
+</script>
+<script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML"></script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">THERMOS Heat Demand Model</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#org577ec0b">1. Annual demand model</a>
+<ul>
+<li><a href="#org8edeeef">1.1. Space heat demand</a></li>
+<li><a href="#org14ebbb3">1.2. Regression features</a></li>
+<li><a href="#org70c505e">1.3. Regression performance</a></li>
+<li><a href="#org5efd436">1.4. Use of linear models</a></li>
+<li><a href="#org40200d8">1.5. Hot water demand</a></li>
+</ul>
+</li>
+<li><a href="#orgccc7658">2. Peak demand model</a></li>
+</ul>
+</div>
+</div>
+<p>
+THERMOS includes two heat demand models.
+These parts of the system try to estimate two important facts about buildings: <i>annual</i> heat demand in kWh/yr, and <i>peak</i> heat demand in kW.
+</p>
+
+<div id="outline-container-org577ec0b" class="outline-2">
+<h2 id="org577ec0b"><span class="section-number-2">1.</span> Annual demand model</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+Annual demand is split into space heat and hot water demand.
+These values are estimated by different models and added together.
+</p>
+</div>
+
+<div id="outline-container-org8edeeef" class="outline-3">
+<h3 id="org8edeeef"><span class="section-number-3">1.1.</span> Space heat demand</h3>
+<div class="outline-text-3" id="text-1-1">
+<p>
+The space heat demand model is an set of regression models, one of which is selected depending on which facts are known about the building. The regression models are trained on data from Copenhagen, where we had access to annual per-building metered demand, together with LIDAR and building polygons. From the LIDAR and building polygons we derived several predictors, used as inputs to building the regression models.
+</p>
+
+<p>
+We trained four models, to cover four conditions that can happen:
+</p>
+
+<ol class="org-ol">
+<li>A support vector machine (SVM) using all of the known predictors</li>
+<li>A linear regression (LM) using all of the known predictors</li>
+<li>A SVM using only those predictors available without a building height estimate</li>
+<li>A similar LM</li>
+</ol>
+
+<p>
+Each model is in fact trained to predict the ratio of space heat demand to square-root heating degree days.
+</p>
+
+<p>
+This is used together with a rule of thumb from <a href="https://www.euroheat.org/wp-content/uploads/2016/02/Ecoheatcool_WP1_Web.pdf">this project</a> that, all things being equal, heat demand between two locations varies with the ratio of the square root of heating degree days in those locations to allow the model to be used in different places.
+</p>
+
+<p>
+When making an estimate for a building, one of these models is selected thus:
+</p>
+
+<p>
+<a href="ensemble.pdf">ensemble.pdf</a>
+</p>
+
+<p>
+The application takes building height from a number of places:
+</p>
+
+<ol class="org-ol">
+<li>If the building dataset directly includes a building height field, that is used</li>
+<li>Otherwise if LIDAR is available the building height is estimated by finding ground level as the bottom decile of height in a buffer around the building and then subtracting that from the mean LIDAR height within the building's footprint.</li>
+<li>Otherwise if the building dataset includes a number of storeys, height is estimated as the number of storeys multiplied by 3m (assuming an external storey height of 3m)</li>
+</ol>
+</div>
+</div>
+
+<div id="outline-container-org14ebbb3" class="outline-3">
+<h3 id="org14ebbb3"><span class="section-number-3">1.2.</span> Regression features</h3>
+<div class="outline-text-3" id="text-1-2">
+<p>
+We trained the regression models using the following features as inputs, using a feature selection process to find the subset which gave best performance without overfitting. The columns indicate which features are used by which models. Many of the features are correlated with each other, which explains why only a few have ended up in the model.
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Feature</th>
+<th scope="col" class="org-left">2D</th>
+<th scope="col" class="org-left">3D</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Footprint</td>
+<td class="org-left">Y</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="org-left">Perimeter</td>
+<td class="org-left">Y</td>
+<td class="org-left">Y</td>
+</tr>
+
+<tr>
+<td class="org-left">Shared perimeter (%)</td>
+<td class="org-left">Y</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="org-left">Shared perimeter (m)</td>
+<td class="org-left">Y</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="org-left">Is residential</td>
+<td class="org-left">Y</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="org-left">Perimeter / footprint</td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+</tbody>
+<tbody>
+<tr>
+<td class="org-left">Height</td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">Y</td>
+</tr>
+
+<tr>
+<td class="org-left">Volume (footprint x height)</td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">Y</td>
+</tr>
+
+<tr>
+<td class="org-left">Surface area / volume</td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">Y</td>
+</tr>
+
+<tr>
+<td class="org-left">External wall area</td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">Y</td>
+</tr>
+
+<tr>
+<td class="org-left">Surface area</td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="org-left">1/(Surface / volume)<sup>2</sup></td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="org-left">Floor area</td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="org-left">External surface area</td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="org-left">External SA / volume</td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="org-left">Wall area</td>
+<td class="org-left">&#xa0;</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+<div id="outline-container-org70c505e" class="outline-3">
+<h3 id="org70c505e"><span class="section-number-3">1.3.</span> Regression performance</h3>
+<div class="outline-text-3" id="text-1-3">
+<p>
+For the 3D SVM, measured on the training data, the model's root mean squared error (RMSE) was 195 kWh / (deg day)<sup>0.5</sup>.
+This corresponds to a mean percentage error of 10.7%. When cross-validation was performed, the average RMSE across the five cross-validation sets was 205 kWh / (deg day)<sup>0.5</sup>, and the mean percentage error was 10.5%.
+</p>
+
+<p>
+The linear and 2D models perform less well, as might be expected.
+</p>
+
+
+<div id="org26585b9" class="figure">
+<p><img src="./scatter-xval.png" alt="scatter-xval.png" />
+</p>
+</div>
+<p>
+In addition, we validated the 3D demand model by testing it on unseen data, using a set of buildings from 16 locations across the UK.
+While it was possible for us to produce the geometric features for individual buildings, we did not have access to building-level energy consumption data.
+</p>
+
+<p>
+Instead, energy consumption totals were available for regions called middle super output layers (MSOAs).
+An MSOA is an aggregated UK census geography containing around 4,000 households.
+The set of MSOAs comprised eight pairs, one urban and one rural, with each pair lying close to an airport whose weather station data provided the HDD.
+</p>
+
+<p>
+The MSOA consumption statistics give metered fuel totals.
+From these totals we estimated the total heat demand by the following formulae:
+</p>
+
+<ul class="org-ul">
+<li>for domestic buildings: Q<sub>heat</sub> = 0.85 &times; Q<sub>gas</sub> + 0.55 &times; Q<sub>economy 7</sub> + 0.1 &times; Q<sub>elec</sub></li>
+<li>for non-domestic buildings: Q<sub>heat</sub> = 0.85 &times; Q<sub>gas</sub> + 0.1 &times; Q<sub>elec</sub></li>
+</ul>
+
+<p>
+Here, the factor 0.85 is the assumed average boiler efficiency, the factor 0.55 is the assumed fraction of off-peak electricity used for heating, and the factor 0.1 is the assumed fraction of on-peak electricity used for heating.
+</p>
+
+<p>
+We then compared the sum of model predictions with the sum of the estimates derived from MSOA-level metered consumption:
+</p>
+
+
+<div id="org0224047" class="figure">
+<p><img src="./scatter-msoa.png" alt="scatter-msoa.png" />
+</p>
+</div>
+<p>
+While there is good agreement for urban MSOAs, the results for rural areas are less positive, with the total space heat being over-predicted in every case. The poor performance in rural areas is perhaps not surprising, since the model was trained entirely on data from urban areas (Copenhagen and Aalborg).
+</p>
+
+<p>
+Another possible explanation for the over-prediction is that large unheated buildings, such as agricultural structures, are more common in rural areas - in the absence of data flagging this, such buildings will be assigned a demand value by the predictive model, contributing to an overestimation of demand at MSOA level.
+</p>
+
+<p>
+Finally, in rural areas in the UK it is not unusual for heat demand to be met using unmetered fuels such as LPG, oil and biomass. These data are not accounted for in the MSOA-level consumption totals, which hence are likely to systematically under-represent heating demand in rural areas.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org5efd436" class="outline-3">
+<h3 id="org5efd436"><span class="section-number-3">1.4.</span> Use of linear models</h3>
+<div class="outline-text-3" id="text-1-4">
+<p>
+The SVM models use a radial basis kernel, which has the effect of clamping predictions for points that lie outside the training set to the edges of the training set. This means that the SVM models cannot 'extrapolate' outside the range of values seen in the training set. To allow extrapolation, we fall back to the linear models if one of the predictors for a building is much outside the range seen during training.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org40200d8" class="outline-3">
+<h3 id="org40200d8"><span class="section-number-3">1.5.</span> Hot water demand</h3>
+<div class="outline-text-3" id="text-1-5">
+<p>
+Since the square-root degree days transfer does not apply for hot water demand, we estimate that separately using SAP 2012, the UK Government's Standard Assessment Procedure for Energy Rating of Dwellings (<a href="https://www.bre.co.uk/filelibrary/SAP/2012/SAP-2012_9-92.pdf">https://www.bre.co.uk/filelibrary/SAP/2012/SAP-2012_9-92.pdf</a> page 184, Section 4).
+</p>
+
+<p>
+In training we subtract the SAP prediction from the measured value, and when predicting we add it on.
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgccc7658" class="outline-2">
+<h2 id="orgccc7658"><span class="section-number-2">2.</span> Peak demand model</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+THERMOS estimates a building's peak heat demand from its annual heat demand using the linear model:
+</p>
+
+<p>
+\[
+\text{kWp} = 0.0004963 \times \text{kWh/yr} + 21.84
+\]
+</p>
+
+<p>
+This relation is a regression fitted to a large sample of published UK half-hourly domestic gas consumption data.
+</p>
+</div>
+</div>
+</div>
+</body>
+</html>

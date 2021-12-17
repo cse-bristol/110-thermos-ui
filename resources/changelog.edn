@@ -1,4 +1,18 @@
-[{:title "9th April 2021"
+[{:title "17th December 2021"
+  :changes
+  [{:title "Better detection of disconnected buildings"
+    :summary
+    [:p "Buildings which could not be supplied because they are connected only "
+     "via another building are now marked as unreachable when solving a problem. "
+     "Previously, they would render the problem unfeasible for the optimiser."]}
+
+   {:title "Updates to documentation"
+    :summary
+    [:p "The documentation has been updated with some information about the demand estimation model."]}
+   ]
+  }
+
+ {:title "9th April 2021"
   :changes
   [{:title "Solution summary in spreadsheet output"
     :summary
