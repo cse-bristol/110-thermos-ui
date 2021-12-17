@@ -204,17 +204,60 @@
   are considering other heating systems, in which case we only want to
   delete the edges.
 
+  This builds a directed copy of net-graph which respects the rule that
+  a building may not be supplied with heat through another building, so
+
+  S ---> D1 <--- D2
+
+  means D2 is effectively disconnected.
+
+  This is why we don't directly use connected-components below but instead
+  DF traverse from each supply.
+  
   Returns a tuple: [modified graph, candidate IDs removed]"
   [net-graph only-remove-edges]
-  (let [ccs         (graph-alg/connected-components net-graph)
-        unsupplied-ccs (filter (fn [cc]
-                                 (not-any?
-                                  (fn [id] (attr/attr net-graph id :supply-vertex))
-                                  cc)) ccs)]
-    (if (empty? unsupplied-ccs)
+  (let [directed-net-graph
+        (reduce
+         (fn [g [i j]]
+           (let [i-supply (attr/attr net-graph i :supply-vertex)
+                 j-supply (attr/attr net-graph j :supply-vertex)
+                 i-real   (attr/attr net-graph i :real-vertex)
+                 j-real   (attr/attr net-graph j :real-vertex)]
+             (cond-> g
+               ;; if i is real and not a supply, don't add i-j
+               ;; if j is real and not a supply, don't add j-i
+
+               (not (and i-real (not i-supply)))
+               (graph/add-edges [i j])
+
+               (not (and j-real (not j-supply)))
+               (graph/add-edges [j i]))))
+         
+         (graph/digraph)
+         
+         (into #{} (graph/edges net-graph)))
+
+        supplies (filter #(attr/attr net-graph % :supply-vertex)
+                         (graph/nodes net-graph))
+        
+        supplied-vertices
+        (into
+         #{}
+         (mapcat
+          #(graph-alg/bf-traverse directed-net-graph %)
+          supplies))
+
+        unsupplied-vertices
+        (set/difference
+         (set
+          (filter #(attr/attr net-graph % :real-vertex)
+                  (graph/nodes net-graph)))
+         supplied-vertices)
+        ]
+    (if (empty? unsupplied-vertices)
       [net-graph []]
 
-      (let [dead-verts (reduce into unsupplied-ccs)
+      (let [dead-verts unsupplied-vertices
             dead-edges (graph/edges (graph/subgraph net-graph dead-verts))]
         
 
@@ -1064,8 +1107,6 @@
                (when (and (number? b)
                           (not (Double/isFinite b)))
                  a)))))
-
-
 
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
