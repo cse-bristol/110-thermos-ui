@@ -197,7 +197,7 @@ with lib;
           export WEB_SERVER_ENABLED=false
           export IMPORTER_COUNT=0
 
-          exec ${pkgs.jre}/bin/java ${cfg.model.javaArgs} -jar ${cfg.jar}
+          exec ${cfg.jre}/bin/java ${cfg.model.javaArgs} -jar ${cfg.jar}
 
         '';
       };
@@ -220,7 +220,7 @@ with lib;
           export WEB_SERVER_ENABLED=false
           export IMPORTER_COUNT=${toString cfg.importer.importerCount}
 
-          exec ${pkgs.jre}/bin/java ${cfg.importer.javaArgs} -jar ${cfg.jar}
+          exec ${cfg.jre}/bin/java ${cfg.importer.javaArgs} -jar ${cfg.jar}
         '';
       };
     };
