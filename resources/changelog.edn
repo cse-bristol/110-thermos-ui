@@ -1,4 +1,12 @@
-[{:title "17th December 2021"
+[{:title "9th Feb 2022"
+  :changes
+  [{:title "Bug fixes"
+    :summary [:p "Carbon factors for supply plant were not properly incorporated when evaluating carbon limits. Now they are."]
+    }
+   {:title "Market rate output"
+    :summary [:p "When using market tariff, the market rate used is now shown for building that don't get connected, as well as those who do."]}]}
+
+ {:title "17th December 2021"
   :changes
   [{:title "Better detection of disconnected buildings"
     :summary
@@ -8,9 +16,7 @@
 
    {:title "Updates to documentation"
     :summary
-    [:p "The documentation has been updated with some information about the demand estimation model."]}
-   ]
-  }
+    [:p "The documentation has been updated with some information about the demand estimation model."]}]}
 
  {:title "9th April 2021"
   :changes
