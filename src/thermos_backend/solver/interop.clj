@@ -803,6 +803,13 @@
                                               (repeat e))))
                                (into {}))
 
+        copy-market-rate
+        (fn [v]
+          (cond-> v
+            (= :market (::tariff/id v))
+            (assoc ::solution/market-rate
+                   (::tariff/unit-charge (market (::candidate/id v))))))
+        
         update-vertex
         (fn [v]
           (let [solution-vertex (solution-vertices (::candidate/id v))
@@ -979,6 +986,7 @@
       instance
 
       (-> instance
+          (document/map-candidates copy-market-rate)
           (document/map-candidates update-vertex (keys solution-vertices))
           (document/map-candidates update-edge (keys solution-edges))
           (assoc ::solution/objective (:objective result-json)
