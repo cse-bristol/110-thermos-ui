@@ -52,7 +52,6 @@
    {org.clojure/tools.cli {:mvn/version "0.4.2"},
     thermos/importer
     {:git/url "ssh://git@github.com/cse-bristol/110-thermos-importer.git",
-     :tag "HEAD",
      :sha "635a1580c6035351a3f663647e4eca2bd20c8013"}
     org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"},
     log4j/log4j
@@ -69,7 +68,6 @@
    {org.clojure/tools.cli {:mvn/version "0.4.2"}
     thermos/importer
     {:git/url "ssh://git@github.com/cse-bristol/110-thermos-importer.git"
-     :tag "HEAD"
      :sha "635a1580c6035351a3f663647e4eca2bd20c8013"}
     org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"}
     log4j/log4j
@@ -93,8 +91,7 @@
     digest/digest {:mvn/version "1.4.6"},
     thermos/models
     {:git/url "ssh://git@github.com/cse-bristol/110-thermos-models.git",
-     :tag "HEAD",
-     :sha "c0e2d5f226c63ff6a9bcdbd7e319b97e8244b6b2"},
+     :sha "bf1229a183bb5824095accd1c9575a4b5541dcfa"},
     clucie/clucie {:mvn/version "0.4.2"},
     honeysql/honeysql {:mvn/version "0.9.4"},
     ring/ring-json {:mvn/version "0.4.0"},
@@ -102,7 +99,6 @@
     org.postgresql/postgresql {:mvn/version "9.4.1212.jre7"},
     thermos/importer
     {:git/url "ssh://git@github.com/cse-bristol/110-thermos-importer.git",
-     :tag "HEAD",
      :sha "635a1580c6035351a3f663647e4eca2bd20c8013"},
     clojure-term-colors/clojure-term-colors {:mvn/version "0.1.0"},
     org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"},
