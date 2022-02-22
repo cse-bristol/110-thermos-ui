@@ -11,12 +11,15 @@
             [thermos-frontend.debug-box :as debug-box]
 
             [clojure.pprint :as pprint]
+
+            [thermos-frontend.util :refer [target-value]]
             
             [thermos-frontend.supply-parameters :as supply-parameters]
             [thermos-frontend.candidate-editor :as candidate-editor]
             [thermos-frontend.connector-tool :as connector-tool]
             
-            [goog.object :as o]))
+            [goog.object :as o]
+            [clojure.string :as string]))
 
 (defn- rotate-inclusion! []
   (state/edit!
@@ -56,17 +59,58 @@
 
 
 (defn- show-pprint-thing []
-  (popover/open! [:div.popover-dialog
-                  {:style {:max-width :80vw}}
-                  
-                  [debug-box/debug-box
-                   (or (seq (operations/selected-candidates @state/state))
-                       (dissoc @state/state :thermos-specs.document/candidates))]
-                  [:button
-                   {:on-click popover/close!}
-                   "OK"]]
-                 
-                 :middle))
+  (popover/open!
+   [:div.popover-dialog
+    {:style {:max-width :80vw
+             :max-height :80vh
+             :display :flex}}
+    [:button.popover-close-button {:on-click popover/close!} "⨯"]
+    [debug-box/debug-box
+     (or (seq (operations/selected-candidates @state/state))
+         (dissoc @state/state :thermos-specs.document/candidates))]
+    ]
+   :middle))
+
+(def descriptions
+  [:table
+   [:thead [:tr [:th "Key"] [:th "Function"]]]
+   [:tbody
+    [:tr [:th "c"] [:td "Change constraint status of selection (optional→required→forbidden)"]]
+    [:tr [:th "s"] [:td "Edit supply properties for selection"]]
+    [:tr [:th "z"] [:td "Zoom display to show selection"]]
+    [:tr [:th "a"] [:td "Select all optional or required elements"]]
+    [:tr [:th "A"] [:td "(Shift + a) Invert selection amongst optional and required elements"]]
+    [:tr [:th "e"] [:td "Edit details for selected candidates"]]
+    [:tr [:th "j"] [:td "Draw a connector line"]]
+    [:tr [:th "g"] [:td "Select also candidates grouped with selected candidates"]]
+    [:tr [:th "G"] [:td "Put all selected candidates into a group"]]
+    [:tr [:th "U"] [:td "Ungroup all selected candidates"]]
+    [:tr [:th "i"] [:td "Show mystic information panel"]]
+    [:tr [:th "?"] [:td "Show this help"]]]]
+  
+  )
+
+(defn show-help []
+  (popover/open!
+    [:div.popover-dialog
+     [:button.popover-close-button {:on-click popover/close!} "⨯"]
+     
+     descriptions
+
+     [:hr]
+     [:input.text-input
+      {:placeholder "Search help (type query and press return)..."
+       :style {:width :100%}
+       :auto-focus true
+       :type :search
+       :on-key-press
+       #(let [key (.-key %)]
+          (println key)
+          (when (= key "Enter")
+            (->> (target-value %)
+                 (str "/help/search?q=")
+                 (js/window.open))))}]]
+    :middle))
 
 (defn handle-keypress [e]
   (let [active js/document.activeElement]
@@ -83,4 +127,8 @@
         "g" (state/fire-event! [:group-select-members])
         "G" (state/fire-event! [:group-selection])
         "U" (state/fire-event! [:ungroup-selection])
+        "?" (show-help)
         :default))))
+
+
+

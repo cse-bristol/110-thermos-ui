@@ -4,93 +4,120 @@
 (ns thermos-frontend.debug-box
   (:require [reagent.core :as reagent]
             [clojure.string :as string]
-            [clojure.walk :as walk]
             [clojure.pprint :as pprint]))
 
-(defn- debug-box- [obj]
-  (cond
-    (map? obj)
-    [:table {:style {:border "2px grey dotted" :margin :2px}}
+(declare data-view)
+
+(defn- tabular? [v]
+  (and (or (seq? v)
+           (vector? v))
+       (let [ks (atom :none)]
+         (every?
+          (fn [x] (and (map? x)
+                       (let [ksx (set (keys x))]
+                         (if (= :none @ks)
+                           (do (reset! ks ksx) true)
+                           (= @ks ksx)))))
+          v))))
+
+(defn- table-view [vs]
+  (let [headers (-> (set (keys (first vs)))
+                    (disj ::id)
+                    (->> (sort-by str)))]
+    [:table
+     [:thead [:tr
+              [:th
+               {:style {:cursor :pointer}
+                :on-click #(js/navigator.clipboard.writeText
+                            (with-out-str (pprint/pprint vs)))}
+               "ID"]
+              (for [k headers] [:th {:key k} (str k)])]]
      [:tbody
-      (for [k (sort-by str (keys obj))
-            :let [v (get obj k)]]
-        [:tr {:key (str k)}
-         [:td [:b (debug-box- k)]]
-         [:td (debug-box- v)]])]]
+      (for [[n r] (map-indexed vector vs)
+            :let [rid (or (::id r n))]]
+        [:tr
+         [:td {:key ::id
+               :style {:cursor :pointer}
+               :on-click #(js/navigator.clipboard.writeText
+                           (with-out-str (pprint/pprint r)))}
+          (str rid)]
+         (for [k headers]
+           [:td {:key k} [data-view (get r k)]])])]]))
 
-    (vector? obj)
-    [:div {:style {:margin-left :4px}}
-     (for [[i o] (map-indexed vector obj)]
-       [:div {:key i :style {:border "1px black solid"}} (debug-box- o)])]
+(defn- map-table-view [m]
+  [table-view (for [[k v] m] (assoc v ::id k))])
 
-    (set? obj)
-    [:div {:style {:margin-left :4px :border "1px orange solid"}}
-     (for [[i o] (map-indexed vector obj)]
-       [:div {:key i} (debug-box- o)])]
-    
-    (keyword? obj)
-    [:span {:style {:display :inline-block :white-space :nowrap}}
-     (str obj)]
-    
-    (string? obj)
-    obj
+(defn- map-view [{:keys [initial-open]} d]
+  (reagent/with-let [open (reagent/atom initial-open)]
+    (let [is-open @open]
+      [:details {:open is-open}
+       [:summary {:on-click #(swap! open not)}
+        (binding [*print-length* 1] (pr-str d))]
+       (when is-open
+         [:table {:style {:margin-left :1em}}
+          [:tbody
+           (for [[k v] d]
+             [:tr {:key k} [:td [data-view k]] [:td [data-view v]]])]])])))
 
-    (nil? obj)
-    [:div "nil"]
-    
-    (seqable? obj)
-    [:div {:style {:margin-left :4px :border "1px green dashed"}}
+(defn- sequence-view [d]
+  (reagent/with-let [open (reagent/atom false)]
+    (let [is-open @open]
+      [:details {:open is-open}
+       [:summary {:on-click #(swap! open not)}
+        (binding [*print-length* 1] (pr-str d))]
+       
+       (when is-open
+         [:div {:style {:margin-left :1em}}
+          [:table {:style {:margin-left :1em}}
+           [:tbody
+            (for [[k v] (map-indexed vector d)]
+              [:tr {:key k} [:td [data-view k]] [:td [data-view v]]])]]
+          
+          ])
+       ]))
+  )
+
+(defn data-view
+  ([d] [data-view {} d])
+  ([{:keys [open]} d]
+   (cond
+     (tabular? d)
+     (table-view d)
+
+     (and (map? d) (tabular? (vals d)))
+     (map-table-view d)
      
-     (for [[i o] (map-indexed vector obj)]
-       [:div {:key i} (debug-box- o)])
-     ]
+     (map? d)
+     (map-view {:initial-open open} d)
 
-    :default
-    (str obj)))
+     (or (vector? d) (list? d) (set? d))
+     (sequence-view d)
 
-(defn mapt [f c]
-  (cond
-    (vector? c)
-    (mapv f c)
-
-    (set? c)
-    (into #{} (map f c))
-
-    :else
-    (map f c)))
-
-(defn filter-pattern [p o]
-  (cond
-    (map? o)
-    (into {}
-          (for [[k v] o
-                :let [km (re-find p (str k))
-                      v' (if km v
-                             (filter-pattern p v))
-                      ]
-                :when (or km (and (coll? v') (not-empty v')))]
-            [k v']))
-
-    (vector? o)
-    (vec (keep (partial filter-pattern p) o))
-
-    (set? o)
-    (set (keep (partial filter-pattern p) o))
-
-    (coll? o)
-    (keep (partial filter-pattern p) o)))
+     :else
+     (let [s (pr-str d)]
+       [:span {:style {:cursor :pointer
+                       :color
+                       (cond (string? d) "orange"
+                             (number? d) "darkcyan"
+                             (keyword? d) "darkgreen"
+                             :else "black"
+                             
+                             )
+                       }
+               :on-click #(js/navigator.clipboard.writeText
+                           (if (string? d) d s))
+               }
+        (if (or (and (string? d)
+                     (> (.-length s) 33))
+                (> (.-length s) 100))
+          (str (.substring s 0 35) "...")
+          s)
+        ]))))
 
 (defn debug-box [obj]
-  (reagent/with-let [search (reagent/atom "")]
-    [:div
-     [:input {:value @search :on-change #(reset! search (.. % -target -value))}]
-     [:div {:style {:overflow-y :auto :max-height :75vh}}
-      (debug-box-
-       (let [pattern @search]
-         (if (= "" pattern) obj
-             (try (filter-pattern (re-pattern @search) obj)
-                  (catch js/Error e obj)))))
-      ]]))
+  [:div {:style {:overflow-x :auto :overflow-y :auto}}
+   [data-view {:open true} obj]])
+
 
 (defn pprint-pre [obj]
   [:pre {:style {:white-space :pre-wrap}}

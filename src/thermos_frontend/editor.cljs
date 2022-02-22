@@ -234,8 +234,9 @@
 
            [:ul
             [:li [:a {:href "/help" :target "help"} "Help contents"]]
-            [:li [:a {:href "/help/networks.html" :target "help"} "Network editor help"]]]
-
+            [:li [:a {:href "/help/networks.html" :target "help"} "Network editor help"]]
+            [:li [:button.button--link-style {:on-click keys/show-help}
+                  "Keyboard shortcuts"]]]
            ]
 
           [:div.menu-block
