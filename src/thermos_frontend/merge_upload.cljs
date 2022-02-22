@@ -196,9 +196,12 @@
         (::document/pipe-costs to)
 
         {new-civils :civils
-         new-rows :rows}
+         new-rows :rows
+         new-default :default-civils}
         (::document/pipe-costs from)
 
+        new-default-name (get new-civils new-default)
+        
         new-names (set (vals new-civils))
         
         without-missing
@@ -226,11 +229,13 @@
          assoc-id replacement-civils
          (remove old-names new-names))
 
+        inv-replacement-civils (set/map-invert replacement-civils)
+        
         remap-id
-        (S/transform S/MAP-VALS
-                     (set/map-invert replacement-civils)
-                     new-civils)
+        (S/transform S/MAP-VALS inv-replacement-civils new-civils)
 
+        new-default (get inv-replacement-civils new-default-name)
+        
         replacement-rows
         (let [dias (if merge
                      (set/union (set (keys old-rows)) (set (keys new-rows)))
@@ -248,9 +253,10 @@
                  (if merge old-row {}) new-row))])
            (into {})))
         
-        replacement-table {:rows replacement-rows :civils replacement-civils}
+        replacement-table {:rows           replacement-rows
+                           :civils         replacement-civils
+                           :default-civils new-default}
         ]
-
     (assoc without-missing ::document/pipe-costs replacement-table)))
 
 

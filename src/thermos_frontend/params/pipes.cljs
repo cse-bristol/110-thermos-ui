@@ -151,7 +151,7 @@
                    nil
                    (format/si-number x)))
                
-               :value (* 1000 (:capacity-kw costs))
+               :value (some-> costs :capacity-kw (* 1000))
                :style {:max-width :5em}
                :on-change
                (fn [_ v]

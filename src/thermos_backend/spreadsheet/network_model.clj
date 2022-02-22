@@ -259,9 +259,13 @@
              [["Steam pressure (MPa)" (document/steam-pressure doc)]
               ["Steam velocity (m/s)" (document/steam-velocity doc)]])
 
-          ~["Pumping overhead" (*100 (::document/pumping-overhead doc 0))]
-          ~["Pumping cost/kWh" (::document/pumping-cost-per-kwh doc 0)]
+         ~["Pumping overhead" (*100 (::document/pumping-overhead doc 0))]
+         ~["Pumping cost/kWh" (::document/pumping-cost-per-kwh doc 0)]
 
+         ~["Default civil cost" (let [pc (-> doc ::document/pipe-costs)
+                                      id (:default-civils pc)]
+                                  (get (:civils pc) id "none"))]
+         
          ~@(for [[e f] (::document/pumping-emissions doc)]
              [(str "Pumping "
                    (candidate/text-emissions-labels e)
@@ -529,8 +533,11 @@
 
             civils-keys* (->> (for [[kwd s] civils-keys] [kwd (inverse s)])
                               (into {}))
+            default-civils (get inverse
+                                (get parameters :default-civil-cost))
             ]
         {:civils civils-ids
+         :default-civils default-civils
          :rows
          (->>
           (for [row (:rows pipe-costs)]

@@ -1,4 +1,11 @@
-[{:title "9th Feb 2022"
+[{:title "22nd Feb 2022"
+  :changes
+  [{:title "Bug fixes"
+    :summary
+    [:p "The pipe costs table erroneously displayed zero for default capacity values, and the spreadsheet import/export now preserves the default civil cost."]}]
+  }
+
+ {:title "9th Feb 2022"
   :changes
   [{:title "Bug fixes"
     :summary [:p "Carbon factors for supply plant were not properly incorporated when evaluating carbon limits. Now they are."]
