@@ -1,4 +1,11 @@
-[{:title "22nd Feb 2022"
+[{:title "9th March 2022"
+  :changes
+  [{:title "Bug fixes"
+    :summary
+    [:p "The spreadsheet download would sometimes produce an invalid spreadsheet when a solution involved counterfactual heating systems."]
+    }]}
+
+ {:title "22nd Feb 2022"
   :changes
   [{:title "Bug fixes"
     :summary
