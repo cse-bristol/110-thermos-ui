@@ -26,6 +26,9 @@
       :cli-pkg (do (require 'build.pkg)
                    ((resolve 'build.pkg/build-cli-tool)))
 
+      :zone-pkg (do (require 'build.pkg)
+                    ((resolve 'build.pkg/build-zoning-tool)))
+
       :heat-pkg (do (require 'build.pkg)
                     ((resolve 'build.pkg/build-heatmap-only-tool)))
 
