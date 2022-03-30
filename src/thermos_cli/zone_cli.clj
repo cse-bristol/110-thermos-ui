@@ -526,9 +526,6 @@ If not given, does the base-case instead (no network)."
         solution   (interop/try-solve problem
                                       (fn [& args] (binding [*out* *err*]
                                                      (println args))))
-
-        _ (def __last_problem problem)
-        _ (def __last-solution solution)
         
         {buildings :building paths :path} (document/candidates-by-type solution)
         supplies               (filter candidate/supply-in-solution? buildings)
