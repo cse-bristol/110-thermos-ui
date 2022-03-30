@@ -431,11 +431,12 @@
   [instance candidate]
    {:alternatives
     (let [counterfactual (::demand/counterfactual candidate)
-          ids (set
-               (conj
-                (when (::document/consider-alternatives instance)
-                  (::demand/alternatives candidate))
-                counterfactual))]
+          ids (-> (cond-> ()
+                    (::document/consider-alternatives instance)
+                    (concat (::demand/alternatives candidate))
+                    (not (nil? counterfactual))
+                    (conj counterfactual))
+                  (set))]
       (for [id ids
             :let [alternative (get-in instance [::document/alternatives id])]
             :when alternative]
