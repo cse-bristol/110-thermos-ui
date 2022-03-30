@@ -57,7 +57,8 @@
             [clojure.data.json :as json]
             [clojure.set :as set]
             [thermos-specs.solution :as solution]
-            [cljts.core :as jts])
+            [cljts.core :as jts]
+            [mount.core :as mount])
   (:import [java.sql Connection DriverManager SQLException
             PreparedStatement Types])
   (:gen-class))
@@ -82,7 +83,8 @@ If not given, does the base-case instead (no network)."
 
 (defn- exit-with [message code]
   (binding [*out* *err*] (println message))
-  (System/exit code))
+  ;; (System/exit code)
+  )
 
 (defn- usage-message [summary] (str "Usage:\n" summary))
 (defn- error-message [errors]  (str "Invalid arguments:\n" (string/join \newline errors)))
@@ -94,6 +96,7 @@ If not given, does the base-case instead (no network)."
 (declare run-with)
 
 (defn -main [& arguments]
+  (mount/start-with {#'thermos-backend.config/config {}})
   (let [{:keys [options arguments summary errors]}
         (parse-opts arguments options)]
     (cond
@@ -112,6 +115,7 @@ If not given, does the base-case instead (no network)."
 ;; The real stuff follows
 
 (defn- line? [feature]
+  "is the feature a line feature"
   (-> feature ::geoio/type #{:line-string :multi-line-string} boolean))
 
 (defn- noder-options [parameters]
@@ -122,7 +126,7 @@ If not given, does the base-case instead (no network)."
 
 (defn- make-candidate-path [parameters p]
   (merge
-   p
+   (dissoc p "meta")
    (json/read-str (get p "meta" "{}"))
    {::candidate/type      :path
     ::candidate/inclusion :optional
@@ -136,7 +140,7 @@ If not given, does the base-case instead (no network)."
 
 (defn- make-candidate-building [parameters b]
   (merge
-   b
+   (dissoc b "meta")
    (json/read-str (get b "meta" "{}"))
    {::candidate/id          (::geoio/id b)
     ::candidate/type        :building
@@ -149,7 +153,7 @@ If not given, does the base-case instead (no network)."
     
     ::demand/kwh              (get b "heat_demand_kwh")
     ::demand/kwp              (get b "peak_demand_kw")
-    ::demand/connection-count (get b "num_customers")
+    ::demand/connection-count (or (get b "num_customers") 1)
     }))
 
 (defn- make-candidates [parameters paths buildings]
@@ -193,17 +197,22 @@ If not given, does the base-case instead (no network)."
           
           false))))
 
-(defn- assign-by-rules [multi key candidate [rule ids]]
+(defn- assign-by-rules
+  "Given a single `rule` that maps to `ids`, test if `candidate`
+  matches the rule. If it does, return `candidate` with `ids` assoced under `key`
+
+  if `multi` is true then a non-coll `ids` is lifted to the set #{ids}"
+  [multi key candidate [rule ids]]
   (cond-> candidate
     (matches-rule candidate rule)
-    (-> (assoc candidate key (if multi (if (coll? ids) (set ids)
-                                           #{ids})
-                                 (if (coll? ids)
-                                   (throw (ex-info "Invalid rule (has multiple outputs)"
-                                                   {:rule rule
-                                                    :ids ids
-                                                    :key key}))
-                                   ids)))
+    (-> (assoc key (if multi (if (coll? ids) (set ids)
+                                 #{ids})
+                       (if (coll? ids)
+                         (throw (ex-info "Invalid rule (has multiple outputs)"
+                                         {:rule rule
+                                          :ids ids
+                                          :key key}))
+                         ids)))
         (reduced))))
 
 (defn- assign-building-options [candidate insulation-rules alternative-rules]
@@ -219,11 +228,38 @@ If not given, does the base-case instead (no network)."
           (assoc candidate ::candidate/inclusion :optional)
           requirement-rules))
 
-(defn index [xs name-key]
-  (let [xs (into {} map-indexed vector xs)]
-    [xs (into {} (set/map-invert (for [[id x] xs] [id (name-key xs)])))]))
+(defn index
+  "Utility to build an 'index' of `xs`, a seq of things that have `name-key`
 
-(defn index-rules [rules index]
+  Returns a tuple of:
+  - a map from an ID to each element of `xs`. The elements are updated
+    so that `id-key` gives their key in this map.
+  - a map to these IDs from `name-key` values
+
+  f.e.
+
+  (index [{:name :hello} {:name :world}] :name :id) =>
+  [
+    {0 {:name :hello :id 0} 1 {:name :world :id 1}}
+    {:hello 0 :world 1}
+  ]
+
+  This is used in concert with rules & alternative / insulation definitions
+  "
+  [xs name-key id-key]
+  (let [xs (into {} (map-indexed
+                     (fn [i x] [i (assoc x id-key i)])
+                     xs))]
+    [xs
+     (into {}
+           (set/map-invert
+            (for [[id x] xs] [id (name-key x)])))]))
+
+(defn index-rules
+  "Update a set of rules using the second half of the value from `index` above.
+  a rule looks like [rule name-or-names] and we want [rule id-or-ids]
+  "
+  [rules index]
   (for [[rule targets] rules]
     [rule (if (coll? targets)
             (mapv index targets)
@@ -237,7 +273,7 @@ If not given, does the base-case instead (no network)."
    instance
    supply-parameters
    n
-   (not (contains? ::supply/capacity-kwp supply-parameters))))
+   (not (contains? supply-parameters ::supply/capacity-kwp))))
 
 (defmethod print-method org.locationtech.jts.geom.Geometry
   [this w]
@@ -270,9 +306,10 @@ If not given, does the base-case instead (no network)."
 
     (if-let [geometry-column (first (filter (comp geometry-types second) columns))]
       ;; delegate to geoio which can write geometry but has different interface.
-
+      
       (geoio/write-to
        {::geoio/crs (or crs "EPSG:4326") ::geoio/features rows}
+       file
        
        :fields          (->>
                          (for [[col type get-val] columns]
@@ -360,6 +397,9 @@ If not given, does the base-case instead (no network)."
 
 (defn- run-with [{:keys [input-file output-file parameters heat-price]}]
   {:pre [(and input-file parameters output-file)]}
+  (when (.exists output-file)
+    (io/delete-file output-file))
+  
   (let [parameters (read-edn parameters)
 
         input-features
@@ -368,6 +408,17 @@ If not given, does the base-case instead (no network)."
           (not heat-price)
           (update ::geoio/features #(remove line? %)))
 
+        input-features (update input-features
+                               ::geoio/features
+                               #(filter
+                                 (fn [x]
+                                   (or (line? x)
+                                       (and (number? (get x "heat_demand_kwh"))
+                                            (number? (get x "peak_demand_kw")))))
+                                 %))
+        
+        _ (println (count (::geoio/features input-features)) "features in input")
+        
         ;; if we want to filter out some paths we need to do it here
         ;; or inside noder. If we do it here, they will be missing from
         ;; the output dataset, which is ~ok~?
@@ -380,6 +431,7 @@ If not given, does the base-case instead (no network)."
                (fn [[rule k]] (when (= k :forbidden) rule))
                requirement-rules)]
           (update
+           input-features
            ::geoio/features
            (fn [features]
              (remove
@@ -388,10 +440,12 @@ If not given, does the base-case instead (no network)."
                  (fn [rule] (matches-rule feature rule))
                  forbidding-rules))
               features))))
-        
-        [paths buildings] (noder/node-connect
-                           input-features
-                           (noder-options parameters))
+
+        [paths buildings] (noder/node-connect input-features (noder-options parameters))
+
+        _ (println (count buildings) "/" (count paths)
+                   "buildings / paths"
+                   )
 
         ;; do some area calculations for measures to work right
         buildings
@@ -407,8 +461,13 @@ If not given, does the base-case instead (no network)."
         pipe-costs                     (:thermos/pipe-costs parameters)
         civil->id                      (set/map-invert (:civils pipe-costs))
         
-        [insulation insulation->id]    (index (:thermos/insulation parameters))
-        [alternatives alternative->id] (index (:thermos/alternatives parameters))
+        [insulation insulation->id]    (index (:thermos/insulation parameters)
+                                              ::measure/name
+                                              ::measure/id)
+        
+        [alternatives alternative->id] (index (:thermos/alternatives parameters)
+                                              ::supply/name
+                                              ::supply/id)
 
         insulation-rules  (index-rules (:thermos/insulation-rules  parameters)
                                        insulation->id)
@@ -443,9 +502,11 @@ If not given, does the base-case instead (no network)."
 
                        ;; copy other misc parameters.
                        ;; probably worth setting them up not as a blob,
-                       ;; although that does mean listing them out herel
+                       ;; although that does mean listing them out here
                        (assoc
-                        ::document/objective :system
+                        ::document/objective             :system
+                        ::document/consider-alternatives true
+                        ::document/consider-insulation   true
                         ::document/maximum-supply-sites 1
 
                         ::document/npv-rate  (:finance/npv-rate parameters)
@@ -462,8 +523,13 @@ If not given, does the base-case instead (no network)."
                        )
 
         ;; crunch crunch run model
-        solution   (interop/try-solve problem)
+        solution   (interop/try-solve problem
+                                      (fn [& args] (binding [*out* *err*]
+                                                     (println args))))
 
+        _ (def __last_problem problem)
+        _ (def __last-solution solution)
+        
         {buildings :building paths :path} (document/candidates-by-type solution)
         supplies               (filter candidate/supply-in-solution? buildings)
         ]
@@ -509,6 +575,7 @@ If not given, does the base-case instead (no network)."
        [["log" (gzip-string (::solution/log solution))]
         ["edn" (gzip-edn (dissoc solution ::solution/log))]])
       
+      
       (write-sqlite
        output-file
        "buildings"
@@ -524,7 +591,8 @@ If not given, does the base-case instead (no network)."
         ["insulation_m2"        :double  insulation-m2]
         ["insulation_capex"     :double  insulation-capex]
         ]
-       buildings)
+       buildings
+       )
 
       (write-sqlite
        output-file
@@ -563,5 +631,12 @@ If not given, does the base-case instead (no network)."
    "test_edn"
    [["some-edn" :blob gzip-edn]]
    [defaults/default-document]
+   )
+
+  (-main
+   "-i" "/home/hinton/tmp-hnzp/optimiser-inputs.gpkg"
+   "-o" "/home/hinton/tmp-hnzp/optimiser-outputs.gpkg"
+   "-p" "/home/hinton/tmp-hnzp/parameters.edn"
+   "--heat-price" "7.0"
    )
   )
