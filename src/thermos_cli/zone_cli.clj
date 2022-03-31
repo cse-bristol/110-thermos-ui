@@ -449,12 +449,13 @@ If not given, does the base-case instead (no network)."
 
         ;; do some area calculations for measures to work right
         buildings
-        (map (fn [b]
-               ;; copy the height field over from hnzp
-               (-> (assoc b :height (get b "height"))
-                   (lidar/add-other-attributes)
-                   (importer/add-areas)))
-             buildings)
+        (->> #:thermos-importer.geoio
+             {:features
+              (for [b buildings] (assoc b :height (get b "height")))
+              :crs (::geoio/crs input-features)}
+             (lidar/add-other-attributes)
+             (::geoio/features) ;; and get it out again
+             (map importer/add-areas))
         
         candidates (make-candidates parameters paths buildings)
 
