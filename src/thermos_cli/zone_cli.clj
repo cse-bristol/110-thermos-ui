@@ -126,8 +126,8 @@ If not given, does the base-case instead (no network)."
 
 (defn- make-candidate-path [parameters p]
   (merge
-   (dissoc p "meta")
    (json/read-str (get p "meta" "{}"))
+   (dissoc p "meta")
    {::candidate/type      :path
     ::candidate/inclusion :optional
     ::path/length         (::spatial/length p)
@@ -140,8 +140,8 @@ If not given, does the base-case instead (no network)."
 
 (defn- make-candidate-building [parameters b]
   (merge
-   (dissoc b "meta")
    (json/read-str (get b "meta" "{}"))
+   (dissoc b "meta")
    {::candidate/id          (::geoio/id b)
     ::candidate/type        :building
     ::candidate/inclusion   :optional
