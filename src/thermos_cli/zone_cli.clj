@@ -122,7 +122,7 @@ If not given, does the base-case instead (no network)."
   {:shortest-face  3.0
    :snap-tolerance 0.1
    :trim-paths     true
-   :transfer-field "path_id"})
+   :transfer-field ["id" "connects_to"]})
 
 (defn- make-candidate-path [parameters p]
   (merge
@@ -577,6 +577,7 @@ If not given, does the base-case instead (no network)."
        output-file
        "buildings"
        [["building_id"          :string  building-id]
+        ["connects_to"          :string  #(get % "connects_to")]
         ["on_network"           :boolean ::solution/connected]
         ["heating_system"       :string  candidate/solution-description]
         ["heating_system_capex" :double  heating-system-capex]
@@ -608,6 +609,7 @@ If not given, does the base-case instead (no network)."
        "paths"
        [["geometry"     :line-string ::candidate/geometry]
         ["path_id"      :string      path-id]
+        ["connects_to"  :string      #(get % "connects_to")]
         ["is_connector" :boolean     :connector]
         ["length"       :double      ::path/length]
         ["on_network"   :boolean     candidate/in-solution?]
