@@ -83,6 +83,7 @@
                 ::lidar/ext-surface-proportion
                 ::lidar/ext-surface-per-volume
                 ::lidar/tot-surface-per-volume
+                ::lidar/height-source
                 ]
         tab-separate #(string/join ;; blank = nil?
                        (str \tab)
