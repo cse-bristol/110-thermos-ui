@@ -59,6 +59,16 @@
                                     (or (.endsWith name ".tif")
                                         (.endsWith name ".tiff")))))
                     (lidar/rasters->index))
+
+        inputs (and (seq inputs)
+                    (update inputs ::geoio/features
+                            (fn [features]
+                              (map (fn [feature]
+                                     (-> feature
+                                         (assoc :residential (get feature resi-field))
+                                         (assoc :fallback-height (get feature height-field))))
+                                   features))))
+        
         inputs  (and (seq inputs)
                      (lidar/add-lidar-to-shapes inputs tiles))
 
@@ -93,10 +103,7 @@
       (binding [*out* output]
         (println (tab-separate (map name fields)))
         (doseq [input (::geoio/features inputs)]
-          (let [input (-> input
-                          (assoc :residential (get input resi-field))
-                          (assoc :fallback-height (get input height-field))
-                          (importer/produce-heat-demand sdd))
+          (let [input (importer/produce-heat-demand input sdd)
                 input (assoc input
                              :peak-demand
                              (importer/run-peak-model (:annual-demand input)))
