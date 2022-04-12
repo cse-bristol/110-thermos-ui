@@ -139,6 +139,34 @@
               :Implementation-Vendor "Forward Dynamics"}))
 
 
+(defn build-zoning-tool []
+  (println (on-cyan (white "clean")))
+
+  (clean/clean "target")
+
+  (println (on-cyan (white "compile clojure")))
+  (in-thread-group
+   #(compile/compile
+     '[thermos-cli.zone-cli]
+     {:compile-path "target/classes"
+      :compiler-options {:disable-locals-clearing false
+                         :elide-meta [:doc :file :line :added]
+                         :direct-linking true}
+      :classpath (classpath/make-classpath {:aliases [:server]})}))
+
+  (println (on-cyan (white "create jar")))
+  (uberjar/create-uberjar
+   "target/zone-cli.jar"
+   :classpath (classpath/make-classpath {:aliases [:server :jar]})
+   :manifest {:Main-Class 'thermos-cli.zone-cli
+              :Specification-Title "Java Advanced Imaging Image I/O Tools"
+              :Specification-Version "1.1"
+              :Specification-Vendor "Forward Dynamics"
+              :Implementation-Title "com.sun.media.imageio"
+              :Implementation-Version "1.1"
+              :Implementation-Vendor "Forward Dynamics"}))
+
+
 (defn build-heatmap-only-tool []
   (println (on-cyan (white "clean")))
 

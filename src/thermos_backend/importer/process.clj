@@ -101,8 +101,7 @@
                                       osm-levels (as-double (:building:levels %))]
                                   (cond-> %
                                     osm-levels
-                                    (assoc :fallback-height (* lidar/*storey-height* osm-levels)
-                                           ::lidar/storeys osm-levels)
+                                    (assoc :storeys osm-levels)
 
                                     osm-height
                                     (assoc :fallback-height osm-height)))
@@ -235,10 +234,12 @@
                   (if (= :residential k) (boolean v) v)])
                (into {}))
 
-        space-svm-3 (svm-space-3d x)
+        height-source (::lidar/height-source f)
+        space-svm-3 (and (not= :default height-source)
+                         (svm-space-3d x))
         svm-result  (or space-svm-3 (svm-space-2d x))
-        sap-water (sap/hot-water (:floor-area x))]
-    
+        sap-water   (sap/hot-water (:floor-area x))
+        ]
     (or
      (when (and svm-result
                 (> (aget svm-result 1) 1.5))
@@ -561,18 +562,12 @@
         minimum-demand (as-double (:minimum-annual-demand feature))
         maximum-demand (as-double (:maximum-annual-demand feature))
         
-        given-height (as-double (:height feature))
-        given-fallback-height (as-double (:fallback-height feature))
         given-floor-area (as-double (:floor-area feature))
         benchmark-m  (as-double (:benchmark-m feature))
         benchmark-c  (or (as-double (:benchmark-c feature))
                          (when benchmark-m 0))
 
-        storey-height lidar/*storey-height*
-        height     (or given-height (::lidar/height feature) given-fallback-height)
-
-        floor-area (or given-floor-area
-                       (::lidar/floor-area feature))
+        floor-area (or given-floor-area (::lidar/floor-area feature))
 
         residential (if (contains? feature :residential)
                       ;; the double boolean here means that if
@@ -581,18 +576,8 @@
                       (boolean (as-boolean (:residential feature)))
                       (contains? residential-subtypes (:subtype feature)))
 
-        feature    (assoc feature
-                          ::lidar/floor-area floor-area
-                          :floor-area floor-area
-                          ::lidar/height height
-                          :height height
-                          :residential residential)
+        feature    (assoc feature :residential residential)
 
-        ;; because we may have updated the height, we need to recompute
-        ;; the predictors here; the LIDAR code already does this once.
-        ;; This could be quite a lot better.
-        feature    (lidar/derive-more-fields feature)
-        
         model-output (delay
                        (let [result (run-svm-models feature sqrt-degree-days)
                              annual-demand (:annual-demand result)]
@@ -676,7 +661,7 @@
   (reduce
    (fn [a f]
      (if (= :multi-line-string (::geoio/type f))
-       (concat a (geoio/explode-multi f))
+       (into a (geoio/explode-multi f))
        (conj a f)))
    []
    features))
@@ -720,16 +705,21 @@
   (let [height (or (:height building)
                    (::lidar/height building)
                    lidar/*storey-height*)]
-    (assoc building
-           :wall-area   (::lidar/external-wall-area
-                         building
-                         (* (- (::lidar/perimeter building 0)
-                               (::lidar/shared-perimeter building 0))
-                            height))
-           :floor-area  (::lidar/floor-area building 0)
-           :ground-area (::lidar/footprint building 0)
-           :roof-area   (::lidar/footprint building 0)
-           :height      height)))
+    (-> building
+        (assoc
+         :wall-area   (::lidar/external-wall-area
+                       building
+                       (* (- (::lidar/perimeter building 0)
+                             (::lidar/shared-perimeter building 0))
+                          height))
+         :floor-area  (::lidar/floor-area building 0)
+         :ground-area (::lidar/footprint building 0)
+         :roof-area   (::lidar/footprint building 0)
+         :height      height)
+        ;; (assoc-in [:user-fields "Height"] height)
+        ;; (assoc-in [:user-fields "Height source"] (name (::lidar/height-source building)))
+
+        )))
 
 (defn run-import
   "Run an import job enqueued by `queue-import`"

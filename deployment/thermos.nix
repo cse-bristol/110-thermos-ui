@@ -27,6 +27,10 @@ with lib;
           type = types.str;
           default = "-Xmx6g -server";
         };
+        defaultUserAuth = mkOption {
+          type = types.str;
+          default = ":basic";
+        };
       };
       model = {
         enable = mkOption {
@@ -62,6 +66,11 @@ with lib;
           default = "-Xmx4g -server";
         };
       };
+
+      postgresql = mkOption {
+        type = types.package;
+        default = pkgs.postgresql;
+      };
     };
   };
     
@@ -69,7 +78,7 @@ with lib;
     let
       cfg = config.services.thermos;
 
-      pg = pkgs.postgresql;
+      pg = cfg.postgresql;
       pgis = pkgs.postgis.override { postgresql = pg; };
 
       enable-postgis = builtins.toFile "enable-postgis.sql"
@@ -138,6 +147,7 @@ with lib;
       systemd.services.thermos-web = mkIf cfg.ui.enable {
         serviceConfig = {
           TimeoutStopSec = "60s";
+          Restart = "always";
         };
         
         wantedBy = ["multi-user.target"];
@@ -162,6 +172,7 @@ with lib;
           export SMTP_PORT=25
           export SMTP_TLS=true
           export SMTP_USER=thermos-project.eu
+          export DEFAULT_USER_AUTH=${cfg.ui.defaultUserAuth}
           
           export LIDAR_DIRECTORY=/thermos-lidar/
           
@@ -182,6 +193,7 @@ with lib;
       systemd.services.thermos-model = mkIf cfg.model.enable {
         serviceConfig = {
           TimeoutStopSec = "60s";
+          Restart = "always";
         };
         
         wantedBy = ["multi-user.target"];
@@ -196,8 +208,9 @@ with lib;
           export SMTP_ENABLED=false
           export WEB_SERVER_ENABLED=false
           export IMPORTER_COUNT=0
+          export DEFAULT_USER_AUTH=${cfg.ui.defaultUserAuth}
 
-          exec ${pkgs.jre}/bin/java ${cfg.model.javaArgs} -jar ${cfg.jar}
+          exec ${cfg.jre}/bin/java ${cfg.model.javaArgs} -jar ${cfg.jar}
 
         '';
       };
@@ -205,6 +218,7 @@ with lib;
       systemd.services.thermos-importer = mkIf cfg.importer.enable {
         serviceConfig = {
           TimeoutStopSec = "60s";
+          Restart = "always";
         };
         
         wantedBy = ["multi-user.target"];
@@ -219,8 +233,9 @@ with lib;
           export SMTP_ENABLED=false
           export WEB_SERVER_ENABLED=false
           export IMPORTER_COUNT=${toString cfg.importer.importerCount}
+          export DEFAULT_USER_AUTH=${cfg.ui.defaultUserAuth}
 
-          exec ${pkgs.jre}/bin/java ${cfg.importer.javaArgs} -jar ${cfg.jar}
+          exec ${cfg.jre}/bin/java ${cfg.importer.javaArgs} -jar ${cfg.jar}
         '';
       };
     };

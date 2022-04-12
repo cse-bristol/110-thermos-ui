@@ -515,8 +515,8 @@
          [:div
           (let [has-roads (some pos? (map road-count (vals data-files)))]
             [:label [:input {:type :checkbox
-                             :disabled (not has-roads)
-                             :checked (or (not has-roads) osm-roads)
+                             :disabled (boolean has-roads)
+                             :checked (if has-roads false osm-roads)
                              :on-change #(swap! *osm-roads not)}]
              "Also import roads from OpenStreetMap for the area covered by these files"])
           
@@ -657,19 +657,21 @@
     result))
 
 (defn- too-large [boundary]
-  (let [geo (or (get-in boundary ["geometry" "coordinates"])
-                (get-in boundary ["coordinates"]))
-        ring (first geo)
-        xs (map first ring)
-        ys (map second ring)
-        minx (reduce min xs)
-        maxx (reduce max xs)
-        miny (reduce min ys)
-        maxy (reduce max ys)
-        dx (- maxx minx)
-        dy (- maxy miny)]
-    (or (> dx 0.15)
-        (> dy 0.15))))
+  (try
+    (let [geo (or (get-in boundary ["geometry" "coordinates"])
+                  (get-in boundary ["coordinates"]))
+          ring (first geo)
+          xs (map first ring)
+          ys (map second ring)
+          minx (reduce min xs)
+          maxx (reduce max xs)
+          miny (reduce min ys)
+          maxy (reduce max ys)
+          dx (- maxx minx)
+          dy (- maxy miny)]
+      (or (> dx 0.15)
+          (> dy 0.15)))
+    (catch #?(:cljs :default :clj Exception) e)))
 
 (defn- validate-osm-area [geo]
   (cond

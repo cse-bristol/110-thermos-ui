@@ -68,7 +68,11 @@
           (if lines
             (spatial/add-connections
              crs not-lines lines
-             :copy-field (and transfer-field [transfer-field transfer-field])
+             :copy-field (cond
+                           (vector? transfer-field) transfer-field
+                           transfer-field [transfer-field transfer-field]
+                           :else nil)
+             
              :shortest-face-length shortest-face
              :connect-to-connectors connect-to-connectors)
             [not-lines nil])]

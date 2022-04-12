@@ -32,6 +32,11 @@
 
 (def FINISHED_STATES #{COMPLETE_STATE FAILED_STATE CANCELLED_STATE})
 
+(defn finished?
+  "Is the given task, such as might be returned by `list-tasks`, in a finished state"
+  [task]
+  (#{:complete :failed :cancelled} (keyword (:state task))))
+
 (defmethod format-lock-clause :skip-locked [_] "FOR UPDATE SKIP LOCKED")
 
 (def consumers

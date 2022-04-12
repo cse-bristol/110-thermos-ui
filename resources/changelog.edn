@@ -1,4 +1,38 @@
-[{:title "9th April 2021"
+[{:title "9th March 2022"
+  :changes
+  [{:title "Bug fixes"
+    :summary
+    [:p "The spreadsheet download would sometimes produce an invalid spreadsheet when a solution involved counterfactual heating systems."]
+    }]}
+
+ {:title "22nd Feb 2022"
+  :changes
+  [{:title "Bug fixes"
+    :summary
+    [:p "The pipe costs table erroneously displayed zero for default capacity values, and the spreadsheet import/export now preserves the default civil cost."]}]
+  }
+
+ {:title "9th Feb 2022"
+  :changes
+  [{:title "Bug fixes"
+    :summary [:p "Carbon factors for supply plant were not properly incorporated when evaluating carbon limits. Now they are."]
+    }
+   {:title "Market rate output"
+    :summary [:p "When using market tariff, the market rate used is now shown for building that don't get connected, as well as those who do."]}]}
+
+ {:title "17th December 2021"
+  :changes
+  [{:title "Better detection of disconnected buildings"
+    :summary
+    [:p "Buildings which could not be supplied because they are connected only "
+     "via another building are now marked as unreachable when solving a problem. "
+     "Previously, they would render the problem unfeasible for the optimiser."]}
+
+   {:title "Updates to documentation"
+    :summary
+    [:p "The documentation has been updated with some information about the demand estimation model."]}]}
+
+ {:title "9th April 2021"
   :changes
   [{:title "Solution summary in spreadsheet output"
     :summary

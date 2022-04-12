@@ -151,13 +151,13 @@
                    nil
                    (format/si-number x)))
                
-               :value (:capacity-kwp costs)
+               :value (some-> costs :capacity-kw (* 1000))
                :style {:max-width :5em}
                :on-change
-               (fn [v]
+               (fn [_ v]
                  (f/fire!
                   flow [:pipe/change-capacity dia
-                        (if (= :empty v) nil v)]))
+                        (if (= :empty v) nil (/ v 1000.0))]))
                
                :placeholder
                (format/si-number

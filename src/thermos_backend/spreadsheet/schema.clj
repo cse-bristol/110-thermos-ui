@@ -27,7 +27,8 @@
     :loan-rate
     :mip-gap
     :max-runtime
-    :max-supplies})
+    :max-supplies
+    })
 
 (def required-supply-parameters
   #{:accounting-period
@@ -338,6 +339,7 @@
                 [:objective [:map [:value string?]]]
                 [:consider-alternative-systems [:map [:value boolean?]]]
                 [:consider-insulation [:map [:value boolean?]]]
+                [:default-civil-cost [:map [:value {:optional true} [:or string? nil? [:enum "none"]]]]]
                 [:npv-term [:map [:value number?]]]
                 [:npv-rate [:map [:value number?]]]
                 [:loan-term [:map [:value number?]]]

@@ -88,7 +88,16 @@
      [:p "The THERMOS tool is Copyright Centre for Sustainable Energy, 2017-2021."]
      [:p "If you use this software's source code, documentation, or outputs in your own work, academic or commercial, please include a citation along these lines:"]
      [:blockquote
-      "This work includes results from the THERMOS heat network model (https://www.thermos-project.eu). For more information about THERMOS contact the Centre for Sustainable Energy (https://www.cse.org.uk / thermos@cse.org.uk)."]
+      [:p
+       "This work uses results from the THERMOS (Thermal Energy Resource Modelling and Optimisation System) model."]
+      [:p "THERMOS was an EU Horizon 2020 funded research project (grant agreement No 723636) coordinated by the Centre for Sustainable Energy."
+       [:p "For more information about THERMOS see the THERMOS website at "
+        [:a {:href "https://www.thermos-project.eu"} "https://www.thermos-project.eu"]
+        " or contact CSE "
+        [:a {:href "https://www.cse.org.uk"} "https://www.cse.org.uk"]
+        " / "
+        [:a {:href "mailto:thermos@cse.org.uk"} "thermos@cse.org.uk"]
+        ]]]
      ]]))
 
 

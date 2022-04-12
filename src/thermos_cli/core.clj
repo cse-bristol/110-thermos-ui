@@ -121,9 +121,7 @@ If there are buildings, they will have demand and peak demand computed, subject 
    [nil "--fallback-height-field FIELD" "A height field, used if LIDAR (and given height) is missing."]
    [nil "--resi-field FIELD" "A field which is used to tell the demand model if a building is residential."]
    [nil "--demand-field FIELD" "A kwh/yr field. If given, this will be used in preference to the demand model."]
-   [nil "--confidence-field FIELD" "How confident you are in the demand field (max / use).
-If given, then a shape for which this says 'max' will get the maximum of demand modelled and demand-field value.
-If it says 'use', then the demand-field value will be used (unless it's not numeric)."]
+   
    [nil "--peak-field FIELD" "A kwp field. If given, this will be used in preference to peak model."]
    [nil "--infer-peak-from-diameter FIELD"
     "If given, the peak will be determined from the diameter in FIELD.
@@ -234,8 +232,8 @@ The different options are those supplied after --retry, so mostly you can use th
                           fallback-height-field :fallback-height-field
                           peak-field :peak-field
                           demand-field :demand-field
-                          count-field :count-field
-                          confidence-field :confidence-field}
+                          count-field :count-field}
+                         
                          ]
   
   (when (seq buildings)
@@ -249,58 +247,53 @@ The different options are those supplied after --retry, so mostly you can use th
                                                (.endsWith name ".tiff")))))
                            (lidar/rasters->index))
 
-          buildings (lidar/add-lidar-to-shapes buildings lidar-index)
+          buildings (lidar/add-lidar-to-shapes
+                     (for [b buildings]
+                       (let [is-resi (as-boolean (or
+                                                  (not resi-field)
+                                                  (and resi-field
+                                                       (get b resi-field))))
+                             height (and height-field
+                                         (as-double (get b height-field)))
 
-          buildings (::geoio/features buildings)
-          ]
-      ;; run the model for each building
-      (for [b buildings]
-        (let [is-resi (as-boolean (or
-                                   (not resi-field)
-                                   (and resi-field
-                                        (get b resi-field))))
-              height (and height-field
-                          (as-double (get b height-field)))
+                             fallback-height (and fallback-height-field
+                                                  (as-double (get b fallback-height-field)))
 
-              fallback-height (and fallback-height-field
-                                   (as-double (get b fallback-height-field)))
-              
-              peak (and peak-field
-                        (as-double (get b peak-field)))
+                             demand (and demand-field
+                                         (as-double (get b demand-field)))
+                             
+                             peak (and peak-field
+                                       (as-double (get b peak-field)))
+                             
+                             count (max 1
+                                        (or (and count-field
+                                                 (as-integer (get b count-field)))
+                                            1))
 
-              demand (and demand-field
-                          (as-double (get b demand-field)))
 
-              confidence (and confidence-field
-                              (#{:use :max} (get b confidence-field)))
-              
-              count (max 1
-                         (or (and count-field
-                                  (as-integer (get b count-field)))
-                             1))]
-          
-          (-> b
-              (assoc :residential is-resi
-                     :connection-count count)
-              (cond->
-                height
-                (assoc :height height)
+                             b (-> b
+                                   (assoc :residential is-resi
+                                          :connection-count count)
+                                   (cond->
+                                       height
+                                     (assoc :height height)
 
-                fallback-height
-                (assoc :fallback-height fallback-height)
+                                     fallback-height
+                                     (assoc :fallback-height fallback-height)
 
-                demand
-                (assoc :annual-demand demand)
+                                     demand
+                                     (assoc :annual-demand demand)))
 
-                (and confidence demand)
-                (assoc :use-annual-demand (keyword confidence)))
-
-              (importer/produce-heat-demand sqrt-degree-days)
-              (as-> x
-                  (assoc x :peak-demand
-                         (or peak
-                             (importer/run-peak-model
-                              (:annual-demand x)))))))))))
+                             b (importer/produce-heat-demand b sqrt-degree-days)
+                             ]
+                         (assoc b :peak-demand
+                                (or peak
+                                    (importer/run-peak-model (:annual-demand b))))
+                         ))
+                     
+                     lidar-index)]
+      (::geoio/features buildings)
+      )))
 
 (defn- match
   "Match ITEM, a map, against OPTIONS, a list of things with a :rule in them.
@@ -369,7 +362,7 @@ The different options are those supplied after --retry, so mostly you can use th
     (cond-> building
       tariff (assoc ::tariff/id tariff))))
 
-(defn- select-top-n-supplies [instance supply top-n fit-supply]
+(defn select-top-n-supplies [instance supply top-n fit-supply]
   (let [{buildings :building paths :path}
         (document/candidates-by-type instance)
 
@@ -718,6 +711,7 @@ The different options are those supplied after --retry, so mostly you can use th
                                 (generate-demands    options)
                                 
                                 ;; areas for measures to work on
+                                ;; has to happen after generate-demands as that runs lidar/etc
                                 (->> (map importer/add-areas))))
         
         instance

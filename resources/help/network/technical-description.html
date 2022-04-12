@@ -38,60 +38,60 @@
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#org8238b59">1. High-level summary</a>
+<li><a href="#org2a78f97">1. High-level summary</a>
 <ul>
-<li><a href="#org1168b12">1.1. Decisions</a></li>
-<li><a href="#org520d49c">1.2. Objective function</a></li>
-<li><a href="#org403c1fb">1.3. Pipe and supply capacity</a>
+<li><a href="#org2cd9669">1.1. Decisions</a></li>
+<li><a href="#orge5f68e9">1.2. Objective function</a></li>
+<li><a href="#org7172c27">1.3. Pipe and supply capacity</a>
 <ul>
-<li><a href="#orgf81c8d1">1.3.1. Diversity factor</a></li>
-<li><a href="#orgf5cc330">1.3.2. Supply capacity</a></li>
-<li><a href="#org7e0f4e4">1.3.3. Multiple routes and supplies</a></li>
+<li><a href="#orgfb779ac">1.3.1. Diversity factor</a></li>
+<li><a href="#org8d23a53">1.3.2. Supply capacity</a></li>
+<li><a href="#orga3ef8a9">1.3.3. Multiple routes and supplies</a></li>
 <li><a href="#pipe-diameter-calc">1.3.4. Pipe diameter and power</a></li>
-<li><a href="#org6e93c7e">1.3.5. Pipe cost</a></li>
+<li><a href="#org8c8a8a8">1.3.5. Pipe cost</a></li>
 <li><a href="#pipe-heat-losses">1.3.6. Pipe heat losses</a></li>
 </ul>
 </li>
-<li><a href="#orga452fad">1.4. Operating conditions</a></li>
-<li><a href="#orgdc3e916">1.5. Differences between heating and cooling</a>
+<li><a href="#orgc474979">1.4. Operating conditions</a></li>
+<li><a href="#org2d40338">1.5. Differences between heating and cooling</a>
 <ul>
-<li><a href="#org441a8a7">1.5.1. Flow and return temperatures</a></li>
-<li><a href="#org47f6fea">1.5.2. Medium density</a></li>
-<li><a href="#org81c3a67">1.5.3. Pumping energy</a></li>
-<li><a href="#org9791a18">1.5.4. Heat losses / gains</a></li>
+<li><a href="#org2b896f6">1.5.1. Flow and return temperatures</a></li>
+<li><a href="#org1dfa673">1.5.2. Medium density</a></li>
+<li><a href="#org749704c">1.5.3. Pumping energy</a></li>
+<li><a href="#orgee58ff0">1.5.4. Heat losses / gains</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li><a href="#orgd880d7b">2. Technical details</a>
+<li><a href="#org4ca351a">2. Technical details</a>
 <ul>
-<li><a href="#orge734a72">2.1. Overview</a></li>
-<li><a href="#org06365c5">2.2. Problem preparation</a>
+<li><a href="#org52e7dfe">2.1. Overview</a></li>
+<li><a href="#org25bfa24">2.2. Problem preparation</a>
 <ul>
-<li><a href="#org119acdd">2.2.1. Conversion to present values</a></li>
-<li><a href="#orga481a16">2.2.2. Flow bounds &amp; supply bounds</a></li>
-<li><a href="#orgcc8b940">2.2.3. Linearised pipe costs</a></li>
-<li><a href="#orgbd35a92">2.2.4. Tidying up</a></li>
+<li><a href="#org845c0e2">2.2.1. Conversion to present values</a></li>
+<li><a href="#orgbcbed59">2.2.2. Flow bounds &amp; supply bounds</a></li>
+<li><a href="#orgc657aab">2.2.3. Linearised pipe costs</a></li>
+<li><a href="#orgbb2e425">2.2.4. Tidying up</a></li>
 </ul>
 </li>
-<li><a href="#org57a5fdf">2.3. Mixed-integer linear formulation</a>
+<li><a href="#orgfaed7b7">2.3. Mixed-integer linear formulation</a>
 <ul>
-<li><a href="#org5596a1e">2.3.1. Sketch</a></li>
-<li><a href="#orgc4988ca">2.3.2. Formalism</a></li>
-<li><a href="#orgd1d2f49">2.3.3. Insulation</a></li>
-<li><a href="#org7120012">2.3.4. Individual systems</a></li>
+<li><a href="#org46982fe">2.3.1. Sketch</a></li>
+<li><a href="#org62fdb7f">2.3.2. Formalism</a></li>
+<li><a href="#orgc1bd39d">2.3.3. Insulation</a></li>
+<li><a href="#org97f6e3d">2.3.4. Individual systems</a></li>
 </ul>
 </li>
-<li><a href="#org55a007f">2.4. Parameter updates</a>
+<li><a href="#org8d8ccad">2.4. Parameter updates</a>
 <ul>
-<li><a href="#org4adbda3">2.4.1. Finding diversity factors</a></li>
-<li><a href="#orgcdd4977">2.4.2. Finding heat losses</a></li>
+<li><a href="#org7eef44b">2.4.1. Finding diversity factors</a></li>
+<li><a href="#org8fe3b52">2.4.2. Finding heat losses</a></li>
 </ul>
 </li>
-<li><a href="#orgba4df6e">2.5. Solution re-evaluation</a></li>
-<li><a href="#orga99803d">2.6. Choices of objective</a>
+<li><a href="#org87300cb">2.5. Solution re-evaluation</a></li>
+<li><a href="#org523fc78">2.6. Choices of objective</a>
 <ul>
-<li><a href="#org4233f44">2.6.1. Market tariff</a></li>
+<li><a href="#orgaaa40cb">2.6.1. Market tariff</a></li>
 </ul>
 </li>
 </ul>
@@ -100,8 +100,8 @@
 </div>
 </div>
 
-<div id="outline-container-org8238b59" class="outline-2">
-<h2 id="org8238b59"><span class="section-number-2">1</span> High-level summary</h2>
+<div id="outline-container-org2a78f97" class="outline-2">
+<h2 id="org2a78f97"><span class="section-number-2">1.</span> High-level summary</h2>
 <div class="outline-text-2" id="text-1">
 <p>
 THERMOS optimises a model of a heat network. 
@@ -119,8 +119,8 @@ This section contains:
 </ul>
 </div>
 
-<div id="outline-container-org1168b12" class="outline-3">
-<h3 id="org1168b12"><span class="section-number-3">1.1</span> Decisions</h3>
+<div id="outline-container-org2cd9669" class="outline-3">
+<h3 id="org2cd9669"><span class="section-number-3">1.1.</span> Decisions</h3>
 <div class="outline-text-3" id="text-1-1">
 <p>
 The optimiser makes decisions about how the network should be arranged, picking values for <i>decision variables</i>.
@@ -163,8 +163,8 @@ In whole-system mode the optimiser may also be deciding about:
 </ul>
 </div>
 </div>
-<div id="outline-container-org520d49c" class="outline-3">
-<h3 id="org520d49c"><span class="section-number-3">1.2</span> Objective function</h3>
+<div id="outline-container-orge5f68e9" class="outline-3">
+<h3 id="orge5f68e9"><span class="section-number-3">1.2.</span> Objective function</h3>
 <div class="outline-text-3" id="text-1-2">
 <p>
 When making decisions the optimiser's goal is to maximise the value of an <i>objective function</i>. This is the calculation of the value of building the system that is described by the decisions.
@@ -237,8 +237,8 @@ None of the model's operating costs change over time, and they all repeat every 
 </div>
 </div>
 
-<div id="outline-container-org403c1fb" class="outline-3">
-<h3 id="org403c1fb"><span class="section-number-3">1.3</span> Pipe and supply capacity</h3>
+<div id="outline-container-org7172c27" class="outline-3">
+<h3 id="org7172c27"><span class="section-number-3">1.3.</span> Pipe and supply capacity</h3>
 <div class="outline-text-3" id="text-1-3">
 <p>
 Network capacity is determined by peak demands for connected buildings. However, if we simply add together the peaks of all the buildings, the total will be too large. 
@@ -253,8 +253,8 @@ To account for this an approximation is used, where the sum of the peak loads is
 </p>
 </div>
 
-<div id="outline-container-orgf81c8d1" class="outline-4">
-<h4 id="orgf81c8d1"><span class="section-number-4">1.3.1</span> Diversity factor</h4>
+<div id="outline-container-orgfb779ac" class="outline-4">
+<h4 id="orgfb779ac"><span class="section-number-4">1.3.1.</span> Diversity factor</h4>
 <div class="outline-text-4" id="text-1-3-1">
 <p>
 Demands are diversified using a <i>diversity factor</i> from the rule:
@@ -284,8 +284,8 @@ The form of the rule means that the diversity factor will tend to 0.62, for pipe
 </div>
 </div>
 
-<div id="outline-container-orgf5cc330" class="outline-4">
-<h4 id="orgf5cc330"><span class="section-number-4">1.3.2</span> Supply capacity</h4>
+<div id="outline-container-org8d23a53" class="outline-4">
+<h4 id="org8d23a53"><span class="section-number-4">1.3.2.</span> Supply capacity</h4>
 <div class="outline-text-4" id="text-1-3-2">
 <p>
 Supply locations must have capacity to meet the diversified sum of the peak demands they are serving.
@@ -293,8 +293,8 @@ Supply locations must have capacity to meet the diversified sum of the peak dema
 </div>
 </div>
 
-<div id="outline-container-org7e0f4e4" class="outline-4">
-<h4 id="org7e0f4e4"><span class="section-number-4">1.3.3</span> Multiple routes and supplies</h4>
+<div id="outline-container-orga3ef8a9" class="outline-4">
+<h4 id="orga3ef8a9"><span class="section-number-4">1.3.3.</span> Multiple routes and supplies</h4>
 <div class="outline-text-4" id="text-1-3-3">
 <p>
 In principle, if there are several supplies in the system, or several pipes connecting a building, the model can produce a solution in which the demand is split between supplies or between pipes. In this case the diversity factor still works in the same way.
@@ -303,7 +303,7 @@ In principle, if there are several supplies in the system, or several pipes conn
 </div>
 
 <div id="outline-container-pipe-diameter-calc" class="outline-4">
-<h4 id="pipe-diameter-calc"><span class="section-number-4">1.3.4</span> Pipe diameter and power</h4>
+<h4 id="pipe-diameter-calc"><span class="section-number-4">1.3.4.</span> Pipe diameter and power</h4>
 <div class="outline-text-4" id="text-pipe-diameter-calc">
 <p>
 Although the model works with pipes' capacity to deliver power, prices and heat losses are determined by the pipe diameter.
@@ -336,8 +336,8 @@ For steam pipes, the pipe capacity for a given diameter is computed by looking i
 </p>
 </div>
 </div>
-<div id="outline-container-org6e93c7e" class="outline-4">
-<h4 id="org6e93c7e"><span class="section-number-4">1.3.5</span> Pipe cost</h4>
+<div id="outline-container-org8c8a8a8" class="outline-4">
+<h4 id="org8c8a8a8"><span class="section-number-4">1.3.5.</span> Pipe cost</h4>
 <div class="outline-text-4" id="text-1-3-5">
 <p>
 Pipe cost is split into two parts, both functions of the pipe diameter.
@@ -371,7 +371,7 @@ To work out the cost of a particular pipe, THERMOS takes the mechanical and civi
 </div>
 </div>
 <div id="outline-container-pipe-heat-losses" class="outline-4">
-<h4 id="pipe-heat-losses"><span class="section-number-4">1.3.6</span> Pipe heat losses</h4>
+<h4 id="pipe-heat-losses"><span class="section-number-4">1.3.6.</span> Pipe heat losses</h4>
 <div class="outline-text-4" id="text-pipe-heat-losses">
 <p>
 Heat losses are also determined by pipe diameter, along with the flow temperature in the pipe and the ground temperature.
@@ -397,8 +397,8 @@ This basic loss is then reduced using an insulation factor drawn from another ta
 </div>
 </div>
 </div>
-<div id="outline-container-orga452fad" class="outline-3">
-<h3 id="orga452fad"><span class="section-number-3">1.4</span> Operating conditions</h3>
+<div id="outline-container-orgc474979" class="outline-3">
+<h3 id="orgc474979"><span class="section-number-3">1.4.</span> Operating conditions</h3>
 <div class="outline-text-3" id="text-1-4">
 <p>
 The network size determines the capital cost for plant and pipework, and the heat losses for pipework.
@@ -414,23 +414,23 @@ Heat production incurs a cost per unit, and heat delivered creates revenue per u
 </div>
 </div>
 
-<div id="outline-container-orgdc3e916" class="outline-3">
-<h3 id="orgdc3e916"><span class="section-number-3">1.5</span> Differences between heating and cooling</h3>
+<div id="outline-container-org2d40338" class="outline-3">
+<h3 id="org2d40338"><span class="section-number-3">1.5.</span> Differences between heating and cooling</h3>
 <div class="outline-text-3" id="text-1-5">
 <p>
 Heating and cooling systems are treated very similarly by the network model; the only differences are as follows:
 </p>
 </div>
-<div id="outline-container-org441a8a7" class="outline-4">
-<h4 id="org441a8a7"><span class="section-number-4">1.5.1</span> Flow and return temperatures</h4>
+<div id="outline-container-org2b896f6" class="outline-4">
+<h4 id="org2b896f6"><span class="section-number-4">1.5.1.</span> Flow and return temperatures</h4>
 <div class="outline-text-4" id="text-1-5-1">
 <p>
 When creating a new network problem, in a cooling problem the default flow temperature is below the return temperature (in fact, this is how the model decides whether a system is for heating or cooling).
 </p>
 </div>
 </div>
-<div id="outline-container-org47f6fea" class="outline-4">
-<h4 id="org47f6fea"><span class="section-number-4">1.5.2</span> Medium density</h4>
+<div id="outline-container-org1dfa673" class="outline-4">
+<h4 id="org1dfa673"><span class="section-number-4">1.5.2.</span> Medium density</h4>
 <div class="outline-text-4" id="text-1-5-2">
 <p>
 When calculating the size of pipes, the velocity function above is used to get a mass flow rate, which gives a heat flow rate. The mass flow rate involves water density, which varies with temperature.
@@ -441,8 +441,8 @@ Water density is determined using the mean of the flow and return temperatures, 
 </p>
 </div>
 </div>
-<div id="outline-container-org81c3a67" class="outline-4">
-<h4 id="org81c3a67"><span class="section-number-4">1.5.3</span> Pumping energy</h4>
+<div id="outline-container-org749704c" class="outline-4">
+<h4 id="org749704c"><span class="section-number-4">1.5.3.</span> Pumping energy</h4>
 <div class="outline-text-4" id="text-1-5-3">
 <p>
 However, they need different treatments in heating and cooling systems, as in a cooling system the pumping energy means extra work for the chillers, whereas for a heating system the pumping energy results in useful heat.
@@ -461,8 +461,8 @@ For the optimisation formulation, pumping energy and cost are incorporated into 
 </p>
 </div>
 </div>
-<div id="outline-container-org9791a18" class="outline-4">
-<h4 id="org9791a18"><span class="section-number-4">1.5.4</span> Heat losses / gains</h4>
+<div id="outline-container-orgee58ff0" class="outline-4">
+<h4 id="orgee58ff0"><span class="section-number-4">1.5.4.</span> Heat losses / gains</h4>
 <div class="outline-text-4" id="text-1-5-4">
 <p>
 For a cooling system, pipe losses are replaced with undesired gains, when the ground temperature is higher than the average flow temperature. These undesired gains must be overcome by the chillers in the plant.
@@ -475,16 +475,16 @@ This is reflected by negating the temperature difference when working out losses
 </div>
 </div>
 </div>
-<div id="outline-container-orgd880d7b" class="outline-2">
-<h2 id="orgd880d7b"><span class="section-number-2">2</span> Technical details</h2>
+<div id="outline-container-org4ca351a" class="outline-2">
+<h2 id="org4ca351a"><span class="section-number-2">2.</span> Technical details</h2>
 <div class="outline-text-2" id="text-2">
 <p>
 The THERMOS network optimisation is a heuristic centred around a mixed integer/linear programming approach<sup><a id="fnr.1" class="footref" href="#fn.1">1</a></sup>. This section describes the algorithm in more details.
 </p>
 </div>
 
-<div id="outline-container-orge734a72" class="outline-3">
-<h3 id="orge734a72"><span class="section-number-3">2.1</span> Overview</h3>
+<div id="outline-container-org52e7dfe" class="outline-3">
+<h3 id="org52e7dfe"><span class="section-number-3">2.1.</span> Overview</h3>
 <div class="outline-text-3" id="text-2-1">
 <p>
 The THERMOS network optimisation process works in a few steps:
@@ -546,12 +546,12 @@ Finally, we take the best solution we encountered in the parameter update loop a
 </div>
 </div>
 
-<div id="outline-container-org06365c5" class="outline-3">
-<h3 id="org06365c5"><span class="section-number-3">2.2</span> Problem preparation</h3>
+<div id="outline-container-org25bfa24" class="outline-3">
+<h3 id="org25bfa24"><span class="section-number-3">2.2.</span> Problem preparation</h3>
 <div class="outline-text-3" id="text-2-2">
 </div>
-<div id="outline-container-org119acdd" class="outline-4">
-<h4 id="org119acdd"><span class="section-number-4">2.2.1</span> Conversion to present values</h4>
+<div id="outline-container-org845c0e2" class="outline-4">
+<h4 id="org845c0e2"><span class="section-number-4">2.2.1.</span> Conversion to present values</h4>
 <div class="outline-text-4" id="text-2-2-1">
 <p>
 The MILP does not contain any representation of time, except for a distinction between peak and average operating conditions.
@@ -620,8 +620,8 @@ PV(\text{unit rate}) \times \text{size} = PV(\text{unit rate} \times \text{size}
 </div>
 </div>
 
-<div id="outline-container-orga481a16" class="outline-4">
-<h4 id="orga481a16"><span class="section-number-4">2.2.2</span> Flow bounds &amp; supply bounds</h4>
+<div id="outline-container-orgbcbed59" class="outline-4">
+<h4 id="orgbcbed59"><span class="section-number-4">2.2.2.</span> Flow bounds &amp; supply bounds</h4>
 <div class="outline-text-4" id="text-2-2-2">
 <p>
 The formulation of the MILP involves so-called "big-M" constraints (of which more later), and the use of linearised pipe costs. 
@@ -659,8 +659,8 @@ This reflects an assumption a route may be constructed with a connected componen
 </p>
 </div>
 </div>
-<div id="outline-container-orgcc8b940" class="outline-4">
-<h4 id="orgcc8b940"><span class="section-number-4">2.2.3</span> Linearised pipe costs</h4>
+<div id="outline-container-orgc657aab" class="outline-4">
+<h4 id="orgc657aab"><span class="section-number-4">2.2.3.</span> Linearised pipe costs</h4>
 <div class="outline-text-4" id="text-2-2-3">
 <p>
 Pipe costs are drawn from a table relating diameter to power, heat losses, and pipe cost. This table describes a typically nonlinear relationship for each of these pairs, effectively as a piecewise-linear function.
@@ -684,8 +684,8 @@ Because we have flow bounds for every potential pipe, we are able to restrict th
 </div>
 </div>
 
-<div id="outline-container-orgbd35a92" class="outline-4">
-<h4 id="orgbd35a92"><span class="section-number-4">2.2.4</span> Tidying up</h4>
+<div id="outline-container-orgbb2e425" class="outline-4">
+<h4 id="orgbb2e425"><span class="section-number-4">2.2.4.</span> Tidying up</h4>
 <div class="outline-text-4" id="text-2-2-4">
 <p>
 Finally we do a bit of tidying up to simplify the optimiser input, removing:
@@ -701,8 +701,8 @@ This combines any paths which can be combined.</li>
 </div>
 </div>
 
-<div id="outline-container-org57a5fdf" class="outline-3">
-<h3 id="org57a5fdf"><span class="section-number-3">2.3</span> Mixed-integer linear formulation</h3>
+<div id="outline-container-orgfaed7b7" class="outline-3">
+<h3 id="orgfaed7b7"><span class="section-number-3">2.3.</span> Mixed-integer linear formulation</h3>
 <div class="outline-text-3" id="text-2-3">
 <p>
 The result of the above process is a simplified problem description, containing the following information:
@@ -745,8 +745,8 @@ The result of the above process is a simplified problem description, containing 
 </ul>
 </div>
 
-<div id="outline-container-org5596a1e" class="outline-4">
-<h4 id="org5596a1e"><span class="section-number-4">2.3.1</span> Sketch</h4>
+<div id="outline-container-org46982fe" class="outline-4">
+<h4 id="org46982fe"><span class="section-number-4">2.3.1.</span> Sketch</h4>
 <div class="outline-text-4" id="text-2-3-1">
 <p>
 Before giving the formal description, here is a sketch of how the problem is defined; this should make the formalism a bit easier to read.
@@ -806,8 +806,8 @@ The detail of these is given below, but it mostly expresses a few simple rules:
 </div>
 </div>
 
-<div id="outline-container-orgc4988ca" class="outline-4">
-<h4 id="orgc4988ca"><span class="section-number-4">2.3.2</span> Formalism</h4>
+<div id="outline-container-org62fdb7f" class="outline-4">
+<h4 id="org62fdb7f"><span class="section-number-4">2.3.2.</span> Formalism</h4>
 <div class="outline-text-4" id="text-2-3-2">
 <p>
 First we should introduce some symbols for the mathematical formulation:
@@ -959,7 +959,7 @@ Disregarding insulation and skipping over heat losses for now, we constrain \(u_
 </p>
 
 
-<div id="orgaf8ab91" class="figure">
+<div id="orgec12011" class="figure">
 <p><object type="image/svg+xml" data="./formulation/example-flows.svg" class="org-svg">
 Sorry, your browser does not support SVG.</object>
 </p>
@@ -1052,8 +1052,8 @@ Where \(M\) is another big-M constraint determined when computing the flow bound
 </div>
 </div>
 
-<div id="outline-container-orgd1d2f49" class="outline-4">
-<h4 id="orgd1d2f49"><span class="section-number-4">2.3.3</span> Insulation</h4>
+<div id="outline-container-orgc1bd39d" class="outline-4">
+<h4 id="orgc1bd39d"><span class="section-number-4">2.3.3.</span> Insulation</h4>
 <div class="outline-text-4" id="text-2-3-3">
 <p>
 Each demand location may potentially have some amount of insulation installed.
@@ -1126,8 +1126,8 @@ The slack here does create a possible odd outcome, where the model buys insulati
 </div>
 </div>
 
-<div id="outline-container-org7120012" class="outline-4">
-<h4 id="org7120012"><span class="section-number-4">2.3.4</span> Individual systems</h4>
+<div id="outline-container-org97f6e3d" class="outline-4">
+<h4 id="org97f6e3d"><span class="section-number-4">2.3.4.</span> Individual systems</h4>
 <div class="outline-text-4" id="text-2-3-4">
 <p>
 Individual systems (called <i>alternatives</i> in the code) are handled separately from the network model. The use of an individual system to heat a demand location is represented by a single binary decision variable \(\mathit{ALTIN}_{i, t}\) (where \(i \in \mathit{DVTX}\) and \(t \in \mathit{ALT}\)).
@@ -1196,8 +1196,8 @@ Like the slack in the unmet demand constraint, this does allow a situation in wh
 </div>
 </div>
 
-<div id="outline-container-org55a007f" class="outline-3">
-<h3 id="org55a007f"><span class="section-number-3">2.4</span> Parameter updates</h3>
+<div id="outline-container-org8d8ccad" class="outline-3">
+<h3 id="org8d8ccad"><span class="section-number-3">2.4.</span> Parameter updates</h3>
 <div class="outline-text-3" id="text-2-4">
 <p>
 In the formalism above there are two sets of parameters &#x2013; constants, from the point of view of the MILP &#x2013; which we have referred to but not explained. 
@@ -1227,8 +1227,8 @@ We stop this process if the solution stops changing, or if we find that we are i
 </p>
 </div>
 
-<div id="outline-container-org4adbda3" class="outline-4">
-<h4 id="org4adbda3"><span class="section-number-4">2.4.1</span> Finding diversity factors</h4>
+<div id="outline-container-org7eef44b" class="outline-4">
+<h4 id="org7eef44b"><span class="section-number-4">2.4.1.</span> Finding diversity factors</h4>
 <div class="outline-text-4" id="text-2-4-1">
 <p>
 The diversity (or perhaps more properly coincidence) factor for a pipe in THERMOS is calculated using the rule:
@@ -1250,7 +1250,7 @@ Given a candidate solution, we work out a value of \(n\) for each edge by traver
 </div>
 
 <ol class="org-ol">
-<li><a id="orgb06dfee"></a>Preventing invalid configurations<br />
+<li><a id="orgf257c99"></a>Preventing invalid configurations<br />
 <div class="outline-text-5" id="text-2-4-1-1">
 <p>
 The diversity factor rule is slightly too simple, as it allows an incoherent outcome: consider a Y-shaped junction in a network, with the forks of the Y each feeding a single demand, and the stem being the pipe to/from the supply.
@@ -1265,7 +1265,7 @@ To prevent this happening, we also determine for each pipe the maximum peak dema
 </p>
 
 
-<div id="org1fef4a0" class="figure">
+<div id="org9ed1f38" class="figure">
 <p><object type="image/svg+xml" data="./img/formulation/bad-diversity.svg" class="org-svg">
 Sorry, your browser does not support SVG.</object>
 </p>
@@ -1273,7 +1273,7 @@ Sorry, your browser does not support SVG.</object>
 </div>
 </li>
 
-<li><a id="org874d7a0"></a>Initial diversity factors<br />
+<li><a id="org04e99cf"></a>Initial diversity factors<br />
 <div class="outline-text-5" id="text-2-4-1-2">
 <p>
 Since the choice of diversity factor depends on having a solution, we must choose some initial diversity values to parameterise the MILP before we have found any solution. We start with the most <i>optimistic</i> diversity value, which is the maximum that could happen in any solution; this is to help the optimiser avoid ruling out the use of a pipe which would be a good choice when allowing for diversity.
@@ -1283,8 +1283,8 @@ Since the choice of diversity factor depends on having a solution, we must choos
 </ol>
 </div>
 
-<div id="outline-container-orgcdd4977" class="outline-4">
-<h4 id="orgcdd4977"><span class="section-number-4">2.4.2</span> Finding heat losses</h4>
+<div id="outline-container-org8fe3b52" class="outline-4">
+<h4 id="org8fe3b52"><span class="section-number-4">2.4.2.</span> Finding heat losses</h4>
 <div class="outline-text-4" id="text-2-4-2">
 <p>
 Like diversity, heat losses cannot be calculated within the optimisation and so are computed afterwards. The heat loss for each pipe is determined from the pipe's required capacity, indirectly from a model fitted between pipe diameter and heat loss rate.
@@ -1292,7 +1292,7 @@ Like diversity, heat losses cannot be calculated within the optimisation and so 
 </div>
 
 <ol class="org-ol">
-<li><a id="org8bcf511"></a>Initial heat losses<br />
+<li><a id="orgad4450a"></a>Initial heat losses<br />
 <div class="outline-text-5" id="text-2-4-2-1">
 <p>
 The heat losses for each pipe are initialized to the lowest values implied by the lower bound on the power the pipe might deliver if it were used in the network. This is the most optimistic assumption.
@@ -1303,8 +1303,8 @@ The heat losses for each pipe are initialized to the lowest values implied by th
 </div>
 </div>
 
-<div id="outline-container-orgba4df6e" class="outline-3">
-<h3 id="orgba4df6e"><span class="section-number-3">2.5</span> Solution re-evaluation</h3>
+<div id="outline-container-org87300cb" class="outline-3">
+<h3 id="org87300cb"><span class="section-number-3">2.5.</span> Solution re-evaluation</h3>
 <div class="outline-text-3" id="text-2-5">
 <p>
 Once the iteration described earlier is finished, we take the best solution seen so far, fix its parameters to reflect proper diversity and heat loss values, and then re-solve it with all the binary decision variables constrained so that the solution does not change. This solution is the solution used as the result.
@@ -1316,8 +1316,8 @@ This could be improved slightly by doing this to every solution considered, and 
 </div>
 </div>
 
-<div id="outline-container-orga99803d" class="outline-3">
-<h3 id="orga99803d"><span class="section-number-3">2.6</span> Choices of objective</h3>
+<div id="outline-container-org523fc78" class="outline-3">
+<h3 id="org523fc78"><span class="section-number-3">2.6.</span> Choices of objective</h3>
 <div class="outline-text-3" id="text-2-6">
 <p>
 The application user interface displays two choices of objective, <i>network NPV</i> and <i>whole-system NPV</i>.
@@ -1351,8 +1351,8 @@ In whole-system mode, the revenues to the network operator are not considered, a
 </p>
 </div>
 
-<div id="outline-container-org4233f44" class="outline-4">
-<h4 id="org4233f44"><span class="section-number-4">2.6.1</span> Market tariff</h4>
+<div id="outline-container-orgaaa40cb" class="outline-4">
+<h4 id="orgaaa40cb"><span class="section-number-4">2.6.1.</span> Market tariff</h4>
 <div class="outline-text-4" id="text-2-6-1">
 <p>
 In network NPV mode, the astute reader may notice something unfair: if you set an emissions cost, the network has to pay it for anyone that it supplies.

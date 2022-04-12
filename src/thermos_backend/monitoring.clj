@@ -39,7 +39,7 @@
            
            (let [type-info (get types metric-name :gauge)
                  type-doc (get doc metric-name "Undocumented")
-                 metric-name (clean-name metric-name)]
+                 metric-name (str "thermos_" (clean-name metric-name))]
              [(str "# HELP " metric-name " " type-doc)
               (str "# TYPE " metric-name " " (name type-info))
               (for [metric metrics]
@@ -47,14 +47,32 @@
                 )]))))
        "\n"))
 
+(defn- earlier [^java.sql.Timestamp a ^java.sql.Timestamp b]
+  (cond
+    (nil? a) b
+    (nil? b) a
+    :else (if (.before a b) a b)))
+
 (defn- system-metrics
   "Gather some metrics about the system in a format suitable for format-metrics to use."
   []
 
-  (let [queue-states (frequencies
-                      (map (juxt :queue-name :state)
-                           (queue/list-tasks)))]
+  (let [tasks (queue/list-tasks)
+        queue-states (frequencies
+                      (map (juxt :queue-name :state) tasks))
+        oldest-task  (reduce
+                      (fn [a {:keys [queue-name state queued]}]
+                        ;; we want to know how old the oldest unfinished task is
+                        (update a [queue-name state] earlier queued))
+                      {}
+                      tasks)
+        ]
     (concat
+     (for [[[queue-name state] max-age] oldest-task]
+       {:name :oldest-task
+        :value (int (/ (.getTime max-age) 1000))
+        :queue-name queue-name
+        :task-state state})
      (for [[[queue state] n] queue-states]
        {:name :queue-count
         :value n
@@ -69,4 +87,6 @@
   (format-metrics
    (system-metrics)
    :doc {:queue-count "The number of entries in each queue"
-           :object-count "The number of rows in database tables"}))
+         :object-count "The number of rows in database tables"
+         :oldest-task "The age of the oldest task in each state / queue"
+         }))

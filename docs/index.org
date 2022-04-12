@@ -32,7 +32,7 @@ Welcome to the help for THERMOS. You can search the help if you know what you ar
 
 * Demand estimator
 
-- Demand estimation methodology :: This document is not ready yet
+- [[file:demand/demand-model.org][Demand estimation methodology]] :: Summarises how THERMOS' heat demand estimation model works.
 
 * Data sources
 

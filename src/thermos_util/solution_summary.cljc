@@ -40,12 +40,12 @@
 
         sum-cost-outputs
         (fn [& {:keys [capex opex revenue]}]
-          (let [tcapex (when capex   (reduce + (map capex-mode capex)))
-                topex  (when opex    (reduce + (map opex-mode opex)))
-                trev   (when revenue (reduce + (map opex-mode revenue)))
-                tpc    (+ (reduce + 0 (map :present capex))
-                          (reduce + 0 (map :present opex)))
-                tpv    (reduce + 0 (map :present revenue))
+          (let [tcapex (when capex   (reduce + 0 (keep capex-mode capex)))
+                topex  (when opex    (reduce + 0 (keep opex-mode opex)))
+                trev   (when revenue (reduce + 0 (keep opex-mode revenue)))
+                tpc    (+ (reduce + 0 (keep :present capex))
+                          (reduce + 0 (keep :present opex)))
+                tpv    (reduce + 0 (keep :present revenue))
                 tnpv   (- tpv tpc)]
             {:capex tcapex :opex topex :revenue trev :present tnpv
              :present-cost tpc}))
