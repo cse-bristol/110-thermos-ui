@@ -248,54 +248,68 @@ The different options are those supplied after --retry, so mostly you can use th
                                                  (.endsWith name ".tiff")))))
                              (lidar/rasters->index))
 
-            buildings (lidar/add-lidar-to-shapes
-                       {::geoio/crs (::geoio/crs buildings-crs)
-                        ::geoio/features
-                        (for [b buildings]
-                          (let [is-resi (as-boolean (or
-                                                     (not resi-field)
-                                                     (and resi-field
-                                                          (get b resi-field))))
-                                height (and height-field
-                                            (as-double (get b height-field)))
+            buildings
+            (for [b buildings]
+              (let [is-resi (as-boolean (or
+                                         (not resi-field)
+                                         (and resi-field
+                                              (get b resi-field))))
+                    height (and height-field
+                                (as-double (get b height-field)))
 
-                                fallback-height (and fallback-height-field
-                                                     (as-double (get b fallback-height-field)))
+                    fallback-height (and fallback-height-field
+                                         (as-double (get b fallback-height-field)))
 
-                                demand (and demand-field
-                                            (as-double (get b demand-field)))
-                                
-                                peak (and peak-field
-                                          (as-double (get b peak-field)))
-                                
-                                count (max 1
-                                           (or (and count-field
-                                                    (as-integer (get b count-field)))
-                                               1))
+                    demand (and demand-field
+                                (as-double (get b demand-field)))
+                    
+                    peak (and peak-field
+                              (as-double (get b peak-field)))
+                    
+                    count (max 1
+                               (or (and count-field
+                                        (as-integer (get b count-field)))
+                                   1))]
+                
+                (-> b
+                    (assoc :residential is-resi
+                           :connection-count count)
+                    (cond->
+                        height
+                      (assoc :height height)
 
+                      fallback-height
+                      (assoc :fallback-height fallback-height)
 
-                                b (-> b
-                                      (assoc :residential is-resi
-                                             :connection-count count)
-                                      (cond->
-                                          height
-                                        (assoc :height height)
+                      demand
+                      (assoc :annual-demand demand)
 
-                                        fallback-height
-                                        (assoc :fallback-height fallback-height)
+                      peak
+                      (assoc :peak-demand peak))
+                    
+                    )))
 
-                                        demand
-                                        (assoc :annual-demand demand)))
+            buildings
+            (-> (lidar/add-lidar-to-shapes
+                 {::geoio/features buildings ::geoio/crs buildings-crs}
+                 lidar-index)
+                (::geoio/features))
 
-                                b (importer/produce-heat-demand b sqrt-degree-days)
-                                ]
-                            (assoc b :peak-demand
-                                   (or peak
-                                       (importer/run-peak-model (:annual-demand b))))
-                            ))}
-                       
-                       lidar-index)]
-        (::geoio/features buildings)
+            buildings
+            (for [b buildings]
+              (let [b
+                    (-> b
+                        (importer/add-areas)
+                        (importer/produce-heat-demand sqrt-degree-days)
+                        
+                        
+                        )]
+                (cond-> b
+                  (not (:peak-demand b))
+                  (assoc :peak-demand
+                         (importer/run-peak-model (:annual-demand b))))))]
+        
+        buildings
         ))))
 
 (defn- match
@@ -712,10 +726,8 @@ The different options are those supplied after --retry, so mostly you can use th
                                  ::geoio/crs (::geoio/crs geodata)}
 
                                 (generate-demands    options)
-                                
-                                ;; areas for measures to work on
-                                ;; has to happen after generate-demands as that runs lidar/etc
-                                (->> (map importer/add-areas))))
+
+                                ))
         
         instance
         (apply merge

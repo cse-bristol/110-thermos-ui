@@ -61,7 +61,7 @@
   (if (= thing "-")
     (proxy [java.io.FilterWriter] [(io/writer System/out)]
       (close [] (proxy-super flush)))
-    (let [thing (io/file thing)
+    (let [thing (io/as-file thing)
           parent (.getParentFile thing)]
       (when-not (.exists parent) (.mkdirs parent))
       (if (has-extension thing "gz")
