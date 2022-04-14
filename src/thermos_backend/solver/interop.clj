@@ -822,10 +822,11 @@
 
                 connection-cost      (document/connection-cost-for-building instance v)
                 
-                insulation           (for [[id kwh] (:insulation solution-vertex)]
+                insulation           (for [[id kwh] (:insulation solution-vertex)
+                                           :when (> (Math/abs kwh) 1.0)]
                                        (output-insulation instance v id kwh))
 
-                total-insulation-kwh (reduce + 0 (map :kwh insulation))
+                total-insulation-kwh (reduce + 0 (keep :kwh insulation))
                 effective-demand     (- (candidate/annual-demand v (document/mode instance))
                                         total-insulation-kwh)
 
@@ -859,7 +860,7 @@
                 
                 (cond-> 
                     ;; measures and alt systems
-                  alternative
+                    alternative
                   (output-alternative instance alternative)
 
                   ;; insulation needs costs working out
@@ -889,7 +890,7 @@
                             pumping-kwh          (* output-kwh pumping-overhead)
                             is-cooling           (document/is-cooling? instance)
 
-                             ;; +/- pumping overhead
+                            ;; +/- pumping overhead
                             output-kwh (if (document/is-cooling? instance)
                                          (+ output-kwh pumping-kwh)
                                          (- output-kwh pumping-kwh))]
