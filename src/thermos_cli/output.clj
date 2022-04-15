@@ -61,10 +61,12 @@
   (if (= thing "-")
     (proxy [java.io.FilterWriter] [(io/writer System/out)]
       (close [] (proxy-super flush)))
-    (if (has-extension thing "gz")
-      (io/writer (GZIPOutputStream. (io/output-stream (io/file thing))))
-      (io/writer (io/file thing)))
-    ))
+    (let [thing (io/as-file thing)
+          parent (.getParentFile thing)]
+      (when-not (.exists parent) (.mkdirs parent))
+      (if (has-extension thing "gz")
+        (io/writer (GZIPOutputStream. (io/output-stream (io/file thing))))
+        (io/writer (io/file thing))))))
 
 (defmethod save-state [:default :edn]
   [instance path]
