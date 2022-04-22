@@ -821,10 +821,11 @@
 
                 connection-cost      (document/connection-cost-for-id instance (::tariff/cc-id v))
                 
-                insulation           (for [[id kwh] (:insulation solution-vertex)]
+                insulation           (for [[id kwh] (:insulation solution-vertex)
+                                           :when (> (Math/abs kwh) 1.0)]
                                        (output-insulation instance v id kwh))
 
-                total-insulation-kwh (reduce + 0 (map :kwh insulation))
+                total-insulation-kwh (reduce + 0 (keep :kwh insulation))
                 effective-demand     (- (candidate/annual-demand v (document/mode instance))
                                         total-insulation-kwh)
 
