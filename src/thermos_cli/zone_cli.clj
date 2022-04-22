@@ -508,7 +508,7 @@ If not given, does the base-case instead (no network)."
                         ::document/objective             :system
                         ::document/consider-alternatives true
                         ::document/consider-insulation   true
-                        ::document/maximum-supply-sites 1
+                        ::document/maximum-supply-sites  1
 
                         ::document/npv-rate  (:finance/npv-rate parameters)
                         ::document/npv-term  (:finance/npv-term parameters)
@@ -519,7 +519,16 @@ If not given, does the base-case instead (no network)."
                         ::document/maximum-runtime (double
                                                     (/ 3600 (:thermos/runtime-limit
                                                              parameters)))
+                        
                         ::document/maximum-iterations (:thermos/iteration-limit parameters)
+
+                        ::document/capital-costs
+                        {:connection  {:recur true :period (:finance/building-hx-lifetime parameters)}
+                         :supply      {:recur true :period (:finance/substation-lifetime parameters)}
+                         :pipework    {:recur true :period (:finance/distribution-lifetime parameters)}
+                         :insulation  {:recur true :period (:finance/insulation-lifetime parameters)}
+                         :alternative {:recur true :period (:finance/individual-system-lifetime parameters)}
+                         }
                         )
                        )
 
