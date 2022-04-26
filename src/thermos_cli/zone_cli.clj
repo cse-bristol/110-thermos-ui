@@ -476,8 +476,7 @@ If not given, does the base-case instead (no network)."
                         ::document/mip-gap   (:thermos/mip-gap parameters)
 
                         ::document/maximum-runtime (double
-                                                    (/ 3600 (:thermos/runtime-limit
-                                                             parameters)))
+                                                    (/ (:thermos/runtime-limit parameters) 3600))
                         
                         ::document/maximum-iterations (:thermos/iteration-limit parameters)
 
