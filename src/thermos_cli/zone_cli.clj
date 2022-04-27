@@ -452,7 +452,6 @@ If not given, does the base-case instead (no network)."
         candidates (make-candidates parameters paths buildings)
 
         pipe-costs                     (:thermos/pipe-costs parameters)
-        civil->id                      (set/map-invert (:civils pipe-costs))
 
         insulation                     (:thermos/insulation parameters)
         alternatives                   (:thermos/alternatives parameters)
