@@ -453,9 +453,17 @@ If not given, does the base-case instead (no network)."
 
         pipe-costs                     (:thermos/pipe-costs parameters)
 
-        insulation                     (:thermos/insulation parameters)
-        alternatives                   (:thermos/alternatives parameters)
-        connection-costs               (:thermos/connection-costs parameters)
+        insulation                     (->> (for [[id x] (:thermos/insulation parameters)])
+                                            [id (assoc x ::measure/id id)]
+                                            (into {}))
+        
+        alternatives                   (->> (for [[id x] (:thermos/alternatives parameters)])
+                                            [id (assoc x ::supply/id id)]
+                                            (into {}))
+        
+        connection-costs               (->> (for [[id x] (:thermos/connection-costs parameters)])
+                                            [id (assoc x ::tariff/cc-id id)]
+                                            (into {}))
         
         insulation-rules      (:thermos/insulation-rules  parameters)
         alternative-rules     (:thermos/alternative-rules parameters)
