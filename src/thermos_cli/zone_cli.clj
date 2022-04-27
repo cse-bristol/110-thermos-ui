@@ -521,9 +521,7 @@ If not given, does the base-case instead (no network)."
         _ (print-summary problem)
         
         ;; crunch crunch run model
-        solution   (interop/try-solve problem
-                                      (fn [& args] (binding [*out* *err*]
-                                                     (println args))))
+        solution   (interop/try-solve problem (fn [& args]))
         
         {buildings :building paths :path} (document/candidates-by-type solution)
         supplies               (filter candidate/supply-in-solution? buildings)
