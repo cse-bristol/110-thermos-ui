@@ -360,6 +360,34 @@ If not given, does the base-case instead (no network)."
 (defn gzip-edn [thing]
   (gzip-string (with-out-str (prn thing))))
 
+(defn- print-summary [problem]
+  (def -last-thing problem)
+  (let [alternatives (::document/alternatives problem)
+        insulation   (::document/measures problem)
+        civils       (:civils (::document/pipe-costs problem))
+        con-cost     (::document/connection-costs problem)
+        candidates   (vals (::document/candidates problem))]
+
+    (println "Alternatives:"
+             (frequencies
+              (map (comp ::supply/name alternatives)
+                   (mapcat ::demand/alternatives candidates))))
+
+    (println "Insulations:"
+             (frequencies
+              (map (comp ::measure/name insulation)
+                   (mapcat  ::demand/insulation candidates))))
+
+    (println "Civils:"
+             (frequencies
+              (keep (comp civils ::path/civil-cost-id) candidates)))
+
+    (println "Con. cost:"
+             (frequencies
+              (keep (comp ::tariff/name con-cost ::tariff/cc-id) candidates)))
+    ))
+
+
 (defn- run-with [{:keys [input-file output-file parameters heat-price]}]
   {:pre [(and input-file parameters output-file)]}
   (when (.exists output-file)
@@ -490,6 +518,8 @@ If not given, does the base-case instead (no network)."
                         )
                        )
 
+        _ (print-summary problem)
+        
         ;; crunch crunch run model
         solution   (interop/try-solve problem
                                       (fn [& args] (binding [*out* *err*]
