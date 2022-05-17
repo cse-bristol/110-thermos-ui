@@ -51,6 +51,7 @@
             [thermos-backend.importer.process :as importer]
             [thermos-specs.defaults :as defaults]
             [thermos-specs.document :as document]
+            [thermos-specs.tariff :as tariff]
             [thermos-backend.solver.interop :as interop]
             [thermos-specs.measure :as measure]
             [thermos-specs.supply :as supply]
@@ -215,10 +216,11 @@ If not given, does the base-case instead (no network)."
                          ids)))
         (reduced))))
 
-(defn- assign-building-options [candidate insulation-rules alternative-rules]
+(defn- assign-building-options [candidate insulation-rules alternative-rules connection-cost-rules]
   (as-> candidate c
     (reduce (partial assign-by-rules true ::demand/insulation)   c insulation-rules)
-    (reduce (partial assign-by-rules true ::demand/alternatives) c alternative-rules)))
+    (reduce (partial assign-by-rules true ::demand/alternatives) c alternative-rules)
+    (reduce (partial assign-by-rules false ::tariff/cc-id)       c connection-cost-rules)))
 
 (defn- assign-civil-cost [candidate civils-rules]
   (reduce (partial assign-by-rules false ::path/civil-cost-id) candidate civils-rules))
@@ -227,43 +229,6 @@ If not given, does the base-case instead (no network)."
   (reduce (partial assign-by-rules false ::candidate/inclusion)
           (assoc candidate ::candidate/inclusion :optional)
           requirement-rules))
-
-(defn index
-  "Utility to build an 'index' of `xs`, a seq of things that have `name-key`
-
-  Returns a tuple of:
-  - a map from an ID to each element of `xs`. The elements are updated
-    so that `id-key` gives their key in this map.
-  - a map to these IDs from `name-key` values
-
-  f.e.
-
-  (index [{:name :hello} {:name :world}] :name :id) =>
-  [
-    {0 {:name :hello :id 0} 1 {:name :world :id 1}}
-    {:hello 0 :world 1}
-  ]
-
-  This is used in concert with rules & alternative / insulation definitions
-  "
-  [xs name-key id-key]
-  (let [xs (into {} (map-indexed
-                     (fn [i x] [i (assoc x id-key i)])
-                     xs))]
-    [xs
-     (into {}
-           (set/map-invert
-            (for [[id x] xs] [id (name-key x)])))]))
-
-(defn index-rules
-  "Update a set of rules using the second half of the value from `index` above.
-  a rule looks like [rule name-or-names] and we want [rule id-or-ids]
-  "
-  [rules index]
-  (for [[rule targets] rules]
-    [rule (if (coll? targets)
-            (mapv index targets)
-            (index targets))]))
 
 (defn add-supply-points
   "Modify `instance` to have `n` supply points with the given
@@ -395,6 +360,34 @@ If not given, does the base-case instead (no network)."
 (defn gzip-edn [thing]
   (gzip-string (with-out-str (prn thing))))
 
+(defn- print-summary [problem]
+  (def -last-thing problem)
+  (let [alternatives (::document/alternatives problem)
+        insulation   (::document/measures problem)
+        civils       (:civils (::document/pipe-costs problem))
+        con-cost     (::document/connection-costs problem)
+        candidates   (vals (::document/candidates problem))]
+
+    (println "Alternatives:"
+             (frequencies
+              (map (comp ::supply/name alternatives)
+                   (mapcat ::demand/alternatives candidates))))
+
+    (println "Insulations:"
+             (frequencies
+              (map (comp ::measure/name insulation)
+                   (mapcat  ::demand/insulation candidates))))
+
+    (println "Civils:"
+             (frequencies
+              (keep (comp civils ::path/civil-cost-id) candidates)))
+
+    (println "Con. cost:"
+             (frequencies
+              (keep (comp ::tariff/name con-cost ::tariff/cc-id) candidates)))
+    ))
+
+
 (defn- run-with [{:keys [input-file output-file parameters heat-price]}]
   {:pre [(and input-file parameters output-file)]}
   (when (.exists output-file)
@@ -444,8 +437,7 @@ If not given, does the base-case instead (no network)."
         [paths buildings] (noder/node-connect input-features (noder-options parameters))
 
         _ (println (count buildings) "/" (count paths)
-                   "buildings / paths"
-                   )
+                   "buildings / paths")
 
         ;; do some area calculations for measures to work right
         buildings
@@ -460,36 +452,38 @@ If not given, does the base-case instead (no network)."
         candidates (make-candidates parameters paths buildings)
 
         pipe-costs                     (:thermos/pipe-costs parameters)
-        civil->id                      (set/map-invert (:civils pipe-costs))
-        
-        [insulation insulation->id]    (index (:thermos/insulation parameters)
-                                              ::measure/name
-                                              ::measure/id)
-        
-        [alternatives alternative->id] (index (:thermos/alternatives parameters)
-                                              ::supply/name
-                                              ::supply/id)
 
-        insulation-rules  (index-rules (:thermos/insulation-rules  parameters)
-                                       insulation->id)
-        alternative-rules (index-rules (:thermos/alternative-rules parameters)
-                                       alternative->id)
-        civils-rules      (index-rules (:thermos/civils-rules parameters)
-                                       civil->id)
+        insulation                     (->> (for [[id x] (:thermos/insulation parameters)]
+                                              [id (assoc x ::measure/id id)])
+                                            (into {}))
+        
+        alternatives                   (->> (for [[id x] (:thermos/alternatives parameters)]
+                                              [id (assoc x ::supply/id id)])
+                                            (into {}))
+        
+        connection-costs               (->> (for [[id x] (:thermos/connection-costs parameters)]
+                                              [id (assoc x ::tariff/cc-id id)])
+                                            (into {}))
+        
+        insulation-rules      (:thermos/insulation-rules  parameters)
+        alternative-rules     (:thermos/alternative-rules parameters)
+        civils-rules          (:thermos/civils-rules parameters)
+        connection-cost-rules (:thermos/connection-cost-rules parameters)
 
         
         ;; construct problem
         problem    (-> defaults/default-document
                        (assoc
-                        ::document/candidates   candidates
-                        ::document/pipe-costs   pipe-costs  
-                        ::document/insulation   insulation  
-                        ::document/alternatives alternatives)
+                        ::document/candidates       candidates
+                        ::document/pipe-costs       pipe-costs
+                        ::document/insulation       insulation
+                        ::document/alternatives     alternatives
+                        ::document/connection-costs connection-costs)
 
                        ;; apply rules for technologies & requirement
                        (document/map-buildings #(assign-building-options
-                                                 % insulation-rules alternative-rules))
-
+                                                 % insulation-rules alternative-rules connection-cost-rules))
+                       
                        (document/map-paths #(assign-civil-cost % civils-rules))                       
                        (document/map-candidates #(set-requirement % requirement-rules))
 
@@ -508,7 +502,7 @@ If not given, does the base-case instead (no network)."
                         ::document/objective             :system
                         ::document/consider-alternatives true
                         ::document/consider-insulation   true
-                        ::document/maximum-supply-sites 1
+                        ::document/maximum-supply-sites  1
 
                         ::document/npv-rate  (:finance/npv-rate parameters)
                         ::document/npv-term  (:finance/npv-term parameters)
@@ -517,16 +511,24 @@ If not given, does the base-case instead (no network)."
                         ::document/mip-gap   (:thermos/mip-gap parameters)
 
                         ::document/maximum-runtime (double
-                                                    (/ 3600 (:thermos/runtime-limit
-                                                             parameters)))
+                                                    (/ (:thermos/runtime-limit parameters) 3600))
+                        
                         ::document/maximum-iterations (:thermos/iteration-limit parameters)
+
+                        ::document/capital-costs
+                        {:connection  {:recur true :period (:finance/building-hx-lifetime parameters)}
+                         :supply      {:recur true :period (:finance/substation-lifetime parameters)}
+                         :pipework    {:recur true :period (:finance/distribution-lifetime parameters)}
+                         :insulation  {:recur true :period (:finance/insulation-lifetime parameters)}
+                         :alternative {:recur true :period (:finance/individual-system-lifetime parameters)}
+                         }
                         )
                        )
 
+        _ (print-summary problem)
+        
         ;; crunch crunch run model
-        solution   (interop/try-solve problem
-                                      (fn [& args] (binding [*out* *err*]
-                                                     (println args))))
+        solution   (interop/try-solve problem (fn [& args]))
         
         {buildings :building paths :path} (document/candidates-by-type solution)
         supplies               (filter candidate/supply-in-solution? buildings)
