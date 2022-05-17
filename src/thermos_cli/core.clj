@@ -189,6 +189,9 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
 
    [nil "--param-gap X%" "Stop if parameter fixing has less than X% effect"
     :parse-fn #(/ (Double/parseDouble %) 100.0)]
+
+   [nil "--force-insulation" "Force all allowed insulation to maximum"]
+   [nil "--whole-system" "Switch to whole-system optimisation with insulation & alternatives"]
    
    [nil "--set '[A B C V]'"
     "Set the value at path A B C to value V"
@@ -739,6 +742,16 @@ The different options are those supplied after --retry, so mostly you can use th
                    (when (:import/errors in)
                      (throw (ex-info "Spreadsheet not valid" in)))
                    in))
+               
+               (when (:force-insulation options)
+                 (log/info "Force insulation to on")
+                 {::document/force-insulation true})
+
+               (when (:whole-system options)
+                 (log/info "Force whole-system optimisation mode")
+                 {::document/consider-insulation true
+                  ::document/consider-alternatives true
+                  ::document/objective :system})
                
                (when-let [base
                           (seq
