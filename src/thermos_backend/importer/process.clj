@@ -104,7 +104,8 @@
                                     (assoc :storeys osm-levels)
 
                                     osm-height
-                                    (assoc :fallback-height osm-height)))
+                                    (-> (assoc :fallback-height osm-height)
+                                        (dissoc :height))))
             
             set-specials       #(cond-> %
                                   (= (:osm-id %) "289662492")
