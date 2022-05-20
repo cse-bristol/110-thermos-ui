@@ -64,9 +64,6 @@
             PreparedStatement Types])
   (:gen-class))
 
-(def +rounding-main-runtime+    0.85)
-(def +rounding-rounded-runtime+ (- 1.0 +rounding-main-runtime+))
-
 (def options
   [["-i" "--input-file FILE"
     "The input file; this should be a geopackage having the expected form"
@@ -640,6 +637,25 @@ If not given, does the base-case instead (no network)."
        paths
        :crs crs))))
 
+(defn- output-metadata [solution rounded output-file]
+  (write-sqlite
+     output-file
+     "meta"
+     [["rounded" :boolean  (constantly rounded)]
+      ["runtime" :double   ::solution/runtime]
+      ["objective" :double ::solution/objective]
+      ["gap" :double       (fn [x] (when-let [g (::solution/gap x)]
+                                     (* g 100.0)))]
+      ["state" :string     (comp name ::solution/state)]
+      ["message" :string   ::solution/message]
+      ["iterations" :int   ::solution/iterations]
+      ["lower_bound" :double (comp first ::solution/bounds)]
+      ["upper_bound" :double (comp second ::solution/bounds)]
+      ["edn" :blob (fn [x] (gzip-edn (dissoc x ::solution/log)))]
+      ["log" :blob (fn [x] (gzip-string (::solution/log x)))]]
+
+     [solution]))
+
 (defn- run-optimiser [{:keys [input-file output-file parameters heat-price
                               output-geometry]
                        :as options}]
@@ -784,22 +800,7 @@ If not given, does the base-case instead (no network)."
         
         ]
 
-    (write-sqlite
-     output-file
-     "meta"
-     [["rounded" :boolean  (constantly false)]
-      ["runtime" :double   ::solution/runtime]
-      ["objective" :double ::solution/objective]
-      ["gap" :double       ::solution/gap]
-      ["state" :string     (comp str ::solution/state)]
-      ["message" :string   ::solution/message]
-      ["iterations" :int   ::solution/iterations]
-      ["lower_bound" :double (comp first ::solution/bounds)]
-      ["upper_bound" :double (comp second ::solution/bounds)]
-      ["edn" :blob (fn [x] (gzip-edn (dissoc x ::solution/log)))]
-      ["log" :blob (fn [x] (gzip-string (::solution/log x)))]]
-
-     [solution])
+    (output-metadata solution false output-file)
     
     (output problem
             buildings
@@ -813,6 +814,7 @@ If not given, does the base-case instead (no network)."
 
 (defn- round-solution [{:keys [input-file output-file parameters
                                output-geometry]}]
+  ;; TODO we could say if there is no heat price cheat and output the input
   (let [parameters (read-edn parameters)
         solution   (read-edn input-file)
 
@@ -820,32 +822,14 @@ If not given, does the base-case instead (no network)."
         (round-groups solution parameters)
         
         rounded-solution
-        (-> (assoc rounded-problem ::document/maximum-runtime
-                   (* +rounding-rounded-runtime+ (::document/maximum-runtime solution)))
-            (interop/try-solve (fn [& _])))
-        
+        (interop/try-solve rounded-problem (fn [& _]))
 
         {buildings :building
          paths :path}  (document/candidates-by-type rounded-solution)
         
         supplies (filter candidate/supply-in-solution? buildings)]
 
-    (write-sqlite
-     output-file
-     "meta"
-     [["rounded" :boolean  (constantly true)]
-      ["runtime" :double   ::solution/runtime]
-      ["objective" :double ::solution/objective]
-      ["gap" :double       ::solution/gap]
-      ["state" :string     (comp str ::solution/state)]
-      ["message" :string   ::solution/message]
-      ["iterations" :int   ::solution/iterations]
-      ["lower_bound" :double (comp first ::solution/bounds)]
-      ["upper_bound" :double (comp second ::solution/bounds)]
-      ["edn" :blob (fn [x] (gzip-edn (dissoc x ::solution/log)))]
-      ["log" :blob (fn [x] (gzip-string (::solution/log x)))]]
-
-     [rounded-solution])
+    (output-metadata rounded-solution true output-file)
 
     (write-sqlite
      output-file
