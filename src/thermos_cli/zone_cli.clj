@@ -64,6 +64,9 @@
             PreparedStatement Types])
   (:gen-class))
 
+(def +rounding-main-runtime+    0.85)
+(def +rounding-rounded-runtime+ (- 1.0 +rounding-main-runtime+))
+
 (def options
   [["-i" "--input-file FILE"
     "The input file; this should be a geopackage having the expected form"
@@ -80,6 +83,8 @@
     "The heat price to use when doing network model.
 If not given, does the base-case instead (no network)."
     :parse-fn #(Double/parseDouble %)]
+   [nil "--output-geometry"
+    "Output geometry into all tables, for debug"]
    ["-h" "--help" "This"]])
 
 (defn- exit-with [message code]
@@ -123,7 +128,7 @@ If not given, does the base-case instead (no network)."
   {:shortest-face  3.0
    :snap-tolerance 0.1
    :trim-paths     true
-   :transfer-field ["id" "connects_to"]})
+   :transfer-field :path-segment})
 
 (defn- make-candidate-path [parameters p]
   (merge
@@ -137,6 +142,8 @@ If not given, does the base-case instead (no network)."
     :connector            (:connector p)
     ::candidate/geometry  (::geoio/geometry p)
     ::candidate/id        (::geoio/id p)
+
+    "id"                  (get p "id")
     }))
 
 (defn- make-candidate-building [parameters b]
@@ -155,20 +162,47 @@ If not given, does the base-case instead (no network)."
     ::demand/kwh              (get b "heat_demand_kwh")
     ::demand/kwp              (get b "peak_demand_kw")
     ::demand/connection-count (or (get b "num_customers") 1)
+    
+    :path-segment             (:path-segment b)
+    "id"                      (get b "id")
     }))
 
 (defn- make-candidates [parameters paths buildings]
-  (as-> {} cs
-    (reduce
-     (fn [cs p]
-       (let [p (make-candidate-path parameters p)]
-         (cond-> cs p (assoc (::candidate/id p) p))))
-     cs paths)
-    (reduce
-     (fn [cs b]
-       (let [b (make-candidate-building parameters b)]
-         (cond-> cs b (assoc (::candidate/id b) b))))
-     cs buildings)))
+  ;; In node-connect in noder.clj, we have associated :path-segment to
+  ;; each path, which is a unique int for each noded segment of input
+  ;; road. This will be propagated onto connectors as well according
+  ;; to the segment they connect to.
+
+  ;; We use this to put "connects_to" onto paths and buildings as well
+  ;; which is the toid of the original road they connect to (a bit
+  ;; less specific than the :path-segment value)
+  (let [road-segment-to-road-toid
+        (reduce
+         (fn [out path]
+           (let [segment (:path-segment path)
+                 toid    (get path "id")]
+             (cond-> out
+               (and segment toid)
+               (assoc segment toid))))
+         {}
+         paths)]
+    (as-> {} cs
+      (reduce
+       (fn [cs p]
+         (let [p (-> (make-candidate-path parameters p)
+                     (assoc "connects_to"
+                            (get road-segment-to-road-toid (:path-segment p))))]
+           (cond-> cs p (assoc (::candidate/id p) p))))
+       cs paths)
+      (reduce
+       (fn [cs b]
+         (let [b (-> (make-candidate-building parameters b)
+                     (assoc "connects_to"
+                            (get road-segment-to-road-toid (:path-segment b))
+                            :path-id
+                            (get road-segment-to-road-toid (:path-segment b))))]
+           (cond-> cs b (assoc (::candidate/id b) b))))
+       cs buildings))))
 
 (defn- sconj [s x] (set (conj s x)))
 
@@ -197,6 +231,98 @@ If not given, does the base-case instead (no network)."
             (< x threshold))
           
           false))))
+
+(defn- round-groups [problem parameters]
+  (let [buildings (filter (comp #{:building} ::candidate/type)
+                          (vals (::document/candidates problem)))
+
+        group-field                (:thermos/group-buildings-by parameters)
+        [group-method lower upper] (:thermos/round-groups-by parameters)
+
+        [lower upper]
+        (cond
+          (not (or lower upper)) [0.5 0.5]
+          (not lower)            [upper upper]
+          (not upper)            [lower lower]
+          :else                  [lower upper])
+
+        get-group-value (case group-method
+                          :kwh           ::demand/kwh
+                          :kwp           ::demand/kwp
+                          :address-count ::demand/connection-count
+                          :building-count (constantly 1))
+        
+        groups (reduce
+                (fn [acc building]
+                  (let [group     (get building group-field)
+                        connected (boolean (::solution/connected building))
+                        value     (get-group-value building)
+                        ]
+                    (-> acc
+                        (update-in [group connected]
+                                   (fn [x y] (+ (or x 0) (or y 0))) value)
+                        (update-in [group :n] #(inc (or % 0))))))
+                {}
+                buildings)
+
+        decisions (->>
+                (for [[group {v-on true v-off false}] groups]
+                  (let [num (or v-on 0)
+                        den (+ (or v-on 0) (or v-off 0))
+                        p (/ num den)]
+                    [group (cond
+                             (< p lower)  :down
+                             (>= p upper) :up
+                             :else        :skip)]))
+                (into {}))
+
+        rounded-problem
+        (document/map-buildings
+         problem
+         (fn [building]
+           (let [old-requirement (::candidate/inclusion building)]
+             (if (= :optional old-requirement)
+               ;; we only change the requirement if it was optional to start with
+               ;; other requirement status has been set by rules of some sort
+               (let [group           (get building group-field)
+                     group           (if (string? group)
+                                       (let [group (string/trim group)]
+                                         (if (string/blank? group) nil group))
+                                       group)
+                     
+                     status          (if (nil? group)
+                                       :skip
+                                       (get decisions group))
+
+                     decision        (if (boolean (::solution/connected building))
+                                       :required :optional)
+                     
+                     inclusion
+                     (case status
+                       ;; we can't use the forbidden status here
+                       ;; because that prevents consideration for
+                       ;; individual systems (happens that's how the model is set up.)
+                       :down       :optional
+                       :up         :required
+                       (nil :skip) decision)]
+                 (cond->
+                     (assoc building
+                            ::candidate/inclusion inclusion
+                            ::rounding-group   (and group (str group))
+                            ::rounded-building (if (= decision inclusion)
+                                                 "skip" (name status))
+                            ::rounded-group    (name status))
+                   
+                   ;; unplug it from the network, unless it's a supply point
+                   ;; in which case ugh
+                   (and (= :optional inclusion)
+                        (not (candidate/has-supply? building)))
+                   (assoc ::candidate/connections nil)))
+               building))
+           ))
+        ]
+    [(for [[group stats] groups] (assoc stats :decision (get decisions group) :group group))
+     rounded-problem]))
 
 (defn- assign-by-rules
   "Given a single `rule` that maps to `ids`, test if `candidate`
@@ -388,7 +514,105 @@ If not given, does the base-case instead (no network)."
     ))
 
 
-(defn- run-with [{:keys [input-file output-file parameters heat-price]}]
+(let [building-id #(get % "id")
+      path-id     #(get % "id")
+
+      heating-system-capex
+      #(+ (-> % ::solution/alternative :capex (:principal 0))
+          (-> % ::solution/connection-capex   (:principal 0)))
+
+      heating-system-opex
+      #(-> % ::solution/alternative :opex (:annual 0))
+      
+      heating-system-fuel
+      #(-> % ::solution/alternative :heat-cost (:annual 0))
+
+      insulation-m2   #(reduce + 0 (keep :area (::solution/insulation %)))
+      insulation-capex #(reduce + 0 (keep :principal (::solution/insulation %)))
+
+      supply-capex     #(-> % ::solution/supply-capex (:principal 0))
+      supply-opex      #(-> % ::solution/supply-opex (:annual 0))
+      supply-heat-cost #(-> % ::solution/heat-cost (:annual 0))
+
+      path-capex       #(:principal (::solution/pipe-capex %))]
+  (defn- output [problem buildings paths supplies
+                 output-file crs output-geometry]
+    (let [mode (document/mode problem)
+          heat-demand-kwh #(candidate/solved-annual-demand % mode)
+          peak-demand-kw  #(candidate/solved-peak-demand % mode)
+
+          insulation-kwh  #(- (candidate/annual-demand % mode)
+                              (candidate/solved-annual-demand % mode))
+          
+          civil-cost-name  #(document/civil-cost-name problem (::path/civil-cost-id %))
+
+
+          ]
+      
+      (write-sqlite
+       output-file
+       "buildings"
+       (into [["building_id"          :string  building-id]
+              ["rounded_problem"      :boolean ::rounded-problem]
+              ["rounded_building"     :string  ::rounded-building]
+              ["rounding_group"       :string  ::rounding-group]
+              ["connects_to"          :string  #(get % "connects_to")]
+              ["on_network"           :boolean ::solution/connected]
+              ["heating_system"       :string  candidate/solution-description]
+              ["heating_system_capex" :double  heating-system-capex]
+              ["heating_system_opex"  :double  heating-system-opex]
+              ["heating_system_fuel"  :double  heating-system-fuel]
+              ["heat_demand_kwh"      :double  heat-demand-kwh]
+              ["peak_demand_kw"       :double  peak-demand-kw]
+              ["insulation_kwh"       :double  insulation-kwh]
+              ["insulation_m2"        :double  insulation-m2]
+              ["insulation_capex"     :double  insulation-capex]
+              ]
+             (when output-geometry
+               [["geometry"     :polygon ::candidate/geometry]]))
+       
+       buildings
+       :crs crs
+       )
+
+      (write-sqlite
+       output-file
+       "cluster_supplies"
+       (into [["building_id"       :string building-id]
+              ["rounded_problem"   :boolean ::rounded-problem]
+              ["peak_output_kw"    :double ::solution/capacity-kw]
+              ["heat_output_kwh"   :double ::solution/output-kwh]
+              ["supply_capex"      :double supply-capex]
+              ["supply_opex"       :double supply-opex]
+              ["supply_heat_cost"  :double supply-heat-cost]]
+             (when output-geometry
+               [["geometry"     :polygon ::candidate/geometry]]))
+       supplies
+       :crs crs)
+      
+      (write-sqlite
+       output-file
+       "paths"
+       [["geometry"     :line-string ::candidate/geometry]
+        ["path_id"      :string      path-id]
+        ["path_segment"      :int    :path-segment]
+        ["rounded_problem"      :boolean     ::rounded-problem]
+        ["connects_to"  :string      #(get % "connects_to")]
+        ["is_connector" :boolean     :connector]
+        ["length"       :double      ::path/length]
+        ["on_network"   :boolean     candidate/in-solution?]
+        ["civil_cost"   :string      civil-cost-name]
+        ["path_capex"   :double      path-capex]
+        ["diameter"     :double      ::solution/diameter-mm]
+        ["capacity_kw"  :double      ::solution/capacity-kw]
+        ["losses_kwh"   :double      ::solution/losses-kwh]
+        ["diversity"    :double      ::solution/diversity]
+        ["unreachable"  :string      ::solution/unreachable]]
+       paths
+       :crs crs))))
+
+(defn- run-with [{:keys [input-file output-file parameters heat-price
+                         output-geometry]}]
   {:pre [(and input-file parameters output-file)]}
   (when (.exists output-file)
     (io/delete-file output-file))
@@ -469,7 +693,6 @@ If not given, does the base-case instead (no network)."
         alternative-rules     (:thermos/alternative-rules parameters)
         civils-rules          (:thermos/civils-rules parameters)
         connection-cost-rules (:thermos/connection-cost-rules parameters)
-
         
         ;; construct problem
         problem    (-> defaults/default-document
@@ -524,121 +747,81 @@ If not given, does the base-case instead (no network)."
                          }
                         )
                        )
-
         _ (print-summary problem)
+
         
+        use-rounding     (boolean (:thermos/round-groups-by parameters))
+
         ;; crunch crunch run model
-        solution   (interop/try-solve problem (fn [& args]))
+        solution   (interop/try-solve
+                    (cond-> problem
+                      use-rounding
+                      (update ::document/maximum-runtime * +rounding-main-runtime+))
+
+                    (fn [& _]))
+        
+        [rounding-decisions rounded-solution]
+        (when use-rounding
+          (let [[rounding-decisions rounded-problem] (round-groups solution parameters)]
+            [rounding-decisions
+             (-> (assoc rounded-problem ::document/maximum-runtime
+                        (* +rounding-rounded-runtime+ (::document/maximum-runtime problem)))
+                 (interop/try-solve (fn [& _])))]))
         
         {buildings :building paths :path} (document/candidates-by-type solution)
-        supplies               (filter candidate/supply-in-solution? buildings)
+        supplies                (filter candidate/supply-in-solution? buildings)
+
+        {rounded-buildings :building
+         rounded-paths :path}  (when use-rounding
+                                 (document/candidates-by-type rounded-solution))
+
+        rounded-supplies (filter candidate/supply-in-solution? rounded-buildings)
+
+        mark-rounded (fn [xs] (for [x xs] (assoc x ::rounded-problem true)))
         ]
 
+    (write-sqlite
+     output-file
+     "meta"
+     [["rounded" :boolean   ::rounded-problem]
+      ["runtime" :double   ::solution/runtime]
+      ["objective" :double ::solution/objective]
+      ["gap" :double       ::solution/gap]
+      ["state" :string     (comp str ::solution/state)]
+      ["message" :string   ::solution/message]
+      ["iterations" :int   ::solution/iterations]
+      ["lower_bound" :double (comp first ::solution/bounds)]
+      ["upper_bound" :double (comp second ::solution/bounds)]
+      ["edn" :blob (fn [x] (gzip-edn (dissoc x ::solution/log)))]
+      ["log" :blob (fn [x] (gzip-string (::solution/log x)))]]
 
-    (let [building-id #(get % "id")
-          path-id     #(get % "id")
+     (cond-> [(assoc solution ::rounded-problem false)]
+       use-rounding
+       (conj (assoc rounded-solution ::rounded-problem true))))
 
-          heating-system-capex
-          #(+ (-> % ::solution/alternative :capex (:principal 0))
-              (-> % ::solution/connection-capex   (:principal 0)))
-
-          heating-system-opex
-          #(-> % ::solution/alternative :opex (:annual 0))
-          
-          heating-system-fuel
-          #(-> % ::solution/alternative :heat-cost (:annual 0))
-
-          mode (document/mode solution)
-
-          heat-demand-kwh #(candidate/solved-annual-demand % mode)
-          peak-demand-kw  #(candidate/solved-peak-demand % mode)
-
-          insulation-m2   #(reduce + 0 (keep :area (::solution/insulation %)))
-          insulation-kwh  #(- (candidate/annual-demand % mode)
-                              (candidate/solved-annual-demand % mode))
-          insulation-capex #(reduce + 0 (keep :principal (::solution/insulation %)))
-
-          supply-capex     #(-> % ::solution/supply-capex (:principal 0))
-          supply-opex      #(-> % ::solution/supply-opex (:annual 0))
-          supply-heat-cost #(-> % ::solution/heat-cost (:annual 0))
-
-          civil-cost-name  #(document/civil-cost-name solution (::path/civil-cost-id %))
-
-          path-capex       #(:principal (::solution/pipe-capex %))
-          ]
-
+    (when use-rounding
       (write-sqlite
        output-file
-       "blobs"
-       [["key" :text first] ["value" :blob second]]
-       ;; split log out since it might be useful on its own.
-       [["log" (gzip-string (::solution/log solution))]
-        ["edn" (gzip-edn (dissoc solution ::solution/log))]])
-      
-      
-      (write-sqlite
-       output-file
-       "buildings"
-       [["building_id"          :string  building-id]
-        ["connects_to"          :string  #(get % "connects_to")]
-        ["on_network"           :boolean ::solution/connected]
-        ["heating_system"       :string  candidate/solution-description]
-        ["heating_system_capex" :double  heating-system-capex]
-        ["heating_system_opex"  :double  heating-system-opex]
-        ["heating_system_fuel"  :double  heating-system-fuel]
-        ["heat_demand_kwh"      :double  heat-demand-kwh]
-        ["peak_demand_kw"       :double  peak-demand-kw]
-        ["insulation_kwh"       :double  insulation-kwh]
-        ["insulation_m2"        :double  insulation-m2]
-        ["insulation_capex"     :double  insulation-capex]
-        ]
-       buildings
-       )
-
-      (write-sqlite
-       output-file
-       "cluster_supplies"
-       [["building_id"       :string building-id]
-        ["peak_output_kw"    :double ::solution/capacity-kw]
-        ["heat_output_kwh"   :double ::solution/output-kwh]
-        ["supply_capex"      :double supply-capex]
-        ["supply_opex"       :double supply-opex]
-        ["supply_heat_cost"  :double supply-heat-cost]
-        ]
-       supplies)
-      
-      (write-sqlite
-       output-file
-       "paths"
-       [["geometry"     :line-string ::candidate/geometry]
-        ["path_id"      :string      path-id]
-        ["connects_to"  :string      #(get % "connects_to")]
-        ["is_connector" :boolean     :connector]
-        ["length"       :double      ::path/length]
-        ["on_network"   :boolean     candidate/in-solution?]
-        ["civil_cost"   :string      civil-cost-name]
-        ["path_capex"   :double      path-capex]
-        ["diameter"     :double      ::solution/diameter-mm]
-        ["capacity_kw"  :double      ::solution/capacity-kw]
-        ["losses_kwh"   :double      ::solution/losses-kwh]
-        ["diversity"    :double      ::solution/diversity]
-        ["unreachable"  :string      ::solution/unreachable]]
-       paths
-       :crs (::geoio/crs input-features))
-      )))
+       "rounding"
+       [["group" :string (comp str :group)]
+        ["count" :int :n]
+        ["value_in" :double  #(double (get % true 0.0))]
+        ["value_out" :double #(double (get % false 0.0))]
+        ["decision" :string (comp str :decision)]]
+       rounding-decisions))
+        
+    (output problem
+            (concat buildings (mark-rounded rounded-buildings))
+            (concat paths     (mark-rounded rounded-paths))
+            (concat supplies  (mark-rounded rounded-supplies))
+            output-file (::geoio/crs input-features) output-geometry
+            )))
 
 (comment
-  (write-sqlite
-   "/home/hinton/tmp/test.sqlite"
-   "test_edn"
-   [["some-edn" :blob gzip-edn]]
-   [defaults/default-document]
-   )
-
   (-main
    "-i" "/home/hinton/tmp-hnzp/optimiser-inputs.gpkg"
    "-o" "/home/hinton/tmp-hnzp/optimiser-outputs.gpkg"
    "-p" "/home/hinton/tmp-hnzp/parameters.edn"
-   "--heat-price" "7.0"
+   "--heat-price" "13.5" ;;"--output-geometry"
    )
   )

@@ -64,6 +64,9 @@
 
           lines (spatial/node-paths lines :snap-tolerance snap-tolerance :crs crs)
 
+          ;; add a special ID to lines
+          lines (map-indexed (fn [i line] (assoc line :path-segment i)) lines)
+          
           [buildings roads]
           (if lines
             (spatial/add-connections
