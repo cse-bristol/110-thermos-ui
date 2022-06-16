@@ -811,6 +811,17 @@ If not given, does the base-case instead (no network)."
             output-geometry
             )))
 
+(defn- fix-supply-choice
+  "Restrict supply points to the supply points that got built"
+  [problem]
+  (document/map-buildings
+   problem
+   (fn [building]
+     (cond-> building
+       (and
+        (candidate/has-supply? building)
+        (not (candidate/supply-in-solution? building)))
+       (candidate/forbid-supply!)))))
 
 (defn- round-solution [{:keys [input-file output-file parameters
                                output-geometry]}]
@@ -820,6 +831,9 @@ If not given, does the base-case instead (no network)."
 
         [rounding-decisions rounded-problem]
         (round-groups solution parameters)
+
+        rounded-problem
+        (fix-supply-choice rounded-problem)
         
         rounded-solution
         (interop/try-solve rounded-problem (fn [& _]))
