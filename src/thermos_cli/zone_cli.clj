@@ -229,8 +229,9 @@ If not given, does the base-case instead (no network)."
 
   - :default => always matches
   - [:and | :or | :not & rules] => obvious
-  - [:is FIELD X1 X2 X3]
+  - [:in FIELD X1 X2 X3]
   - [:demand< | :peak< X]
+  - [:demand> | :peak> X]
   "
   [candidate rule]
   (if (= :default rule) true
@@ -246,7 +247,13 @@ If not given, does the base-case instead (no network)."
                 x         (get candidate
                                (if (= op :demand<) ::demand/kwh ::demand/kwp))]
             (< x threshold))
-          
+
+          (:demand> :peak>)
+          (let [threshold (first args)
+                x         (get candidate
+                               (if (= op :demand>) ::demand/kwh ::demand/kwp))]
+            (> x threshold))
+
           false))))
 
 (defn- round-groups
@@ -386,9 +393,10 @@ If not given, does the base-case instead (no network)."
   (reduce (partial assign-by-rules false ::path/civil-cost-id) candidate civils-rules))
 
 (defn- set-requirement [candidate requirement-rules]
-  (reduce (partial assign-by-rules false ::candidate/inclusion)
-          (assoc candidate ::candidate/inclusion :optional)
-          requirement-rules))
+  (let [candidate (reduce (partial assign-by-rules false ::candidate/inclusion)
+                          (assoc candidate ::candidate/inclusion :optional)
+                          requirement-rules)]
+    (assoc candidate :mandated? (::candidate/inclusion candidate))))
 
 (defn add-supply-points
   "Modify `instance` to have `n` supply points with the given
@@ -596,6 +604,7 @@ If not given, does the base-case instead (no network)."
               ["insulation_kwh"       :double  insulation-kwh]
               ["insulation_m2"        :double  insulation-m2]
               ["insulation_capex"     :double  insulation-capex]
+              ["mandated"             :string  :mandated?]
               ]
              (when output-geometry
                [["geometry"     :polygon ::candidate/geometry]]))
