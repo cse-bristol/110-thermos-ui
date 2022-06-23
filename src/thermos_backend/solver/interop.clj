@@ -634,6 +634,7 @@
          :param-gap       (float (::document/param-gap instance 0.0))
          :iteration-limit (int   (::document/maximum-iterations instance 1000))
          :supply-limit    (when-let [l (::document/maximum-supply-sites instance)] (int l))
+         :should-be-feasible (boolean (::document/should-be-feasible instance false))
          
          :pipe-losses
          (let [losses (pipes/heat-loss-curve pipe-curves)]

@@ -784,6 +784,8 @@ If not given, does the base-case instead (no network)."
                         ::document/param-gap (:thermos/param-gap parameters)
                         ::document/mip-gap   (:thermos/mip-gap parameters)
 
+                        ::document/should-be-feasible true
+
                         ::document/maximum-runtime (double
                                                     (/ (:thermos/runtime-limit parameters)
                                                        3600))
