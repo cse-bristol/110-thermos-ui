@@ -243,16 +243,20 @@ If not given, does the base-case instead (no network)."
           :in      (let [[field & values] args]
                      (contains? (set values) (get candidate field)))
           (:demand< :peak<)
-          (let [threshold (first args)
-                x         (get candidate
-                               (if (= op :demand<) ::demand/kwh ::demand/kwp))]
-            (< x threshold))
+          (and
+           (candidate/is-building? candidate)
+           (let [threshold (first args)
+                 x         (get candidate
+                                (if (= op :demand<) ::demand/kwh ::demand/kwp))]
+             (< x threshold)))
 
           (:demand> :peak>)
-          (let [threshold (first args)
-                x         (get candidate
-                               (if (= op :demand>) ::demand/kwh ::demand/kwp))]
-            (> x threshold))
+          (and
+           (candidate/is-building? candidate)
+           (let [threshold (first args)
+                 x         (get candidate
+                                (if (= op :demand>) ::demand/kwh ::demand/kwp))]
+             (> x threshold)))
 
           false))))
 
