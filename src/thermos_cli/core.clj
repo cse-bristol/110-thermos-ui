@@ -377,7 +377,7 @@ The different options are those supplied after --retry, so mostly you can use th
     (cond-> building
       tariff (assoc ::tariff/id tariff))))
 
-(defn select-top-n-supplies [instance supply top-n fit-supply]
+(defn select-top-n-supplies [instance supply top-n fit-supply make-exclusive]
   (let [{buildings :building paths :path}
         (document/candidates-by-type instance)
 
@@ -443,14 +443,18 @@ The different options are those supplied after --retry, so mostly you can use th
 
     (if (and (seq components-and-supplies) supply)
       (reduce
-       (fn [instance [supply-ids max-capacity]]
+       (fn [instance [component-id [supply-ids max-capacity]]]
          (let [supply (cond-> supply
                         fit-supply
-                        (assoc ::supply/capacity-kwp max-capacity))]
+                        (assoc ::supply/capacity-kwp max-capacity)
+
+                        make-exclusive
+                        (assoc ::supply/exclusive-groups #{component-id})
+                        )]
            (document/map-candidates
             instance (fn [candidate] (merge supply candidate))
             supply-ids)))
-       instance components-and-supplies)
+       instance (map-indexed vector components-and-supplies))
 
       instance)))
 
@@ -470,7 +474,11 @@ The different options are those supplied after --retry, so mostly you can use th
     (select-input-supplies instance (:supply options) (:supply-field options))
 
     (pos? (:top-n-supplies options))
-    (select-top-n-supplies instance (:supply options) (:top-n-supplies options) (:fit-supply-capacity options))
+    (select-top-n-supplies instance
+                           (:supply options)
+                           (:top-n-supplies options)
+                           (:fit-supply-capacity options)
+                           false)
 
     :else ;; NOP
     instance))

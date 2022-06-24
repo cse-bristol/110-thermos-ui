@@ -557,6 +557,8 @@
      :cost        (float fixed-cost)
      :cost%kwh    (float effective-heat-cost)
      :cost%kwp    (float (+ capex-per-kwp opex-per-kwp))
+
+     :exclusive-groups (::supply/exclusive-groups candidate)
      
      :emissions   emissions-factors}))
 

@@ -410,7 +410,8 @@ If not given, does the base-case instead (no network)."
    instance
    supply-parameters
    n
-   (not (contains? supply-parameters ::supply/capacity-kwp))))
+   (not (contains? supply-parameters ::supply/capacity-kwp))
+   true))
 
 (let [geometry-types #{:geometry :geometry-collection
                        :line-string :polygon :point
@@ -780,7 +781,6 @@ If not given, does the base-case instead (no network)."
                         ::document/objective             :system
                         ::document/consider-alternatives true
                         ::document/consider-insulation   true
-                        ::document/maximum-supply-sites  1
 
                         ::document/npv-rate  (:finance/npv-rate parameters)
                         ::document/npv-term  (:finance/npv-term parameters)
