@@ -131,9 +131,17 @@ If not given, does the base-case instead (no network)."
   (when (.exists output-file)
     (io/delete-file output-file))
 
-  (if round-and-evaluate
-    (round-solution options)
-    (run-optimiser options)))
+  (let [solution-status
+        (::solution/state
+         (if round-and-evaluate
+           (round-solution options)
+           (run-optimiser options)))]
+    (cond
+      (= :time-limit solution-status)
+      (exit-with "Time-limit reached" 100)
+
+      (= :infeasible solution-status)
+      (exit-with "Problem infeasible" 101))))
 
 ;; The real stuff follows
 
@@ -823,8 +831,9 @@ If not given, does the base-case instead (no network)."
             supplies
             output-file
             (::geoio/crs input-features)
-            output-geometry
-            )))
+            output-geometry)
+    
+    solution))
 
 (defn- fix-supply-choice
   "Restrict supply points to the supply points that got built"
@@ -876,17 +885,17 @@ If not given, does the base-case instead (no network)."
             supplies
             output-file
             "EPSG:27700" ;; urgh no
-            output-geometry)))
+            output-geometry)
 
+    rounded-solution))
 
 (comment
 
   (-main
-   "-i" "/home/hinton/p/793-hnzp/hnzp/integration-testing/blobs/problem.edn"
-   "-o" "/home/hinton/tmp-hnzp/rounded-outputs.gpkg"
-   "-p" "/home/hinton/tmp-hnzp/parameters.edn"
-   "--round-and-evaluate"
-   "--output-geometry"
+   "-i" "/home/hinton/infeasible/optimiser-inputs-1585a67b-d73a-5c75-98fd-1f3fac7745c7-5.gpkg"
+   "-o" "/home/hinton/infeasible/out.gpkg"
+   "-p" "/home/hinton/infeasible/parameters.edn"
+   "--heat-price" "10.0"
    )
 
 
