@@ -52,7 +52,7 @@
    {org.clojure/tools.cli {:mvn/version "0.4.2"},
     thermos/importer
     {:git/url "ssh://git@github.com/cse-bristol/110-thermos-importer.git",
-     :sha "c8add4c68b10791cd3a6e3387b32cea3c257765b"}
+     :sha "b9e3b0436c2ddf8761af4e0ba13db290555e1f9f"}
     org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"},
     log4j/log4j
     {:mvn/version "1.2.17",
