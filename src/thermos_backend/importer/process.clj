@@ -787,7 +787,7 @@
                 (update-in [:roads ::geoio/features] explode-multi-lines)
                 ;; now we have several of everything, potentially
                 (progress* 20 "Checking for LIDAR coverage")
-                (update :buildings remove-zero-height)
+                (update :buildings geoio/update-features :remove-zero-height remove-zero-height)
                 (update :buildings lidar/add-lidar-to-shapes (load-lidar-index project-id))
                 
                 (progress* 30 "Computing annual demands")
