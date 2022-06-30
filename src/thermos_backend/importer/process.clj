@@ -707,9 +707,10 @@
        (map merge-multi-polygon)))
 
 (defn add-areas [building]
-  (let [height (or (:height building)
-                   (::lidar/height building)
-                   lidar/*storey-height*)]
+  (let [height (double
+                (or (:height building)
+                    (::lidar/height building)
+                    lidar/*storey-height*))]
     (-> building
         (assoc
          :wall-area   (::lidar/external-wall-area
