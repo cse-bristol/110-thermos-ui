@@ -114,23 +114,20 @@ If not given, does the base-case instead (no network)."
   (let [{:keys [options arguments summary errors]}
         (parse-opts arguments options)
 
-        override-runtime (-> (into {} (System/getenv))
-                             (get "OVERRIDE_RUNTIME"))
+        runtime (-> (into {} (System/getenv))
+                    (get "RUNTIME" "3600"))
 
-        override-runtime (when override-runtime
-                           (try
-                             (let [new-runtime (Integer/parseInt override-runtime)]
-                               (binding [*out* *err*]
-                                 (println "Adjusted runtime limit" new-runtime))
-                               new-runtime)
-                             (catch NumberFormatException nfe
-                               (log/warnf "Invalid OVERRIDE_RUNTIME %s"
-                                          override-runtime))))
+        runtime (or (try
+                      (let [runtime (Integer/parseInt override-runtime)]
+                        (binding [*out* *err*]
+                          (println "Runtime from environment" runtime))
+                        runtime)
+                      (catch NumberFormatException nfe
+                        (log/warnf "Invalid RUNTIME %s, using 3600s"
+                                   override-runtime)))
+                    3600)
 
-        options
-        (cond-> options
-          override-runtime
-          (assoc :override-runtime override-runtime))
+        options (assoc options :runtime runtime)
         ]
 
     (binding [*out* *err*]
@@ -707,7 +704,7 @@ If not given, does the base-case instead (no network)."
      [solution]))
 
 (defn- run-optimiser [{:keys [input-file output-file parameters heat-price
-                              override-runtime
+                              runtime
                               output-geometry]
                        :as options}]
   (let [parameters (read-edn parameters)
@@ -827,9 +824,7 @@ If not given, does the base-case instead (no network)."
 
                         ::document/should-be-feasible true
 
-                        ::document/maximum-runtime (double
-                                                    (/ (or override-runtime (:thermos/runtime-limit parameters))
-                                                       3600))
+                        ::document/maximum-runtime (double (/ runtime 3600))
                         
                         ::document/maximum-iterations (:thermos/iteration-limit parameters)
 
@@ -877,8 +872,7 @@ If not given, does the base-case instead (no network)."
        (candidate/forbid-supply!)))))
 
 (defn- round-solution [{:keys [input-file output-file parameters
-                               override-runtime
-                               output-geometry]}]
+                               runtime output-geometry]}]
   ;; TODO we could say if there is no heat price cheat and output the input
   (let [parameters (read-edn parameters)
         solution   (read-edn input-file)
@@ -891,8 +885,8 @@ If not given, does the base-case instead (no network)."
 
         rounded-problem
         (cond-> rounded-problem
-          override-runtime
-          (assoc ::document/maximum-runtime (double (/ override-runtime 3600))))
+          runtime
+          (assoc ::document/maximum-runtime (double (/ runtime 3600))))
         
         rounded-solution
         (interop/try-solve rounded-problem (fn [& _]))
