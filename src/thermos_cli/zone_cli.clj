@@ -126,6 +126,8 @@ If not given, does the base-case instead (no network)."
                              (catch NumberFormatException nfe
                                (log/warnf "Invalid OVERRIDE_RUNTIME %s"
                                           override-runtime))))
+
+        options
         (cond-> options
           override-runtime
           (assoc :override-runtime override-runtime))
