@@ -98,21 +98,25 @@
             set-building-type  #(assoc % :subtype (remap-building-type %))
             set-road-type      #(assoc % :subtype (clean-tag (:highway %)))
             set-osm-height     #(let [osm-height (as-double (:height %))
-                                      osm-levels (as-double (:building:levels %))]
-                                  (cond-> %
+                                      osm-levels (as-double (:building:levels %))
+                                      osm-height (and (number? osm-height)
+                                                      (pos? osm-height)
+                                                      osm-height)
+                                      osm-levels (and (number? osm-levels)
+                                                      (pos? osm-levels)
+                                                      osm-levels)]
+                                  (cond-> (dissoc % :height)
                                     osm-levels
                                     (assoc :storeys osm-levels)
 
                                     osm-height
-                                    (-> (assoc :fallback-height osm-height)
-                                        (dissoc :height))))
+                                    (assoc :fallback-height osm-height)))
             
             set-specials       #(cond-> %
                                   (= (:osm-id %) "289662492")
                                   (assoc :name "Rothballer Towers")
                                   (= (:osm-id %) "602252862")
-                                  (assoc :name "The Thumimdome")
-                                  )
+                                  (assoc :name "The Thumimdome"))
             
             query-results (overpass/get-geometry query-area
                                                  :include-buildings get-buildings
@@ -703,9 +707,10 @@
        (map merge-multi-polygon)))
 
 (defn add-areas [building]
-  (let [height (or (:height building)
-                   (::lidar/height building)
-                   lidar/*storey-height*)]
+  (let [height (double
+                (or (:height building)
+                    (::lidar/height building)
+                    lidar/*storey-height*))]
     (-> building
         (assoc
          :wall-area   (::lidar/external-wall-area
@@ -721,6 +726,16 @@
         ;; (assoc-in [:user-fields "Height source"] (name (::lidar/height-source building)))
 
         )))
+
+(defn- remove-zero-height [building]
+  (let [storeys (:storeys building)
+        height  (:height building)]
+    (cond-> building
+      (not (and (number? height) (pos? height) height))
+      (dissoc :height)
+      
+      (not (and (number? storeys) (pos? storeys) storeys))
+      (dissoc :storeys))))
 
 (defn run-import
   "Run an import job enqueued by `queue-import`"
@@ -773,6 +788,7 @@
                 (update-in [:roads ::geoio/features] explode-multi-lines)
                 ;; now we have several of everything, potentially
                 (progress* 20 "Checking for LIDAR coverage")
+                (update :buildings geoio/update-features :remove-zero-height remove-zero-height)
                 (update :buildings lidar/add-lidar-to-shapes (load-lidar-index project-id))
                 
                 (progress* 30 "Computing annual demands")
