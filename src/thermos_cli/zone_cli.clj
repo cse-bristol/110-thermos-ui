@@ -87,11 +87,6 @@ If not given, does the base-case instead (no network)."
     ]
    ["-h" "--help" "This"]])
 
-(defn- exit-with [message code]
-  (binding [*out* *err*] (println message))
-  ;; (System/exit code)
-  )
-
 (defn- usage-message [summary] (str "Usage:\n" summary))
 (defn- error-message [errors]  (str "Invalid arguments:\n" (string/join \newline errors)))
 
@@ -104,24 +99,51 @@ If not given, does the base-case instead (no network)."
   (with-open [r (java.io.PushbackReader. (io/reader (io/as-file file)))]
     (edn/read {:readers {'geojson jts/json->geom}} r)))
 
-(declare run-with run-optimiser round-solution)
+(declare run-with run-optimiser round-solution --main)
 
 (defn -main [& arguments]
+  (System/exit (let [ev (--main arguments)]
+                 (if (integer? ev) ev 0))))
+
+(defn --main
+  "This is for interactive use, so we don't call System/exit which is
+  a bit brutal. It's a shame java does public static void main(...) so
+  you can't just return an int like a normal sane program."
+  [arguments]
   (mount/start-with {#'thermos-backend.config/config {}})
   (let [{:keys [options arguments summary errors]}
-        (parse-opts arguments options)]
-    (cond
-      (:help options)
-      (exit-with (usage-message summary) 0)
+        (parse-opts arguments options)
 
-      (seq errors)
-      (exit-with (error-message errors) 1)
+        override-runtime (-> (into {} (System/getenv))
+                             (get "OVERRIDE_RUNTIME"))
 
-      (not (empty? arguments))
-      (exit-with (format "Unexpected arguments: %s" arguments) 2)
-      
-      :else
-      (run-with options))))
+        override-runtime (when override-runtime
+                           (try
+                             (let [new-runtime (Integer/parseInt override-runtime)]
+                               (binding [*out* *err*]
+                                 (println "Adjusted runtime limit" new-runtime))
+                               new-runtime)
+                             (catch NumberFormatException nfe
+                               (log/warnf "Invalid OVERRIDE_RUNTIME %s"
+                                          override-runtime))))
+        (cond-> options
+          override-runtime
+          (assoc :override-runtime override-runtime))
+        ]
+
+    (binding [*out* *err*]
+      (cond
+        (:help options)
+        (do (println (usage-message summary)) 0)
+
+        (seq errors)
+        (do (println (error-message errors)) 1)
+        
+        (not (empty? arguments))
+        (do (println (format "Unexpected arguments: %s" arguments)) 2)
+        
+        :else
+        (run-with options)))))
 
 (defn- run-with [{:keys [input-file output-file parameters heat-price
                          round-and-evaluate
@@ -131,17 +153,22 @@ If not given, does the base-case instead (no network)."
   (when (.exists output-file)
     (io/delete-file output-file))
 
-  (let [solution-status
-        (::solution/state
-         (if round-and-evaluate
+  (let [result
+        (if round-and-evaluate
            (round-solution options)
-           (run-optimiser options)))]
+           (run-optimiser options))
+        
+        state
+        (::solution/state result)]
     (cond
-      (= :time-limit solution-status)
-      (exit-with "Time-limit reached" 100)
+      (= :time-limit state)
+      (do (println "Hit time limit") 100)
 
-      (= :infeasible solution-status)
-      (exit-with "Problem infeasible" 101))))
+      (= :infeasible state)
+      (do (println "Problem unexpectedly infeasible") 101)
+
+      :else
+      (do (println "Finished") 0))))
 
 ;; The real stuff follows
 
@@ -538,7 +565,6 @@ If not given, does the base-case instead (no network)."
   (gzip-string (with-out-str (prn thing))))
 
 (defn- print-summary [problem]
-  (def -last-thing problem)
   (let [alternatives (::document/alternatives problem)
         insulation   (::document/measures problem)
         civils       (:civils (::document/pipe-costs problem))
@@ -679,6 +705,7 @@ If not given, does the base-case instead (no network)."
      [solution]))
 
 (defn- run-optimiser [{:keys [input-file output-file parameters heat-price
+                              override-runtime
                               output-geometry]
                        :as options}]
   (let [parameters (read-edn parameters)
@@ -799,7 +826,7 @@ If not given, does the base-case instead (no network)."
                         ::document/should-be-feasible true
 
                         ::document/maximum-runtime (double
-                                                    (/ (:thermos/runtime-limit parameters)
+                                                    (/ (or override-runtime (:thermos/runtime-limit parameters))
                                                        3600))
                         
                         ::document/maximum-iterations (:thermos/iteration-limit parameters)
@@ -848,6 +875,7 @@ If not given, does the base-case instead (no network)."
        (candidate/forbid-supply!)))))
 
 (defn- round-solution [{:keys [input-file output-file parameters
+                               override-runtime
                                output-geometry]}]
   ;; TODO we could say if there is no heat price cheat and output the input
   (let [parameters (read-edn parameters)
@@ -858,6 +886,11 @@ If not given, does the base-case instead (no network)."
 
         rounded-problem
         (fix-supply-choice rounded-problem)
+
+        rounded-problem
+        (cond-> rounded-problem
+          override-runtime
+          (assoc ::document/maximum-runtime (double (/ override-runtime 3600))))
         
         rounded-solution
         (interop/try-solve rounded-problem (fn [& _]))
@@ -891,11 +924,11 @@ If not given, does the base-case instead (no network)."
 
 (comment
 
-  (-main
-   "-i" "/home/hinton/infeasible/optimiser-inputs-1585a67b-d73a-5c75-98fd-1f3fac7745c7-5.gpkg"
-   "-o" "/home/hinton/infeasible/out.gpkg"
-   "-p" "/home/hinton/infeasible/parameters.edn"
-   "--heat-price" "10.0"
+  (--main
+   ["-i" "/home/hinton/infeasible/input.gpkg"
+    "-o" "/home/hinton/infeasible/out.gpkg"
+    "-p" "/home/hinton/infeasible/parameters.edn"
+    "--heat-price" "10.0"]
    )
 
 
