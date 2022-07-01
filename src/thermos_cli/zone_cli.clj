@@ -122,13 +122,6 @@ If not given, does the base-case instead (no network)."
                       (catch NumberFormatException nfe
                         (log/warnf "Invalid RUNTIME value %s, using 3600s" runtime)))
                     3600)
-
-        ;; keep a bit of time back to do output and stuff
-        runtime (if (> runtime 3600)
-                  (- runtime 1800)
-                  runtime)
-
-        _ (binding [*out* *err*] (println "adjusted runtime =" runtime))
         
         options (assoc options :runtime runtime)
         ]
