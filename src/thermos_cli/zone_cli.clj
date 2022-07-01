@@ -118,19 +118,17 @@ If not given, does the base-case instead (no network)."
                     (get "RUNTIME" "3600"))
 
         runtime (or (try
-                      (let [runtime (Integer/parseInt runtime)]
-                        (binding [*out* *err*]
-                          (println "Runtime from environment" runtime))
-                        runtime)
+                      (Integer/parseInt runtime)
                       (catch NumberFormatException nfe
-                        (log/warnf "Invalid RUNTIME %s, using 3600s"
-                                   runtime)))
+                        (log/warnf "Invalid RUNTIME value %s, using 3600s" runtime)))
                     3600)
 
         ;; keep a bit of time back to do output and stuff
-        runtime (if (> runtime 1000)
-                  (- runtime 240)
+        runtime (if (> runtime 3600)
+                  (- runtime 1800)
                   runtime)
+
+        _ (binding [*out* *err*] (println "adjusted runtime =" runtime))
         
         options (assoc options :runtime runtime)
         ]
