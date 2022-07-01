@@ -127,6 +127,11 @@ If not given, does the base-case instead (no network)."
                                    runtime)))
                     3600)
 
+        ;; keep a bit of time back to do output and stuff
+        runtime (if (> runtime 1000)
+                  (- runtime 240)
+                  runtime)
+        
         options (assoc options :runtime runtime)
         ]
 
