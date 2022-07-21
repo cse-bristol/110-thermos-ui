@@ -2,7 +2,9 @@
 ;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
 
 (ns thermos-backend.db.json-functions
-  (:require [honeysql.core :as sql]))
+  (:require [honeysql.core :as sql]
+            [honeysql.types :as sql-types]
+            [cheshire.core :as json]))
 
 (defn build-object [& kvs]
   {:pre [(even? (count kvs))]}
@@ -16,3 +18,9 @@
 
 (defn agg [v]
   (sql/call :json_agg v))
+
+(defn ->json [v]
+  (sql-types/call
+   :cast
+   (json/encode v)
+   :json))

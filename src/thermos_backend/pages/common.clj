@@ -56,8 +56,7 @@
                       :padding-left :0.5em
                       :padding-right :0.5em
                       :height "50px")}
-       [:a {:href "/"}
-        theme/icon]
+       [:a {:href "/"} theme/icon]
        [:h1 {:style (style :margin-left :1em)} ~title]
        [:span {:style (style :margin-left :auto)}
         [:a {:style (style :margin-left :1em)

@@ -41,9 +41,21 @@
 
 (defn project-page [project]
   ;; TODO filter out delete links for non-admin users
-  (page {:title (:name project) :js ["/js/projects.js"]}
-        (raw-string
-         (rum/render-html (project-page-body project)))))
+  (page {:title (:name project) :js ["/js/projects.js"]
+         :css ["/css/projects.css"]
+         :body-style {}}
+        (try (raw-string (rum/render-html (project-page-body project)))
+             (catch Exception e
+               [:pre {:style {:white-space :pre-wrap}}
+                "Exception: " (.getMessage e)
+                "\n"
+                (with-out-str
+                  (clojure.pprint/pprint
+                   (project-page-body project)
+                   ))
+                ]
+               ))))
+
 
 (defn delete-project-page [project wrong-name]
   (page {:title (str "Delete " (:name project) "?")}

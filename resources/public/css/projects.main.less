@@ -1,0 +1,40 @@
+.network-table {
+    width: 100%;
+    overflow-x: auto;
+    display: block;
+    white-space: nowrap;
+    border-collapse:separate;
+    border-spacing:0;
+
+    th, td {
+        padding-left: 0.25em;
+        padding-right: 0.25em;
+    }
+
+    th:nth-child(-n+3) {
+        position:sticky;
+        left:0;
+    }
+    td:nth-child(-n+3) {
+        position:sticky;
+        left:0;
+        background:white;
+    }
+
+    th:nth-child(3) {
+        border-right:1px black solid;
+    }
+    td:nth-child(3) {
+        border-right:1px black solid;
+    }
+
+    tr.groups th {
+        font-weight: normal;
+        font-style:italic;
+                text-align:center;
+    }
+
+    th.group {
+        border-left: 1px grey solid;
+    }
+}

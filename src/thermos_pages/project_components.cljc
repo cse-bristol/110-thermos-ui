@@ -6,7 +6,9 @@
             [rum.core :as rum]
             [net.cgrand.macrovich :as macro]
             [thermos-pages.common :refer [fn-js] :refer-macros [fn-js]]
+            [thermos-frontend.format :refer [si-number]]
             [thermos-pages.spinner :refer [spinner]]
+            [thermos-util :refer [to-fixed format-seconds]]
             [ajax.core :refer [POST DELETE]]
             [thermos-pages.symbols :as symbols]
             [thermos-pages.restriction-components :as restriction-comps]
@@ -151,19 +153,50 @@
 
 (rum/defc table [{columns :columns rows :rows row-key :row-key
                   :as params}]
-  
   [:table
    (dissoc params :columns :rows :row-key)
    [:thead
-    [:tr
-     (for [{key :key title :title} columns]
-       [:th {:key key} title])]]
+    (loop [columns   columns
+           group-row []
+           title-row [:tr]
+           cur-title nil
+           span      0]
+      (if (empty? columns)
+        (if (= [] group-row)
+          (list title-row)
+          (list (into [:tr.groups]
+                      (conj group-row
+                            [(if cur-title
+                               :th.group
+                               :th) {:colspan span} cur-title]))
+                title-row))
+
+        (let [[column & columns] columns
+              group-title (:group column)
+              next-group (or (not= group-title cur-title)
+                             (nil? group-title))]
+          (recur columns
+                 (cond-> group-row
+                   (and (pos? span)
+                        next-group)
+                   (conj  [(if cur-title
+                             :th.group
+                             :th) {:colspan span} cur-title]))
+                 
+                 (conj title-row [(if (and group-title next-group)
+                                    :th.group
+                                    :th) (:title column)])
+                 group-title
+                 (if next-group 1 (inc span)))
+          )))]
    
    [:tbody
     (for [row rows]
       [:tr {:key (row-key row)}
        (for [{key :key value :value} columns]
-         [:td {:key key} (value row)])])]])
+         (let [value (or value key)]
+           [:td {:key key}
+            (value row)]))])]])
 
 (defn- today-date []
   #?(:clj
@@ -178,21 +211,27 @@
       (subs date 11 19)
       date-part)))
 
+(defn desc [a b] (compare b a))
+
+(defn- percentage [x]  (and x (str (to-fixed (* 100 x) 2) "%")))
+(defn- cents [x]       (and x (str (* 100 x ) "c")))
+(defn- kilo-number [x] (si-number (* x 1000)))
+(defn- mega-number [x] (si-number (* x 1000000)))
+
 (rum/defcs network-table < (rum/local nil ::expanded-row-name)
   [{*expanded ::expanded-row-name} map-id networks {on-event :on-event user-auth :user-auth}]
-  (let [today (today-date)
-        expanded-name @*expanded
-        desc #(compare %2 %1)]
+  (let [today         (today-date)
+        expanded-name @*expanded]
     (table
-     {:style {:width :100%}
+     {:class "network-table"
       :rows
       (let [networks
             (->>
              (for [[name versions] networks
-                   :let [versions (sort-by :id desc versions)]]
+                   :let            [versions (sort-by :id desc versions)]]
                (merge (first versions)
                       {:versions versions
-                       :name name})
+                       :name     name})
                )
              (sort-by :id desc))
             ]
@@ -207,83 +246,117 @@
           networks))
       
       :columns
-      [{:key :state
-        :value #(cond
-                  (:has-run %)
-                  [:b {:title "Optimiser has been run on this save"} "✓"]
-                  
-                  (:job-id %)
-                  [:button
-                   {:style {:border :none :background :none
-                            :cursor :pointer}
-
-                    :on-click
-                    (fn-js
-                     [e]
-                     (when (js/confirm "Cancel running job?")
-                       (POST (str "/admin/job/" (:job-id %))
-                           {:params {:action "cancel"}})
-                       ))
-                    }
-                   (spinner {:size 16})])
-        :title ""
-        }
-       {:key :name
-        :value (fn [row]
-                 [:a {:href (str "map/" map-id
-                                 "/net/" (:id row))}
-                  (or (:name row) [:span {:style {:margin-left :1em}} "v" (:id row)])])
-        :title "Name"}
-       
-       {:key :author
-        :value :user-name
-        :title "Author"}
-
-       {:key :date
-        :value (comp (partial tidy-date today) :created)
-        :title "Date"}
-       
-       {:key :expando
-        :value (fn [row]
-                 (when (seq (:versions row))
-                   [:span {:style {:cursor :pointer
-                                   :display :inline-block
-                                   :font-weight (when (= (:name row) expanded-name) :bold)}
-                           :on-click #(swap! *expanded (fn [x] (if (= (:name row) x) nil (:name row))))}
-                    (str (count (:versions row)) " versions")
-                    ]))
-        :title "History"}
-
-       {:key :controls
-        :value (fn [r]
-                 [:span
-                  (when (and user-auth (:name r))
+      (let [meta-column
+            (fn [& {:keys [fmt] :as m}]
+              (assoc (dissoc m :fmt)
+                     :value (comp (or fmt identity) (:value m (:key m)) :meta)))]
+        
+        [{:key   :controls
+          :value (fn [r]
+                   [:span
+                    (when (and user-auth (:name r))
+                      [:a
+                       {:on-click
+                        (fn-js [e]
+                          (show-delete-dialog!
+                           {:name      (:name r)
+                            :message   "Are you sure you want to delete this network?"
+                            :on-delete #(DELETE (str "map/" map-id "/"
+                                                     "net/" (:name r))
+                                            {:handler on-event})})
+                          (.preventDefault e))
+                        
+                        :href (str "map/" map-id
+                                   "/net/delete/" (:name r))}
+                       [:span symbols/delete]])
+                    " "
                     [:a
-                     {:on-click
-                      (fn-js [e]
-                        (show-delete-dialog!
-                         {:name (:name r)
-                          :message "Are you sure you want to delete this network?"
-                          :on-delete #(DELETE (str "map/" map-id "/"
-                                                   "net/" (:name r))
-                                          {:handler on-event})})
-                        (.preventDefault e))
-                      
-                      :href (str "map/" map-id
-                                 "/net/delete/" (:name r))}
-                     [:span symbols/delete]])
-                  " "
-                  [:a
-                   {:title "Download this network as GIS data"
-                    :href (str "map/" map-id
-                               "/net/" (:id r)
-                               "/data.json")}
-                   [:span symbols/download]]
-                  ])
-        :title ""
-        }
-       
-       ]
+                     {:title "Download this network as GIS data"
+                      :href  (str "map/" map-id
+                                  "/net/" (:id r)
+                                  "/data.json")}
+                     [:span symbols/download]]
+                    ])
+          :title ""
+          }
+         {:key   :state
+          :value #(cond
+                    (:has-run %)
+                    [:b {:title "Model run finished"} "✓"]
+                    
+                    (:job-id %)
+                    [:button
+                     {:style {:border :none :background :none
+                              :cursor :pointer}
+
+                      :on-click
+                      (fn-js
+                        [e]
+                        (when (js/confirm "Cancel running job?")
+                          (POST (str "/admin/job/" (:job-id %))
+                              {:params {:action "cancel"}})
+                          ))
+                      }
+                     (spinner {:size 16})])
+          :title ""
+          }
+         {:key   :name
+          :value (fn [row]
+                   [:a {:href  (str "map/" map-id
+                                    "/net/" (:id row))
+                        :title (str (:meta row))}
+                    (or (:name row) [:span {:style {:margin-left :1em}} "v" (:id row)])])
+          :title "Name"}
+         
+         {:key   :author
+          :value :user-name
+          :title "Author"}
+
+         {:key   :date
+          :value (comp (partial tidy-date today) :created)
+          :title "Date"}
+         
+         {:key   :expando
+          :value (fn [row]
+                   (when (seq (:versions row))
+                     [:span {:style    {:cursor      :pointer
+                                        :display     :inline-block
+                                        :font-weight (when (= (:name row) expanded-name) :bold)}
+                             :on-click #(swap! *expanded (fn [x] (if (= (:name row) x) nil (:name row))))}
+                      (str (count (:versions row)) " versions")
+                      ]))
+          :title "History"}
+
+         ;; (meta-column :key :mode                  :title "Mode"               )
+         (meta-column :key :objective             :title "Objective"          )
+         (meta-column :key :npv-term              :title "Term"               )
+         (meta-column :key :npv-rate              :title "Discount"
+                      :fmt percentage)
+         (meta-column :key :input-building-count  :title "In problem" :group "Buildings")
+         (meta-column :key :network-count :title "On network" :group "Buildings")
+         (meta-column :key :input-building-kwh    :title "Demand (Wh/yr)"
+                      :fmt si-number :group "Buildings")
+         
+         (meta-column :key :input-path-length     :title "In problem (m)" :group "Paths"
+                      :fmt si-number)
+         (meta-column :key :network-length :title "In network (m)" :fmt si-number :group "Paths")
+         
+         
+         (meta-column :key :supply-prices         :title "Heat price"
+                      :fmt #(string/join ", " (map cents (set %))) :group "Supply")
+                  
+         (meta-column :key :network-kwh :title "Capacity (Wh)" :fmt kilo-number :group "Supply")
+         (meta-column :key :network-kwp :title "Capacity (Wp)" :fmt kilo-number :group "Supply")
+
+
+         (meta-column :key :solution-state     :title "State" :group "Solution")
+         (meta-column :key :mip-gap     :title "Gap" :fmt percentage :group "Solution")
+         (meta-column :key :objective-value :title "Value" :fmt si-number :group "Solution")
+         (meta-column :key :runtime :title "Runtime" :fmt format-seconds :group "Solution")
+         
+
+         
+         ])
       :row-key :id
       })))
 
@@ -320,11 +393,10 @@
      [:div {:key n
             :style {:margin-bottom :0.5em :margin-left :1em}} item])])
 
-(rum/defcs map-component < (rum/local nil ::show-info)
-  [{*show-info ::show-info} m & {:keys [on-event user-auth] :or {on-event #()}}]
-  [:div.card {:key (:id m)
-              :style {:flex-basis :40em
-                      :flex-grow 1}}
+(rum/defcs map-component
+  [{} m & {:keys [on-event user-auth] :or {on-event #()}}]
+  [:div.wide.card {:key (:id m)
+                   :style {:flex-grow 1}}
    [:div.flex-cols
     [:h1 {:style {:flex-grow 1}}
      (case (keyword (:state m))
@@ -340,10 +412,6 @@
      [:span (:name m)]]
 
     (buttons
-     [:button.button
-      {:on-click (fn-js [e] (swap! *show-info not))}
-      [:b {:style {:font-family "Serif"}} "i"]]
-     
      [:a.button
       {:href (str "map/" (:id m) "/data.json")} "DOWNLOAD " symbols/download]
      (when user-auth
@@ -370,39 +438,44 @@
     ]
    
    (when-let [description (:description m)] [:div description])
-   (when (mostly-bad-estimates (:estimation-stats m))
-     [:div {:style {:margin-top :1em}}
-      [:span {:style {:background :pink :color :white
-                      :border-radius :0.5em
-                      :padding-left :0.25em
-                      :padding-right :0.25em
-                      :margin-right :0.25em
-                      :font-weight :bold}} "Warning: "]
-      "A majority of the demand estimates in this map are using low-quality 2d predictors. "
-      "The estimates may be inaccurate."])
    
    (if (:import-completed m)
-     [:div.flex-cols.flex-grow
-      [:div.flex-grow
-       {:style {:margin-top :1em}}
+     [:div.flex-rows.flex-grow {:style {:max-width :100%}}
+      [:div.flex-grow 
+       {:style {:margin-top :1em :max-width :100%}}
        (if-let [networks (seq (:networks m))]
-         [:div [:b "Networks:"]
+         [:div {:style {:max-width :100%}} [:b "Networks:"]
           (network-table (:id m) networks {:on-event on-event :user-auth user-auth})]
           
          "This map has no network designs associated with it yet.")]
-      (when @*show-info
-        [:div {:style {:margin-top :1em :margin-left :1em}}
-         [:b "Map info:"]
-         [:table
-          [:thead
-           [:tr [:th "Method"] [:th "Count"]]]
-          [:tbody
-           (for [[k v] (:estimation-stats m)]
-             [:tr
-              [:td {:title (estimation-method-label k)} (name k)]
-              [:td v]])]]
+
+      [:div {:style {:margin-top :1em}}
+       [:b "Demand estimates: "]
+       (let [stats (:estimation-stats m)
+             tot (reduce + 0 (vals stats))]
+         (doall
+          (interpose
+           ", "
+           (for [[k v] (sort-by second desc (:estimation-stats m))]
+             [:span
+              (to-fixed (* 100 (/ v tot)) 0) "% "
+              (name k)])))
          
-         ])]
+         )
+       
+       
+       (when (mostly-bad-estimates (:estimation-stats m))
+         [:div {:style {:margin-top :1em}}
+          [:span {:style {:background :pink :color :white
+                          :border-radius :0.5em
+                          :padding-left :0.25em
+                          :padding-right :0.25em
+                          :margin-right :0.25em
+                          :font-weight :bold}} "Warning: "]
+          "A majority of the demand estimates in this map are using low-quality 2d predictors. "
+          "The estimates may be inaccurate."])]
+      
+      ]
      
 
      (case (keyword (:state m))
@@ -446,13 +519,16 @@
      [:div
       (restriction-comps/show-user-restrictions restriction-info :as-card true)]
      
-     [:div.card {:style {:margin-bottom "2em"}}
+     [:div.wide.card {:style {:margin-top :0.1em}}
       [:div.flex-cols
-       [:div {:style {:flex-grow 1}}
+       [:h1 {:style {:flex-grow 1}}
         (let [d (:description project)]
           (if (string/blank? d)
-            [:em "This project has no description"]
-            [:span d]))]
+            "Project options:"
+            d))
+        
+        ]
+       
        (buttons
         (when user-auth
           [:button.button
@@ -472,7 +548,7 @@
                           (.preventDefault e)))
             :href "users"}
            (let [n (count (:users project))]
-             (str n " USER" (when (> n 1) "S") " " symbols/person))
+             (str n "USER" (when (> n 1) "S") " " symbols/person))
            ])
         
         (when am-admin
@@ -538,13 +614,14 @@
      ;; data uploady box...
      
      (if-let [maps (seq (sort-by :name (:maps project)))]
+       ;; maps in a tab-strip?
        [:div
         {:style {:display :flex
-                 :flex-flow "row wrap"}}
+                 :flex-direction :column}}
         
         (for [m maps]
           (map-component m :on-event on-event :user-auth user-auth))]
-       [:div.card
+       [:div.wide.card
         "This project has no maps in it yet. "
         "Get started by creating a new map above."])]))
 
