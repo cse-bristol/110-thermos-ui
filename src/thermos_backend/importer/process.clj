@@ -230,6 +230,11 @@
 (def lm-space-3d (load-lm "thermos_backend/importer/space-lm-3d.json"))
 (def lm-space-2d (load-lm "thermos_backend/importer/space-lm-2d.json"))
 
+(defn- given-or-lidar-floor-area [feature]
+  (or (as-double (:floor-area feature))
+      (as-double (::lidar/floor-area feature))
+      0))
+
 (defn- run-svm-models [f sqrt-degree-days]
   (let [x (->> (for [[k v] f
                      :when (and (keyword? k)
@@ -243,7 +248,7 @@
         space-svm-3 (and (not= :default height-source)
                          (svm-space-3d x))
         svm-result  (or space-svm-3 (svm-space-2d x))
-        sap-water   (sap/hot-water (:floor-area x))
+        sap-water   (sap/hot-water (given-or-lidar-floor-area f))
         ]
     (or
      (when (and svm-result
@@ -535,7 +540,7 @@
         
         given-benchmark-m (as-double (:cooling-benchmark-m feature))
         given-benchmark-c (as-double (:cooling-benchmark-c feature))
-        floor-area (or (as-double (:floor-area feature)) 0)
+        floor-area        (given-or-lidar-floor-area feature)
 
         cooling-demand (cond
                          given-demand given-demand
@@ -567,12 +572,11 @@
         minimum-demand (as-double (:minimum-annual-demand feature))
         maximum-demand (as-double (:maximum-annual-demand feature))
         
-        given-floor-area (as-double (:floor-area feature))
         benchmark-m  (as-double (:benchmark-m feature))
         benchmark-c  (or (as-double (:benchmark-c feature))
                          (when benchmark-m 0))
 
-        floor-area (or given-floor-area (::lidar/floor-area feature))
+        floor-area (given-or-lidar-floor-area feature)
 
         residential (if (contains? feature :residential)
                       ;; the double boolean here means that if
@@ -718,13 +722,10 @@
                        (* (- (::lidar/perimeter building 0)
                              (::lidar/shared-perimeter building 0))
                           height))
-         :floor-area  (::lidar/floor-area building 0)
+         :floor-area  (given-or-lidar-floor-area building)
          :ground-area (::lidar/footprint building 0)
          :roof-area   (::lidar/footprint building 0)
          :height      height)
-        ;; (assoc-in [:user-fields "Height"] height)
-        ;; (assoc-in [:user-fields "Height source"] (name (::lidar/height-source building)))
-
         )))
 
 (defn- remove-zero-height [building]
