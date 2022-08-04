@@ -10,6 +10,7 @@
             [thermos-pages.spinner :refer [spinner]]
             [thermos-util :refer [to-fixed format-seconds]]
             [ajax.core :refer [POST DELETE]]
+            #?(:clj [clojure.tools.logging :as log])
             [thermos-pages.symbols :as symbols]
             [thermos-pages.restriction-components :as restriction-comps]
             #?@(:cljs
@@ -193,10 +194,18 @@
    [:tbody
     (for [row rows]
       [:tr {:key (row-key row)}
-       (for [{key :key value :value} columns]
+       (for [{key :key value :value :as column} columns]
          (let [value (or value key)]
            [:td {:key key}
-            (value row)]))])]])
+            (try (value row)
+                 (catch #?(:clj Exception
+                           :cljs :default)
+                     e
+                   #?(:clj
+                      (log/error e "In" (:title column) row)
+                      :cljs
+                      (js/console.log e "In" (:title column) row))
+                   ))]))])]])
 
 (defn- today-date []
   #?(:clj
@@ -215,8 +224,8 @@
 
 (defn- percentage [x]  (and x (str (to-fixed (* 100 x) 2) "%")))
 (defn- cents [x]       (and x (str (* 100 x ) "c")))
-(defn- kilo-number [x] (si-number (* x 1000)))
-(defn- mega-number [x] (si-number (* x 1000000)))
+(defn- kilo-number [x] (and x (si-number (* x 1000))))
+(defn- mega-number [x] (and x (si-number (* x 1000000))))
 
 (rum/defcs network-table < (rum/local nil ::expanded-row-name)
   [{*expanded ::expanded-row-name} map-id networks {on-event :on-event user-auth :user-auth}]
