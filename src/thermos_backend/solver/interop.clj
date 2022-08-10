@@ -472,9 +472,13 @@
               ]
           
           {:id id
-           :cost      (finance/objective-value
-                       instance capex-type
-                       (::supply/fixed-cost alternative 0))
+           :cost      (+ (finance/objective-value
+                          instance capex-type
+                          (::supply/fixed-cost alternative 0))
+                         (finance/objective-value
+                          instance :alternative-opex
+                          (::supply/opex-fixed alternative 0)))
+           
 
            :cost%kwh cost%kwh
            :cost%kwp cost%kwp
@@ -737,13 +741,14 @@
          (if-let [alternative (document/alternative-for-id instance (::demand/counterfactual candidate))]
            (let [cost-per-kwh (::supply/cost-per-kwh alternative 0)
                  opex-per-kwp (::supply/opex-per-kwp alternative 0)
+                 opex-fixed   (::supply/opex-fixed alternative 0)
 
                  kwh (candidate/annual-demand candidate (document/mode instance))
                  kwp (candidate/peak-demand candidate (document/mode instance))
                  kwp (alternative-adjusted-peak kwh kwp alternative)
                  
                  fuel (* cost-per-kwh kwh)
-                 opex (* opex-per-kwp kwp)
+                 opex (+ (* opex-per-kwp kwp) opex-fixed)
                  ]
              {:opex (finance/adjusted-value instance :alternative-opex opex)
               :heat-cost (finance/adjusted-value instance :alternative-opex fuel)

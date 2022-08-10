@@ -24,6 +24,7 @@
                 ::capex-per-kwp
                 ::capex-per-mean-kw
                 ::opex-per-kwp
+                ::opex-fixed
                 ::fixed-cost
                 ::emissions
 
