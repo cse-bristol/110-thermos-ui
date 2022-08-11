@@ -436,7 +436,13 @@ If not given, does the base-case instead (no network)."
   (let [candidate (reduce (partial assign-by-rules false ::candidate/inclusion)
                           (assoc candidate ::candidate/inclusion :optional)
                           requirement-rules)]
-    (assoc candidate :mandated? (::candidate/inclusion candidate))))
+    (assoc candidate
+           :mandated? (::candidate/inclusion candidate))))
+
+(defn- set-infill [candidate]
+  (cond-> candidate
+    (= :optional (::candidate/inclusion candidate))
+    (assoc ::demand/infill-groups #{0})))
 
 (defn add-supply-points
   "Modify `instance` to have `n` supply points with the given
@@ -570,8 +576,13 @@ If not given, does the base-case instead (no network)."
         insulation   (::document/measures problem)
         civils       (:civils (::document/pipe-costs problem))
         con-cost     (::document/connection-costs problem)
-        candidates   (vals (::document/candidates problem))]
+        candidates   (vals (::document/candidates problem))
+        infill-range (::document/infill-targets problem)
+        ]
 
+    (println "Infill:" infill-range
+             (frequencies (mapcat ::demand/infill-groups candidates)))
+    
     (println "Alternatives:"
              (frequencies
               (map (comp ::supply/name alternatives)
@@ -785,6 +796,7 @@ If not given, does the base-case instead (no network)."
         alternative-rules     (:thermos/alternative-rules parameters)
         civils-rules          (:thermos/civils-rules parameters)
         connection-cost-rules (:thermos/connection-cost-rules parameters)
+        infill-range          (:thermos/infill-range parameters false)
         
         ;; construct problem
         problem    (-> defaults/default-document
@@ -800,8 +812,10 @@ If not given, does the base-case instead (no network)."
                                                  % insulation-rules alternative-rules connection-cost-rules))
                        
                        (document/map-paths #(assign-civil-cost % civils-rules))                       
-                       (document/map-candidates #(set-requirement % requirement-rules))
-
+                       (document/map-candidates #(cond-> (set-requirement % requirement-rules)
+                                                   (and infill-range heat-price)
+                                                   (set-infill)))
+                       
                        ;; insert supply points
                        (cond->
                            heat-price
@@ -825,6 +839,7 @@ If not given, does the base-case instead (no network)."
                         ::document/mip-gap   (:thermos/mip-gap parameters)
 
                         ::document/should-be-feasible true
+                        ::document/infill-targets (and infill-range {0 infill-range})
 
                         ::document/maximum-runtime (double (/ runtime 3600))
                         
@@ -837,8 +852,8 @@ If not given, does the base-case instead (no network)."
                          :insulation  {:recur true :period (:finance/insulation-lifetime parameters)}
                          :alternative {:recur true :period (:finance/individual-system-lifetime parameters)}
                          }
-                        )
-                       )
+                        ))
+        
         _ (print-summary problem)
 
         ;; crunch crunch run model
@@ -889,6 +904,10 @@ If not given, does the base-case instead (no network)."
         (cond-> rounded-problem
           runtime
           (assoc ::document/maximum-runtime (double (/ runtime 3600))))
+
+        ;; disable infill rules in case there are any
+        rounded-problem
+        (dissoc rounded-problem ::document/infill-targets)
         
         rounded-solution
         (interop/try-solve rounded-problem (fn [& _]))

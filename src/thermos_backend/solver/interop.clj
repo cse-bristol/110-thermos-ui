@@ -497,6 +497,9 @@
    (demand-value-terms instance candidate market)
 
    (when (::demand/group candidate) {:group (::demand/group candidate)})
+
+   (when-let  [infill-groups (seq (::demand/infill-groups candidate))]
+     {:infill-connection-targets (set infill-groups)})
    
    ;; we only offer insulation & alternatives to the optimiser in system mode.
    (when (= :system (::document/objective instance :network))
@@ -641,6 +644,7 @@
          :iteration-limit (int   (::document/maximum-iterations instance 1000))
          :supply-limit    (when-let [l (::document/maximum-supply-sites instance)] (int l))
          :should-be-feasible (boolean (::document/should-be-feasible instance false))
+         :infill-connection-targets (::document/infill-targets instance)
          
          :pipe-losses
          (let [losses (pipes/heat-loss-curve pipe-curves)]
