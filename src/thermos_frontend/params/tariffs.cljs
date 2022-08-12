@@ -25,12 +25,13 @@
         delete-tariff #(swap! *document document/remove-tariff id)]
     [:tr {:key id}
      [:td [inputs/text
-           { :placeholder (str "Tariff " id)
+           {:placeholder (str "Tariff " id)
             :value (get ::tariff/name)
             :on-change #(put ::tariff/name (target-value %))}]]
      [:td [:label
-           [inputs/number
+           [inputs/number2
             {:title "A fixed annual payment from customers on this tariff."
+             :style {:max-width  :4em}
              :max 1000
              :min 0
              :value (get ::tariff/standing-charge)
@@ -38,8 +39,9 @@
              }]
            " " standing-charge-unit]]
      [:td [:label
-           [inputs/number
+           [inputs/number2
             {:title "The heat price paid by customers on this tariff."
+             :style {:max-width  :4em}
              :max 100
              :min 0
              :scale 100
@@ -49,8 +51,9 @@
              }]
            " " unit-rate-unit]]
      [:td [:label
-           [inputs/number
+           [inputs/number2
             {:title "An annual payment per kWp capacity from customers on this tariff."
+             :style {:max-width  :4em}
              :max 1000
              :min 0
              :value (get ::tariff/capacity-charge)

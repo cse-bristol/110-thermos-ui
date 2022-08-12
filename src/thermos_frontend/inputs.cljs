@@ -4,6 +4,7 @@
 (ns thermos-frontend.inputs
   (:require [reagent.core :as reagent]
             [reagent.dom :as rdom]
+            [clojure.string :as string]
             [clojure.set :refer [map-invert]]
             [thermos-frontend.util :refer [target-value]]
             [thermos-frontend.format :as format]))
@@ -23,7 +24,8 @@
   (when (nil? x)
     (str s " is not a valid input")))
 
-(def fmt
+(defn fmt [{:keys [on-change on-blur value validate read print]
+            :or {validate default-validate}}]
   (reagent/create-class
    {:display-name "fmt-input"
 
@@ -48,20 +50,61 @@
            (dissoc :value :print :read :validate)
            (assoc :type (:type atts :text)
                   :default-value (print value)
-                  :on-change
-                  (and on-change
-                       (fn [e]
-                         (let [s (-> e .-target .-value)
-                               v (read s)
-                               err (validate s v)]
-                           (when (and on-change (not err))
-                             (on-change v))
-                           )))
-                  :on-blur
-                  (fn [e]
-                    (set! (-> e .-target .-value) (print value))
-                    )))
+                  :on-change (and on-change
+                                  (fn [e]
+                                    (let [s (-> e .-target .-value)
+                                          v (read s)
+                                          err (validate s v)]
+                                      (when (and on-change (not err))
+                                        (on-change v)))))
+                  :on-blur (fn [e]
+                             (set! (-> e .-target .-value) (print value)))
+                  ))
        ])}))
+
+
+(defn number2 [{:keys [value-atom
+                       scale
+                       step
+                       empty-value
+                       on-change]
+                :or {scale 1.0}
+                :as atts}]
+  (let [has-empty-value empty-value
+        [empty-value empty-value-label] empty-value
+
+        on-change
+        (if value-atom
+          (partial reset! value-atom)
+          on-change)
+
+        read-fn
+        (fn [s] (if (string/blank? s) empty-value
+                    (let [v (js/parseFloat s)]
+                      (when (number? v) (/ v scale)))))
+
+        validate-fn
+        (fn [s v]
+          (when-not (or v (and has-empty-value (string/blank? s)))
+            "Should be a number"))
+
+        print-fn
+        (fn [x] (if (or (not (number? x))
+                        (and has-empty-value (= x empty-value)))
+                  "" (str (* scale x))))
+        
+        ]
+
+    [fmt (-> atts
+             (dissoc :scale :value-atom :empty-value)
+             (assoc :class "input number-input"
+                    :on-change on-change
+                    :read  read-fn
+                    :validate validate-fn
+                    :placeholder empty-value-label
+                    :print print-fn)
+             (cond-> value-atom
+               (assoc :value @value-atom)))]))
 
 (defn number
   "Render a number input. SCALE of 100 means display value is 100 times larger than real value."
