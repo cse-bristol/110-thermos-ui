@@ -1,4 +1,17 @@
-[{:title "9th March 2022"
+[{:title "12th August 2022"
+  :changes [{:title "Bug fixes"
+             :summary
+             [:ul
+              [:li "Cooling demand model works again - it was accidentally disconnected."]
+              [:li "Entering numbers doesn't make the focus jump around."]]}
+            
+            {:title "UI improvements"
+             :summary [:p "A bit more information is shown about runs on the project page."]}
+            
+            ]
+  }
+
+ {:title "9th March 2022"
   :changes
   [{:title "Bug fixes"
     :summary
