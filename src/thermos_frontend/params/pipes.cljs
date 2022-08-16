@@ -130,13 +130,13 @@
          (for [[ix costs] (sort-by (comp :diameter second) rows)
                :let [dia (:diameter costs)]]
            [:tr {:key ix}
-            [:td [inputs/number {:value dia :min 10 :max 3000
-                                 :style {:max-width :5em}
-                                 :on-blur
-                                 (fn [v]
-                                   (f/fire!
-                                    flow [:pipe/change-diameter dia v]))
-                                 }]]
+            [:td [inputs/number2 {:value dia :min 10 :max 3000
+                                  :style {:max-width :5em}
+                                  :on-blur
+                                  (fn [v]
+                                    (f/fire!
+                                     flow [:pipe/change-diameter dia v]))
+                                  }]]
             [:td
              [inputs/parsed
               {:class "input number-input"
@@ -165,48 +165,48 @@
             
             [:td (let [default-loss (pipe-calcs/losses-for-diameter pipe-parameters dia)
                        given-loss (:losses-kwh costs)]
-                   [inputs/number {:style {:max-width :5em
-                                           :border (when-not (or given-loss default-loss)
-                                                     "2px red solid")
-                                           }
-                                   :value
-                                   given-loss
+                   [inputs/number2 {:style {:max-width :5em
+                                            :border (when-not (or given-loss default-loss)
+                                                      "2px red solid")
+                                            }
+                                    :value
+                                    given-loss
 
-                                   :empty-value [nil nil]
-                                   
-                                   :placeholder default-loss
-                                   :pattern  (when-not default-loss ".+")
-                                   :required (when-not default-loss true)
-                                   
-                                   :max 10000
-                                   :min 1
+                                    :empty-value [nil (and default-loss
+                                                           (.toFixed default-loss 2))]
 
-                                   :on-change
-                                   (fn [v]
-                                     (f/fire!
-                                      flow [:pipe/change-losses dia v]))
-                                   
-                                   }])
+                                    :pattern  (when-not default-loss ".+")
+                                    :required (when-not default-loss true)
+                                    
+                                    :max 10000
+                                    :min 1
+
+                                    :on-change
+                                    (fn [v]
+                                      (f/fire!
+                                       flow [:pipe/change-losses dia v]))
+                                    
+                                    }])
              ]
             ;; mech cost
-            [:td [inputs/number {:style {:max-width :6em}
-                                 :value (:pipe costs)
-                                 :min 0 :max 1000
-                                 :on-change
-                                 (fn [v]
-                                   (f/fire!
-                                    flow [:pipe/change-cost dia v]))
-                                 }]]
+            [:td [inputs/number2 {:style {:max-width :6em}
+                                  :value (:pipe costs)
+                                  :min 0 :max 1000
+                                  :on-change
+                                  (fn [v]
+                                    (f/fire!
+                                     flow [:pipe/change-cost dia v]))
+                                  }]]
             (for [[cid cc] civils]
               [:td {:key cid}
-               [inputs/number {:style {:max-width :6em}
-                               :value (get costs cid)
-                               :min 0 :max 1000
-                               :on-change
-                               (fn [v]
-                                 (f/fire!
-                                  flow [:pipe/change-civil-cost dia cid v]))
-                               }]]
+               [inputs/number2 {:style {:max-width :6em}
+                                :value (get costs cid)
+                                :min 0 :max 1000
+                                :on-change
+                                (fn [v]
+                                  (f/fire!
+                                   flow [:pipe/change-civil-cost dia cid v]))
+                                }]]
               )
             
             [:td
@@ -259,9 +259,9 @@
 
 (defn cost-model [flow]
   (let [medium         @(f/view* flow ::document/medium :hot-water)]
-    [:div.card
+    [:div.card {:key :a}
      [:h1.card-header "Capacity & loss model"]
-     [:div.flex-cols
+     [:div.flex-cols {:key :b}
       [:div
        [:div
         [:label {:style {:font-size :1.5em}}
@@ -274,7 +274,7 @@
         ]
        
        
-       [:div
+       [:div {:key :sat-steam}
         [:label {:style {:font-size :1.5em}}
          [:input {:type      :radio
                   :value     "cost-model"
@@ -293,21 +293,22 @@
                          :gap                   :0.2em
                          }}
            [:label "Flow temperature: "]
-           [inputs/number
-            {:value @(f/view* flow ::document/flow-temperature)
+           [inputs/number2
+            {:key :flow-temperature
+             :value @(f/view* flow ::document/flow-temperature)
              :on-change #(f/fire! flow [:pipe/change-flow-temperature %])}
             ]
            [:label "℃"]
            
            [:label "Return temperature:"]
-           [inputs/number
+           [inputs/number2
             {:value     @(f/view* flow ::document/return-temperature)
              :on-change #(f/fire! flow [:pipe/change-return-temperature %])
              }]
            [:label "℃"]
 
            [:label "Ground temperature:"]
-           [inputs/number
+           [inputs/number2
             {:value @(f/view* flow ::document/ground-temperature)
              :on-change #(f/fire! flow [:pipe/change-ground-temperature %])}]
            [:label "℃"]
@@ -322,22 +323,22 @@
                          :gap                   :0.2em
                          }}
            [:label "Steam pressure: "]
-           [inputs/number {:value (MPa->bar-g @(f/view* flow ::document/steam-pressure))
-                           :on-change #(f/fire! flow [:pipe/change-steam-pressure (bar-g->MPa %)])}]
+           [inputs/number2 {:value (MPa->bar-g @(f/view* flow ::document/steam-pressure))
+                            :on-change #(f/fire! flow [:pipe/change-steam-pressure (bar-g->MPa %)])}]
            [:label
             {:style {:white-space :nowrap}}
             "bar g"]
            
            [:label "Velocity: "]
-           [inputs/number {:value @(f/view* flow ::document/steam-velocity)
-                           :on-change #(f/fire! flow [:pipe/change-steam-velocity %])
-                           }
+           [inputs/number2 {:value @(f/view* flow ::document/steam-velocity)
+                            :on-change #(f/fire! flow [:pipe/change-steam-velocity %])
+                            }
             ]
            [:label "m/s"]
 
            [:label "Ground temperature:"]
-           [inputs/number {:value @(f/view* flow ::document/ground-temperature)
-                           :on-change #(f/fire! flow [:pipe/change-ground-temperature %])}
+           [inputs/number2 {:value @(f/view* flow ::document/ground-temperature)
+                            :on-change #(f/fire! flow [:pipe/change-ground-temperature %])}
             ]
            [:label "℃"]
 
@@ -348,21 +349,21 @@
         
         ]]
 
-      [:div {:style {:margin-left :2em :font-size :1.1em}}
+      [:div {:key :docs :style {:margin-left :2em :font-size :1.1em}}
        (case medium
          :hot-water
          [:<>
           [:p
            "Pipe capacity is calculated from diameter using "
            [:a {:target "help"
-                :href "/help/calculations.html#pipe-diameter-calc"}
+                :href "/help/network/technical-description.html#pipe-diameter-calc"}
             "recommended flow rates for the diameter"]
            ", the specific heat of water, and the flow/return difference."
            ]
           [:p
            "Heat losses are calculated from diameter using "
            [:a {:target "help"
-                :href "/help/calculations.html#pipe-heat-losses"} "this model"] "."
+                :href "/help/network/technical-description.html#pipe-heat-losses"} "this model"] "."
            ]]
          :saturated-steam
          [:<>
@@ -478,9 +479,9 @@
       (for [e candidate/emissions-types]
         [e (reagent/cursor document [::document/pumping-emissions e])]))
      ]
-    [:div
+    [:div {:key :pipe-parameters}
+     ^{:key :cost-model} [cost-model flow]
      [pipe-costs-table flow]
-     [cost-model flow]
      [connection-costs document]
 
      [:div.card
@@ -510,4 +511,5 @@
      
      
      ])
+
   )

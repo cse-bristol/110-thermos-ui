@@ -26,29 +26,33 @@
       :value (::measure/surface measure)
       :on-change #(swap! *insulation assoc-in [id ::measure/surface] %)}]]
    [:td
-    [inputs/number
+    [inputs/number2
      {:min 0
       :max 10000
+      :style {:max-width :4em}
       :value (::measure/fixed-cost measure)
       :on-change #(swap! *insulation assoc-in [id ::measure/fixed-cost] %)}]
     " ¤"]
    [:td
-    [inputs/number
+    [inputs/number2
      {:min 0
       :max 1000
+      :style {:max-width :4em}
       :value (::measure/cost-per-m2 measure)
       :on-change #(swap! *insulation assoc-in [id ::measure/cost-per-m2] %)}]
     " ¤/m" [:sup "2"]]
    [:td
-    [inputs/number
+    [inputs/number2
      {:min 0 :max 100
+      :style {:max-width :4em}
       :scale 100
       :value (::measure/maximum-effect measure)
       :on-change #(swap! *insulation assoc-in [id ::measure/maximum-effect] %)}]
     " %"]
    [:td
-    [inputs/number
+    [inputs/number2
      {:scale 100
+      :style {:max-width :4em}
       :min 0 :max 100
       :value (::measure/maximum-area measure)
       :on-change #(swap! *insulation assoc-in [id ::measure/maximum-area] %)}]

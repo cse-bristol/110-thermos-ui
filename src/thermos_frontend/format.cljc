@@ -1,13 +1,14 @@
-;; This file is part of THERMOS, copyright © Centre for Sustainable Energy, 2017-2021
-;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
-
 (ns thermos-frontend.format
   (:require [thermos-util :as util]))
 
-(let [format (js/Intl.NumberFormat.
-              js/undefined
-              #js {"maximumFractionDigits" 2}
-              )]
+(let [format #?(:cljs
+                (js/Intl.NumberFormat.
+                 js/undefined
+                 #js {"maximumFractionDigits" 2}
+                 )
+                :clj
+                (doto (java.text.NumberFormat/getInstance)
+                  (.setMaximumFractionDigits 2)))]
   (defn local-format [value] (.format format value)))
 
 (defn metric-prefix [value scale prefix]
@@ -53,12 +54,13 @@
    "k" 1000
    "m" 0.001})
 
-(defn parse-si-number [t]
-  (try
-    (let [n (js/parseFloat t)
-          s (last t)]
-      (and (js/isFinite n)
-           (if-let [scale (scale s)]
-             (* n scale)
-             n)))
-    (catch :default e nil)))
+#?(:cljs
+   (defn parse-si-number [t]
+     (try
+       (let [n (js/parseFloat t)
+             s (last t)]
+         (and (js/isFinite n)
+              (if-let [scale (scale s)]
+                (* n scale)
+                n)))
+       (catch :default e nil))))

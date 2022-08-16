@@ -165,3 +165,15 @@
 
     (peripheral? candidate) "peripheral"
     (unreachable? candidate) "impossible"))
+
+(defn system-name
+  [candidate]
+  (cond
+    (is-connected? candidate) "network"
+
+    (or (got-alternative? candidate)
+        (got-counterfactual? candidate))
+    (-> candidate
+        (::solution/alternative)
+        (::supply/name))))
+

@@ -4,8 +4,9 @@
 (ns thermos-backend.db.projects
   (:require [thermos-backend.db :as db]
             [thermos-backend.db.users :as users]
-            [thermos-backend.db.json-functions :as json]
+            [thermos-backend.db.json-functions :as json :refer [->json]]
             [thermos-backend.content-migrations.piecewise :as piecewise]
+            [thermos-backend.db.network-metadata :as network-metadata]
             [honeysql.helpers :as h]
             [honeysql-postgres.helpers :as p]
             [clojure.tools.logging :as log]
@@ -70,7 +71,12 @@
       
       (h/from :projects)
       (h/left-join
-       [(-> (h/select :maps.*
+       [(-> (h/select :maps.name
+                      :maps.estimation-stats
+                      :maps.id
+                      :maps.project-id
+                      :maps.import-completed
+                      :maps.job-id
                       :jobs.state
                       :jobs.message
                       :jobs.progress
@@ -80,7 +86,8 @@
                                   [:users.name :user-name]
                                   :networks.created
                                   :networks.has-run
-                                  :networks.job-id)
+                                  :networks.job-id
+                                  :networks.meta)
                        :networks])
             (h/from :maps)
             (h/left-join :networks
@@ -200,8 +207,13 @@
                           (piecewise/migrate (:version % 0))
                           (pr-str)))
                     )))
-      
       (update :state keyword)))
+
+(defn- network-edn->metadata [content]
+  (-> content
+      (edn/read-string)
+      (network-metadata/summarise)
+      (->json)))
 
 (defn save-network! [user-id project-id map-id name content]
   {:pre [(int? project-id)
@@ -214,11 +226,13 @@
     :name name
     :version piecewise/current-version
     :user-id user-id
-    :content content}))
+    :content content
+    :meta   (network-edn->metadata content)}))
 
 (defn add-solution! [network-id content]
   (-> (h/update :networks)
-      (h/sset {:content content :has-run true :version piecewise/current-version})
+      (h/sset {:content content :has-run true :version piecewise/current-version
+               :meta (network-edn->metadata content)})
       (h/where [:= :id network-id])
       (db/execute!)))
 

@@ -120,6 +120,29 @@
      ]
     ))
 
+(defn navbar [*show-menu *is-cooling]
+  [main-nav/component
+   {:key :main-nav
+    :read-only (preload/get-value :read-only)
+    :on-save #(do-save % nil)
+    :on-run  do-save
+
+    :hamburger
+    [:button.hamburger
+     {:on-click #(swap! *show-menu not)
+      :class (when (state/is-running-or-queued?) "spin-around")
+      :style (merge
+              {:background :none
+               :border :none}
+
+              (when @*is-cooling
+                {:transform "scaleY(-1)"}))
+      }
+     theme/icon]
+
+    :name (preload/get-value :name)
+    :unsaved? (state/needs-save?)}])
+
 (defn main-page []
   (r/with-let [*selected-tab (r/cursor state/state [::view/view-state ::view/selected-tab])
                *show-menu (r/atom false)
@@ -289,30 +312,11 @@
             [:li [:a {:href "/"} "THERMOS home page"]]
             ]]])
 
-       [main-nav/component
-        {:read-only (preload/get-value :read-only)
-         :on-save #(do-save % nil)
-         :on-run  do-save
-
-         :hamburger
-         [:button.hamburger
-          {:on-click #(swap! *show-menu not)
-           :class (when (state/is-running-or-queued?) "spin-around")
-           :style (merge
-                   {:background :none
-                    :border :none}
-
-                   (when @*is-cooling
-                     {:transform "scaleY(-1)"}))
-           }
-          theme/icon]
-
-         :name (preload/get-value :name)
-         :unsaved? (state/needs-save?)}]
+       ^{:key :navbar} [navbar *show-menu *is-cooling]
 
        (cond
          (state/is-running-or-queued?)
-         [:div
+         [:div {:key :run-state-overlay}
           {:style {:position :absolute
                    :z-index 1000000
                    :width :100%
@@ -340,7 +344,8 @@
                [:span "Number " position " in queue"])
              [:a {:href "../../../"} "Back to project"]])])
 
-       [:div {:style {:height 1 :flex-grow 1
+       [:div {:style {:key :main-body
+                      :height 1 :flex-grow 1
                       :overflow :auto
                       :display :flex
                       :flex-direction :column}}

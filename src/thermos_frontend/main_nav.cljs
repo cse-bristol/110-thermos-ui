@@ -52,7 +52,9 @@
                     e "keypress"
                     (fn [e] (.stopPropagation e))
                     false)
-                   (when-not @name-text (.focus e))))
+                   (when (and
+                          (not (= "input" js/document.activeElement.nodeName))
+                          (not @name-text)) (.focus e))))
           }])
       ]
      

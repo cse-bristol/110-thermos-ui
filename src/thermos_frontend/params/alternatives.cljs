@@ -50,8 +50,9 @@
       [:tbody
        [:tr {:key "heat-cost"}
         [:td "Heat cost / kWh"]
-        [:td [inputs/number
+        [:td [inputs/number2
               {:min 0 :max 100 :scale 100
+               :style {:max-width :6em}
                :step 0.1 :value (::supply/cost-per-kwh alternative 0)
                :on-change #(swap! *alternatives assoc-in
                                   [id ::supply/cost-per-kwh] %)}]]
@@ -60,8 +61,9 @@
        [:tr {:key "fixed-cost"}
         [:td "Fixed capital cost"]
         [:td
-         [inputs/number
+         [inputs/number2
           {:min 0 :max 50000
+           :style {:max-width :6em}
            :value (::supply/fixed-cost alternative 0)
            :on-change #(swap! *alternatives assoc-in
                               [id ::supply/fixed-cost] %)}]]
@@ -71,8 +73,9 @@
        [:tr {:key "var-cost"}
         [:td "Variable capital cost"]
         [:td
-         [inputs/number
+         [inputs/number2
           {:min 0 :max 1000
+           :style {:max-width :6em}
            :value (::supply/capex-per-kwp alternative 0)
            :on-change #(swap! *alternatives assoc-in
                               [id ::supply/capex-per-kwp] %)}]]
@@ -82,8 +85,9 @@
        [:tr {:key "op-cost"}
         [:td "Operating cost"]
         [:td
-         [inputs/number
+         [inputs/number2
           {:min 0 :max 1000
+           :style {:max-width :6em}
            :value (::supply/opex-per-kwp alternative 0)
            :on-change #(swap! *alternatives assoc-in
                               [id ::supply/opex-per-kwp] %)}]]
@@ -97,6 +101,7 @@
         [:td
          [inputs/fmt
           {:min 1 :max 20 :step 0.1
+           :style {:max-width :6em}
            :class     ["input" "number-input"]
            :type      :number
            :read      (fn [s] (util/as-double s))
@@ -120,8 +125,9 @@
        (for [e candidate/emissions-types]
          [:tr {:key e}
           [:td (name e)]
-          [:td [inputs/number
+          [:td [inputs/number2
                 {:min 0 :max 1000 :step 1
+                 :style {:max-width :6em}
                  :scale (candidate/emissions-factor-scales e)
                  :value (get-in alternative [::supply/emissions e] 0)
                  :on-change #(swap! *alternatives
