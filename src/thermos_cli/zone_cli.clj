@@ -165,6 +165,9 @@ If not given, does the base-case instead (no network)."
       (= :killed state)
       (do (println "Optimiser killed") 102)
 
+      (= :empty-problem state)
+      (do (println "Problem was empty, but this is OK") 0)
+      
       (not (solution/exists? result))
       (do (println "Solution does not exist:" state) 103)
 
