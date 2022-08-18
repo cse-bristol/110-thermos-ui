@@ -1218,6 +1218,7 @@
                                    )
                    
                    ::solution/state (:state result)
+                   ::solution/error (:error result)
                    ::solution/message (:message result)
                    ::solution/runtime (safe-div (- end-time start-time) 1000.0))
                   (merge-solution net-graph pipe-curves market result)

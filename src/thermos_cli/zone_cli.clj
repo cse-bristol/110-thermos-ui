@@ -162,7 +162,8 @@ If not given, does the base-case instead (no network)."
       (= :infeasible state)
       (do (println "Problem unexpectedly infeasible") 101)
 
-      (= :killed state)
+      (or (= :killed state)
+          (and (= :error state) (= 137 (::solution/error result))))
       (do (println "Optimiser killed") 102)
 
       (= :empty-problem state)
