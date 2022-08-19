@@ -844,9 +844,9 @@ If not given, does the base-case instead (no network)."
                         ::document/connection-costs connection-costs)
 
                        ;; apply rules for technologies & requirement
-                       (document/map-buildings #(-> (assign-building-options
-                                                     % insulation-rules alternative-rules connection-cost-rules)
-                                                    (set-mandatable mandation-rule)))
+                       (document/map-buildings #(-> (set-mandatable mandation-rule)
+                                                    (assign-building-options
+                                                     % insulation-rules alternative-rules connection-cost-rules)))
                        
                        (document/map-paths #(assign-civil-cost % civils-rules))                       
                        (document/map-candidates #(cond-> (set-requirement % requirement-rules)
