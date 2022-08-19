@@ -274,14 +274,30 @@ If not given, does the base-case instead (no network)."
   - [:demand> | :peak> X]
   "
   [candidate rule]
-  (if (= :default rule) true
-      (let [[op & args] rule]
+  (cond
+    (= :default rule) true
+
+    (= :mandatable rule) (:mandatable? candidate false)
+    
+    :else
+    (let [[op & args] rule]
         (case op
           :and     (every? #(matches-rule candidate %) args)
           :or      (some #(matches-rule candidate %) args)
           :not     (not (matches-rule candidate (first args)))
           :in      (let [[field & values] args]
                      (contains? (set values) (get candidate field)))
+          :is      (let [[field value] args
+                         value (get candidate field)]
+                     (or (and (boolean? value) value)
+                         (and (integer? value) (= 1 value))
+                         (and (double? value) (= 1.0 value))
+                         (and (string? value)
+                              (let [lc (string/lower-case value)]
+                                (or (= lc "yes")
+                                    (= lc "true")
+                                    (= lc "y")
+                                    (= lc "1"))))))
           (:demand< :peak<)
           (and
            (candidate/is-building? candidate)
@@ -436,12 +452,15 @@ If not given, does the base-case instead (no network)."
 (defn- assign-civil-cost [candidate civils-rules]
   (reduce (partial assign-by-rules false ::path/civil-cost-id) candidate civils-rules))
 
+(defn- set-mandatable [candidate mandation-rule]
+  (cond-> candidate
+    (matches-rule candidate mandation-rule)
+    (assoc :mandatable? true)))
+
 (defn- set-requirement [candidate requirement-rules]
-  (let [candidate (reduce (partial assign-by-rules false ::candidate/inclusion)
-                          (assoc candidate ::candidate/inclusion :optional)
-                          requirement-rules)]
-    (assoc candidate
-           :mandated? (::candidate/inclusion candidate))))
+  (reduce (partial assign-by-rules false ::candidate/inclusion)
+          (assoc candidate ::candidate/inclusion :optional)
+          requirement-rules))
 
 (defn- set-infill [candidate]
   (cond-> candidate
@@ -627,7 +646,22 @@ If not given, does the base-case instead (no network)."
       supply-opex      #(-> % ::solution/supply-opex (:annual 0))
       supply-heat-cost #(-> % ::solution/heat-cost (:annual 0))
 
-      path-capex       #(:principal (::solution/pipe-capex %))]
+      path-capex       #(:principal (::solution/pipe-capex %))
+
+      ;; yuck
+      is-mandated?     (fn [building]
+                         (cond
+                           (and (:mandatable? building)
+                                (::solution/connected building))
+                           "required"
+
+                           (= (::candidate/inclusion building) :forbidden)
+                           "forbidden"
+
+                           :else
+                           "optional"))
+      ]
+  
   (defn- output [problem buildings paths supplies
                  output-file crs output-geometry]
     (let [mode (document/mode problem)
@@ -637,10 +671,7 @@ If not given, does the base-case instead (no network)."
           insulation-kwh  #(- (candidate/annual-demand % mode)
                               (candidate/solved-annual-demand % mode))
           
-          civil-cost-name  #(document/civil-cost-name problem (::path/civil-cost-id %))
-
-
-          ]
+          civil-cost-name  #(document/civil-cost-name problem (::path/civil-cost-id %))]
       
       (write-sqlite
        output-file
@@ -659,14 +690,14 @@ If not given, does the base-case instead (no network)."
               ["insulation_kwh"       :double  insulation-kwh]
               ["insulation_m2"        :double  insulation-m2]
               ["insulation_capex"     :double  insulation-capex]
-              ["mandated"             :string  :mandated?]
-              ]
+              ["mandatable"           :string  :mandatable?]
+              ["mandated"             :string  is-mandated?]]
+             
              (when output-geometry
                [["geometry"     :polygon ::candidate/geometry]]))
        
        buildings
-       :crs crs
-       )
+       :crs crs)
 
       (write-sqlite
        output-file
@@ -801,6 +832,7 @@ If not given, does the base-case instead (no network)."
         civils-rules          (:thermos/civils-rules parameters)
         connection-cost-rules (:thermos/connection-cost-rules parameters)
         infill-range          (:thermos/infill-range parameters false)
+        mandation-rule        (:thermos/mandation-rule    parameters)
         
         ;; construct problem
         problem    (-> defaults/default-document
@@ -812,8 +844,9 @@ If not given, does the base-case instead (no network)."
                         ::document/connection-costs connection-costs)
 
                        ;; apply rules for technologies & requirement
-                       (document/map-buildings #(assign-building-options
-                                                 % insulation-rules alternative-rules connection-cost-rules))
+                       (document/map-buildings #(-> (assign-building-options
+                                                     % insulation-rules alternative-rules connection-cost-rules)
+                                                    (set-mandatable mandation-rule)))
                        
                        (document/map-paths #(assign-civil-cost % civils-rules))                       
                        (document/map-candidates #(cond-> (set-requirement % requirement-rules)
