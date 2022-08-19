@@ -690,7 +690,7 @@ If not given, does the base-case instead (no network)."
               ["insulation_kwh"       :double  insulation-kwh]
               ["insulation_m2"        :double  insulation-m2]
               ["insulation_capex"     :double  insulation-capex]
-              ["mandatable"           :string  :mandatable?]
+              ["mandatable"           :boolean  :mandatable?]
               ["mandated"             :string  is-mandated?]]
              
              (when output-geometry
