@@ -844,14 +844,21 @@ If not given, does the base-case instead (no network)."
                         ::document/connection-costs connection-costs)
 
                        ;; apply rules for technologies & requirement
-                       (document/map-buildings #(-> (set-mandatable mandation-rule)
-                                                    (assign-building-options
-                                                     % insulation-rules alternative-rules connection-cost-rules)))
+                       (document/map-buildings (fn apply-building-rules [b]
+                                                 (-> b
+                                                     (set-mandatable mandation-rule)
+                                                     (assign-building-options
+                                                      insulation-rules
+                                                      alternative-rules
+                                                      connection-cost-rules))))
                        
-                       (document/map-paths #(assign-civil-cost % civils-rules))                       
-                       (document/map-candidates #(cond-> (set-requirement % requirement-rules)
-                                                   (and infill-range heat-price)
-                                                   (set-infill)))
+                       (document/map-paths (fn apply-path-rules [p]
+                                             (assign-civil-cost p civils-rules)))
+                       
+                       (document/map-candidates (fn apply-requirement-rules-and-infill [c]
+                                                  (cond-> (set-requirement c requirement-rules)
+                                                    (and infill-range heat-price)
+                                                    (set-infill))))
                        
                        ;; insert supply points
                        (cond->
