@@ -316,6 +316,16 @@ If not given, does the base-case instead (no network)."
 
           false))))
 
+
+(defn- building-group [group-fields building]
+  (some (fn [field]
+          (let [val (get building field)]
+            (if (string? val)
+              (if (string/blank? val) nil
+                  (string/trim val))
+              val)))
+        group-fields))
+
 (defn- round-groups
   "Apply rounding to the groups of buildings in `problem`
 
@@ -325,7 +335,9 @@ If not given, does the base-case instead (no network)."
   (let [buildings (filter (comp #{:building} ::candidate/type)
                           (vals (::document/candidates problem)))
 
-        group-field                (:rounding/group-buildings-by parameters)
+        group-fields               (:rounding/group-buildings-by parameters)
+        building-group             (partial building-group group-fields)
+        
         [group-method lower upper] (:rounding/round-groups-by parameters)
 
         [lower upper]
@@ -343,7 +355,7 @@ If not given, does the base-case instead (no network)."
         
         groups (reduce
                 (fn [acc building]
-                  (let [group     (get building group-field)
+                  (let [group     (building-group building)
                         connected (boolean (::solution/connected building))
                         value     (get-group-value building)
                         ]
@@ -376,10 +388,7 @@ If not given, does the base-case instead (no network)."
                     ::rounded-building "skip"
                     (if (candidate/is-connected? building) :required :optional))
 
-             (let [group (-> (get building group-field)
-                             (str)
-                             (string/trim))
-                   group (if (string/blank? group) nil group)
+             (let [group (building-group building)
                    decision (if (nil? group) :skip (get decisions group :skip))
                    inclusion (case decision
                                :up :required
@@ -751,6 +760,11 @@ If not given, does the base-case instead (no network)."
 
      [solution]))
 
+(defn- set-optimiser-group [building group-fields]
+  (cond-> building
+    (seq group-fields)
+    (assoc ::demand/group (building-group group-fields building))))
+
 (defn- run-optimiser [{:keys [input-file output-file parameters heat-price
                               runtime
                               output-geometry]
@@ -778,6 +792,17 @@ If not given, does the base-case instead (no network)."
         ;; or inside noder. If we do it here, they will be missing from
         ;; the output dataset, which is ~ok~?
 
+        ;; apply requirement rules to buildings
+        ;; first we need to compute and apply the mandation rule
+        ;; in case we have forbidden mandated buildings or something weird
+        mandation-rule        (:thermos/mandation-rule    parameters)
+
+        input-features (update input-features
+                               ::geoio/features
+                               #(cond-> %
+                                  (not (line? %))
+                                  (set-mandatable mandation-rule)))
+        
         requirement-rules (:thermos/requirement-rules parameters)
         
         input-features
@@ -832,7 +857,7 @@ If not given, does the base-case instead (no network)."
         civils-rules          (:thermos/civils-rules parameters)
         connection-cost-rules (:thermos/connection-cost-rules parameters)
         infill-range          (:thermos/infill-range parameters false)
-        mandation-rule        (:thermos/mandation-rule    parameters)
+        group-fields          (:thermos/group-buildings-by parameters)
         
         ;; construct problem
         problem    (-> defaults/default-document
@@ -846,7 +871,7 @@ If not given, does the base-case instead (no network)."
                        ;; apply rules for technologies & requirement
                        (document/map-buildings (fn apply-building-rules [b]
                                                  (-> b
-                                                     (set-mandatable mandation-rule)
+                                                     (set-optimiser-group group-fields)
                                                      (assign-building-options
                                                       insulation-rules
                                                       alternative-rules
