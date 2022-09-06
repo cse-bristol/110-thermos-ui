@@ -464,7 +464,7 @@ If not given, does the base-case instead (no network)."
 
 (defn- set-infill [candidate]
   (cond-> candidate
-    (= :optional (::candidate/inclusion candidate))
+    (not (:mandatable? candidate))
     (assoc ::demand/infill-groups #{0})))
 
 (defn add-supply-points
