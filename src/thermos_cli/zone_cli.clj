@@ -612,6 +612,9 @@ If not given, does the base-case instead (no network)."
         infill-range (::document/infill-targets problem)
         ]
 
+    (println "Mandatable: "
+             (frequencies (map (juxt ::candidate/type :mandatable?) candidates)))
+    
     (println "Infill:" infill-range
              (frequencies (mapcat ::demand/infill-groups candidates)))
     
@@ -792,16 +795,7 @@ If not given, does the base-case instead (no network)."
         ;; or inside noder. If we do it here, they will be missing from
         ;; the output dataset, which is ~ok~?
 
-        ;; apply requirement rules to buildings
-        ;; first we need to compute and apply the mandation rule
-        ;; in case we have forbidden mandated buildings or something weird
         mandation-rule        (:thermos/mandation-rule    parameters)
-
-        input-features (update input-features
-                               ::geoio/features
-                               #(cond-> %
-                                  (not (line? %))
-                                  (set-mandatable mandation-rule)))
         
         requirement-rules (:thermos/requirement-rules parameters)
         
@@ -871,6 +865,7 @@ If not given, does the base-case instead (no network)."
                        ;; apply rules for technologies & requirement
                        (document/map-buildings (fn apply-building-rules [b]
                                                  (-> b
+                                                     (set-mandatable mandation-rule)
                                                      (set-optimiser-group group-fields)
                                                      (assign-building-options
                                                       insulation-rules
@@ -1009,15 +1004,11 @@ If not given, does the base-case instead (no network)."
     rounded-solution))
 
 (comment
-
   (--main
-   ["-i" "/home/hinton/infeasible/input.gpkg"
-    "-o" "/home/hinton/infeasible/out.gpkg"
-    "-p" "/home/hinton/infeasible/parameters.edn"
-    "--heat-price" "10.0"]
+   ["-i" "/home/hinton/optimiser-inputs-19bb391e-3817-530b-b295-c97d9789f39f-112.gpkg"
+    "-o" "/home/hinton/out.gpkg"
+    "-p" "/home/hinton/p/793-hnzp/evaluation-parameters.edn"
+    "--heat-price" "7.5"]
    )
-
-
-
-  
   )
+
