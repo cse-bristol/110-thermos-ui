@@ -40,7 +40,7 @@
 (s/def ::type #{:building :path})
 (s/def ::selected boolean?)
 (s/def ::id string?)
-(s/def ::inclusion #{:required :optional :forbidden})
+(s/def ::inclusion #{:required :optional :individual :forbidden})
 (s/def ::connections (s/* ::id))
 (s/def ::modified boolean?) ;; a modified candidate is one the user has changed
 
@@ -95,6 +95,9 @@
 
 (defn required? [candidate]
   (= (::inclusion candidate) :required))
+
+(defn only-individual? [candidate]
+  (= (::inclusion candidate) :individual))
 
 (defn in-solution? [candidate] (::solution/included candidate))
 (defn is-connected? [candidate]

@@ -492,7 +492,8 @@
   "Output for the network model all the demand-related facts about this candidate"
   [instance candidate market]
   (merge
-   {:required  (boolean (candidate/required? candidate))
+   {:required    (boolean (candidate/required? candidate))
+    :off-network (boolean (candidate/only-individual? candidate))
     :count     (int     (max 1 (::demand/connection-count candidate 1)))}
    (demand-value-terms instance candidate market)
 
