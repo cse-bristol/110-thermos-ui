@@ -59,7 +59,10 @@
             [clojure.set :as set]
             [thermos-specs.solution :as solution]
             [cljts.core :as jts]
-            [mount.core :as mount])
+            [mount.core :as mount]
+            [thermos-cli.zone-cli-rules :as rules]
+            [thermos-cli.zone-cli-groups :as groups]
+            [thermos-cli.zone-cli-io :as zone-io])
   (:import [java.sql Connection DriverManager SQLException
             PreparedStatement Types])
   (:gen-class))
@@ -71,6 +74,10 @@
     :validate [#(let [f (io/file %)] (and (.exists f) (.isFile f))) "File not found"]]
    ["-o" "--output-file FILE"
     "The output file; this will be a geopackage with a defined set of tables"
+    :parse-fn io/file
+    :validate [#(let [f (io/file %)] (or (not (.exists f)) (.isFile f))) "Cannot overwrite directory"]]
+   [nil "--edn-output-file FILE"
+    "An EDN output file, that can go direct into --round-and-evaluate"
     :parse-fn io/file
     :validate [#(let [f (io/file %)] (or (not (.exists f)) (.isFile f))) "Cannot overwrite directory"]]
    ["-p" "--parameters FILE"
@@ -95,11 +102,7 @@ If not given, does the base-case instead (no network)."
   (.write w "#geojson ")
   (print-method (jts/geom->json this) w))
 
-(defn- read-edn [file]
-  (with-open [r (java.io.PushbackReader. (io/reader (io/as-file file)))]
-    (edn/read {:readers {'geojson jts/json->geom}} r)))
-
-(declare run-with run-optimiser round-solution --main)
+(declare run-with run-optimiser --main)
 
 (defn -main [& arguments]
   (System/exit (let [ev (--main arguments)]
@@ -141,6 +144,7 @@ If not given, does the base-case instead (no network)."
         (run-with options)))))
 
 (defn- run-with [{:keys [input-file output-file parameters heat-price
+                         edn-output-file
                          round-and-evaluate
                          output-geometry]
                   :as options}]
@@ -148,9 +152,12 @@ If not given, does the base-case instead (no network)."
   (when (.exists output-file)
     (io/delete-file output-file))
 
+  (when (and edn-output-file (.exists edn-output-file))
+    (io/delete-file edn-output-file))
+
   (let [result
         (if round-and-evaluate
-           (round-solution options)
+           (groups/round-solution options)
            (run-optimiser options))
         
         state
@@ -175,8 +182,6 @@ If not given, does the base-case instead (no network)."
       :else
       (do (println "Finished") 0))))
 
-;; The real stuff follows
-
 (defn- line? [feature]
   "is the feature a line feature"
   (-> feature ::geoio/type #{:line-string :multi-line-string} boolean))
@@ -187,289 +192,32 @@ If not given, does the base-case instead (no network)."
    :trim-paths     true
    :transfer-field :path-segment})
 
-(defn- make-candidate-path [parameters p]
+(defn- make-candidate-path [p]
   (merge
    (json/read-str (get p "meta" "{}"))
    (dissoc p "meta")
    {::candidate/type      :path
     ::candidate/inclusion :optional
-    ::path/length         (::spatial/length p)
-    ::path/start          (::geoio/id (::spatial/start-node p))
-    ::path/end            (::geoio/id (::spatial/end-node p))
     :connector            (:connector p)
-    ::candidate/geometry  (::geoio/geometry p)
-    ::candidate/id        (::geoio/id p)
-
-    "id"                  (get p "id")
     }))
 
-(defn- make-candidate-building [parameters b]
+(defn- make-candidate-building [b]
   (merge
    (json/read-str (get b "meta" "{}"))
    (dissoc b "meta")
-   {::candidate/id          (::geoio/id b)
-    ::candidate/type        :building
+   {::candidate/type        :building
     ::candidate/inclusion   :optional
-    ::candidate/wall-area   (:wall-area b)
-    ::candidate/roof-area   (:roof-area b)
-    ::candidate/ground-area (:ground-area b)
-    ::candidate/connections (::spatial/connects-to-node b)
-    ::candidate/geometry    (::geoio/geometry b)
     
-    ::demand/kwh              (get b "heat_demand_kwh")
-    ::demand/kwp              (get b "peak_demand_kw")
+    ::demand/kwh              (get b "heat_demand_kwh" 0)
+    ::demand/kwp              (get b "peak_demand_kw" 0)
     ::demand/connection-count (or (get b "num_customers") 1)
-    
-    :path-segment             (:path-segment b)
-    "id"                      (get b "id")
+    :height                   (get b "height") ;; for lidar/add-other-attributes
     }))
-
-(defn- make-candidates [parameters paths buildings]
-  ;; In node-connect in noder.clj, we have associated :path-segment to
-  ;; each path, which is a unique int for each noded segment of input
-  ;; road. This will be propagated onto connectors as well according
-  ;; to the segment they connect to.
-
-  ;; We use this to put "connects_to" onto paths and buildings as well
-  ;; which is the toid of the original road they connect to (a bit
-  ;; less specific than the :path-segment value)
-  (let [road-segment-to-road-toid
-        (reduce
-         (fn [out path]
-           (let [segment (:path-segment path)
-                 toid    (get path "id")]
-             (cond-> out
-               (and segment toid)
-               (assoc segment toid))))
-         {}
-         paths)]
-    (as-> {} cs
-      (reduce
-       (fn [cs p]
-         (let [p (-> (make-candidate-path parameters p)
-                     (assoc "connects_to"
-                            (get road-segment-to-road-toid (:path-segment p))))]
-           (cond-> cs p (assoc (::candidate/id p) p))))
-       cs paths)
-      (reduce
-       (fn [cs b]
-         (let [b (-> (make-candidate-building parameters b)
-                     (assoc "connects_to"
-                            (get road-segment-to-road-toid (:path-segment b))
-                            :path-id
-                            (get road-segment-to-road-toid (:path-segment b))))]
-           (cond-> cs b (assoc (::candidate/id b) b))))
-       cs buildings))))
-
-(defn- sconj [s x] (set (conj s x)))
-
-(defn- matches-rule
-  "Horrible rule engine
-   options for rules are
-
-  - :default => always matches
-  - [:and | :or | :not & rules] => obvious
-  - [:in FIELD X1 X2 X3]
-  - [:demand< | :peak< X]
-  - [:demand> | :peak> X]
-  "
-  [candidate rule]
-  (cond
-    (= :default rule) true
-
-    (= :mandatable rule) (:mandatable? candidate false)
-    
-    :else
-    (let [[op & args] rule]
-        (case op
-          :and     (every? #(matches-rule candidate %) args)
-          :or      (some #(matches-rule candidate %) args)
-          :not     (not (matches-rule candidate (first args)))
-          :in      (let [[field & values] args]
-                     (contains? (set values) (get candidate field)))
-          :is      (let [[field value] args
-                         value (get candidate field)]
-                     (or (and (boolean? value) value)
-                         (and (integer? value) (= 1 value))
-                         (and (double? value) (= 1.0 value))
-                         (and (string? value)
-                              (let [lc (string/lower-case value)]
-                                (or (= lc "yes")
-                                    (= lc "true")
-                                    (= lc "y")
-                                    (= lc "1"))))))
-          (:demand< :peak<)
-          (and
-           (candidate/is-building? candidate)
-           (let [threshold (first args)
-                 x         (get candidate
-                                (if (= op :demand<) ::demand/kwh ::demand/kwp))]
-             (< x threshold)))
-
-          (:demand> :peak>)
-          (and
-           (candidate/is-building? candidate)
-           (let [threshold (first args)
-                 x         (get candidate
-                                (if (= op :demand>) ::demand/kwh ::demand/kwp))]
-             (> x threshold)))
-
-          false))))
-
-
-(defn- building-group [group-fields building]
-  (some (fn [field]
-          (let [val (get building field)]
-            (if (string? val)
-              (if (string/blank? val) nil
-                  (string/trim val))
-              val)))
-        group-fields))
-
-(defn- round-groups
-  "Apply rounding to the groups of buildings in `problem`
-
-  Return a tuple [rounding decisions, fixed problem]
-  "
-  [problem parameters]
-  (let [buildings (filter (comp #{:building} ::candidate/type)
-                          (vals (::document/candidates problem)))
-
-        group-fields               (:rounding/group-buildings-by parameters)
-        building-group             (partial building-group group-fields)
-        
-        [group-method lower upper] (:rounding/round-groups-by parameters)
-
-        [lower upper]
-        (cond
-          (not (or lower upper)) [0.5 0.5]
-          (not lower)            [upper upper]
-          (not upper)            [lower lower]
-          :else                  [lower upper])
-
-        get-group-value (case group-method
-                          :kwh           ::demand/kwh
-                          :kwp           ::demand/kwp
-                          :address-count ::demand/connection-count
-                          :building-count (constantly 1))
-        
-        groups (reduce
-                (fn [acc building]
-                  (let [group     (building-group building)
-                        connected (boolean (::solution/connected building))
-                        value     (get-group-value building)
-                        ]
-                    (-> acc
-                        (update-in [group connected]
-                                   (fn [x y] (+ (or x 0) (or y 0))) value)
-                        (update-in [group :n] #(inc (or % 0))))))
-                {}
-                buildings)
-
-        decisions (->>
-                   (for [[group {v-on true v-off false}] groups]
-                     (let [num (or v-on 0)
-                           den (+ (or v-on 0) (or v-off 0))
-                           p (/ num den)]
-                       [group (cond
-                                (< p lower)  :down
-                                (>= p upper) :up
-                                :else        :skip)]))
-                   (into {}))
-
-
-        problem
-        (document/map-buildings
-         problem
-         (fn [building]
-           (if (candidate/has-supply? building)
-             (assoc building
-                    ::candidate/inclusion
-                    ::rounded-building "skip"
-                    (if (candidate/is-connected? building) :required :optional))
-
-             (let [group (building-group building)
-                   decision (if (nil? group) :skip (get decisions group :skip))
-                   inclusion (case decision
-                               :up :required
-                               :down :optional
-                               :skip (if (candidate/is-connected? building)
-                                       :required :optional))
-
-                   building (assoc building
-                                   ::candidate/inclusion inclusion
-                                   ::rounding-group   (and group (str group))
-                                   ::rounded-building (if (or (and (= inclusion :required)
-                                                                   (candidate/is-connected? building))
-                                                              (and (= inclusion :optional)
-                                                                   (not (candidate/is-connected? building))))
-                                                        "skip"
-                                                        (name decision)))
-
-                   building (if (= :optional inclusion)
-                              (let [;; unplug from network
-                                    building    (assoc building ::candidate/connections nil)
-                                    ;; see if we can pin the alternative
-                                    alternative (::solution/alternative building)]
-                                (cond
-                                  ;; force the counterfactual decision
-                                  (:counterfactual alternative)
-                                  (assoc building ::demand/alternatives nil)
-
-                                  ;; force this alternative
-                                  alternative
-                                  (assoc building
-                                         ::demand/alternatives #{(::supply/id alternative)}
-                                         ::demand/counterfactual nil)
-
-                                  :else building))
-                              
-                              ;;leave it alone
-                              building)
-                   ]
-               building ))))]
-    [(for [[group stats] groups]
-       (assoc stats
-              :decision (get decisions group)
-              :group group))
-     problem]))
-
-(defn- assign-by-rules
-  "Given a single `rule` that maps to `ids`, test if `candidate`
-  matches the rule. If it does, return `candidate` with `ids` assoced under `key`
-
-  if `multi` is true then a non-coll `ids` is lifted to the set #{ids}"
-  [multi key candidate [rule ids]]
-  (cond-> candidate
-    (matches-rule candidate rule)
-    (-> (assoc key (if multi (if (coll? ids) (set ids)
-                                 #{ids})
-                       (if (coll? ids)
-                         (throw (ex-info "Invalid rule (has multiple outputs)"
-                                         {:rule rule
-                                          :ids ids
-                                          :key key}))
-                         ids)))
-        (reduced))))
-
-(defn- assign-building-options [candidate insulation-rules alternative-rules connection-cost-rules]
-  (as-> candidate c
-    (reduce (partial assign-by-rules true ::demand/insulation)   c insulation-rules)
-    (reduce (partial assign-by-rules true ::demand/alternatives) c alternative-rules)
-    (reduce (partial assign-by-rules false ::tariff/cc-id)       c connection-cost-rules)))
-
-(defn- assign-civil-cost [candidate civils-rules]
-  (reduce (partial assign-by-rules false ::path/civil-cost-id) candidate civils-rules))
 
 (defn- set-mandatable [candidate mandation-rule]
   (cond-> candidate
-    (matches-rule candidate mandation-rule)
+    (rules/matches-rule? candidate mandation-rule)
     (assoc :mandatable? true)))
-
-(defn- set-requirement [candidate requirement-rules]
-  (reduce (partial assign-by-rules false ::candidate/inclusion)
-          (assoc candidate ::candidate/inclusion :optional)
-          requirement-rules))
 
 (defn- set-infill [candidate]
   (cond-> candidate
@@ -486,122 +234,6 @@ If not given, does the base-case instead (no network)."
    n
    (not (contains? supply-parameters ::supply/capacity-kwp))
    true))
-
-(let [geometry-types #{:geometry :geometry-collection
-                       :line-string :polygon :point
-                       :multi-polygon :multi-line-string :multi-point}
-      
-      type-name (reduce
-                 (fn [a gt]
-                   (assoc a gt
-                          (string/join
-                           (map string/capitalize (string/split (name gt) #"-")))))
-
-                 {:string "String"
-                  :int "Integer"
-                  :double "Double"
-                  :boolean "Boolean"}
-                 
-                 geometry-types
-                 )]
-  (defn write-sqlite
-    "Write data into an sqlite database
-  `file` will be coerced to a file.
-  `table` is the name of a table
-  `columns` is triples [name type accessor]
-  "
-    [file table columns rows & {:keys [block-size crs] :or {block-size 5000}}]
-
-    (if-let [geometry-column (first (filter (comp geometry-types second) columns))]
-      ;; delegate to geoio which can write geometry but has different interface.
-      
-      (geoio/write-to
-       {::geoio/crs (or crs "EPSG:4326") ::geoio/features rows}
-       file
-       
-       :fields          (->>
-                         (for [[col type get-val] columns]
-                           [col {:type (type-name type) :value get-val}])
-                         (into {}))
-
-       :table-name      table
-       :geometry-column (first geometry-column))
-      
-      (let [quote-name (fn [s] (str "\"" s "\""))
-
-            column-setters
-            (for [[ix [_ type get-val]] (map-indexed vector columns)]
-              (let [ix (inc ix)]
-                (case type
-                  :int
-                  (fn set-int [^PreparedStatement ps row]
-                    (if-let [val (get-val row)]
-                      (.setInt ps ix (int val))
-                      (.setNull ps ix Types/INTEGER)))
-                  
-                  :double
-                  (fn set-double [^PreparedStatement ps row]
-                    (if-let [val ^double (get-val row)]
-                      (.setDouble ps ix (int val))
-                      (.setNull ps ix Types/REAL)))
-                  
-                  :boolean
-                  (fn set-bool [^PreparedStatement ps row]
-                    (.setBoolean ps ix (boolean (get-val row))))
-
-                  :blob
-                  (fn set-blob [^PreparedStatement ps row]
-                    (if-let [v ^bytes (get-val row)]
-                      (.setBytes ps ix v)
-                      (.setNull ps ix Types/BLOB)))
-                  
-                  (fn set-str [^PreparedStatement ps row]
-                    (if-let [val (get-val row)]
-                      (.setString ps ix (if (or (keyword? val) (symbol? val))
-                                          (name val) (str val)))
-                      (.setNull ps ix Types/CHAR))))))
-            
-            column-ddl (string/join
-                        ", "
-                        (for [[col ctype _] columns]
-                          (str (quote-name col) " "
-                               (case ctype
-                                 :int     "INTEGER"
-                                 :double  "REAL"
-                                 :boolean "BOOLEAN"
-                                 :blob    "BLOB"
-
-                                 "TEXT"))))
-            insert
-            (format "INSERT INTO \"%s\" (%s) values (%s)"
-                    table
-                    (string/join ", " (for [[col _ _] columns] (quote-name col)))
-                    (string/join ", " (repeat (count columns) "?")))
-            ]
-        (with-open [conn (DriverManager/getConnection
-                          (format "jdbc:sqlite:%s" (.getCanonicalPath (io/as-file file))))
-                    cts  (.createStatement conn)]
-          (.execute
-           cts
-           (format "CREATE TABLE IF NOT EXISTS \"%s\" (%s);"
-                   table column-ddl))
-
-          (with-open [ps ^PreparedStatement (.prepareStatement conn insert)]
-            (doseq [row rows]
-              (doseq [f column-setters] (f ps row))
-              (.addBatch ps))
-            (.executeBatch ps)))))))
-
-(defn gzip-string
-  "Gzip a string into a byte array"
-  ^bytes [^String s]
-  (let [baos (java.io.ByteArrayOutputStream.)]
-    (with-open [gzos (java.util.zip.GZIPOutputStream. baos)]
-      (.write gzos (.getBytes s java.nio.charset.StandardCharsets/UTF_8)))
-    (.toByteArray baos)))
-
-(defn gzip-edn [thing]
-  (gzip-string (with-out-str (prn thing))))
 
 (defn- print-summary [problem]
   (let [alternatives (::document/alternatives problem)
@@ -634,206 +266,149 @@ If not given, does the base-case instead (no network)."
 
     (println "Con. cost:"
              (frequencies
-              (keep (comp ::tariff/name con-cost ::tariff/cc-id) candidates)))
-    ))
+              (keep (comp ::tariff/name con-cost ::tariff/cc-id) candidates)))))
+
+(defn- geoio-features->candidates
+  "in is a geoio features map, so has ::geoio/crs and ::geoio/features
+  and each ::geoio/features has ::geoio/geometry and ::geoio/type
+
+  returns a geoio features map but where the other keys on features
+  are what thermos needs for candidates."
+  [in]
+  (assoc in ::geoio/features
+         (for [f (::geoio/features in)]
+           (merge
+            f
+            (if (line? f)
+              (make-candidate-path f)
+              (make-candidate-building f))))))
 
 
-(let [building-id #(get % "id")
-      path-id     #(get % "id")
+(defn- is-unheated-building? [f]
+  (and (candidate/is-building? f)
+       (or (zero? (::demand/kwh f 0))
+           (zero? (::demand/kwp f 0)))))
 
-      heating-system-capex
-      #(+ (-> % ::solution/alternative :capex (:principal 0))
-          (-> % ::solution/connection-capex   (:principal 0)))
+(defn- remove-unheated-buildings [features]
+  (update features ::geoio/features #(remove is-unheated-building? %)))
 
-      heating-system-opex
-      #(-> % ::solution/alternative :opex (:annual 0))
-      
-      heating-system-fuel
-      #(-> % ::solution/alternative :heat-cost (:annual 0))
+(defn- remove-all-paths [features]
+  (update features ::geoio/features #(remove candidate/is-path? %)))
 
-      insulation-m2   #(reduce + 0 (keep :area (::solution/insulation %)))
-      insulation-capex #(reduce + 0 (keep :principal (::solution/insulation %)))
+(defn- path-forbidden-by? [rules feature]
+  (and (candidate/is-path? feature)
+       (let [[match requirement] (rules/matching-rule feature rules)]
+         (= requirement :forbidden))))
 
-      supply-capex     #(-> % ::solution/supply-capex (:principal 0))
-      supply-opex      #(-> % ::solution/supply-opex (:annual 0))
-      supply-heat-cost #(-> % ::solution/heat-cost (:annual 0))
+(defn- remove-forbidden-paths [features rules]
+  (update features ::geoio/features
+          #(let [n (count %)
+                 out (remove (partial path-forbidden-by? rules) %)
+                 n' (count out)]
+             (println (- n n') "paths removed by rules")
+             out)))
 
-      path-capex       #(:principal (::solution/pipe-capex %))
+(defn- node-and-connect [features parameters]
+  (let [;; features (geoio/reproject features "EPSG:4326")
 
-      ;; yuck
-      is-mandated?     (fn [building]
-                         (cond
-                           (and (:mandatable? building)
-                                (::solution/connected building))
-                           "required"
+        [paths buildings] (noder/node-connect features (noder-options parameters))
+        ;; In node-connect in noder.clj, we have associated :path-segment to
+        ;; each path, which is a unique int for each noded segment of input
+        ;; road. This will be propagated onto connectors as well according
+        ;; to the segment they connect to.
 
-                           (= (::candidate/inclusion building) :forbidden)
-                           "forbidden"
+        ;; We use this to put "connects_to" onto paths and buildings as well
+        ;; which is the toid of the original road they connect to (a bit
+        ;; less specific than the :path-segment value)
+        road-segment-to-road-toid
+        (reduce
+         (fn [out path]
+           (let [segment (:path-segment path)
+                 toid    (get path "id")]
+             (cond-> out
+               (and segment toid)
+               (assoc segment toid))))
+         {}
+         paths)
+        ]
+    (assoc features
+           ::geoio/features
+           (vec (concat
+                 (for [path paths]
+                   (assoc (cond-> path (:connector path) (make-candidate-path))
+                          ;; connectors need processing still
+                          
+                          ::path/length (::spatial/length path)
+                          ::path/start  (::geoio/id (::spatial/start-node path))
+                          ::path/end    (::geoio/id (::spatial/end-node path))
 
-                           :else
-                           "optional"))
-      ]
-  
-  (defn- output [problem buildings paths supplies
-                 output-file crs output-geometry]
-    (let [mode (document/mode problem)
-          heat-demand-kwh #(candidate/solved-annual-demand % mode)
-          peak-demand-kw  #(candidate/solved-peak-demand % mode)
+                          "connects_to" (get road-segment-to-road-toid (:path-segment path))))
+                 (for [building buildings]
+                   (let [segment-toid (get road-segment-to-road-toid
+                                           (:path-segment building))]
+                     (assoc building
+                            ::candidate/connections (::spatial/connects-to-node building)
+                            
+                            "connects_to" segment-toid
+                            ;; path-id is a special group-by field
+                            :path-id      segment-toid))))))))
 
-          insulation-kwh  #(- (candidate/annual-demand % mode)
-                              (candidate/solved-annual-demand % mode))
-          
-          civil-cost-name  #(document/civil-cost-name problem (::path/civil-cost-id %))]
-      
-      (write-sqlite
-       output-file
-       "buildings"
-       (into [["building_id"          :string  building-id]
-              ["rounded_building"     :string  ::rounded-building]
-              ["rounding_group"       :string  ::rounding-group]
-              ["connects_to"          :string  #(get % "connects_to")]
-              ["on_network"           :boolean ::solution/connected]
-              ["heating_system"       :string  candidate/solution-description]
-              ["heating_system_capex" :double  heating-system-capex]
-              ["heating_system_opex"  :double  heating-system-opex]
-              ["heating_system_fuel"  :double  heating-system-fuel]
-              ["heat_demand_kwh"      :double  heat-demand-kwh]
-              ["peak_demand_kw"       :double  peak-demand-kw]
-              ["insulation_kwh"       :double  insulation-kwh]
-              ["insulation_m2"        :double  insulation-m2]
-              ["insulation_capex"     :double  insulation-capex]
-              ["mandatable"           :boolean  :mandatable?]
-              ["mandated"             :string  is-mandated?]]
-             
-             (when output-geometry
-               [["geometry"     :polygon ::candidate/geometry]]))
-       
-       buildings
-       :crs crs)
+(defn- add-building-dimensions [features]
+  (let [[buildings paths]
+        ((juxt filter remove) candidate/is-building? (::geoio/features features))
 
-      (write-sqlite
-       output-file
-       "cluster_supplies"
-       (into [["building_id"       :string building-id]
-              ["peak_output_kw"    :double ::solution/capacity-kw]
-              ["heat_output_kwh"   :double ::solution/output-kwh]
-              ["supply_capex"      :double supply-capex]
-              ["supply_opex"       :double supply-opex]
-              ["supply_heat_cost"  :double supply-heat-cost]]
-             (when output-geometry
-               [["geometry"     :polygon ::candidate/geometry]]))
-       supplies
-       :crs crs)
-      
-      (write-sqlite
-       output-file
-       "paths"
-       [["geometry"     :line-string ::candidate/geometry]
-        ["path_id"      :string      path-id]
-        ["connects_to"  :string      #(get % "connects_to")]
-        ["is_connector" :boolean     :connector]
-        ["length"       :double      ::path/length]
-        ["on_network"   :boolean     candidate/in-solution?]
-        ["civil_cost"   :string      civil-cost-name]
-        ["path_capex"   :double      path-capex]
-        ["diameter"     :double      ::solution/diameter-mm]
-        ["capacity_kw"  :double      ::solution/capacity-kw]
-        ["losses_kwh"   :double      ::solution/losses-kwh]
-        ["diversity"    :double      ::solution/diversity]
-        ["unreachable"  :string      ::solution/unreachable]]
-       paths
-       :crs crs))))
+        buildings
+        (->> (lidar/add-other-attributes (assoc features ::geoio/features buildings))
+             (::geoio/features)
+             (map importer/add-areas)
+             (map (fn [b]
+                    (assoc b
+                           ::candidate/wall-area   (:wall-area b)
+                           ::candidate/roof-area   (:roof-area b)
+                           ::candidate/ground-area (:ground-area b)))))]
+    
+    (assoc features ::geoio/features (concat paths buildings))))
 
-(defn- output-metadata [solution rounded output-file]
-  (write-sqlite
-     output-file
-     "meta"
-     [["rounded" :boolean  (constantly rounded)]
-      ["runtime" :double   ::solution/runtime]
-      ["objective" :double ::solution/objective]
-      ["gap" :double       (fn [x] (when-let [g (::solution/gap x)]
-                                     (* g 100.0)))]
-      ["state" :string     (comp name ::solution/state)]
-      ["message" :string   ::solution/message]
-      ["iterations" :int   ::solution/iterations]
-      ["lower_bound" :double (comp first ::solution/bounds)]
-      ["upper_bound" :double (comp second ::solution/bounds)]
-      ["edn" :blob (fn [x] (gzip-edn (dissoc x ::solution/log)))]
-      ["log" :blob (fn [x] (gzip-string (::solution/log x)))]]
+(defn- remove-duplicate-features [features]
+  (let [n (count (::geoio/features features))
+        features (update features ::geoio/features set)]
+    (println (- n (count (::geoio/features features))) "fully duplicated features")
+    features))
 
-     [solution]))
-
-(defn- set-optimiser-group [building group-fields]
-  (cond-> building
-    (seq group-fields)
-    (assoc ::demand/group (building-group group-fields building))))
+(defn- add-candidate-ids [features]
+  (update features ::geoio/features
+          #(for [f %]
+             (assoc f
+                    ::candidate/geometry  (::geoio/geometry f)
+                    ::candidate/id        (::geoio/id f)))))
 
 (defn- run-optimiser [{:keys [input-file output-file parameters heat-price
+                              edn-output-file
                               runtime
                               output-geometry]
                        :as options}]
-  (let [parameters (read-edn parameters)
-
-        input-features
-        (cond-> (geoio/read-from input-file :key-transform identity)
-          ;; remove all paths, if no heat price - that is counterfactual
-          (not heat-price)
-          (update ::geoio/features #(remove line? %)))
-
-        input-features (update input-features
-                               ::geoio/features
-                               #(filter
-                                 (fn [x]
-                                   (or (line? x)
-                                       (and (number? (get x "heat_demand_kwh"))
-                                            (number? (get x "peak_demand_kw")))))
-                                 %))
-        
-        _ (println (count (::geoio/features input-features)) "features in input")
-        
-        ;; if we want to filter out some paths we need to do it here
-        ;; or inside noder. If we do it here, they will be missing from
-        ;; the output dataset, which is ~ok~?
-
-        mandation-rule        (:thermos/mandation-rule    parameters)
-        
+  (let [parameters (zone-io/read-edn parameters)
         requirement-rules (:thermos/requirement-rules parameters)
+        mandation-rule    (:thermos/mandation-rule    parameters)
+
+        input-features (geoio/read-from input-file :key-transform identity)
         
-        input-features
-        (let [forbidding-rules
-              (keep
-               (fn [[rule k]] (when (= k :forbidden) rule))
-               requirement-rules)]
-          (update
-           input-features
-           ::geoio/features
-           (fn [features]
-             (remove
-              (fn [feature]
-                (some
-                 (fn [rule] (matches-rule feature rule))
-                 forbidding-rules))
-              features))))
+        candidates
+        (-> input-features
+            (remove-duplicate-features)
+            (geoio-features->candidates)
+            (remove-unheated-buildings)
+            (cond-> (not heat-price) (remove-all-paths)
+                    heat-price       (remove-forbidden-paths requirement-rules))
+            (add-building-dimensions)
+            (node-and-connect parameters)
+            (add-candidate-ids)
+            (::geoio/features)
+            (thermos-util/assoc-by ::candidate/id))
 
-        [paths buildings] (noder/node-connect input-features (noder-options parameters))
-
-        _ (println (count buildings) "/" (count paths)
-                   "buildings / paths")
-
-        ;; do some area calculations for measures to work right
-        buildings
-        (->> #:thermos-importer.geoio
-             {:features
-              (for [b buildings] (assoc b :height (get b "height")))
-              :crs (::geoio/crs input-features)}
-             (lidar/add-other-attributes)
-             (::geoio/features) ;; and get it out again
-             (map importer/add-areas))
         
-        candidates (make-candidates parameters paths buildings)
-
         pipe-costs                     (:thermos/pipe-costs parameters)
-
+        
         insulation                     (->> (for [[id x] (:thermos/insulation parameters)]
                                               [id (assoc x ::measure/id id)])
                                             (into {}))
@@ -862,27 +437,30 @@ If not given, does the base-case instead (no network)."
                         ::document/alternatives     alternatives
                         ::document/connection-costs connection-costs)
 
-                       ;; apply rules for technologies & requirement
+                       ;; apply rules for technologies & requirement etc
                        (document/map-buildings (fn apply-building-rules [b]
                                                  (-> b
                                                      (set-mandatable mandation-rule)
-                                                     (set-optimiser-group group-fields)
-                                                     (assign-building-options
-                                                      insulation-rules
-                                                      alternative-rules
-                                                      connection-cost-rules))))
+                                                     (cond-> (and infill-range heat-price) (set-infill))
+                                                     (groups/set-optimiser-group group-fields)
+                                                     (rules/assign-matching-value insulation-rules true ::demand/insulation)
+                                                     (rules/assign-matching-value alternative-rules true ::demand/alternatives)
+                                                     (rules/assign-matching-value connection-cost-rules false ::tariff/cc-id))))
                        
                        (document/map-paths (fn apply-path-rules [p]
-                                             (assign-civil-cost p civils-rules)))
-                       
+                                             (rules/assign-matching-value p civils-rules false ::path/civil-cost-id)))
+
+                       ;; requirement rules need more thought
+                       ;; if we forbid a building we effectively delete it for the optimiser
+                       ;; what we want is instead to forbid it from network but include it in the problem
                        (document/map-candidates (fn apply-requirement-rules-and-infill [c]
-                                                  (cond-> (set-requirement c requirement-rules)
-                                                    (and infill-range heat-price)
-                                                    (set-infill))))
+                                                  (-> (assoc c ::candidate/inclusion :optional)
+                                                      (rules/assign-matching-value requirement-rules false ::candidate/inclusion))))
+
+
                        
                        ;; insert supply points
-                       (cond->
-                           heat-price
+                       (cond-> heat-price
                          (add-supply-points
                           (:thermos/supplies-per-component parameters)
                           (-> (:thermos/cluster-supply-parameters parameters)
@@ -919,7 +497,7 @@ If not given, does the base-case instead (no network)."
                         ))
         
         _ (print-summary problem)
-
+        
         ;; crunch crunch run model
         solution   (interop/try-solve problem (fn [& _]))
         
@@ -927,88 +505,44 @@ If not given, does the base-case instead (no network)."
         supplies                (filter candidate/supply-in-solution? buildings)
         
         ]
-
-    (output-metadata solution false output-file)
     
-    (output problem
-            buildings
-            paths
-            supplies
-            output-file
-            (::geoio/crs input-features)
-            output-geometry)
+    (zone-io/output-metadata solution false output-file)
+    
+    (zone-io/output problem
+                    buildings
+                    paths
+                    supplies
+                    output-file
+                    (::geoio/crs input-features)
+                    output-geometry)
+
+    (when edn-output-file
+      (zone-io/write-edn solution edn-output-file))
     
     solution))
 
-(defn- fix-supply-choice
-  "Restrict supply points to the supply points that got built"
-  [problem]
-  (document/map-buildings
-   problem
-   (fn [building]
-     (cond-> building
-       (and
-        (candidate/has-supply? building)
-        (not (candidate/supply-in-solution? building)))
-       (candidate/forbid-supply!)))))
-
-(defn- round-solution [{:keys [input-file output-file parameters
-                               runtime output-geometry]}]
-  ;; TODO we could say if there is no heat price cheat and output the input
-  (let [parameters (read-edn parameters)
-        solution   (read-edn input-file)
-
-        [rounding-decisions rounded-problem]
-        (round-groups solution parameters)
-
-        rounded-problem
-        (fix-supply-choice rounded-problem)
-
-        rounded-problem
-        (cond-> rounded-problem
-          runtime
-          (assoc ::document/maximum-runtime (double (/ runtime 3600))))
-
-        ;; disable infill rules in case there are any
-        rounded-problem
-        (dissoc rounded-problem ::document/infill-targets)
-        
-        rounded-solution
-        (interop/try-solve rounded-problem (fn [& _]))
-
-        {buildings :building
-         paths :path}  (document/candidates-by-type rounded-solution)
-        
-        supplies (filter candidate/supply-in-solution? buildings)]
-
-    (output-metadata rounded-solution true output-file)
-
-    (write-sqlite
-     output-file
-     "rounding"
-     [["group" :string (comp str :group)]
-      ["count" :int :n]
-      ["value_in" :double  #(double (get % true 0.0))]
-      ["value_out" :double #(double (get % false 0.0))]
-      ["decision" :string   (comp name :decision)]]
-     rounding-decisions)
-
-    (output rounded-solution
-            buildings
-            paths
-            supplies
-            output-file
-            "EPSG:27700" ;; urgh no
-            output-geometry)
-
-    rounded-solution))
-
 (comment
   (--main
-   ["-i" "/home/hinton/optimiser-inputs-19bb391e-3817-530b-b295-c97d9789f39f-112.gpkg"
-    "-o" "/home/hinton/out.gpkg"
-    "-p" "/home/hinton/p/793-hnzp/evaluation-parameters.edn"
-    "--heat-price" "7.5"]
+   ["-i" "/home/hinton/infeasible/map.gpkg"
+    "-o" "/home/hinton/infeasible/out.gpkg"
+    "--edn-output-file" "/home/hinton/infeasible/out.edn"
+    "-p" "/home/hinton/infeasible/parameters.edn"
+    "--output-geometry"
+    "--heat-price" "14.0"]
    )
+
+  (--main
+   ["-i" "/home/hinton/infeasible/out.edn"
+    "-o" "/home/hinton/infeasible/out-r.gpkg"
+    "--round-and-evaluate"
+    "-p" "/home/hinton/infeasible/parameters.edn"
+    "--output-geometry"
+    ;; "--heat-price"
+    ;; "14.0"
+    ]
+   )
+
+  
+  
   )
 
