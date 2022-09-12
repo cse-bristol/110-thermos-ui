@@ -8,8 +8,7 @@
             [thermos-specs.solution :as solution]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.path :as path]
-            [clojure.edn :as edn]
-            [thermos-cli.zone-cli-groups :as groups])
+            [clojure.edn :as edn])
   
   (:import [java.sql Connection DriverManager SQLException
             PreparedStatement Types]))
@@ -182,8 +181,8 @@
        output-file
        "buildings"
        (into [["building_id"          :string  building-id]
-              ["rounded_building"     :string  ::groups/rounded-building]
-              ["rounding_group"       :string  ::groups/rounding-group]
+              ["rounded_building"     :string  :thermos-cli.zone-cli-groups/rounded-building]
+              ["rounding_group"       :string  :thermos-cli.zone-cli-groups/rounding-group]
               ["connects_to"          :string  #(get % "connects_to")]
               ["on_network"           :boolean ::solution/connected]
               ["heating_system"       :string  candidate/solution-description]
