@@ -631,6 +631,29 @@
            :sap-water-demand (sap/hot-water floor-area)
            )))
 
+(defn ensure-consistent-demands
+  "It is not meaningful for a building to have a lower peak than annual demand.
+  To make this consistent we either have to increase the peak or drop the annual.
+
+  Here we've chosen to increase the peak."
+  [building]
+  (let [annual-heat (annual-kwh->kw (:annual-demand building))
+        peak-heat   (:peak-demand building)
+
+        annual-cold (annual-kwh->kw (:annual-cooling-demand building))
+        peak-cold   (:cooling-peak building)]
+
+    (cond-> building
+      (> annual-heat peak-heat)
+      (-> (assoc :peak-demand annual-heat)
+          (assoc-in [:user-fields "Original heating peak"] peak-heat)
+          (assoc-in [:user-fields "Heating peak increased"] true))
+
+      (> annual-cold peak-cold)
+      (-> (assoc :cooling-peak annual-cold)
+          (assoc-in [:user-fields "Original cooling peak"] peak-cold)
+          (assoc-in [:user-fields "Cooling peak increased"] true)))))
+
 (defn- should-explode?
   "If a feature is going to end up with a summable prediction of demand,
   it should be exploded. Otherwise we can leave it alone."
@@ -809,7 +832,9 @@
                       (update x :buildings geoio/update-features :produce-demands
                               #(-> %
                                    (produce-heat-demand sqrt-degree-days)
-                                   (produce-cooling-demand cooling-benchmark)))))
+                                   (produce-cooling-demand cooling-benchmark)
+                                   (ensure-consistent-demands)
+                                   ))))
                 
                 ;; at this point we need to recombine anything that has
                 ;; been exploded.
