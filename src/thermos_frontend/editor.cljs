@@ -316,13 +316,13 @@
 
        (cond
          (state/is-running-or-queued?)
-         [:div {:key :run-state-overlay}
-          {:style {:position :absolute
-                   :z-index 1000000
-                   :width :100%
-                   :height :100%
-                   :display :flex
-                   :background "rgba(0,0,0,0.75)"}}
+         [:div {:key :run-state-overlay
+                :style {:position :absolute
+                        :z-index 1000000
+                        :width :100%
+                        :height :100%
+                        :display :flex
+                        :background "rgba(0,0,0,0.75)"}}
           (let [position (state/queue-position)
                 run-state (state/run-state)]
             [:div.popover-menu
