@@ -22,7 +22,7 @@
     nixpkgs.config.allowUnfree = true;
     
     services.thermos.ui.baseUrl = "https://${hostname}";
-    services.thermos.ui.defaultUserAuth = ":unlimited";
+    services.thermos.ui.defaultUserAuth = ":basic";
     services.thermos.model.solverCount = 4;
 
     networking.firewall.allowedTCPPorts = [ 80 443 ];
