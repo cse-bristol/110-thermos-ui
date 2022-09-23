@@ -472,9 +472,13 @@
               ]
           
           {:id id
-           :cost      (finance/objective-value
-                       instance capex-type
-                       (::supply/fixed-cost alternative 0))
+           :cost      (+ (finance/objective-value
+                          instance capex-type
+                          (::supply/fixed-cost alternative 0))
+                         (finance/objective-value
+                          instance :alternative-opex
+                          (::supply/opex-fixed alternative 0)))
+           
 
            :cost%kwh cost%kwh
            :cost%kwp cost%kwp
@@ -488,11 +492,15 @@
   "Output for the network model all the demand-related facts about this candidate"
   [instance candidate market]
   (merge
-   {:required  (boolean (candidate/required? candidate))
+   {:required    (boolean (candidate/required? candidate))
+    :off-network (boolean (candidate/only-individual? candidate))
     :count     (int     (max 1 (::demand/connection-count candidate 1)))}
    (demand-value-terms instance candidate market)
 
    (when (::demand/group candidate) {:group (::demand/group candidate)})
+
+   (when-let  [infill-groups (seq (::demand/infill-groups candidate))]
+     {:infill-connection-targets (set infill-groups)})
    
    ;; we only offer insulation & alternatives to the optimiser in system mode.
    (when (= :system (::document/objective instance :network))
@@ -637,6 +645,7 @@
          :iteration-limit (int   (::document/maximum-iterations instance 1000))
          :supply-limit    (when-let [l (::document/maximum-supply-sites instance)] (int l))
          :should-be-feasible (boolean (::document/should-be-feasible instance false))
+         :infill-connection-targets (::document/infill-targets instance)
          
          :pipe-losses
          (let [losses (pipes/heat-loss-curve pipe-curves)]
@@ -737,13 +746,14 @@
          (if-let [alternative (document/alternative-for-id instance (::demand/counterfactual candidate))]
            (let [cost-per-kwh (::supply/cost-per-kwh alternative 0)
                  opex-per-kwp (::supply/opex-per-kwp alternative 0)
+                 opex-fixed   (::supply/opex-fixed alternative 0)
 
                  kwh (candidate/annual-demand candidate (document/mode instance))
                  kwp (candidate/peak-demand candidate (document/mode instance))
                  kwp (alternative-adjusted-peak kwh kwp alternative)
                  
                  fuel (* cost-per-kwh kwh)
-                 opex (* opex-per-kwp kwp)
+                 opex (+ (* opex-per-kwp kwp) opex-fixed)
                  ]
              {:opex (finance/adjusted-value instance :alternative-opex opex)
               :heat-cost (finance/adjusted-value instance :alternative-opex fuel)
@@ -1209,6 +1219,7 @@
                                    )
                    
                    ::solution/state (:state result)
+                   ::solution/error (:error result)
                    ::solution/message (:message result)
                    ::solution/runtime (safe-div (- end-time start-time) 1000.0))
                   (merge-solution net-graph pipe-curves market result)

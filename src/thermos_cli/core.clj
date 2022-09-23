@@ -383,7 +383,7 @@ The different options are those supplied after --retry, so mostly you can use th
 
         graph
         (interop/create-graph buildings paths)
-
+        
         components
         (graph-alg/connected-components graph)
 
