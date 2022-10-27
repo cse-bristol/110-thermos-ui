@@ -6,8 +6,8 @@
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Technical description of the THERMOS network model</title>
-<meta name="generator" content="Org mode" />
 <meta name="author" content="CSE" />
+<meta name="generator" content="Org Mode" />
 <script type="text/x-mathjax-config">
     MathJax.Hub.Config({
         displayAlign: "center",
@@ -28,15 +28,14 @@
              }
 });
 </script>
-<script type="text/javascript"
-        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML"></script>
 </head>
 <body>
-<div id="content">
+<div id="content" class="content">
 <h1 class="title">Technical description of the THERMOS network model</h1>
-<div id="table-of-contents">
+<div id="table-of-contents" role="doc-toc">
 <h2>Table of Contents</h2>
-<div id="text-table-of-contents">
+<div id="text-table-of-contents" role="doc-toc">
 <ul>
 <li><a href="#org2a78f97">1. High-level summary</a>
 <ul>
@@ -479,7 +478,7 @@ This is reflected by negating the temperature difference when working out losses
 <h2 id="org4ca351a"><span class="section-number-2">2.</span> Technical details</h2>
 <div class="outline-text-2" id="text-2">
 <p>
-The THERMOS network optimisation is a heuristic centred around a mixed integer/linear programming approach<sup><a id="fnr.1" class="footref" href="#fn.1">1</a></sup>. This section describes the algorithm in more details.
+The THERMOS network optimisation is a heuristic centred around a mixed integer/linear programming approach<sup><a id="fnr.1" class="footref" href="#fn.1" role="doc-backlink">1</a></sup>. This section describes the algorithm in more details.
 </p>
 </div>
 
@@ -959,9 +958,8 @@ Disregarding insulation and skipping over heat losses for now, we constrain \(u_
 </p>
 
 
-<div id="orgec12011" class="figure">
-<p><object type="image/svg+xml" data="./formulation/example-flows.svg" class="org-svg">
-Sorry, your browser does not support SVG.</object>
+<div id="org503099c" class="figure">
+<p><img src="./formulation/example-flows.svg" alt="example-flows.svg" class="org-svg" />
 </p>
 </div></dd>
 
@@ -1265,9 +1263,8 @@ To prevent this happening, we also determine for each pipe the maximum peak dema
 </p>
 
 
-<div id="org9ed1f38" class="figure">
-<p><object type="image/svg+xml" data="./img/formulation/bad-diversity.svg" class="org-svg">
-Sorry, your browser does not support SVG.</object>
+<div id="orga7910bf" class="figure">
+<p><img src="./img/formulation/bad-diversity.svg" alt="bad-diversity.svg" class="org-svg" />
 </p>
 </div>
 </div>
@@ -1400,7 +1397,7 @@ and then finding \(u\) so that
 <h2 class="footnotes">Footnotes: </h2>
 <div id="text-footnotes">
 
-<div class="footdef"><sup><a id="fn.1" class="footnum" href="#fnr.1">1</a></sup> <div class="footpara"><p class="footpara">
+<div class="footdef"><sup><a id="fn.1" class="footnum" href="#fnr.1" role="doc-backlink">1</a></sup> <div class="footpara" role="doc-footnote"><p class="footpara">
 See <a href="https://en.wikipedia.org/wiki/Linear_programming#Integer_unknowns">https://en.wikipedia.org/wiki/Linear_programming#Integer_unknowns</a>
 </p></div></div>
 
