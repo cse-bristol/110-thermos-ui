@@ -104,7 +104,11 @@
               :Specification-Vendor "Forward Dynamics"
               :Implementation-Title "com.sun.media.imageio"
               :Implementation-Version "1.1"
-              :Implementation-Vendor "Forward Dynamics"}))
+              :Implementation-Vendor "Forward Dynamics"
+              ;; hikaricp appears to require reflective accesses that
+              ;; are forbidden unless you do this
+              :Add-Opens "java.base/java.lang"
+              }))
 
 
 (defn build-cli-tool []
