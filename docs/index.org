@@ -22,7 +22,7 @@ Welcome to the help for THERMOS. You can search the help if you know what you ar
 
 - [[file:network/interface.org][Network model user interface]] :: Describes in detail the parts of the user interface for the network model.
 - [[file:network/technical-description.org][Technical description]] :: An introductory description of what the network model does, and a more precise technical definition
-- [[file:network/validation.org][Network model validation]] :: A summary of the validation work done on the network model
+- [[file:network/validation-study.pdf][Network model validation]] :: A summary of the validation work done on the network model
 
 * Supply model
 

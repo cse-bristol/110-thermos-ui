@@ -56,7 +56,7 @@ attributes are not supported \(see `org-export-read-attribute')."
           :base-directory ,default-directory
           :publishing-directory ,(concat default-directory "../resources/public/help/")
           :publishing-function org-publish-attachment
-          :base-extension "png\\|webm\\|svg"
+          :base-extension "pdf\\|png\\|webm\\|svg"
           :recursive t)
          ("docs" :components ("docs-org" "docs-img"))
          )))
