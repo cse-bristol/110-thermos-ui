@@ -42,7 +42,7 @@
           (set! (.-value element) (print value)))))
 
     :reagent-render
-    (fn [{:keys [value print read on-change validate]
+    (fn [{:keys [value print read on-change on-blur validate]
           :or {validate default-validate}
           :as atts}]
       [:input
@@ -57,8 +57,15 @@
                                           err (validate s v)]
                                       (when (and on-change (not err))
                                         (on-change v)))))
-                  :on-blur (fn [e]
-                             (set! (-> e .-target .-value) (print value)))
+                  :on-blur (if on-blur
+                             (fn [e]
+                               (let [s (-> e .-target .-value)
+                                     v (read s)
+                                     err (validate s v)]
+                                 (when-not err (on-blur v))))
+                             
+                             (fn [e]
+                               (set! (-> e .-target .-value) (print value))))
                   ))
        ])}))
 
@@ -67,7 +74,8 @@
                        scale
                        step
                        empty-value
-                       on-change]
+                       on-change
+                       on-blur]
                 :or {scale 1.0}
                 :as atts}]
   (let [has-empty-value empty-value
@@ -99,6 +107,7 @@
              (dissoc :scale :value-atom :empty-value)
              (assoc :class "input number-input"
                     :on-change on-change
+                    :on-blur on-blur
                     :read  read-fn
                     :validate validate-fn
                     :placeholder empty-value-label
