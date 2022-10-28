@@ -149,8 +149,10 @@ Heat losses are also determined by pipe diameter, along with the flow temperatur
 In hot water pipes, the losses associated with particular diameter are calculated using the empirical formula:
 
 $$
-\delta_t × (0.16805 × \ln(⌀) + 0.85684)
+\delta_t × (0.16807 × \ln(⌀) + 0.85684)
 $$
+
+The $\delta_t$ here is the difference beween the average of the flow and return temperatures, and the ground temperature. The empirical formula was derived by fitting a curve to measured losses in the Powerpipe catalogue for EN253 pipe with Series 2 insulation.
 
 For steam pipes, "basic" losses are taken from a table relating delta-T between inside and outside for an unlagged steel pipe to heat losses. The delta-T is found using the steam pressure, via the table of standard properties for saturated steam.
 
