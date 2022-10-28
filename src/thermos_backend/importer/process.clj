@@ -637,19 +637,19 @@
 
   Here we've chosen to increase the peak."
   [building]
-  (let [annual-heat (annual-kwh->kw (:annual-demand building))
+  (let [annual-heat (some-> building :annual-demand annual-kwh->kw)
         peak-heat   (:peak-demand building)
 
-        annual-cold (annual-kwh->kw (:annual-cooling-demand building))
+        annual-cold (some-> building :annual-cooling-demand annual-kwh->kw)
         peak-cold   (:cooling-peak building)]
 
     (cond-> building
-      (> annual-heat peak-heat)
+      (and annual-heat peak-heat (> annual-heat peak-heat))
       (-> (assoc :peak-demand annual-heat)
           (assoc-in [:user-fields "Original heating peak"] peak-heat)
           (assoc-in [:user-fields "Heating peak increased"] true))
 
-      (> annual-cold peak-cold)
+      (and annual-cold peak-cold (> annual-cold peak-cold))
       (-> (assoc :cooling-peak annual-cold)
           (assoc-in [:user-fields "Original cooling peak"] peak-cold)
           (assoc-in [:user-fields "Cooling peak increased"] true)))))
