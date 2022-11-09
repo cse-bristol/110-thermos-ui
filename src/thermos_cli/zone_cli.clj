@@ -382,6 +382,18 @@ If not given, does the base-case instead (no network)."
                     ::candidate/geometry  (::geoio/geometry f)
                     ::candidate/id        (::geoio/id f)))))
 
+(defn- forbidden-building->individual-building 
+  "If b is a forbidden building, set it to individual heating
+   
+   This is because we never want to output a null heating system for a building
+   that we have been given. A building which should have a null heating system
+   will never be input to this program anyway, as they are filtered out elsewhere."
+  [b]
+  (cond-> b
+    (and (candidate/is-building? b)
+         (= :forbidden (::candidate/inclusion b)))
+    (assoc ::candidate/inclusion :individual)))
+
 (defn- run-optimiser [{:keys [input-file output-file parameters heat-price
                               edn-output-file
                               runtime
@@ -450,12 +462,10 @@ If not given, does the base-case instead (no network)."
                        (document/map-paths (fn apply-path-rules [p]
                                              (rules/assign-matching-value p civils-rules false ::path/civil-cost-id)))
 
-                       ;; requirement rules need more thought
-                       ;; if we forbid a building we effectively delete it for the optimiser
-                       ;; what we want is instead to forbid it from network but include it in the problem
                        (document/map-candidates (fn apply-requirement-rules-and-infill [c]
                                                   (-> (assoc c ::candidate/inclusion :optional)
-                                                      (rules/assign-matching-value requirement-rules false ::candidate/inclusion))))
+                                                      (rules/assign-matching-value requirement-rules false ::candidate/inclusion)
+                                                      (forbidden-building->individual-building))))
 
 
                        
