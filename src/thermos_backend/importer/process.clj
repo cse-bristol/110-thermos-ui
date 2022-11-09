@@ -631,6 +631,18 @@
            :sap-water-demand (sap/hot-water floor-area)
            )))
 
+(defn convert-demands-to-numbers
+  "We keep getting non-numeric values in for demand. Wrangle them before doing anything."
+
+  [building]
+
+  (cond-> building
+    (contains? building :annual-demand)
+    (update :annual-demand as-double)
+
+    (contains? building :peak-demand)
+    (update :peak-demand as-double)))
+
 (defn ensure-consistent-demands
   "It is not meaningful for a building to have a lower peak than annual demand.
   To make this consistent we either have to increase the peak or drop the annual.
@@ -831,6 +843,7 @@
                       (log/info "Cooling benchmark" cooling-benchmark)
                       (update x :buildings geoio/update-features :produce-demands
                               #(-> %
+                                   (convert-demands-to-numbers)
                                    (produce-heat-demand sqrt-degree-days)
                                    (produce-cooling-demand cooling-benchmark)
                                    (ensure-consistent-demands)
