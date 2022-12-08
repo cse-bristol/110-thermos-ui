@@ -965,9 +965,14 @@
                               (attr/attr net-graph [(:i solution-edge) (:j solution-edge)] :length)
                               candidate-length)
                 length-factor (safe-div candidate-length input-length)
-                diameter-mm   (pipes/solved-diameter pipe-curves
-                                                     (:capacity-kw solution-edge))
+                diameter-mm   (if (and (::path/exists e)
+                                       (::path/maximum-diameter e))
+                                (* 1000.0 (::path/maximum-diameter e))
+                                (pipes/solved-diameter pipe-curves
+                                                       (:capacity-kw solution-edge)))
 
+                max-capacity  (pipes/dia->kw pipe-curves diameter-mm)
+                
                 civil-cost-id (::path/civil-cost-id e)
 
                 principal     (* candidate-length
@@ -990,6 +995,7 @@
                    ::solution/included      true
                    ::solution/diameter-mm   diameter-mm
                    ::solution/capacity-kw   (:capacity-kw solution-edge)
+                   ::solution/max-capacity-kw max-capacity
                    ::solution/diversity     (:diversity solution-edge)
                    ::solution/pipe-capex     (finance/adjusted-value
                                               instance capex-type principal)     

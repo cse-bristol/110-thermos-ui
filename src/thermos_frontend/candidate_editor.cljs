@@ -520,7 +520,9 @@
          [:tr
           [:th {:style {:width :100%}} (group-by-options group-by-key)]
           [:th.align-right {:style {:min-width :120px :padding-right :25px}} "Length (m)"]
-          [:th.align-right "Maximum diameter (mm)"]
+          [:th.align-right [:span.has-tt
+                            {:title "If exists is checked, this will set the resulting pipe diameter."}
+                            "Maximum diameter (mm)"]]
           [:th.align-right "Exists"]
           [:th.has-tt
            {:title "You can set up civil engineering costs in the pipe costs page."}
