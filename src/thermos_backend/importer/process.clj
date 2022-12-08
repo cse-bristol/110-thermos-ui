@@ -19,6 +19,7 @@
             [thermos-backend.importer.sap :as sap]
             [thermos-backend.importer.cooling :as cooling]
             [thermos-backend.project-lidar :as project-lidar]
+            [thermos-util.peak-demand :as peak]
 
             [clojure.data.json :as json]
             [clojure.string :as str]
@@ -265,18 +266,15 @@
         :sap-water-demand sap-water
         :demand-source (if space-svm-3 "3d-svm" "2d-svm")}))))
 
-(def peak-constant 21.84)
-(def peak-gradient 0.0004963)
-
 (defn run-peak-model [annual-demand]
-  (+ peak-constant (* annual-demand peak-gradient)))
+  (peak/annual->peak-demand annual-demand))
 
 (defn- inverse-peak-model [kwp]
   "In some data there is a known peak but no annual, and just point geometry.
   In this case, we can invert the peak regression to get an annual demand"
   [kwp]
   (when (number? kwp)
-    (max 0.0 (/ (- kwp peak-constant) peak-gradient))))
+    (peak/peak->annual-demand kwp)))
 
 (defn- blank-string? [x] (and (string? x) (string/blank? x)))
 
