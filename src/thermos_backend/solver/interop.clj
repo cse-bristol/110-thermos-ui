@@ -249,19 +249,17 @@
 
         unsupplied-vertices
         (set/difference
-         (set
-          (filter #(attr/attr net-graph % :real-vertex)
-                  (graph/nodes net-graph)))
-         supplied-vertices)
+         (set (graph/nodes net-graph))
+         supplied-vertices)        
         ]
     (if (empty? unsupplied-vertices)
       [net-graph []]
 
       (let [dead-verts unsupplied-vertices
-            dead-edges (graph/edges (graph/subgraph net-graph dead-verts))]
-        
-
-        [(-> net-graph
+            dead-edges (graph/edges (graph/subgraph net-graph dead-verts))
+            
+            graph-without-dead-stuff
+            (-> net-graph
              (graph/remove-edges* dead-edges)
              (cond->
                  only-remove-edges
@@ -269,7 +267,9 @@
 
                (not only-remove-edges)
                (graph/remove-nodes* dead-verts)))
+            ]
 
+        [graph-without-dead-stuff
          (into
           (set (mapcat #(attr/attr net-graph % :ids) dead-edges))
           (filter #(attr/attr net-graph % :real-vertex) dead-verts))]))))
@@ -1137,6 +1137,12 @@
                           (not (Double/isFinite b)))
                  a)))))
 
+(defn- log-empty-problem [instance]
+  (assoc instance ::solution/log "The problem is empty - you need to include some buildings and paths in the problem for the optimiser to consider"
+         ::solution/state :empty-problem
+         ::solution/message "Empty problem"
+         ::solution/runtime 0))
+
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
@@ -1156,7 +1162,7 @@
                     (count (graph/nodes net-graph))
                     "nodes,"
                     (count (graph/edges net-graph)) "edges")
-        
+
         [net-graph disconnected-cand-ids]
         (clean-disconnected-components net-graph (::document/consider-alternatives instance))
 
@@ -1187,11 +1193,7 @@
     ;; check whether there are actually any vertices
     (cond
       (empty? (graph/nodes net-graph))
-      (-> instance
-          (assoc ::solution/log "The problem is empty - you need to include some buildings and paths in the problem for the optimiser to consider"
-                 ::solution/state :empty-problem
-                 ::solution/message "Empty problem"
-                 ::solution/runtime 0)
+      (-> (log-empty-problem instance)
           (mark-unreachable net-graph included-candidates disconnected-cand-ids))
       
       :else
@@ -1211,7 +1213,10 @@
         (log/info "Starting solver")
         
         (let [start-time (System/currentTimeMillis)
-              result (net-model/run-model model-input)
+              result (if (seq (:vertices model-input))
+                       (net-model/run-model model-input)
+                       ::empty)
+              
               end-time (System/currentTimeMillis)
 
               solved-instance
@@ -1228,7 +1233,13 @@
                    ::solution/error (:error result)
                    ::solution/message (:message result)
                    ::solution/runtime (safe-div (- end-time start-time) 1000.0))
-                  (merge-solution net-graph pipe-curves market result)
+                  (cond->
+                    (not= ::empty result)
+                    (merge-solution net-graph pipe-curves market result)
+                    
+                    (= ::empty result)
+                    (log-empty-problem net-graph included-candidates disconnected-cand-ids))
+                  
                   (mark-unreachable net-graph included-candidates disconnected-cand-ids))
               ]
           
