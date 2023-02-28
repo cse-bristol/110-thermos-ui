@@ -68,7 +68,7 @@
                   :double
                   (fn set-double [^PreparedStatement ps row]
                     (if-let [val ^double (get-val row)]
-                      (.setDouble ps ix (int val))
+                      (.setDouble ps ix (double val))
                       (.setNull ps ix Types/REAL)))
                   
                   :boolean
