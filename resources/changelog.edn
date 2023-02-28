@@ -1,4 +1,21 @@
-[{:title "12th August 2022"
+[{:title "13th December 2022"
+  :changes [{:title "Bug fix"
+             :summary
+             [:p "Hiding unconstrained candidates no longer makes the application forget any edits the user has made to those candidates."]
+             }]}
+
+ {:title "8th December 2022"
+  :changes [{:title "Improved demand editing"
+             :summary
+             [:p "The demand editor (e key) now lets you adjust demands by a percentage."]
+             }
+            {:title "Existing pipes"
+             :summary
+             [:p "If a pipe is marked as existing with a max. diameter, that is the diameter of pipe that will be used. "
+              "Also, the UI now displays the pipe maximum capacity separate from required capacity for networked demands. "
+              "This new information will only appear for new model runs."]}]}
+
+ {:title "12th August 2022"
   :changes [{:title "Bug fixes"
              :summary
              [:ul

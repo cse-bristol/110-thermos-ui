@@ -250,15 +250,19 @@
                  ;; connect buildings:
                  (= :building (::candidate/type start-candidate))
                  (update-in [::document/candidates
-                             (::candidate/id start-candidate)
-                             ::candidate/connections]
-                            conj start-id)
+                             (::candidate/id start-candidate)]
+                            (fn [x]
+                              (-> x
+                                  (update ::candidate/connections conj start-id)
+                                  (assoc ::candidate/modified true))))
 
                  (= :building (::candidate/type end-candidate))
                  (update-in [::document/candidates
-                             (::candidate/id end-candidate)
-                             ::candidate/connections]
-                            conj end-id)
+                             (::candidate/id end-candidate)]
+                            (fn [x]
+                              (-> x
+                                  (update ::candidate/connections conj end-id)
+                                  (assoc ::candidate/modified true))))
 
                  ;; split path
                  (= :path (::candidate/type start-candidate))
@@ -271,11 +275,8 @@
                  (connect-path
                   (::candidate/id end-candidate)
                   (last spline)
-                  end-id)
-                 ))))
-        
-        (reset! state start-state))
-      )))
+                  end-id)))))
+        (reset! state start-state)))))
 
 (defn render-tile!
   "Draw what is going on into the given tile."

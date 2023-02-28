@@ -125,10 +125,10 @@
 
 (defn- map-icon [{{:keys [map-id]} :params}]
   (auth/verify [:read :map map-id]
-    (-> (maps/get-icon map-id)
-        (ByteArrayInputStream.)
-        (response/response)
-        (response/content-type "image/png"))))
+    (some-> (maps/get-icon map-id)
+            (ByteArrayInputStream.)
+            (response/response)
+            (response/content-type "image/png"))))
 
 (defn- new-map-page [{{:keys [project-id]} :params}] (html (map-pages/create-map-form project-id)))
 (defn- create-new-map! [{{:keys [project-id name description] :as params} :params}]

@@ -63,6 +63,18 @@
        (map ::candidate/id)
        (set)))
 
+(defn modified-or-constrained-candidates-ids
+  "Get a set containing the candidate IDS of all the candidates that the user has edited or that are constrained."
+  [doc]
+  (->> doc
+       (::document/candidates)
+       (vals)
+       (keep #(when (or (::candidate/modified %)
+                        (= :required (::candidate/inclusion %))
+                        (= :optional (::candidate/inclusion %)))
+                (::candidate/id %)))
+       (set)))
+
 (defn constrained-candidates
   "Get a collection containing all the candidates that have a constraint."
   [doc]
@@ -323,4 +335,4 @@
     (if (showing-forbidden? doc)
       doc
       (update-in doc [::document/candidates]
-                 #(select-keys % (constrained-candidates-ids doc))))))
+                 #(select-keys % (modified-or-constrained-candidates-ids doc))))))

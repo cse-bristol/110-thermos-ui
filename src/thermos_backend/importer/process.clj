@@ -19,6 +19,7 @@
             [thermos-backend.importer.sap :as sap]
             [thermos-backend.importer.cooling :as cooling]
             [thermos-backend.project-lidar :as project-lidar]
+            [thermos-util.peak-demand :as peak]
 
             [clojure.data.json :as json]
             [clojure.string :as str]
@@ -265,18 +266,15 @@
         :sap-water-demand sap-water
         :demand-source (if space-svm-3 "3d-svm" "2d-svm")}))))
 
-(def peak-constant 21.84)
-(def peak-gradient 0.0004963)
-
 (defn run-peak-model [annual-demand]
-  (+ peak-constant (* annual-demand peak-gradient)))
+  (peak/annual->peak-demand annual-demand))
 
 (defn- inverse-peak-model [kwp]
   "In some data there is a known peak but no annual, and just point geometry.
   In this case, we can invert the peak regression to get an annual demand"
   [kwp]
   (when (number? kwp)
-    (max 0.0 (/ (- kwp peak-constant) peak-gradient))))
+    (peak/peak->annual-demand kwp)))
 
 (defn- blank-string? [x] (and (string? x) (string/blank? x)))
 
@@ -631,6 +629,18 @@
            :sap-water-demand (sap/hot-water floor-area)
            )))
 
+(defn convert-demands-to-numbers
+  "We keep getting non-numeric values in for demand. Wrangle them before doing anything."
+
+  [building]
+
+  (cond-> building
+    (contains? building :annual-demand)
+    (update :annual-demand as-double)
+
+    (contains? building :peak-demand)
+    (update :peak-demand as-double)))
+
 (defn ensure-consistent-demands
   "It is not meaningful for a building to have a lower peak than annual demand.
   To make this consistent we either have to increase the peak or drop the annual.
@@ -831,6 +841,7 @@
                       (log/info "Cooling benchmark" cooling-benchmark)
                       (update x :buildings geoio/update-features :produce-demands
                               #(-> %
+                                   (convert-demands-to-numbers)
                                    (produce-heat-demand sqrt-degree-days)
                                    (produce-cooling-demand cooling-benchmark)
                                    (ensure-consistent-demands)

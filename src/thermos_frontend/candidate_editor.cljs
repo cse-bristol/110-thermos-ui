@@ -16,6 +16,10 @@
             [thermos-frontend.inputs :as inputs]
             [thermos-frontend.format :as format]
             [thermos-frontend.util :refer [target-value]]
+
+            [thermos-util.peak-demand :as peak]
+            [thermos-util :refer [annual-kwh->kw]]
+            
             [clojure.string :as string]
 
             [reagent.core :as reagent]
@@ -105,7 +109,6 @@
 (defn- insulation-editor [group-by-options insulation alternatives state buildings]
   (reagent/with-let
     [group-by-key  (reagent/cursor state [:group-by])
-     benchmarks    (reagent/cursor state [:benchmarks])
      values        (reagent/cursor state [:values])]
 
     [:div
@@ -189,7 +192,8 @@
 (defn- demand-editor [group-by-options profiles state buildings]
   (reagent/with-let
     [group-by-key  (reagent/cursor state [:group-by])
-     benchmarks    (reagent/cursor state [:benchmarks])
+     *demand-key   (reagent/cursor state [:demand-key])
+     *peak-key     (reagent/cursor state [:peak-key])
      values        (reagent/cursor state [:values])]
 
     [:div
@@ -201,20 +205,14 @@
          [inputs/select
           {:value-atom group-by-key
            :values group-by-options}]
-         ;;" — "
-         ;; [inputs/check
-         ;;  {:on-change #(reset! benchmarks %) :value @benchmarks
-         ;;   :label [:b "Set demands as benchmarks"]}]
-
          ]])
 
      (let [group-by-key @group-by-key
            grouped (group-by group-by-key buildings)
            group-by-nothing (= group-by-key ::candidate/type)
-
-           benchmarks @benchmarks
-           demand-key (if benchmarks :demand-benchmark :demand)
-           peak-key (if benchmarks :peak-benchmark :peak-demand)]
+           demand-key @*demand-key
+           peak-key @*peak-key
+           ]
        
        [:table.table.table--alternating {:style {:max-height :400px :overflow-y :auto :margin-top :1em}}
         [:thead
@@ -224,10 +222,26 @@
           [:th.align-right "Count"]
           
           [:th "Connections"]
-          [:th {:style {:min-width :140px}} "Demand " (if benchmarks [:small "(kWh/m2 yr)"] [:small "(MWh/yr)"])]
-          [:th "Peak " (if benchmarks [:small "(kW/m2)"] [:small "(kW)"])]
+          [:th {:style {:min-width :140px}}
+           [inputs/select
+                {:values [[:demand "Demand (MWh/yr)"]
+                          [:demand-factor "Demand (%)"]]
+                 :value demand-key
+                 :on-change #(reset! *demand-key %)}
+                ]
+           ]
+          [:th [inputs/select
+                {:values [[:peak-demand "Peak (kW)"]
+                          [:peak-factor "Peak (%)"]
+                          [:peak-estimate "Peak (re-estimate)"]]
+                 :value :peak-key
+                 :on-change #(reset! *peak-key %)}
+                ]
+           ]
           [:th.has-tt {:title "This affects the supply model, not the network model."} "Profile"]
-          ]]
+          ]
+         
+         ]
 
         [:tbody
          (doall
@@ -257,23 +271,43 @@
                      :max 1000
                      :style {:max-width :5em}
                      ;; benchmarks are in kWh but absolute in MWh
-                     :scale (if benchmarks 1 (/ 1 1000.0))
+                     :scale (case demand-key
+                              :demand (/ 1 1000.0)
+                              :demand-benchmark 1
+                              :demand-factor 100.0 ;; -percent
+                              )
                      :min 0
                      :step 1
                      :value-atom
                      (reagent/cursor values [group-by-key k demand-key :value])
                      :check-atom
                      (reagent/cursor values [group-by-key k :demand :check])}]]
-              [:td [inputs/check-number
-                    {:key peak-key
-                     :max 1000
-                     :style {:max-width :5em}
-                     :min 0
-                     :step 1
-                     :value-atom
-                     (reagent/cursor values [group-by-key k peak-key :value])
-                     :check-atom
-                     (reagent/cursor values [group-by-key k :peak-demand :check])}]]
+              [:td
+               (if (= peak-key :peak-estimate)
+                 [inputs/check
+                  {:key peak-key
+                   :value (get-in @values
+                                  [group-by-key k :peak-demand :check])
+                   :on-change #(swap! values
+                                     assoc-in
+                                     [group-by-key k :peak-demand :check]
+                                     %)}]
+                 
+                 [inputs/check-number
+                  {:key peak-key
+                   :max 1000
+                   :scale (case peak-key
+                            :peak-demand 1
+                            :peak-benchmark 1
+                            :peak-factor 100.0
+                            )
+                   :style {:max-width :5em}
+                   :min 0
+                   :step 1
+                   :value-atom
+                   (reagent/cursor values [group-by-key k peak-key :value])
+                   :check-atom
+                   (reagent/cursor values [group-by-key k :peak-demand :check])}])]
 
               [:td
                ;; profile choices go here.
@@ -296,8 +330,9 @@
         (case mode
           :cooling [::cooling/kwh ::cooling/kwp]
           [::demand/kwh ::demand/kwp])]
-    {:group-by ::candidate/type
-     :benchmarks false
+    {:group-by   ::candidate/type
+     :demand-key :demand
+     :peak-key   :peak-demand
      :values
      (->> (for [k (keys group-by-options)]
             [k
@@ -306,14 +341,16 @@
                   (map (fn [[k v]]
                          (let [n (count v)]
                            [k (merge
-                               {:demand {:value (mean (map annual-demand v))}
-                                :tariff (unset? (map ::tariff/id v))
+                               {:demand           {:value (mean (map annual-demand v))}
+                                :tariff           (unset? (map ::tariff/id v))
                                 :connection-count {:value (int (mean (map ::demand/connection-count v)))}
-                                :profile (unset? (map ::supply/profile-id v))
-                                :connection-cost (unset? (map ::tariff/cc-id v))
-                                :peak-demand {:value (mean (map peak-demand v))}
+                                :profile          (unset? (map ::supply/profile-id v))
+                                :connection-cost  (unset? (map ::tariff/cc-id v))
+                                :peak-demand      {:value (mean (map peak-demand v))}
                                 :demand-benchmark {:value 2}
-                                :peak-benchmark {:value 3}
+                                :peak-benchmark   {:value 3}
+                                :demand-factor    {:value 1}
+                                :peak-factor      {:value 1}
                                 :insulation
                                 (let [fs (frequencies
                                           (mapcat (comp seq ::demand/insulation) v))
@@ -342,9 +379,11 @@
 
 (defn- apply-demand-state [document demand-state building-ids]
   (let [{group :group-by
-         bench :benchmarks
+         demand-key :demand-key
+         peak-key   :peak-key
          values :values}
         demand-state
+
 
         [annual-demand peak-demand]
         (if (document/is-cooling? document)
@@ -365,19 +404,28 @@
              {set-demand :check demand-value :value} (:demand values)
              {set-cc :check cc-value :value} (:connection-count values)
 
-             peak-value   (if bench
-                            (* (:peak-benchmark values) (::candidate/area building))
-                            peak-value)
+             demand-value (if set-demand
+                            (case demand-key
+                              :demand           demand-value
+                              :demand-benchmark (* (:value (:demand-benchmark values)) (::candidate/area building))
+                              :demand-factor    (* (:value (:demand-factor values)) (annual-demand building)))
+                            
+                            (annual-demand building))
+             
+             peak-value   (case peak-key
+                            :peak-demand     peak-value
+                            :peak-benchmark  (* (:value (:peak-benchmark values)) (::candidate/area building))
+                            :peak-factor     (* (:value (:peak-factor values)) (peak-demand building))
+                            :peak-estimate   (peak/annual->peak-demand demand-value))
 
-             demand-value (if bench
-                            (* (:demand-benchmark values) (::candidate/area building))
-                            demand-value)
-
-
-
+             ;; ensure peak is consistent
+             min-peak    (annual-kwh->kw demand-value)
+             
+             set-peak    (or set-peak (not= min-peak peak-value))
+             peak-value  (max min-peak peak-value)
+             
              profile (:profile values)
              set-profile (not= :unset profile)]
-         
          (cond-> building
            set-demand              (assoc annual-demand demand-value)
            set-peak                (assoc peak-demand peak-value)
@@ -472,7 +520,9 @@
          [:tr
           [:th {:style {:width :100%}} (group-by-options group-by-key)]
           [:th.align-right {:style {:min-width :120px :padding-right :25px}} "Length (m)"]
-          [:th.align-right "Maximum diameter (mm)"]
+          [:th.align-right [:span.has-tt
+                            {:title "If exists is checked, this will set the resulting pipe diameter."}
+                            "Maximum diameter (mm)"]]
           [:th.align-right "Exists"]
           [:th.has-tt
            {:title "You can set up civil engineering costs in the pipe costs page."}

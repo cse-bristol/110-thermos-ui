@@ -396,7 +396,9 @@
             :nil-value "no" :add-classes solution-row-classes]
            [number-row "Coincidence" ::solution/diversity
             :summary :mean :unit "%" :scale 100]
-           [number-row "Capacity" ::solution/capacity-kw
+           [number-row "Required capacity" ::solution/capacity-kw
+            :summary :max :unit "W" :scale 1000]
+           [number-row "Max. capacity" ::solution/max-capacity-kw
             :summary :max :unit "W" :scale 1000]
            [number-row "Diameter" ::solution/diameter-mm
             :summary :max :unit "m" :scale 0.001]
