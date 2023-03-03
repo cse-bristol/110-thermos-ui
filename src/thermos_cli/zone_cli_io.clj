@@ -237,7 +237,9 @@
         ["losses_kwh"   :double      ::solution/losses-kwh]
         ["diversity"    :double      ::solution/diversity]
         ["unreachable"  :string      ::solution/unreachable]]
-       paths
+       (filter
+        (comp jts/valid? ::candidate/geometry)
+        paths)
        :crs crs))))
 
 (defn output-metadata [solution rounded output-file]
