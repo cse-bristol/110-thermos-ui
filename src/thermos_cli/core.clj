@@ -446,7 +446,7 @@ The different options are those supplied after --retry, so mostly you can use th
        (fn [instance [component-id [supply-ids max-capacity]]]
          (let [supply (cond-> supply
                         fit-supply
-                        (assoc ::supply/capacity-kwp max-capacity)
+                        (assoc ::supply/capacity-kwp (* 1.5 max-capacity))
 
                         make-exclusive
                         (assoc ::supply/exclusive-groups #{component-id})
