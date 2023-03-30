@@ -66,14 +66,32 @@
 (defn matching-rule [candidate rules]
   (first (filter (fn [[rule value]] (matches-rule? candidate rule)) rules)))
 
-(defn assign-matching-value [candidate rules is-set? key]
+(defn assign-matching-value [candidate rules key]
   (let [rule (matching-rule candidate rules)]
     (cond-> candidate
-      rule
-      (assoc key (let [value (second rule)]
-                   (if is-set?
-                     (if (coll? value) (set value) #{value})
-                     value))))))
+      rule (assoc key (second rule)))))
+
+(defn all-matching-rules [candidate rules]
+  (let [rules (filter (fn [[rule value]] (matches-rule? candidate rule)) rules)
+        stop-at? (conj (map #(= (get % 2) :next) rules) 
+                       true)]
+    (->> rules
+         (map vector stop-at?)
+         (take-while (fn [[stop?]] stop?))
+         (map second))))
+
+(defn assign-all-matching-values
+  "If the 3rd element in a matching rule is the keyword `:next`, continue to evaluate
+   subsequent rules. 
+   
+   Values from all matching rules are combined into a set."
+  [candidate rules key]
+  (let [rules (all-matching-rules candidate rules)]
+    (cond-> candidate
+      (seq rules) (assoc key (->> rules
+                                  (map second)
+                                  (flatten)
+                                  (set))))))
 
 (comment
   (let [rules [[[:in "cost_category" "soft"] 1] [[:in "cost_category" "city-centre"] 2] [[:in "cost_category" "motorway"] 3] [[:in "cost_category" "non-city-centre"] 4] [[:in "cost_category" "non-highway"] 5] [[:in "cost_category" "residential"] 6] [:default 6]]
@@ -81,6 +99,6 @@
         c {"cost_category" "soft"}
         ]
     (matching-rule c rules)
-    (assign-matching-value c rules false :foo)
+    (assign-matching-value c rules :foo)
     )
   )

@@ -455,16 +455,16 @@ If not given, does the base-case instead (no network)."
                                                      (set-mandatable mandation-rule)
                                                      (cond-> (and infill-range heat-price) (set-infill))
                                                      (groups/set-optimiser-group group-fields)
-                                                     (rules/assign-matching-value insulation-rules true ::demand/insulation)
-                                                     (rules/assign-matching-value alternative-rules true ::demand/alternatives)
-                                                     (rules/assign-matching-value connection-cost-rules false ::tariff/cc-id))))
+                                                     (rules/assign-all-matching-values insulation-rules ::demand/insulation)
+                                                     (rules/assign-all-matching-values alternative-rules ::demand/alternatives)
+                                                     (rules/assign-matching-value connection-cost-rules ::tariff/cc-id))))
                        
                        (document/map-paths (fn apply-path-rules [p]
-                                             (rules/assign-matching-value p civils-rules false ::path/civil-cost-id)))
+                                             (rules/assign-matching-value p civils-rules ::path/civil-cost-id)))
 
                        (document/map-candidates (fn apply-requirement-rules-and-infill [c]
                                                   (-> (assoc c ::candidate/inclusion :optional)
-                                                      (rules/assign-matching-value requirement-rules false ::candidate/inclusion)
+                                                      (rules/assign-matching-value requirement-rules ::candidate/inclusion)
                                                       (forbidden-building->individual-building))))
 
 
