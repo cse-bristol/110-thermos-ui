@@ -237,7 +237,7 @@ If not given, does the base-case instead (no network)."
 
 (defn- print-summary [problem]
   (let [alternatives (::document/alternatives problem)
-        insulation   (::document/measures problem)
+        insulation   (::document/insulation problem)
         civils       (:civils (::document/pipe-costs problem))
         con-cost     (::document/connection-costs problem)
         candidates   (vals (::document/candidates problem))
