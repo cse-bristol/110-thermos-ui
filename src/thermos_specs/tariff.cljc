@@ -20,6 +20,12 @@
                 ::variable-connection-cost]))
 
 
+(s/def
+  ;; this key, if present on a candidate, defines its connection cost
+  ;; as computed elsewhere. It is intended for use on sites rather
+  ;; than buildings.
+  ::external-connnection-cost double?)
+
 (s/def ::name string?)
 
 (defn annual-heat-revenue [tariff demand-kwh capacity-kw]

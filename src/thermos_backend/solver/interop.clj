@@ -69,6 +69,7 @@
             [clojure.string :as string]
 
             [thermos.opt.net.core :as net-model]
+            [thermos.opt.net.diversity :as net-diversity]
             [thermos.opt.net.bounds :as net-model-bounds]
             [thermos-backend.solver.logcap :as logcap]
             )
@@ -357,8 +358,12 @@
         unit-charge     (if ignore-revenues 0 (or unit-charge 0))
         capacity-charge (if ignore-revenues 0 (or capacity-charge 0))
 
-        fixed-connection (or fixed-connection 0)
-        variable-connection (or variable-connection 0)
+        external-connection (::tariff/external-connection-cost candidate)
+        
+        fixed-connection    (if external-connection external-connection
+                                (or fixed-connection 0))
+        variable-connection (if external-connection 0
+                              (or variable-connection 0))
         ]
     {:kwh        kwh
      :kwp        kwp
@@ -450,9 +455,13 @@
               capex%kwp (finance/objective-value
                          instance capex-type (::supply/capex-per-kwp alternative 0))
               
-
-              cost%kwp  (+ opex%kwp capex%kwp)
-
+              cost%kwp  (cond-> (+ opex%kwp capex%kwp)
+                          ;; supply/remove-diversity is an ugly thing
+                          ;; which we do not tell the optimiser.
+                          (::supply/remove-diversity alternative)
+                          (/ (diversity (::demand/connection-count candidate 1))))
+              
+              
               changes-peak (::supply/kwp-per-mean-kw alternative)
               ;; if changes-peak we need to insert cost/kwp into the cost/kwh
 
@@ -468,17 +477,23 @@
               (+
                (finance/objective-value instance capex-type capex%kwh)
                (finance/objective-value instance :alternative-opex
-                                        (::supply/cost-per-kwh alternative 0)))
-              ]
+                                        (::supply/cost-per-kwh alternative 0)))]
           
           {:id id
            :cost      (+ (finance/objective-value
                           instance capex-type
                           (::supply/fixed-cost alternative 0))
+                         
+                         (finance/objective-value
+                          instance capex-type
+                          (* (::supply/capex-per-connection alternative 0)
+                             (::demand/connection-count candidate 1)))
+                         
                          (finance/objective-value
                           instance :alternative-opex
-                          (::supply/opex-fixed alternative 0)))
-           
+                          (+ (::supply/opex-fixed alternative 0)
+                             (* (::supply/opex-per-connection alternative 0)
+                                (::demand/connection-count candidate 1)))))
 
            :cost%kwh cost%kwh
            :cost%kwp cost%kwp
@@ -738,68 +753,61 @@
     (* peak-per-base (annual-kwh->kw kwh))
     raw-kwp))
 
+(let [diversity (net-diversity/diversity-factor {})]
+  (defn- evaluate-alternative [alternative kwh kwp n
+                               capex-type]
+    (let [n     (::demand/connection-count candidate 1)
+          kwp (cond-> (alternative-adjusted-peak kwh kwp alternative)
+                (::supply/remove-diversity alternative)
+                (/ (diversity n)))
+          
+          capex (supply/principal alternative kwp kwh n)
+          opex  (supply/opex alternative kwp n)
+          fuel  (supply/heat-cost alternative kwh)]
+      {:capex (finance/adjusted-value instance capex-type capex)
+       :opex (finance/adjusted-value instance :alternative-opex opex)
+       :heat-cost (finance/adjusted-value instance :alternative-opex fuel)
+       :emissions
+       (into {}
+             (for [e candidate/emissions-types]
+               (let [alternative-factor (get (::supply/emissions alternative) e 0)
+                     emissions (* alternative-factor kwh)]
+                 [e (finance/emissions-value instance e emissions)])))
+       ::supply/id (::supply/id alternative)
+       ::supply/name (::supply/name alternative)})))
+
 (defn- output-counterfactual
   "Describe the counterfactual heating system for the UI."
   [candidate instance]
   (assoc candidate
          ::solution/counterfactual
          (if-let [alternative (document/alternative-for-id instance (::demand/counterfactual candidate))]
-           (let [cost-per-kwh (::supply/cost-per-kwh alternative 0)
-                 opex-per-kwp (::supply/opex-per-kwp alternative 0)
-                 opex-fixed   (::supply/opex-fixed alternative 0)
-
-                 kwh (candidate/annual-demand candidate (document/mode instance))
-                 kwp (candidate/peak-demand candidate (document/mode instance))
-                 kwp (alternative-adjusted-peak kwh kwp alternative)
-                 
-                 fuel (* cost-per-kwh kwh)
-                 opex (+ (* opex-per-kwp kwp) opex-fixed)
-                 ]
-             {:opex (finance/adjusted-value instance :alternative-opex opex)
-              :heat-cost (finance/adjusted-value instance :alternative-opex fuel)
-              :emissions
-              (into {}
-                    (for [e candidate/emissions-types]
-                      [e (finance/emissions-value
-                          instance e
-                          (* kwh (get-in alternative [::supply/emissions e] 0)))]))
-              ::supply/id (::supply/id alternative)
-              ::supply/name (::supply/name alternative)}))))
+           (evaluate-alternative
+            alternative
+            (candidate/annual-demand candidate (document/mode instance))
+            (candidate/peak-demand candidate (document/mode instance))
+            :counterfactual-capex))))
 
 (defn- output-alternative
   "Output information for the UI describing the choice the optimiser has
   made to use the given alternative for `instance`. If it is the
-  counterfactual costs are different.
-
-  This function needs to consider hot water tank effect in the counterfactual.
-  "
+  counterfactual then costs are different."
   [candidate instance alternative]
   (let [is-counterfactual (= (::demand/counterfactual candidate)
                              (::supply/id alternative))]
     (assoc candidate
            ::solution/alternative
-           (if is-counterfactual
-             (assoc (::solution/counterfactual candidate)
-                    :counterfactual true)
-             (let [kwh (::solution/kwh candidate)
-                   kwp (candidate/peak-demand candidate (document/mode instance))
-                   kwp (alternative-adjusted-peak kwh kwp alternative)
-                   
-                   capex (supply/principal alternative kwp kwh)
-                   opex  (supply/opex alternative kwp)
-                   fuel  (supply/heat-cost alternative kwh)]
-               {:capex (finance/adjusted-value instance :alternative-capex capex)
-                :opex (finance/adjusted-value instance :alternative-opex opex)
-                :heat-cost (finance/adjusted-value instance :alternative-opex fuel)
-                :counterfactual false
-                :emissions
-                (into {}
-                      (for [e candidate/emissions-types]
-                        (let [alternative-factor (get (::supply/emissions alternative) e 0)
-                              emissions (* alternative-factor kwh)]
-                          [e (finance/emissions-value instance e emissions)])))
-                ::supply/id (::supply/id alternative)
-                ::supply/name (::supply/name alternative)})))))
+           (assoc 
+
+            (if is-counterfactual
+              (::solution/counterfactual candidate)
+              (evaluate-alternative
+               alternative
+               (::solution/kwh candidate)
+               (candidate/peak-demand candidate (document/mode instance))
+               :alternative-capex))
+            
+            :counterfactual is-counterfactual))))
 
 (defn- merge-solution
   "Combine the optimisation result back with `instance` for display to the user."
@@ -856,11 +864,16 @@
                  :heat-revenue
                  (tariff/annual-heat-revenue tariff effective-demand effective-peak))
 
+
+                external-connection-cost (::tariff/external-connection-cost v)
+                
                 connection-cost
                 (finance/adjusted-value
                  instance
                  :connection-capex
-                 (tariff/connection-cost connection-cost effective-demand effective-peak))
+                 (if external-connection-cost
+                   external-connection-cost
+                   (tariff/connection-cost connection-cost effective-demand effective-peak)))
                 ]
             (-> v
                 (assoc ::solution/included true
@@ -997,8 +1010,8 @@
                    ::solution/capacity-kw   (:capacity-kw solution-edge)
                    ::solution/max-capacity-kw max-capacity
                    ::solution/diversity     (:diversity solution-edge)
-                   ::solution/pipe-capex     (finance/adjusted-value
-                                              instance capex-type principal)     
+                   ::solution/pipe-capex    (finance/adjusted-value
+                                             instance capex-type principal)     
                    
                    ::solution/losses-kwh    (* HOURS-PER-YEAR length-factor (:losses-kw solution-edge)))
             ))

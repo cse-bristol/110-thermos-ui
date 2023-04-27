@@ -31,17 +31,28 @@
                 ;; if this field contains a number, then the network model
                 ;; will be told a lie about the cost/kwp for this alternative
                 ::kwp-per-mean-kw
+
+                ;; per-customer related costs
+                ::capex-per-connection
+                ::opex-per-connection
+
+                ;; if true, kwp values will be computed using un-diversified peak
+                ;; this is primarily for handling multi-building sites.
+                ::remove-diversity
                 ]))
 
-(defn principal [candidate capacity-kw annual-kwh]
+(defn principal [candidate capacity-kw annual-kwh n]
   (+ (::fixed-cost candidate 0)
      (* (or capacity-kw 0)
         (::capex-per-kwp candidate 0))
      (* (util/annual-kwh->kw (or annual-kwh 0))
-        (::capex-per-mean-kw candidate 0))))
+        (::capex-per-mean-kw candidate 0))
+     (* n (::capex-per-connection candidate 0))))
 
-(defn opex [candidate capacity-kw]
-  (* (or capacity-kw 0) (::opex-per-kwp candidate 0)))
+(defn opex [candidate capacity-kw n]
+  (+ (* (or capacity-kw 0) (::opex-per-kwp candidate 0))
+     (::opex-fixed candidate 0)
+     (* n (::opex-per-connection candidate 0))))
 
 (defn heat-cost [candidate consumption-kwh]
   (* (or consumption-kwh 0) (::cost-per-kwh candidate 0)))
