@@ -1270,6 +1270,3 @@
                      (clojure.stacktrace/print-throwable ex)
                      (println "---")
                      (clojure.stacktrace/print-cause-trace ex))))))))
-
-
-p
