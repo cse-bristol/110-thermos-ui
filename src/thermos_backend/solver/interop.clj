@@ -425,83 +425,84 @@
                  :maximum   maximum-kwh-saved})))
           (filter identity))}))
 
-(defn- alternative-definitions
-  "Output for the network model a description of all the alternative
+(let [diversity (net-diversity/diversity-factor {})]
+  (defn- alternative-definitions
+    "Output for the network model a description of all the alternative
   systems for candidate.
 
   Responsible for distinguishing the counterfactual choice, by
   changing its capital cost and for transferring cost/kwp onto
   cost/kwh for systems which have the hot water tank behaviour.
   "
-  [instance candidate]
-   {:alternatives
-    (let [counterfactual (::demand/counterfactual candidate)
-          ids (-> (cond-> ()
-                    (::document/consider-alternatives instance)
-                    (concat (::demand/alternatives candidate))
-                    (not (nil? counterfactual))
-                    (conj counterfactual))
-                  (set))]
-      (for [id ids
-            :let [alternative (get-in instance [::document/alternatives id])]
-            :when alternative]
-        (let [capex-type (if (= counterfactual id)
-                           :counterfactual-capex
-                           :alternative-capex)
+    [instance candidate]
+    {:alternatives
+     (let [counterfactual (::demand/counterfactual candidate)
+           ids (-> (cond-> ()
+                     (::document/consider-alternatives instance)
+                     (concat (::demand/alternatives candidate))
+                     (not (nil? counterfactual))
+                     (conj counterfactual))
+                   (set))]
+       (for [id ids
+             :let [alternative (get-in instance [::document/alternatives id])]
+             :when alternative]
+         (let [capex-type (if (= counterfactual id)
+                            :counterfactual-capex
+                            :alternative-capex)
 
-              opex%kwp (finance/objective-value
-                        instance :alternative-opex (::supply/opex-per-kwp alternative 0))
+               opex%kwp (finance/objective-value
+                         instance :alternative-opex (::supply/opex-per-kwp alternative 0))
 
-              capex%kwp (finance/objective-value
-                         instance capex-type (::supply/capex-per-kwp alternative 0))
-              
-              cost%kwp  (cond-> (+ opex%kwp capex%kwp)
-                          ;; supply/remove-diversity is an ugly thing
-                          ;; which we do not tell the optimiser.
-                          (::supply/remove-diversity alternative)
-                          (/ (diversity (::demand/connection-count candidate 1))))
-              
-              
-              changes-peak (::supply/kwp-per-mean-kw alternative)
-              ;; if changes-peak we need to insert cost/kwp into the cost/kwh
+               capex%kwp (finance/objective-value
+                          instance capex-type (::supply/capex-per-kwp alternative 0))
+               
+               cost%kwp  (cond-> (+ opex%kwp capex%kwp)
+                           ;; supply/remove-diversity is an ugly thing
+                           ;; which we do not tell the optimiser.
+                           (::supply/remove-diversity alternative)
+                           (/ (diversity (::demand/connection-count candidate 1))))
+               
+               
+               changes-peak (::supply/kwp-per-mean-kw alternative)
+               ;; if changes-peak we need to insert cost/kwp into the cost/kwh
 
-              capex%kwh (annual-kwh->kw ;; this converts our cost/kw figures into cost/kwh
-                         (+ (::supply/capex-per-mean-kw alternative 0)
-                            (* (or changes-peak 0) cost%kwp)))
+               capex%kwh (annual-kwh->kw ;; this converts our cost/kw figures into cost/kwh
+                          (+ (::supply/capex-per-mean-kw alternative 0)
+                             (* (or changes-peak 0) cost%kwp)))
 
-              ;; zero cost%kwp if the measure changes the peak
-              ;; we care about this here so that the network model doesn't have to.
-              cost%kwp (if changes-peak 0 (+ opex%kwp capex%kwp))
-              
-              cost%kwh
-              (+
-               (finance/objective-value instance capex-type capex%kwh)
-               (finance/objective-value instance :alternative-opex
-                                        (::supply/cost-per-kwh alternative 0)))]
-          
-          {:id id
-           :cost      (+ (finance/objective-value
-                          instance capex-type
-                          (::supply/fixed-cost alternative 0))
-                         
-                         (finance/objective-value
-                          instance capex-type
-                          (* (::supply/capex-per-connection alternative 0)
-                             (::demand/connection-count candidate 1)))
-                         
-                         (finance/objective-value
-                          instance :alternative-opex
-                          (+ (::supply/opex-fixed alternative 0)
-                             (* (::supply/opex-per-connection alternative 0)
-                                (::demand/connection-count candidate 1)))))
-
-           :cost%kwh cost%kwh
-           :cost%kwp cost%kwp
+               ;; zero cost%kwp if the measure changes the peak
+               ;; we care about this here so that the network model doesn't have to.
+               cost%kwp (if changes-peak 0 (+ opex%kwp capex%kwp))
+               
+               cost%kwh
+               (+
+                (finance/objective-value instance capex-type capex%kwh)
+                (finance/objective-value instance :alternative-opex
+                                         (::supply/cost-per-kwh alternative 0)))]
            
-           :emissions
-           (into {}
-                 (for [e candidate/emissions-types]
-                   [e (float (get-in alternative [::supply/emissions e] 0))]))})))})
+           {:id id
+            :cost      (+ (finance/objective-value
+                           instance capex-type
+                           (::supply/fixed-cost alternative 0))
+                          
+                          (finance/objective-value
+                           instance capex-type
+                           (* (::supply/capex-per-connection alternative 0)
+                              (::demand/connection-count candidate 1)))
+                          
+                          (finance/objective-value
+                           instance :alternative-opex
+                           (+ (::supply/opex-fixed alternative 0)
+                              (* (::supply/opex-per-connection alternative 0)
+                                 (::demand/connection-count candidate 1)))))
+
+            :cost%kwh cost%kwh
+            :cost%kwp cost%kwp
+            
+            :emissions
+            (into {}
+                  (for [e candidate/emissions-types]
+                    [e (float (get-in alternative [::supply/emissions e] 0))]))})))}))
 
 (defn demand-terms
   "Output for the network model all the demand-related facts about this candidate"
@@ -754,9 +755,10 @@
     raw-kwp))
 
 (let [diversity (net-diversity/diversity-factor {})]
-  (defn- evaluate-alternative [alternative kwh kwp n
+  (defn- evaluate-alternative [instance
+                               alternative kwh kwp n
                                capex-type]
-    (let [n     (::demand/connection-count candidate 1)
+    (let [n   (or n 1)
           kwp (cond-> (alternative-adjusted-peak kwh kwp alternative)
                 (::supply/remove-diversity alternative)
                 (/ (diversity n)))
@@ -783,6 +785,7 @@
          ::solution/counterfactual
          (if-let [alternative (document/alternative-for-id instance (::demand/counterfactual candidate))]
            (evaluate-alternative
+            instance
             alternative
             (candidate/annual-demand candidate (document/mode instance))
             (candidate/peak-demand candidate (document/mode instance))
@@ -802,6 +805,7 @@
             (if is-counterfactual
               (::solution/counterfactual candidate)
               (evaluate-alternative
+               instance
                alternative
                (::solution/kwh candidate)
                (candidate/peak-demand candidate (document/mode instance))
