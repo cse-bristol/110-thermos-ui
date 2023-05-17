@@ -4,6 +4,7 @@
 (ns thermos-backend.routes.convert
   (:require [thermos-backend.spreadsheet.core :as xl]
             [thermos-backend.spreadsheet.common :as xlc]
+            [thermos-backend.tem :as tem]
             [ring.util.response :as response]
             [ring.util.io :as rio]
             [thermos-backend.pages.cache-control :as cache-control]
@@ -12,6 +13,16 @@
             ))
 
 (def xl-content-type "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+(defn problem-to-tem [{{state :state} :body-params} :as request]
+  (-> (rio/piped-input-stream
+       (fn [out]
+         (tem/write-tem-to-stream out state) 
+         (.flush out)))
+      
+      (response/response)
+      (response/content-type xl-content-type)
+      (cache-control/no-store)))
 
 (defn problem-to-excel [{{state :state} :body-params
                          {{file :tempfile} :file} :params
@@ -30,11 +41,9 @@
              (catch Exception e
                (println "While outputting spreadsheet!")
                (clojure.stacktrace/print-throwable e)
-               (.printStackTrace e)
-               ))
-           
-           (.flush out)
-           ))
+               (.printStackTrace e)))
+           (.flush out)))
+        
         (response/response)
         (response/content-type xl-content-type)
         (cache-control/no-store))))
@@ -56,5 +65,6 @@
   "
   ["/convert"
    [["/excel" #'problem-to-excel]
+    ["/tem" #'problem-to-tem]
     ["/json" problem-to-json]]])
 

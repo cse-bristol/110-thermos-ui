@@ -124,6 +124,7 @@
     http-kit/http-kit {:mvn/version "2.2.0"}
 
     dk.ative/docjure {:mvn/version "1.14.0"}
+    org.apache.poi/ooxml-schemas {:mvn/version "1.4"}
 
     rum/rum {:mvn/version "0.11.3"},
     cljs-ajax/cljs-ajax {:mvn/version "0.8.0", :exclusions [commons-logging/commons-logging]},

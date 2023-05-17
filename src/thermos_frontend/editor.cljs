@@ -284,6 +284,24 @@
                   symbols/download " Excel Spreadsheet"]]
 
             [:li [:button.button--link-style
+                  {:on-click
+                   #(let [state (document/keep-interesting @state/state)]
+                      (POST "/convert/tem"
+                          {:params {:state state}
+                           :response-format
+                           {:type :blob :read -body}
+                           :handler
+                           (fn [blob]
+                             (let [a (js/document.createElement "a")]
+                               (set! (.-href a) (js/window.URL.createObjectURL blob))
+                               (set! (.-download a)
+                                     (str (preload/get-value :name) ".xlsx"))
+                               (.dispatchEvent a (js/MouseEvent. "click"))))}))
+                   
+                   }
+                  symbols/download " TEM"]]
+
+            [:li [:button.button--link-style
                   {:on-click merge-upload/do-upload}
                   symbols/upload " Excel Spreadsheet"]]
             
