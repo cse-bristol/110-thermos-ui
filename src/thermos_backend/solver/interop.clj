@@ -32,49 +32,32 @@
     network model, but is applied in here by transforming the /costs/ which the
     model optimises on.
   "
-  (:require [clojure.java.io :as io]
-            [thermos-backend.util :as util]
-            [clojure.tools.logging :as log]
-            [clojure.java.shell :refer [sh]]
-            [clojure.edn :as edn]
-            
-            [clojure.data.json :as json]
-            [clojure.set :as set]
-            [clojure.string]
-
-            [loom.graph :as graph]
-            [loom.alg :as graph-alg]
-            [loom.attr :as attr]
-            
-            [thermos-specs.document :as document]
-            [thermos-specs.solution :as solution]
-            [thermos-specs.candidate :as candidate]
-            [thermos-specs.demand :as demand]
-            [thermos-specs.supply :as supply]
-            [thermos-specs.path :as path]
-            
-            [thermos-backend.config :refer [config]]
-            [thermos-util :refer [kw->annual-kwh
-                                  annual-kwh->kw
-                                  format-seconds
-                                  safe-div]]
-            [thermos-util.finance :as finance]
-            [thermos-util.pipes :as pipes]
-            
-            [clojure.walk :refer [postwalk]]
-
-            [thermos-specs.tariff :as tariff]
-            [thermos-specs.measure :as measure]
-            [thermos-backend.solver.market :as market]
-            [clojure.string :as string]
-
-            [thermos.opt.net.core :as net-model]
-            [thermos.opt.net.diversity :as net-diversity]
-            [thermos.opt.net.bounds :as net-model-bounds]
-            [thermos-backend.solver.logcap :as logcap]
-            )
-  
-  (:import [java.io StringWriter]))
+  (:require
+   [clojure.set :as set]
+   clojure.stacktrace
+   [clojure.string :as string]
+   [clojure.tools.logging :as log]
+   [clojure.walk :refer [postwalk]]
+   [loom.alg :as graph-alg]
+   [loom.attr :as attr]
+   [loom.graph :as graph]
+   [thermos-backend.solver.logcap :as logcap]
+   [thermos-backend.solver.market :as market]
+   [thermos-backend.util :as util]
+   [thermos-specs.candidate :as candidate]
+   [thermos-specs.demand :as demand]
+   [thermos-specs.document :as document]
+   [thermos-specs.measure :as measure]
+   [thermos-specs.path :as path]
+   [thermos-specs.solution :as solution]
+   [thermos-specs.supply :as supply]
+   [thermos-specs.tariff :as tariff]
+   [thermos-util :refer [annual-kwh->kw safe-div]]
+   [thermos-util.finance :as finance]
+   [thermos-util.pipes :as pipes]
+   [thermos.opt.net.bounds :as net-model-bounds]
+   [thermos.opt.net.core :as net-model]
+   [thermos.opt.net.diversity :as net-diversity]))
 
 (def HOURS-PER-YEAR 8766)
 
@@ -717,9 +700,6 @@
            :bounds bounds)
     ))
 
-(defn- index-by [f vs]
-  (reduce #(assoc %1 (f %2) %2) {} vs))
-
 (defn- output-insulation
   "Given a decision from the optimisation model that `kwh` of insulation with `id`
   should go onto `candidate`, output information for the UI describing the decision"
@@ -755,9 +735,10 @@
     raw-kwp))
 
 (let [diversity (net-diversity/diversity-factor {})]
-  (defn- evaluate-alternative [alternative kwh kwp n
+  (defn- evaluate-alternative [instance
+                               alternative kwh kwp n
                                capex-type]
-    (let [n     (::demand/connection-count candidate 1)
+    (let [n   (or n 1)
           kwp (cond-> (alternative-adjusted-peak kwh kwp alternative)
                 (::supply/remove-diversity alternative)
                 (/ (diversity n)))
@@ -782,11 +763,13 @@
   [candidate instance]
   (assoc candidate
          ::solution/counterfactual
-         (if-let [alternative (document/alternative-for-id instance (::demand/counterfactual candidate))]
+         (when-let [alternative (document/alternative-for-id instance (::demand/counterfactual candidate))]
            (evaluate-alternative
+            instance
             alternative
             (candidate/annual-demand candidate (document/mode instance))
             (candidate/peak-demand candidate (document/mode instance))
+            (::demand/connection-count candidate 1) 
             :counterfactual-capex))))
 
 (defn- output-alternative
@@ -803,9 +786,11 @@
             (if is-counterfactual
               (::solution/counterfactual candidate)
               (evaluate-alternative
+               instance
                alternative
                (::solution/kwh candidate)
                (candidate/peak-demand candidate (document/mode instance))
+               (::demand/connection-count candidate 1)
                :alternative-capex))
             
             :counterfactual is-counterfactual))))
@@ -914,7 +899,6 @@
                             pumping-cost-per-kwh (::document/pumping-cost-per-kwh instance 0.0)
                             pumping-emissions    (::document/pumping-emissions instance {})
                             pumping-kwh          (* output-kwh pumping-overhead)
-                            is-cooling           (document/is-cooling? instance)
 
                              ;; +/- pumping overhead
                             output-kwh (if (document/is-cooling? instance)
@@ -930,12 +914,12 @@
                                ::solution/supply-capex
                                (finance/adjusted-value
                                 instance :supply-capex
-                                (supply/principal out capacity-kw output-kwh))
+                                (supply/principal out capacity-kw output-kwh 1))
 
                                ::solution/supply-opex
                                (finance/adjusted-value
                                 instance :supply-opex
-                                (supply/opex out capacity-kw))
+                                (supply/opex out capacity-kw 1))
 
                                ::solution/heat-cost
                                (finance/adjusted-value
@@ -1252,7 +1236,7 @@
                     (merge-solution net-graph pipe-curves market result)
                     
                     (= ::empty result)
-                    (log-empty-problem net-graph included-candidates disconnected-cand-ids))
+                    (log-empty-problem))
                   
                   (mark-unreachable net-graph included-candidates disconnected-cand-ids))
               ]
@@ -1286,5 +1270,3 @@
                      (clojure.stacktrace/print-throwable ex)
                      (println "---")
                      (clojure.stacktrace/print-cause-trace ex))))))))
-
-
