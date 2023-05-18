@@ -14,7 +14,7 @@
 
 (def xl-content-type "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-(defn problem-to-tem [{{state :state} :body-params} :as request]
+(defn problem-to-tem [{{state :state} :body-params :as request}]
   (-> (rio/piped-input-stream
        (fn [out]
          (tem/write-tem-to-stream out state) 

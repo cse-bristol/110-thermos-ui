@@ -2,6 +2,7 @@
 ;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
 
 (ns thermos-backend.tem
+  "Functions to export SEL's techno-economic model from a THERMOS problem."
   (:require [dk.ative.docjure.spreadsheet :as x]
             [clojure.java.io :as io]
             [thermos-specs.document :as document]
@@ -12,40 +13,37 @@
             [thermos-specs.path :as path]
             [thermos-specs.supply :as supply])
   (:import
-   [org.apache.poi.ss.util CellReference AreaReference]))
+   [org.apache.poi.ss.util CellReference AreaReference]
+   [org.apache.poi.xssf.usermodel XSSFWorkbook XSSFRow]))
 
-(defn add-table! [table table-name sheet]
-  (let [table-id (inc (reduce max 1 (map #(.getId %) (.getTables sheet))))
-        table-obj (.createTable
-                   sheet
-                   (-> (.getWorkbook sheet)
-                       (.getCreationHelper)
-                       (.createAreaReference
-                        (CellReference. 0 0)
-                        (CellReference. (dec (count table)) (dec (count (first table)))))))
-        
-        ]
-    (.setName table-obj table-name)
-    (.setDisplayName table-obj table-name)
-    (.addNewTableStyleInfo (.getCTTable table-obj))
-    (.setName (.getTableStyleInfo (.getCTTable table-obj)) "TableStyleMedium2")    
-    (x/add-rows! sheet table)))
+(defn insert-into-table! [data table-name ^XSSFWorkbook workbook]
+  (let [table (.getTable workbook table-name)]
+    (assert table (str "No table named " table-name " in workbook"))
+    (let [area  (.getArea table)
+          sheet (.getSheet workbook (.getSheetName table))
+          left  (.getStartColIndex table)
+          top   (.getStartRowIndex table)]
+      (doseq [cell-ref (.getAllReferencedCells area)]
+        (-> sheet
+            (.getRow (.getRow cell-ref))
+            (.getCell (int (.getCol cell-ref))
+                      org.apache.poi.ss.usermodel.Row$MissingCellPolicy/CREATE_NULL_AS_BLANK)
+            (.setBlank)))
 
-(comment
-  (let [template      (x/load-workbook-from-resource "tem-template.xlsx")
-        demands-sheet (x/select-sheet "Input Demands" template)]
-    (add-table!
-     [["Heading1" "Heading2"]
-      ["Row 1 1"   "Row 1 2"]
-      ["Row 2 1"   "Row 2 2"]
-      ["Row 3 1"   "Row 3 2"]]
-     "Test_table"
-     demands-sheet)
-    
-    (x/save-workbook-into-file! "/home/hinton/test.xlsx" template)
-    
-    )
-  )
+      (.setArea table
+                (-> (.getCreationHelper workbook)
+                    (.createAreaReference
+                     (CellReference. top left)
+                     (CellReference. (dec (+ top (count data)))
+                                     (dec (+ left (count (first data))))))))
+
+      (doseq [[i row] (map-indexed vector data)]
+        (let [row-obj (.getRow sheet i)]
+          (doseq [[j col] (map-indexed vector row)]
+            (let [cell (.getCell row-obj (int j)
+                                 org.apache.poi.ss.usermodel.Row$MissingCellPolicy/CREATE_NULL_AS_BLANK)]
+              (x/set-cell! cell col)
+              )))))))
 
 (defn make-demands-table  [state]
   (let [mode (document/mode state)]
@@ -81,13 +79,21 @@
          (::solution/output-kwh c)
          (::solution/capacity-kw c)])])
 
-(defn write-tem-to-stream [out state]
+(defn populate-tem [state]
   (let [template       (x/load-workbook-from-resource "tem-template.xlsx")
         demands-sheet  (x/select-sheet "Input Demands" template)
-        pipes-sheet    (x/select-sheet "Input Pipes" template)
+        pipes-sheet    (x/select-sheet "Input PIpes" template)
         supplies-sheet (x/select-sheet "Input Supplies" template)]
-    (add-table! (make-demands-table state)  "demands"  demands-sheet)
-    (add-table! (make-pipes-table state)    "pipes"    pipes-sheet)
-    (add-table! (make-supplies-table state) "supplies" supplies-sheet)
-    (x/save-workbook-into-stream! out template)))
+    (insert-into-table! (make-demands-table state)  "demands"  demands-sheet)
+    (insert-into-table! (make-pipes-table state)    "pipes"    pipes-sheet)
+    (insert-into-table! (make-supplies-table state) "supplies" supplies-sheet)
+    (.setForceFormulaRecalculation template true)
+    template))
 
+(defn write-tem-to-stream [out state]
+  (->> (populate-tem state)
+       (x/save-workbook-into-stream! out)))
+
+(comment
+  (write-tem-to-file "/home/hinton/tem.xlsx" -last-state)
+  )
