@@ -38,55 +38,70 @@
                                      (dec (+ left (count (first data))))))))
 
       (doseq [[i row] (map-indexed vector data)]
-        (let [row-obj (.getRow sheet i)]
+        (let [row-obj (or (.getRow sheet (+ top i))
+                          (.createRow sheet (+ top i)))]
           (doseq [[j col] (map-indexed vector row)]
-            (let [cell (.getCell row-obj (int j)
+            (let [cell (.getCell row-obj (+ (int j) left)
                                  org.apache.poi.ss.usermodel.Row$MissingCellPolicy/CREATE_NULL_AS_BLANK)]
               (x/set-cell! cell col)
               )))))))
 
+(defn- add-user-fields [candidates standard-header standard-accessors]
+  (let [user-fields
+        (reduce
+         (fn [fields candidate]
+           (into fields (keys (::candidate/user-fields candidate))))
+         #{} candidates)
+
+        user-fields (vec (sort user-fields))
+        ]
+    `[~(into (vec standard-header) user-fields)
+      ~@(for [c candidates]
+          (into (vec (for [a standard-accessors] (a c)))
+                (let [candidate-fields (::candidate/user-fields c)]
+                  (for [f user-fields] (get candidate-fields f)))))]))
+
 (defn make-demands-table  [state]
   (let [mode (document/mode state)]
-    `[["ID" "AnnualDemand" "PeakDemand"]
-      ~@(for [c (vals (::document/candidates state))
-              :when (and (candidate/is-building? c)
-                         (candidate/is-connected? c))]
-          [(::candidate/id c)
-           (candidate/solved-annual-demand c mode)
-           (candidate/solved-peak-demand c mode)
+    (add-user-fields
+     (filter
+      #(and (candidate/is-building? %) (candidate/is-connected? %))
+      (vals (::document/candidates state)))
 
-           ;; user defined fields (for toid)
-           ])]))
+     ["ID" "AnnualDemand" "PeakDemand" "ConnectionCount"]
+     [::candidate/id
+      #(candidate/solved-annual-demand % mode)
+      #(candidate/solved-peak-demand % mode)
+      ::demand/connection-count])))
 
 (defn make-pipes-table    [state]
-  `[["ID" "Diameter" "Losses" "kW" "Length" "Surface" "Diversity"]
-    ~@(for [c (vals (::document/candidates state))
-            :when (and (candidate/is-path? c)
-                       (candidate/is-connected? c))]
-        [(::candidate/id c)
-         (::solution/diameter-mm c)
-         (::solution/losses-kwh c)
-         (::solution/capacity-kw c)
-         (::path/length c)
-         (document/civil-cost-name state (::path/civil-cost-id c))
-         (::solution/diversity c)])])
+  (add-user-fields
+   (filter
+    #(and (candidate/is-path? %) (candidate/is-connected? %))
+    (vals (::document/candidates state)))
+   ["ID" "Diameter" "Losses" "kW" "Length" "Surface" "Diversity"]
+   [::candidate/id
+    ::solution/diameter-mm
+    ::solution/losses-kwh
+    ::solution/capacity-kw
+    ::path/length
+    #(document/civil-cost-name state (::path/civil-cost-id %))
+    ::solution/diversity]))
 
 (defn make-supplies-table [state]
-  `[["ID" "AnnualOutput" "PeakOutput"]
-    ~@(for [c (vals (::document/candidates state))
-            :when (candidate/has-supply? c)]
-        [(::candidate/id c)
-         (::solution/output-kwh c)
-         (::solution/capacity-kw c)])])
+  (add-user-fields
+   (filter candidate/has-supply? (vals (::document/candidates state)))
+   ["ID" "AnnualOutput" "PeakOutput"]
+   [::candidate/id
+    ::solution/output-kwh
+    ::solution/capacity-kw]))
 
 (defn populate-tem [state]
-  (let [template       (x/load-workbook-from-resource "tem-template.xlsx")
-        demands-sheet  (x/select-sheet "Input Demands" template)
-        pipes-sheet    (x/select-sheet "Input PIpes" template)
-        supplies-sheet (x/select-sheet "Input Supplies" template)]
-    (insert-into-table! (make-demands-table state)  "demands"  demands-sheet)
-    (insert-into-table! (make-pipes-table state)    "pipes"    pipes-sheet)
-    (insert-into-table! (make-supplies-table state) "supplies" supplies-sheet)
+  (def -last-state state)
+  (let [template       (x/load-workbook-from-resource "tem-template.xlsx")]
+    (insert-into-table! (make-demands-table state)  "demands"  template)
+    (insert-into-table! (make-pipes-table state)    "pipes"    template)
+    (insert-into-table! (make-supplies-table state) "supplies" template)
     (.setForceFormulaRecalculation template true)
     template))
 
@@ -95,5 +110,6 @@
        (x/save-workbook-into-stream! out)))
 
 (comment
-  (write-tem-to-file "/home/hinton/tem.xlsx" -last-state)
+  (->> (populate-tem -last-state)
+       (x/save-workbook-into-file! "/home/hinton/tem.xlsx"))
   )
