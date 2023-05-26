@@ -32,6 +32,7 @@
     networking.firewall.logRefusedConnections = false;
     networking.firewall.logRefusedPackets = false;
     networking.firewall.logReversePathDrops = false;
+    services.thermos.ui.defaultUserAuth = ":unlimited";
 
     services.fail2ban.enable = true;
     
