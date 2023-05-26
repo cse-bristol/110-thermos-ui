@@ -800,6 +800,10 @@
    {:value :user-fields :label "User-defined field (any)"
     :doc
     [:span "Any other field you want to keep, like a classification, address, etc."]}
+
+   {:value :user-fields-json :label "User defined fields (json dictionary)"
+    :doc
+    [:span "A dictionary full of user defined fields, as a json string."]}
    ])
 
 (def building-fields
@@ -892,6 +896,10 @@
    {:value :user-fields :label "User-defined field (any)"
     :doc
     [:span "Any other field you want to keep, like a classification, address, etc."]}
+
+   {:value :user-fields-json :label "User defined fields (json dictionary)"
+    :doc
+    [:span "A dictionary full of user defined fields, as a json string."]}
    
    {:value :residential :label "Residential (logical)"
     :doc

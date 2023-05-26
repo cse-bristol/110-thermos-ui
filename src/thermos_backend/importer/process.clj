@@ -382,11 +382,21 @@
          (for [[field-name field-purpose] fields]
            ;; special case for :user-fields - these are stored in a
            ;; blob together.
-           (if (= :user-fields field-purpose)
+           (case field-purpose
+             :user-fields
              (fn [x]
                (assoc-in x
                          [:user-fields field-name]
                          (get x field-name)))
+
+             ;; special case for user-fields-json
+             ;; read the fields out of json string and merge them in
+             :user-fields-json
+             (fn [x]
+               (update x :user-fields merge
+                       (try
+                         (json/read-str (get x field-name "{}"))
+                         (catch Exception _e {}))))
              
              (fn [x]
                (let [val (get x field-name)]
