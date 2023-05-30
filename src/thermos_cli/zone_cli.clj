@@ -424,9 +424,24 @@ If not given, does the base-case instead (no network)."
         insulation                     (->> (for [[id x] (:thermos/insulation parameters)]
                                               [id (assoc x ::measure/id id)])
                                             (into {}))
+
+        fuels                          (:finance/fuel-prices parameters)
         
         alternatives                   (->> (for [[id x] (:thermos/alternatives parameters)]
-                                              [id (assoc x ::supply/id id)])
+                                              (let [fuel (get fuels (:fuel x))
+                                                    unit-price (:unit-price fuel)
+                                                    standing-charge (:standing-charge fuel)
+                                                    cop (:cop x)]
+                                                (assert (double? unit-price))
+                                                (assert (double? standing-charge))
+                                                (assert (double? cop))
+                                                [id
+                                                 (assoc x
+                                                        ::supply/id id
+                                                        ::supply/opex-fixed   (+ (::supply/opex-fixed x 0.0) standing-charge)
+                                                        ::supply/cost-per-kwh (/ (+ (::supply/cost-per-kwh x 0.0) unit-price)
+                                                                                 cop)
+                                                        )]))
                                             (into {}))
         
         connection-costs               (->> (for [[id x] (:thermos/connection-costs parameters)]
