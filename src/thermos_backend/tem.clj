@@ -5,6 +5,7 @@
   "Functions to export SEL's techno-economic model from a THERMOS problem."
   (:require [dk.ative.docjure.spreadsheet :as x]
             [clojure.java.io :as io]
+            [clojure.string :as string]
             [thermos-specs.document :as document]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.demand :as demand]
@@ -19,16 +20,21 @@
 (defn insert-into-table! [data table-name ^XSSFWorkbook workbook]
   (let [table (.getTable workbook table-name)]
     (assert table (str "No table named " table-name " in workbook"))
+    
+    ;; (-> table (.getCTTable) (.addNewTableStyleInfo))
+    ;; (-> table (.getCTTable) (.getTableStyleInfo) (.setName "TableStyleMedium2"))
+
+    
     (let [area  (.getArea table)
           sheet (.getSheet workbook (.getSheetName table))
           left  (.getStartColIndex table)
           top   (.getStartRowIndex table)]
       (doseq [cell-ref (.getAllReferencedCells area)]
-        (-> sheet
-            (.getRow (.getRow cell-ref))
-            (.getCell (int (.getCol cell-ref))
-                      org.apache.poi.ss.usermodel.Row$MissingCellPolicy/CREATE_NULL_AS_BLANK)
-            (.setBlank)))
+        (let [r (.getRow sheet (.getRow cell-ref))
+              c (.getCell r (int (.getCol cell-ref))
+                          org.apache.poi.ss.usermodel.Row$MissingCellPolicy/CREATE_NULL_AS_BLANK)]
+          (.setBlank c)
+          (.removeCell r c)))
 
       (.setArea table
                 (-> (.getCreationHelper workbook)
@@ -53,7 +59,10 @@
            (into fields (keys (::candidate/user-fields candidate))))
          #{} candidates)
 
-        user-fields (vec (sort user-fields))
+        
+        user-fields (let [standard-header (set (map string/lower-case standard-header))]
+                      (vec (for [uf (sort user-fields)
+                                 :when (not (contains? standard-header (string/lower-case uf)))] uf)))
         ]
     `[~(into (vec standard-header) user-fields)
       ~@(for [c candidates]
