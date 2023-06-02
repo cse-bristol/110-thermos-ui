@@ -3,6 +3,9 @@
 
 (ns thermos-frontend.selection-info-panel
   (:require [reagent.core :as reagent]
+
+            [thermos-specs.magic-fields :as magic-fields]
+            
             [thermos-specs.candidate :as candidate]
             [thermos-specs.document :as document]
             [thermos-specs.demand :as demand]
@@ -149,6 +152,10 @@
   (when (candidate/is-building? x)
     (document/tariff-name doc (::tariff/id x))))
 
+(defn- building-cc-name [doc x]
+  (when (candidate/is-building? x)
+    (document/connection-cost-name doc x)))
+
 (defn- building-profile-name [doc x]
   (when (candidate/is-building? x)
     (document/profile-name doc (::supply/profile-id x))))
@@ -161,7 +168,7 @@
   (case (::candidate/type x)
       :path (document/path-cost x determinants) ;; args wrong way around so no workio
       :building (tariff/connection-cost
-                 (document/connection-cost-for-id determinants (::tariff/cc-id x))
+                 (document/connection-cost-for-building determinants x)
                  (candidate/annual-demand x model-mode)
                  (candidate/peak-demand x model-mode))
       nil))
@@ -274,25 +281,24 @@
 (defn component
   "The panel in the bottom right which displays some information about the currently selected candidates."
   [root]
-  (let [flow        (flow/view* root dissoc ::view/view-state) ;; stripping
-                                                               ;; off
-                                                               ;; view
-                                                               ;; state
-                                                               ;; prevents
-                                                               ;; us
-                                                               ;; re-rendering
-                                                               ;; when
-                                                               ;; nothing
-                                                               ;; has
-                                                               ;; changed
-        selection @(flow/view* flow operations/selected-candidates)
+  (let [flow        (flow/view* root dissoc ::view/view-state) ;; remove view-state which is no help.
+        cands       (flow/view* flow operations/subset-document-to-selected-candidates)
+
+        cands       (flow/view* cands magic-fields/join)
+
+        ;; TODO could make magic-fields only work on selection
+        ;; for a bit more speed here
+        
+        selection (vals @(flow/view* cands ::document/candidates))
+
         has-solution @(flow/view* flow document/has-solution?)
         model-mode @(flow/view* flow document/mode)
         mode-name (case model-mode :cooling "Cold" "Heat")
-        cost-factors @(flow/view* flow dissoc ::document/candidates)
+        cost-factors @flow
+
         custom-keys (sort-by first @(flow/view flow custom-keys))
         ]
-
+    
     [:div.component--selection-info
      [:header.selection-header
       (cond (empty? selection)
@@ -302,7 +308,7 @@
 
      (let [chips-row  (partial chips-row root selection)
            number-row (partial number-row selection)
-           base-cost  (partial base-cost cost-factors model-mode)
+           base-cost (partial base-cost cost-factors model-mode)
            ]
        [:div.selection-table
         [chips-row "Type"
@@ -350,13 +356,13 @@
         
         [chips-row "Constraint" ::candidate/inclusion
          :nil-value "Forbidden" :add-classes (fn [x] ["constraint" (name x)])]
-        [chips-row "Tariff"    (partial building-tariff-name cost-factors)]
-        [chips-row "Edited"    (comp {false "no" true "yes" nil "no"} ::candidate/modified)]
-        [chips-row "Profile"   (partial building-profile-name cost-factors)]
+        [chips-row "Tariff" (partial building-tariff-name cost-factors)]
+        [chips-row "Con. Cost" (partial building-cc-name cost-factors)]
+        [chips-row "Edited" (comp {false "no" true "yes" nil "no"} ::candidate/modified)]
+        [chips-row "Profile" (partial building-profile-name cost-factors)]
         [number-row "Market rate" ::solution/market-rate
          :summary :mean :unit "c/kWh" :scale 100]
-        [chips-row "Civils"    (partial path-civil-cost-name cost-factors)]
-
+        [chips-row "Civils" (partial path-civil-cost-name cost-factors)]
         [number-row "Length" ::path/length :unit "m"]
         [number-row "Base cost" base-cost :unit "¤"
          :tooltip (str "For buildings this is the connection cost. "

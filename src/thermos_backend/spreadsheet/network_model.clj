@@ -69,7 +69,7 @@
                  (str name " (" (*100 has-market-value) " c/kWh)")
                  name))}
       { :name "Connection cost name"
-       :key #(document/connection-cost-name doc (::tariff/cc-id %))}
+       :key #(document/connection-cost-name doc %)}
       ])))
 
 (defn output-buildings [ss doc]

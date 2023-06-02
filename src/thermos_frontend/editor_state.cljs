@@ -23,7 +23,9 @@
             [thermos-frontend.flow :as flow]
             [thermos-frontend.events :as events]
 
-            [thermos-frontend.flow :as f]))
+            [thermos-frontend.flow :as f]
+
+            [thermos-specs.magic-fields :as magic-fields]))
 
 (defonce save-state
   (let [[_ project-id map-id network-id]
@@ -135,27 +137,28 @@
                 ::candidate/user-fields (js->clj (o/get properties "user-fields" {}))}
         ]
 
-    (case type
-      :path
-      (assoc basics
-             ::path/length        (o/get properties "length")
-             ::path/start         (o/get properties "start-id")
-             ::path/end           (o/get properties "end-id"))
+    (-> (case type
+          :path
+          (assoc basics
+                 ::path/length        (o/get properties "length")
+                 ::path/start         (o/get properties "start-id")
+                 ::path/end           (o/get properties "end-id"))
 
-      :building
-      (assoc basics
-             ::demand/group            (o/get properties "conn-group")
-             
-             ::candidate/wall-area     (o/get properties "wall-area" 0)
-             ::candidate/ground-area   (o/get properties "ground-area" 0)
-             ::candidate/roof-area     (o/get properties "ground-area" 0)
-             ::demand/kwh              (o/get properties "demand-kwh-per-year" nil)
-             ::demand/kwp              (o/get properties "demand-kwp" nil)
-             ::demand/connection-count (o/get properties "connection-count" 1)
-             ::cooling/kwh             (o/get properties "cooling-kwh-per-year" nil)
-             ::cooling/kwp             (o/get properties "cooling-kwp" nil)
-             ::demand/source           (o/get properties "demand-source" nil)
-             ::candidate/connections   (string/split (o/get properties "connection-ids") #",")))))
+          :building
+          (assoc basics
+                 ::demand/group            (o/get properties "conn-group")
+                 
+                 ::candidate/wall-area     (o/get properties "wall-area" 0)
+                 ::candidate/ground-area   (o/get properties "ground-area" 0)
+                 ::candidate/roof-area     (o/get properties "ground-area" 0)
+                 ::demand/kwh              (o/get properties "demand-kwh-per-year" nil)
+                 ::demand/kwp              (o/get properties "demand-kwp" nil)
+                 ::demand/connection-count (o/get properties "connection-count" 1)
+                 ::cooling/kwh             (o/get properties "cooling-kwh-per-year" nil)
+                 ::cooling/kwp             (o/get properties "cooling-kwp" nil)
+                 ::demand/source           (o/get properties "demand-source" nil)
+                 ::candidate/connections   (string/split (o/get properties "connection-ids") #",")))
+        (magic-fields/initialize))))
 
 (defn load-tile! [document x y z]
   (io/request-geometry

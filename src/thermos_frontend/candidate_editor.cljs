@@ -11,6 +11,8 @@
             [thermos-specs.path :as path]
             [thermos-specs.supply :as supply]
             [thermos-specs.document :as document]
+            [thermos-specs.magic-fields :as magic-fields]
+            
             [thermos-frontend.popover :as popover]
             [thermos-frontend.editor-state :as state]
             [thermos-frontend.inputs :as inputs]
@@ -765,7 +767,9 @@
 (defn- candidate-editor [document candidate-ids]
   (reagent/with-let [mode (document/mode @document)
 
-                     candidates (map (::document/candidates @document) candidate-ids)
+                     joined-document (magic-fields/join @document)
+                     candidates (map (::document/candidates joined-document) candidate-ids)
+
                      {buildings :building paths :path}
                      (group-by ::candidate/type candidates)
 
@@ -773,7 +777,9 @@
                      path-groups (get-group-by-options paths)
                      all-groups (get-group-by-options candidates)
 
+
                      bstate (initial-building-state building-groups buildings mode)
+                     
                      demand-state (reagent/atom bstate)
                      tariff-state (reagent/atom bstate)
                      technology-state (reagent/atom bstate)
@@ -791,7 +797,7 @@
                      insulation (sort-by first (::document/insulation @document))
                      alternatives (sort-by first (::document/alternatives @document))
                      min-pipe-diameter (* 1000
-                                          (::document/minimum-pipe-diameter document 0.02))
+                                          (::document/minimum-pipe-diameter @document 0.02))
 
                      category-state (reagent/atom (initial-category-state all-groups
                                                                           candidates))

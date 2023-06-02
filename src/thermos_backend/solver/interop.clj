@@ -32,9 +32,10 @@
     network model, but is applied in here by transforming the /costs/ which the
     model optimises on.
   "
+
   (:require
    [clojure.set :as set]
-   clojure.stacktrace
+   [clojure.stacktrace]
    [clojure.string :as string]
    [clojure.tools.logging :as log]
    [clojure.walk :refer [postwalk]]
@@ -57,7 +58,10 @@
    [thermos-util.pipes :as pipes]
    [thermos.opt.net.bounds :as net-model-bounds]
    [thermos.opt.net.core :as net-model]
-   [thermos.opt.net.diversity :as net-diversity]))
+   [thermos-specs.magic-fields :as magic-fields]
+   [thermos.opt.net.diversity :as net-diversity])
+  (:import [java.io StringWriter]))
+
 
 (def HOURS-PER-YEAR 8766)
 
@@ -335,7 +339,7 @@
 
         {fixed-connection    ::tariff/fixed-connection-cost
          variable-connection ::tariff/variable-connection-cost}
-        (document/connection-cost-for-id instance (::tariff/cc-id candidate))
+        (document/connection-cost-for-building instance candidate)
 
         standing-charge (if ignore-revenues 0 (or standing-charge 0))
         unit-charge     (if ignore-revenues 0 (or unit-charge 0))
@@ -826,7 +830,7 @@
                                   (market (::candidate/id v))
                                   (document/tariff-for-id instance tariff-id))
 
-                connection-cost      (document/connection-cost-for-id instance (::tariff/cc-id v))
+                connection-cost      (document/connection-cost-for-building instance v)
                 
                 insulation           (for [[id kwh] (:insulation solution-vertex)
                                            :when (> (Math/abs kwh) 1.0)]
@@ -871,7 +875,7 @@
                 
                 (cond-> 
                     ;; measures and alt systems
-                  alternative
+                    alternative
                   (output-alternative instance alternative)
 
                   ;; insulation needs costs working out
@@ -900,7 +904,7 @@
                             pumping-emissions    (::document/pumping-emissions instance {})
                             pumping-kwh          (* output-kwh pumping-overhead)
 
-                             ;; +/- pumping overhead
+                            ;; +/- pumping overhead
                             output-kwh (if (document/is-cooling? instance)
                                          (+ output-kwh pumping-kwh)
                                          (- output-kwh pumping-kwh))]
@@ -1144,9 +1148,11 @@
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
-  [instance]
+  [original-instance]
   
-  (let [instance (document/remove-solution instance)
+  (let [original-instance (document/remove-solution original-instance)
+
+        instance (magic-fields/join original-instance)
 
         included-candidates (->> (::document/candidates instance)
                                  (vals)
@@ -1218,7 +1224,7 @@
               end-time (System/currentTimeMillis)
 
               solved-instance
-              (-> instance
+              (-> original-instance
                   (assoc
                    ::solution/log (str
                                    (when (seq bad-numbers)
