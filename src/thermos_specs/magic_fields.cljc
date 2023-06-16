@@ -24,7 +24,7 @@
 (def ^:const ALTERNATIVES-FIELD "INDIVIDUAL-SYSTEMS")
 (def ^:const COUNTERFACTUAL-FIELD "COUNTERFACTUAL-SYSTEM")
 
-(def ^:const SUPPLY-CAPACITY-FIELD    "capacity-kwp")
+(def ^:const SUPPLY-CAPACITY-FIELD    "capacity_kwp")
 (def ^:const SUPPLY-FIXED-CAPEX-FIELD "capex_fixed")
 (def ^:const SUPPLY-FIXED-OPEX-FIELD  "opex_fixed")
 (def ^:const SUPPLY-KWP-CAPEX-FIELD   "capex_per_kwp")
@@ -160,7 +160,7 @@
         (assoc candidate
                ;; scaling factors applied here to match the units in the UI
                ::supply/capacity-kwp  supply-capacity-kw
-               ::supply/cost-per-kwh  (/ (field SUPPLY-KWH-COST-FIELD) 100.0)
+               ::supply/cost-per-kwh  (field SUPPLY-KWH-COST-FIELD)
                ::supply/capex-per-kwp (field SUPPLY-KWP-CAPEX-FIELD)
                ::supply/opex-per-kwp  (field SUPPLY-KWP-COST-FIELD)
                ::supply/opex-fixed    (field SUPPLY-FIXED-OPEX-FIELD)
