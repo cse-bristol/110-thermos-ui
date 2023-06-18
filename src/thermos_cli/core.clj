@@ -397,6 +397,7 @@ The different options are those supplied after --retry, so mostly you can use th
                    (let [candidate (get candidates id)]
                      (when (candidate/is-building? candidate)
                        {:id (::candidate/id candidate)
+                        :inclusion (::candidate/inclusion candidate)
                         :kwh (::demand/kwh candidate)
                         :centroid (.getCentroid (::candidate/geometry candidate))})))
                  building-ids)
@@ -408,7 +409,8 @@ The different options are those supplied after --retry, so mostly you can use th
                    (double
                     (reduce
                      +
-                     (for [{kwh :kwh there :centroid} buildings]
+                     (for [{kwh :kwh there :centroid inc :inclusion} buildings
+                           :when (#{:optional :required} inclusion)]
                        (/ kwh
                           (+ 50.0  ;; might work?
                              (jts/geodesic-distance
