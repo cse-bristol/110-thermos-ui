@@ -410,7 +410,7 @@ The different options are those supplied after --retry, so mostly you can use th
                     (reduce
                      +
                      (for [{kwh :kwh there :centroid inc :inclusion} buildings
-                           :when (#{:optional :required} inclusion)]
+                           :when (#{:optional :required} inc)]
                        (/ kwh
                           (+ 50.0  ;; might work?
                              (jts/geodesic-distance
