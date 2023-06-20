@@ -20,7 +20,7 @@
     # 6 for web frontend => 36 left
     # 10 for importer, 26 for models
     services.thermos.ui.javaArgs = "-Xmx6g -server";
-    services.thermos.model.javaArgs = "-Xmx20g -server";
+    services.thermos.model.javaArgs = "-Xmx20g -server -Xss1g";
     services.thermos.model.solverCount = 10;
     services.thermos.importer.javaArgs = "-Xmx6g -server";
 
