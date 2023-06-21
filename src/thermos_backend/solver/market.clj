@@ -9,9 +9,9 @@
             [thermos-specs.measure :as measure]
             [thermos-specs.tariff :as tariff]))
 
-(defn- evaluate-base-case [term discount-rate kwp kwh-per-year emissions-costs alternative]
+(defn- evaluate-base-case [term discount-rate kwp kwh-per-year n-customers emissions-costs alternative]
   (let [;; basic costs
-        capex (supply/principal alternative kwp kwh-per-year)
+        capex (supply/principal alternative kwp kwh-per-year n-customers)
         opex  (supply/opex alternative kwp)
         fuel  (supply/heat-cost alternative kwh-per-year)
 
@@ -64,7 +64,7 @@
   We also know the pv for this so we can work out an equivalent unit rate."
   [term discount-rate ;; for householder's PV calculation
    stickiness         ;; % network has to beat alternative by to win
-   kwp kwh-per-year   ;; for working out the costs / benefits
+   kwp kwh-per-year n-customers   ;; for working out the costs / benefits
    areas              ;; area type => area
    emissions-costs
    alternatives       ;; list of alternatives
@@ -78,7 +78,7 @@
           
           (for [a alternatives]
             (let [a0 (evaluate-base-case term discount-rate
-                                         kwp kwh-per-year
+                                         kwp kwh-per-year n-customers
                                          emissions-costs
                                          a)
                   
