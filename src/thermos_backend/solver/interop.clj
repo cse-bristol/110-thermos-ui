@@ -1096,6 +1096,7 @@
 
                               (candidate/peak-demand v (document/mode instance))
                               (candidate/annual-demand v (document/mode instance))
+                              (::demand/connection-count v 1)
                               
                               areas
 
