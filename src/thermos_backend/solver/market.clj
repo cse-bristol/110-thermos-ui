@@ -12,7 +12,7 @@
 (defn- evaluate-base-case [term discount-rate kwp kwh-per-year n-customers emissions-costs alternative]
   (let [;; basic costs
         capex (supply/principal alternative kwp kwh-per-year n-customers)
-        opex  (supply/opex alternative kwp)
+        opex  (supply/opex alternative kwp n-customers)
         fuel  (supply/heat-cost alternative kwh-per-year)
 
         ;; we need unit rates so we can do decisions later
