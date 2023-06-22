@@ -404,6 +404,8 @@
             :summary :mean :unit "%" :scale 100]
            [number-row "Required capacity" ::solution/capacity-kw
             :summary :max :unit "W" :scale 1000]
+           [number-row "Heat output" ::solution/output-kwh
+            :summary :max :unit "Wh" :scale 1000]
            [number-row "Max. capacity" ::solution/max-capacity-kw
             :summary :max :unit "W" :scale 1000]
            [number-row "Diameter" ::solution/diameter-mm
