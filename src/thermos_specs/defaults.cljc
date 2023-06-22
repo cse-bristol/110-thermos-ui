@@ -18,10 +18,28 @@
 
 (def default-tariffs
   {1 #::tariff {:id 1
-                :name "Standard"
-                :standing-charge 50
-                :unit-charge 0.15
-                :capacity-charge 0}})
+                :name "Small - 30kW"
+                :standing-charge 0
+                :unit-charge 0.065
+                :capacity-charge 106.0}
+
+   2 #::tariff {:id 2
+                :name "Med - 150kW"
+                :standing-charge 0
+                :unit-charge 0.065
+                :capacity-charge 95.0}
+
+   3 #::tariff {:id 3
+                :name "Large - 300kW"
+                :standing-charge 0
+                :unit-charge 0.065
+                :capacity-charge 91.0}
+
+   4 #::tariff {:id 4
+                :name "Larger"
+                :standing-charge 0
+                :unit-charge 0.065
+                :capacity-charge 89.0}})
 
 (comment
   (require '[clojure.data.csv :as csv])
@@ -288,6 +306,8 @@
 
     ::document/mip-gap 0.1
     ::document/maximum-runtime 0.5
+    ::document/param-gap 0.01
+    ::document/maximum-iterations 8
 
     ::document/loan-term 25
     ::document/loan-rate 0.04
