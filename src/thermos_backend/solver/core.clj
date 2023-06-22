@@ -3,6 +3,7 @@
 
 (ns thermos-backend.solver.core
   (:require [thermos-backend.solver.interop :as interop]
+            [thermos-backend.solver.steiner :as steiner]
             [thermos-backend.solver.supply :as supply-solver]
             [thermos-backend.db.projects :as projects]
             [thermos-backend.config :refer [config]]
@@ -24,8 +25,10 @@
    (print-method (:value this) w))
 
 (defn queue-problem [network-id problem-type]
-  {:pre [(#{:network :supply :both} problem-type)]}
-
+  {:pre [(#{:network :supply :both
+            :tidy :tree}
+          problem-type)]}
+  (log/info "wat wat wat")
   (let [job-id (queue/enqueue :problems
                               {:id network-id
                                :solve problem-type})]
@@ -54,7 +57,7 @@
 
 (defn consume-problem [{network-id :id problem-type :solve}
                        progress]
-  {:pre [(int? network-id) (#{:network :supply :both} problem-type)]}
+  {:pre [(int? network-id) (#{:network :supply :both :tree :tidy} problem-type)]}
   (try
     (let [network (projects/get-network network-id :include-content true)
 
@@ -63,6 +66,12 @@
                     (:map-id network))
 
           solution (cond-> problem
+                     (= :tree problem-type)
+                     (steiner/tree)
+
+                     (= :tidy problem-type)
+                     (interop/tidy progress)
+                     
                      (#{:network :both} problem-type)
                      (interop/try-solve progress)
 

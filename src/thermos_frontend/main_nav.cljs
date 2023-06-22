@@ -18,7 +18,9 @@
     }]
   (reagent/with-let [name-text (reagent/atom name)
                      optimise-clicked (reagent/atom false)
+                     tools-clicked (reagent/atom false)
                      click-optimise #(reset! optimise-clicked true)
+                     click-tools #(reset! tools-clicked true)
                      
                      element (atom nil)
                      with-name (fn [act]
@@ -59,22 +61,15 @@
       ]
      
      (when-not read-only
-       (if-not @optimise-clicked
-         [:span {:key :a :style {:display :flex :margin-left :auto}}
-          (when unsaved
-            [:button.button.button--outline.button--save-button
-             {:style {:background "none" :border "none"}
-              :on-click #(with-name on-save)}
-             "Save"
-             ])
-          [:button.button.button--outline
-           {:style {:background "none" :border "none"}
-            :on-click #(with-name click-optimise)}
-           "Optimise ▸"]]
-
+       (cond
+         @optimise-clicked
          [:span.fade-in {:key :b :style {:display :flex :margin-left :auto}
                          :on-mouse-leave #(reset! optimise-clicked false)
                          }
+          [:button.button.button--outline
+           {:style {:background "none" :border "none"}
+            :on-click #(reset! optimise-clicked false)} "◀"]
+          
           [:button.button.button--outline
            {:style {:background "none" :border "none"}
             :on-click #(do
@@ -90,8 +85,45 @@
            {:style {:background "none" :border "none"}
             :on-click #(do (reset! optimise-clicked false)
                            (on-run @name-text :both))}
-           "Both"]
+           "Both"]]
+         
+         @tools-clicked
+         [:span.fade-in {:key :b :style {:display :flex :margin-left :auto}
+                         :on-mouse-leave #(reset! optimise-clicked false)
+                         }
+          [:button.button.button--outline
+           {:style {:background "none" :border "none"}
+            :on-click #(reset! tools-clicked false)} "◀"]
           
-          ]
+          [:button.button.button--outline
+           {:style {:background "none" :border "none"}
+            :on-click #(do
+                         (reset! tools-clicked false)
+                         (on-run @name-text :tidy))}
+           "Tidy"]
+          [:button.button.button--outline
+           {:style {:background "none" :border "none"}
+            :on-click #(do (reset! tools-clicked false)
+                           (on-run @name-text :tree))}
+           "Tree"]]
+         
+         :else
+         [:span {:key :a :style {:display :flex :margin-left :auto}}
+          (when unsaved
+            [:button.button.button--outline.button--save-button
+             {:style {:background "none" :border "none"}
+              :on-click #(with-name on-save)}
+             "Save"
+             ])
+          [:button.button.button--outline
+           {:style {:background "none" :border "none"}
+            :on-click #(with-name click-tools)}
+           "⚙"]
+          [:button.button.button--outline
+           {:style {:background "none" :border "none"}
+            :on-click #(with-name click-optimise)}
+           "Optimise ▸"]]
+
+         
          ))
      ]))
