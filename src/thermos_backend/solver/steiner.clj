@@ -1,6 +1,7 @@
 (ns thermos-backend.solver.steiner
   (:require [thermos-backend.solver.interop :as interop]
             [thermos-specs.document :as doc]
+            [thermos-util.pipes :as pipes]
             [loom.graph :as graph]
             [loom.alg :as alg]
             [loom.attr :as attr]
@@ -15,23 +16,32 @@
               (upper-triangle s))))
 
 (defn tree [problem]
-  (let [graph   (interop/simplified-graph problem)
+  (let [pipe-curves (pipes/curves problem)
+
+        cost (memoize (fn [civil-id] (pipes/solved-principal pipe-curves civil-id 100.0)))
+
+        graph   (interop/simplified-graph problem)
         termini (filter #(attr/attr graph % :real-vertex) (graph/nodes graph))
         
         _ (log/info "Constructing weighted graph" )
         
         wg    (reduce
                (fn add-edge [g [i j]]
-                 (let [l (or (attr/attr graph [i j] :length) 0)]
+                 (let [lbc (attr/attr graph [i j] :civil-costs)
+                       c (reduce + (for [[id len] lbc] (* len (cost id))))]
+                   
                    (cond-> g
-                     (and l (not= i j))
+                     (not= i j)
                      (doto
                        (.addVertex i)
                        (.addVertex j)
                        ;; don't really need anything to go in the slot?
                        (.addEdge i j [i j])
-                       (.setEdgeWeight i j l)))))
-               (org.jgrapht.graph.SimpleWeightedGraph. Object)
+                       (.setEdgeWeight i j c)))))
+               (reduce
+                (fn add-vertex [g i] (doto g (.addVertex i)))
+                (org.jgrapht.graph.SimpleWeightedGraph. Object)
+                (graph/nodes graph))
                (graph/edges graph))
 
         _ (log/info "Finding shortest paths")
