@@ -25,6 +25,7 @@
 (def ^:const COUNTERFACTUAL-FIELD "COUNTERFACTUAL-SYSTEM")
 
 (def ^:const SUPPLY-CAPACITY-FIELD    "capacity_kwp")
+(def ^:const SUPPLY-CAPACITY-KWH-FIELD    "capacity_kwh")
 (def ^:const SUPPLY-FIXED-CAPEX-FIELD "capex_fixed")
 (def ^:const SUPPLY-FIXED-OPEX-FIELD  "opex_fixed")
 (def ^:const SUPPLY-KWP-CAPEX-FIELD   "capex_per_kwp")
@@ -156,10 +157,16 @@
                     (-> user-fields
                         (get k 0.0)
                         (util/as-double)
-                        (or 0.0)))]
+                        (or 0.0)))
+            nil-field (fn [k]
+                        (-> user-fields
+                            (get k nil)
+                            (util/as-double)))
+            ]
         (assoc candidate
                ;; scaling factors applied here to match the units in the UI
                ::supply/capacity-kwp  supply-capacity-kw
+               ::supply/capacity-kwh  (nil-field SUPPLY-CAPACITY-KWH-FIELD)
                ::supply/cost-per-kwh  (field SUPPLY-KWH-COST-FIELD)
                ::supply/capex-per-kwp (field SUPPLY-KWP-CAPEX-FIELD)
                ::supply/opex-per-kwp  (field SUPPLY-KWP-COST-FIELD)

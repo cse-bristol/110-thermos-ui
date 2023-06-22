@@ -28,6 +28,7 @@
   (reagent/with-let [candidates (map (::document/candidates @document) candidate-ids)
 
                      supply-keys [::supply/capacity-kwp
+                                  ::supply/capacity-kwh
                                   ::supply/cost-per-kwh
                                   ::supply/capex-per-kwp
                                   ::supply/opex-per-kwp
@@ -43,6 +44,7 @@
                      local-state (reagent/atom initial-values)
 
                      capacity-kwp (reagent/cursor local-state [::supply/capacity-kwp])
+                     capacity-kwh (reagent/cursor local-state [::supply/capacity-kwh])
                      cost-per-kwh (reagent/cursor local-state [::supply/cost-per-kwh])
                      capex-per-kwp (reagent/cursor local-state [::supply/capex-per-kwp])
                      opex-per-kwp (reagent/cursor local-state [::supply/opex-per-kwp])
@@ -58,6 +60,10 @@
         [:tr [:td {:col-span 3} [:b "Cost and capacity"]] ]
         ;; TODO check these thresholds are sane
         [:tr [:td "Maximum capacity"] [:td [inputs/number {:value-atom capacity-kwp  :min 1 :max 1000  :scale (/ 1.0 1000)  :step 0.1}]] [:td "MW"]]
+        [:tr [:td "Maximum output"]   [:td [inputs/number
+                                            {:value-atom capacity-kwh :min 1 :max 1000  :scale (/ 1.0 1000000)  :step 0.01
+                                             :empty-value [nil "∞"]}]]
+         [:td "GWh/yr"]]
         [:tr [:td "Fixed cost"]       [:td [inputs/number {:value-atom fixed-cost    :min 0 :max 10000 :scale (/ 1.0 1000)  :step 0.1}]] [:td "k¤"]]
         [:tr [:td "Capacity cost"]    [:td [inputs/number {:value-atom capex-per-kwp :min 0 :max 10000  :step 0.1}]] [:td "¤/kW"]]
         [:tr [:td "Annual cost"]      [:td [inputs/number {:value-atom opex-per-kwp  :min 0 :max 1000                       :step 0.1}]] [:td "¤/kW"]]

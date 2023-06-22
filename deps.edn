@@ -91,7 +91,7 @@
     digest/digest {:mvn/version "1.4.6"},
     thermos/models
     {:git/url "ssh://git@github.com/cse-bristol/110-thermos-models.git",
-     :sha "48eab92157fa32e0ba1d7bb9998579bc21520854"},
+     :sha "8589f3725e8b4bb94143ded8685f4634d6d85cdc"},
     clucie/clucie {:mvn/version "0.4.2"},
     honeysql/honeysql {:mvn/version "0.9.4"},
     ring/ring-json {:mvn/version "0.4.0"},

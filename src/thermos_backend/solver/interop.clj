@@ -562,16 +562,24 @@
                     (adjust-for-pumping
                      (get-in candidate [::supply/emissions e] 0)
                      (get pumping-emissions e 0)))]))
+
+        annual-capacity-limit (some->
+                               (::supply/capacity-kwh candidate)
+                               (float))
         ]
     
-    {:capacity-kw (float (::supply/capacity-kwp  candidate 0))
-     :cost        (float fixed-cost)
-     :cost%kwh    (float effective-heat-cost)
-     :cost%kwp    (float (+ capex-per-kwp opex-per-kwp))
+    (cond->
+        {:capacity-kw (float (::supply/capacity-kwp  candidate 0))
+         :cost        (float fixed-cost)
+         :cost%kwh    (float effective-heat-cost)
+         :cost%kwp    (float (+ capex-per-kwp opex-per-kwp))
 
-     :exclusive-groups (::supply/exclusive-groups candidate)
-     
-     :emissions   emissions-factors}))
+         :exclusive-groups (::supply/exclusive-groups candidate)
+         
+         :emissions   emissions-factors}
+      annual-capacity-limit
+      (assoc :capacity-kwh annual-capacity-limit)
+      )))
 
 (defn- edge-terms
   "Output for the network model the parameters for this edge.
