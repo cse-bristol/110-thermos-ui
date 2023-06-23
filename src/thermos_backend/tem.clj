@@ -106,11 +106,11 @@
     ::solution/capacity-kw]))
 
 (defn populate-tem [state]
-  (def -last-state state)
+  ;; (def -last-state state)
   (let [template       (x/load-workbook-from-resource "tem-template.xlsx")]
-    (insert-into-table! (make-demands-table state)  "demands"  template)
-    (insert-into-table! (make-pipes-table state)    "pipes"    template)
-    (insert-into-table! (make-supplies-table state) "supplies" template)
+    (insert-into-table! (make-demands-table state)  "Heat_connections_input"  template)
+    (insert-into-table! (make-pipes-table state)    "Pipe_data_input"    template)
+    (insert-into-table! (make-supplies-table state) "Heat_supplies_input" template)
     (.setForceFormulaRecalculation template true)
     template))
 
