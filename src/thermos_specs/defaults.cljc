@@ -16,6 +16,13 @@
 
 (def default-emissions {})
 
+(def default-con-costs
+  {1 #::tariff {:id 1
+                :name "Heat exchanger"
+                :fixed-connection-cost     1654.0
+                :variable-connection-cost  36.73
+                }})
+
 (def default-tariffs
   {1 #::tariff {:id 1
                 :name "Small - 30kW"
@@ -307,7 +314,7 @@
     ::document/mip-gap 0.1
     ::document/maximum-runtime 0.5
     ::document/param-gap 0.01
-    ::document/maximum-iterations 8
+    ::document/maximum-iterations 6
 
     ::document/loan-term 25
     ::document/loan-rate 0.04
@@ -328,6 +335,7 @@
     ::document/objective :network
 
     ::document/tariffs default-tariffs
+    ::document/connection-costs default-con-costs
     ::document/pipe-costs default-pipe-costs
     ::document/insulation default-insulation
     ::document/alternatives default-alternatives
