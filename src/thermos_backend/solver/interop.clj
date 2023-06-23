@@ -1328,8 +1328,9 @@
                     (count (graph/nodes net-graph))
                     "nodes,"
                     (count (graph/edges net-graph)) "edges")]
-    (mark-unreachable instance
-                      net-graph included-candidates disconnected-cand-ids)))
+    (-> (mark-unreachable instance
+                          net-graph included-candidates disconnected-cand-ids)
+        (assoc ::solution/state :tidied))))
 
 (defn try-solve [instance progress]
   (let [log-writer (java.io.StringWriter.)]
