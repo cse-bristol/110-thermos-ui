@@ -67,7 +67,7 @@
 
           solution (cond-> problem
                      (= :tree problem-type)
-                     (steiner/tree)
+                     (steiner/tree progress)
 
                      (= :tidy problem-type)
                      (interop/tidy progress)
