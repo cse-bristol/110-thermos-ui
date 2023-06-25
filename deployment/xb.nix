@@ -42,6 +42,13 @@
     services.nginx = {
       enable = true;
       clientMaxBodySize = "10g";
+      recommendedGzipSettings = true;
+      recommendedOptimisation = true;
+      recommendedProxySettings = true;
+      appendConfig = ''
+        gzip_types *;
+        gzip_proxied any;
+      '';
       virtualHosts."xb-thermos.re.cse.org.uk" = {
         forceSSL = true;
         enableACME = true;
