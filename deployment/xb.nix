@@ -45,11 +45,12 @@
       recommendedGzipSettings = true;
       recommendedOptimisation = true;
       recommendedProxySettings = true;
-      appendConfig = ''
-        gzip_types *;
-        gzip_proxied any;
-      '';
       virtualHosts."xb-thermos.re.cse.org.uk" = {
+        appendConfig = ''
+          gzip_types *;
+          gzip_proxied any;
+        '';
+
         forceSSL = true;
         enableACME = true;
         locations."/" = { proxyPass = "http://localhost:${toString config.services.thermos.ui.port}/"; };
