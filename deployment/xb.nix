@@ -46,7 +46,7 @@
       recommendedOptimisation = true;
       recommendedProxySettings = true;
       virtualHosts."xb-thermos.re.cse.org.uk" = {
-        appendConfig = ''
+        extraConfig = ''
           gzip_types *;
           gzip_proxied any;
         '';
