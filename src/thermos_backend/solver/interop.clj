@@ -58,6 +58,7 @@
    [thermos-util.pipes :as pipes]
    [thermos.opt.net.bounds :as net-model-bounds]
    [thermos.opt.net.core :as net-model]
+   [thermos.opt.net.graph :refer [reachable-through]]
    [thermos-specs.magic-fields :as magic-fields]
    [thermos.opt.net.diversity :as net-diversity])
   (:import [java.io StringWriter]))
@@ -807,6 +808,29 @@
             
             :counterfactual is-counterfactual))))
 
+(defn- paths-to-demands
+  "Output a map saying {demand id => #{path ids}}; the path ids are any path
+  in the solution that connect the solution to a supply."
+  [net-graph supplies demands edges]
+  (let [net-graph (graph/subgraph net-graph
+                                  (concat supplies demands (flatten edges)))
+        adj (reduce
+             (fn [a [i j]] (update a i conj j))
+             {}
+             (graph/edges net-graph))
+
+        reach (reachable-through adj supplies)]
+    (reduce
+     (fn [a [e vs]]
+       (let [ids (attr/attr net-graph e :ids)]
+         (merge-with
+          into
+          a
+          (into {} (for [v (filter (set demands) vs)] [v ids])))))
+     {}
+     reach)
+    ))
+
 (defn- merge-solution
   "Combine the optimisation result back with `instance` for display to the user."
   [instance net-graph pipe-curves market result-json]
@@ -1020,7 +1044,11 @@
           (document/map-candidates copy-market-rate)
           (document/map-candidates update-vertex (keys solution-vertices))
           (document/map-candidates update-edge (keys solution-edges))
-          (assoc ::solution/objective (:objective result-json)
+          (assoc ::solution/paths-to-demands (paths-to-demands net-graph
+                                                               (for [v (:vertices result-json) :when (:capacity-kw v)] (:id v))
+                                                               (for [v (:vertices result-json) :when (:connected v)] (:id v))
+                                                               (for [e (:edges result-json)] [(:i e) (:j e)]))
+                 ::solution/objective (:objective result-json)
                  ::solution/bounds
                  (-> result-json :solver :bounds)
                  ::solution/iterations

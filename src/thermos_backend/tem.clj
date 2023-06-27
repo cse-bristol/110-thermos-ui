@@ -12,7 +12,8 @@
             [thermos-specs.tariff :as tariff]
             [thermos-specs.solution :as solution]
             [thermos-specs.path :as path]
-            [thermos-specs.supply :as supply])
+            [thermos-specs.supply :as supply]
+            [clojure.tools.logging :as log])
   (:import
    [org.apache.poi.ss.util CellReference AreaReference]
    [org.apache.poi.xssf.usermodel XSSFWorkbook XSSFRow]))
@@ -21,9 +22,6 @@
   (let [table (.getTable workbook table-name)]
     (assert table (str "No table named " table-name " in workbook"))
     
-    ;; (-> table (.getCTTable) (.addNewTableStyleInfo))
-    ;; (-> table (.getCTTable) (.getTableStyleInfo) (.setName "TableStyleMedium2"))
-
     
     (let [area  (.getArea table)
           sheet (.getSheet workbook (.getSheetName table))
@@ -42,7 +40,7 @@
                      (CellReference. top left)
                      (CellReference. (dec (+ top (count data)))
                                      (dec (+ left (count (first data))))))))
-
+      
       (doseq [[i row] (map-indexed vector data)]
         (let [row-obj (or (.getRow sheet (+ top i))
                           (.createRow sheet (+ top i)))]
@@ -84,18 +82,32 @@
       ::demand/connection-count])))
 
 (defn make-pipes-table    [state]
-  (add-user-fields
-   (filter
-    #(and (candidate/is-path? %) (candidate/is-connected? %))
-    (vals (::document/candidates state)))
-   ["ID" "Diameter" "Losses" "kW" "Length" "Surface" "Diversity"]
-   [::candidate/id
-    ::solution/diameter-mm
-    ::solution/losses-kwh
-    ::solution/capacity-kw
-    ::path/length
-    #(document/civil-cost-name state (::path/civil-cost-id %))
-    ::solution/diversity]))
+  (let [candidates       (::document/candidates state)
+        paths-to-demands (::solution/paths-to-demands state) ;; a map which goes {demand id => #{path ids upstream of it}}
+        mode             (document/mode state)
+        sconj            (fn [s x] (conj (or s #{}) x))
+        downstream       (reduce
+                          (fn [a [d p]] (update a p sconj d))
+                          {}
+                          (for [[demand paths] paths-to-demands
+                                path paths] [demand path]))
+        ]
+    (add-user-fields
+     (filter
+      #(and (candidate/is-path? %) (candidate/is-connected? %))
+      (vals (::document/candidates state)))
+     ["ID" "Diameter" "Losses" "kW" "kWh" "BuildingsDownstream" "CustomersDownstream" "ConnectorFor" "Length" "Surface" "Diversity"]
+     [::candidate/id
+      ::solution/diameter-mm
+      ::solution/losses-kwh
+      ::solution/capacity-kw
+      (fn [p] (reduce + (for [id (downstream (::candidate/id p))] (or (candidate/solved-annual-demand (get candidates id) mode) 0.0))))
+      (comp count downstream ::candidate/id)
+      (fn [p] (reduce + (for [id (downstream (::candidate/id p))] (::demand/connection-count (get candidates id) 1))))
+      (fn [p] (string/join ", " (downstream (::candidate/id p))))
+      ::path/length
+      #(document/civil-cost-name state (::path/civil-cost-id %))
+      ::solution/diversity])))
 
 (defn make-supplies-table [state]
   (add-user-fields
