@@ -219,11 +219,6 @@ If not given, does the base-case instead (no network)."
     (rules/matches-rule? candidate mandation-rule)
     (assoc :mandatable? true)))
 
-(defn- set-infill [candidate]
-  (cond-> candidate
-    (not (:mandatable? candidate))
-    (assoc ::demand/infill-groups #{0})))
-
 (defn add-supply-points
   "Modify `instance` to have `n` supply points with the given
   `supply-parameters` in each of its connected components" 
@@ -241,14 +236,10 @@ If not given, does the base-case instead (no network)."
         civils       (:civils (::document/pipe-costs problem))
         con-cost     (::document/connection-costs problem)
         candidates   (vals (::document/candidates problem))
-        infill-range (::document/infill-targets problem)
         ]
 
     (println "Mandatable: "
              (frequencies (map (juxt ::candidate/type :mandatable?) candidates)))
-    
-    (println "Infill:" infill-range
-             (frequencies (mapcat ::demand/infill-groups candidates)))
     
     (println "Alternatives:"
              (frequencies
@@ -437,7 +428,6 @@ If not given, does the base-case instead (no network)."
         alternative-rules     (:thermos/alternative-rules parameters)
         civils-rules          (:thermos/civils-rules parameters)
         connection-cost-rules (:thermos/connection-cost-rules parameters)
-        infill-range          (:thermos/infill-range parameters false)
         group-fields          (:thermos/group-buildings-by parameters)
         
         ;; construct problem
@@ -453,7 +443,7 @@ If not given, does the base-case instead (no network)."
                        (document/map-buildings (fn apply-building-rules [b]
                                                  (-> b
                                                      (set-mandatable mandation-rule)
-                                                     (cond-> (and infill-range heat-price) (set-infill))
+                                                     
                                                      (groups/set-optimiser-group group-fields)
                                                      (rules/assign-all-matching-values insulation-rules ::demand/insulation)
                                                      (rules/assign-all-matching-values alternative-rules ::demand/alternatives)
@@ -462,7 +452,7 @@ If not given, does the base-case instead (no network)."
                        (document/map-paths (fn apply-path-rules [p]
                                              (rules/assign-matching-value p civils-rules ::path/civil-cost-id)))
 
-                       (document/map-candidates (fn apply-requirement-rules-and-infill [c]
+                       (document/map-candidates (fn apply-requirement-rules [c]
                                                   (-> (assoc c ::candidate/inclusion :optional)
                                                       (rules/assign-matching-value requirement-rules ::candidate/inclusion)
                                                       (forbidden-building->individual-building))))
@@ -491,7 +481,6 @@ If not given, does the base-case instead (no network)."
                         ::document/mip-gap   (:thermos/mip-gap parameters)
 
                         ::document/should-be-feasible true
-                        ::document/infill-targets (and infill-range {0 infill-range})
 
                         ::document/maximum-runtime (double (/ runtime 3600))
                         

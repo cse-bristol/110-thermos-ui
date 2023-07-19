@@ -160,10 +160,6 @@
           runtime
           (assoc ::document/maximum-runtime (double (/ runtime 3600))))
 
-        ;; disable infill rules in case there are any
-        rounded-problem
-        (dissoc rounded-problem ::document/infill-targets)
-        
         rounded-solution
         (interop/try-solve rounded-problem (fn [& _]))
 
