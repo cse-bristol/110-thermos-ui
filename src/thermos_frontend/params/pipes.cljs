@@ -399,12 +399,13 @@
         delete-connection-cost #(swap! *document document/remove-connection-cost id)]
     [:tr {:key id}
      [:td [inputs/text
-           { :placeholder (str "Connection cost " id)
+           {:placeholder (str "Connection cost " id)
             :value (get ::tariff/name)
             :on-change #(put ::tariff/name (target-value %))}]]
      [:td [:label
-           [inputs/number
+           [inputs/number2
             {:title "The fixed part of the capital cost of connecting a building."
+             :style {:max-width :5em}
              :max 1000
              :min 0
              :value (get ::tariff/fixed-connection-cost)
@@ -412,8 +413,9 @@
              }]
            " " conn-fixed-unit]]
      [:td [:label
-           [inputs/number
+           [inputs/number2
             {:title "The variable part of the capital cost of connecting a building."
+             :style {:max-width :5em}
              :max 100
              :min 0
              :step 0.1
@@ -491,19 +493,22 @@
        "In a heat network they offset supply output. "
        "In a cooling network, they add to the required supply output."]
       [:p "Pumping overheads are "
-       [inputs/number {:value-atom pumping-overhead :min 0 :max 100 :step 1 :scale 100}]
+       [inputs/number2 {:value-atom pumping-overhead :min 0 :max 100 :step 1 :scale 100
+                        :style {:max-width :5em}}]
        " % of system output, and cost "
-       [inputs/number {:value-atom pumping-cost-per-kwh
+       [inputs/number2 {:value-atom pumping-cost-per-kwh
+                        :style {:max-width :5em}
                        :min 0 :max 50 :step 0.01 :scale 100}] "c/kWh. "
        "They cause emissions of"
        (interpose
         ", "
         (for [e candidate/emissions-types]
           [:<> {:key e}
-           [inputs/number {:value-atom (pumping-emissions-atoms e)
-                           :min 0 :max 1000 :step 1
-                           :scale (candidate/emissions-factor-scales e)
-                           }]
+           [inputs/number2 {:value-atom (pumping-emissions-atoms e)
+                            :style {:max-width :5em}
+                            :min 0 :max 1000 :step 1
+                            :scale (candidate/emissions-factor-scales e)
+                            }]
            " "
            (candidate/emissions-factor-units e)
            " "

@@ -62,6 +62,7 @@
 
      mip-gap (reagent/cursor document [::document/mip-gap])
      param-gap (reagent/cursor document [::document/param-gap])
+     iteration-limit (reagent/cursor document [::document/maximum-iterations])
      runtime (reagent/cursor document [::document/maximum-runtime])
      ]
     [:div.parameters-component
@@ -230,6 +231,10 @@
        [:p
         "Stop if parameter fixing affects the objective by less than or equal to "
         [inputs/number {:value-atom param-gap :step 0.01 :min 0 :max 100 :scale 100}] "%"]
+       [:p
+        "Stop after this many iterations "
+        [inputs/number {:value-atom iteration-limit :step 1 :min 1 :max 1000
+                        :empty-value [nil "1000"]}]]
        [:p
         "Maximum runtime "
         [inputs/number {:value-atom runtime
