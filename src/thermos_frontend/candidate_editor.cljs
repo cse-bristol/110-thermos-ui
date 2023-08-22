@@ -403,7 +403,7 @@
              {set-peak :check peak-value :value} (:peak-demand values)
              {set-demand :check demand-value :value} (:demand values)
              {set-cc :check cc-value :value} (:connection-count values)
-
+             
              demand-value (if set-demand
                             (case demand-key
                               :demand           demand-value
@@ -417,11 +417,11 @@
                             :peak-benchmark  (* (:value (:peak-benchmark values)) (::candidate/area building))
                             :peak-factor     (* (:value (:peak-factor values)) (peak-demand building))
                             :peak-estimate   (peak/annual->peak-demand demand-value))
-
+             
              ;; ensure peak is consistent
              min-peak    (annual-kwh->kw demand-value)
-             
-             set-peak    (or set-peak (not= min-peak peak-value))
+
+             set-peak    (or set-peak (> min-peak peak-value))
              peak-value  (max min-peak peak-value)
              
              profile (:profile values)

@@ -1,4 +1,9 @@
-[{:title "13th December 2022"
+[{:title "8th August 2023"
+  :changes [{:title "Bug fixes"
+             :summary
+             [:p "The candidate editor would sometimes erroneously amend buildings' peak demand values, and some improvements have been made to technical details of the optimisation."]}]}
+ 
+ {:title "13th December 2022"
   :changes [{:title "Bug fix"
              :summary
              [:p "Hiding unconstrained candidates no longer makes the application forget any edits the user has made to those candidates."]
