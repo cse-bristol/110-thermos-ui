@@ -18,7 +18,6 @@
             [thermos-importer.util :refer [has-extension file-extension]]
             [thermos-backend.importer.sap :as sap]
             [thermos-backend.importer.cooling :as cooling]
-            [thermos-backend.project-lidar :as project-lidar]
             [thermos-util.peak-demand :as peak]
 
             [clojure.data.json :as json]
@@ -191,8 +190,6 @@
 (defn load-lidar-index [project-id]
   (when-let [lidar-directory (config :lidar-directory)]
       (->> (file-seq (io/file lidar-directory))
-           (filter #(project-lidar/can-access-tiff? project-id %))
-           (filter project-lidar/is-tiff?)
            (lidar/rasters->index))))
 
 (def residential-subtypes

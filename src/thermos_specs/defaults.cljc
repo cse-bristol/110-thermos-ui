@@ -7,12 +7,7 @@
             [thermos-specs.supply :as supply]
             [thermos-specs.view :as view]
             [thermos-specs.path :as path]
-            [thermos-specs.tariff :as tariff])
-  #?(:cljs (:require-macros [thermos-specs.defaults :refer [current-version]])))
-
-#?(:clj
-   (defmacro current-version []
-     (count @(requiring-resolve 'thermos-backend.content-migrations.piecewise/migrations))))
+            [thermos-specs.tariff :as tariff]))
 
 (def default-emissions {})
 
@@ -272,7 +267,7 @@
 
 (def default-document
   (merge
-   {::document/version (current-version)
+   {::document/version 0
 
     ::view/view-state
     {::view/map-layers {::view/basemap-layer :satellite ::view/candidates-layer true}

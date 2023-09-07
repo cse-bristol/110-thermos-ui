@@ -1,1 +1,0 @@
-This is where I am putting all the miscellaneous Javascript for pages that are not the editor.

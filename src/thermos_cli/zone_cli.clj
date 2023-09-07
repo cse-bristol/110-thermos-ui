@@ -40,6 +40,7 @@
             [clojure.java.io :as io]
             [clojure.tools.logging :as log]
             [clojure.string :as string]
+            [loom.alg :as graph-alg]
             [thermos-importer.geoio :as geoio]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.path :as path]
@@ -47,7 +48,6 @@
             [thermos-importer.spatial :as spatial]
             [thermos-importer.lidar :as lidar]
             [thermos-cli.noder :as noder]
-            [thermos-cli.core :refer [select-top-n-supplies]]
             [thermos-backend.importer.process :as importer]
             [thermos-specs.defaults :as defaults]
             [thermos-specs.document :as document]
@@ -218,6 +218,87 @@ If not given, does the base-case instead (no network)."
   (cond-> candidate
     (rules/matches-rule? candidate mandation-rule)
     (assoc :mandatable? true)))
+
+(defn select-top-n-supplies [instance supply top-n fit-supply make-exclusive]
+  (let [{buildings :building paths :path}
+        (document/candidates-by-type instance)
+
+        graph
+        (interop/create-graph buildings paths)
+        
+        components
+        (graph-alg/connected-components graph)
+
+        candidates (::document/candidates instance)
+        
+        ranked-building-ids
+        (fn [building-ids]
+          (let [buildings
+                (keep
+                 (fn [id]
+                   (let [candidate (get candidates id)]
+                     (when (candidate/is-building? candidate)
+                       {:id (::candidate/id candidate)
+                        :kwh (::demand/kwh candidate)
+                        :centroid (.getCentroid (::candidate/geometry candidate))})))
+                 building-ids)
+
+                buildings
+                (for [{id :id here :centroid} buildings]
+                  {:id id
+                   :value
+                   (double
+                    (reduce
+                     +
+                     (for [{kwh :kwh there :centroid} buildings]
+                       (/ kwh
+                          (+ 50.0  ;; might work?
+                             (jts/geodesic-distance
+                              (.getCoordinate here)
+                              (.getCoordinate there))
+                             )))))})
+                ]
+
+            (->> buildings
+                 (sort-by :value #(compare %2 %1))
+                 (keep :id))))
+
+
+        building-peak (fn [c] (candidate/peak-demand
+                               (get candidates c)
+                               (document/mode instance)))
+        
+        ;; for each component compute a tuple
+        ;; [some buildings IDs, total kW]
+        ;; buildings IDs are where we want to put supplies
+        ;; total kW is the total demand in the component, in case fit-supply is true
+        components-and-supplies
+        (map
+         #(vector
+           (take top-n (ranked-building-ids %))
+           (reduce + 0 (keep building-peak %)))
+         components)
+        ]
+
+    (doseq [[supplies size] components-and-supplies]
+      (log/info "Adding" (count supplies) "to a" size "kW component"))
+
+    (if (and (seq components-and-supplies) supply)
+      (reduce
+       (fn [instance [component-id [supply-ids max-capacity]]]
+         (let [supply (cond-> supply
+                        fit-supply
+                        (assoc ::supply/capacity-kwp (* 1.5 max-capacity))
+
+                        make-exclusive
+                        (assoc ::supply/exclusive-groups #{component-id})
+                        )]
+           (document/map-candidates
+            instance (fn [candidate] (merge supply candidate))
+            supply-ids)))
+       instance (map-indexed vector components-and-supplies))
+
+      instance)))
 
 (defn add-supply-points
   "Modify `instance` to have `n` supply points with the given
