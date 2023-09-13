@@ -148,7 +148,6 @@
   (and (::solution/alternative candidate)
        (:counterfactual (::solution/alternative candidate))))
 
-
 (defn solution-description
   "A textual description of what has happened to a candidate, if there
   is a solution"
@@ -158,12 +157,12 @@
     (got-alternative? candidate)
     (-> candidate
         (::solution/alternative)
-        (::supply/name))
+        (:name "(name missing)"))
 
     (got-counterfactual? candidate)
     (-> candidate
         (::solution/alternative)
-        (::supply/name)
+        (:name)
         (str " (existing)"))
 
     (peripheral? candidate) "peripheral"
@@ -178,5 +177,5 @@
         (got-counterfactual? candidate))
     (-> candidate
         (::solution/alternative)
-        (::supply/name))))
+        (:name))))
 

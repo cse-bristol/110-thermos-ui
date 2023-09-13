@@ -8,7 +8,10 @@
             [thermos-specs.solution :as solution]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.path :as path]
-            [clojure.edn :as edn])
+            [clojure.edn :as edn]
+            [hnzp-utils.finance :as finance]
+            [hnzp.spec.core :refer [validate-coerce-throw]]
+            [hnzp.spec.parameters :refer [spec]])
   
   (:import [java.sql Connection DriverManager SQLException
             PreparedStatement Types]))
@@ -134,23 +137,27 @@
       path-id     #(get % "id")
 
       heating-system-capex
-      #(+ (-> % ::solution/alternative :capex (:principal 0))
-          (-> % ::solution/connection-capex   (:principal 0)))
+      #(+ (-> % ::solution/alternative (:capex 0))
+          (-> % (::solution/connection-capex 0)))
 
+      heating-system-repex
+      #(+ (-> % ::solution/alternative (:repex 0))
+          (-> % (::solution/connection-capex 0)))
+      
       heating-system-opex
-      #(-> % ::solution/alternative :opex (:annual 0))
+      #(-> % ::solution/alternative (:opex 0))
       
       heating-system-fuel
-      #(-> % ::solution/alternative :heat-cost (:annual 0))
+      #(-> % ::solution/alternative (:fuel 0))
 
       insulation-m2   #(reduce + 0 (keep :area (::solution/insulation %)))
-      insulation-capex #(reduce + 0 (keep :principal (::solution/insulation %)))
+      insulation-capex #(reduce + 0 (keep :capex (::solution/insulation %)))
 
-      supply-capex     #(-> % ::solution/supply-capex (:principal 0))
-      supply-opex      #(-> % ::solution/supply-opex (:annual 0))
-      supply-heat-cost #(-> % ::solution/heat-cost (:annual 0))
+      supply-capex     #(-> % (::solution/supply-capex 0))
+      supply-opex      #(-> % (::solution/supply-opex 0))
+      supply-heat-cost #(-> % (::solution/heat-cost 0))
 
-      path-capex       #(:principal (::solution/pipe-capex %))
+      path-capex       #(::solution/pipe-capex %)
 
       ;; yuck
       is-mandated?     (fn [building]
@@ -187,6 +194,7 @@
               ["on_network"           :boolean ::solution/connected]
               ["heating_system"       :string  candidate/solution-description]
               ["heating_system_capex" :double  heating-system-capex]
+              ["heating_system_repex" :double  heating-system-repex]
               ["heating_system_opex"  :double  heating-system-opex]
               ["heating_system_fuel"  :double  heating-system-fuel]
               ["heat_demand_kwh"      :double  heat-demand-kwh]
@@ -264,6 +272,20 @@
 (defn read-edn [file]
   (with-open [r (java.io.PushbackReader. (io/reader (io/as-file file)))]
     (edn/read {:readers {'geojson jts/json->geom}} r)))
+
+(defn read-valid-parameters [file]
+  (let [content (read-edn file)]
+    (try (validate-coerce-throw content spec)
+         (catch Exception e
+           (throw (ex-info "Invalid parameters - maybe version mismatch?"
+                           (merge (ex-data e)
+                                  {:file file})
+                           e))))))
+
+(defmacro with-parameters [[binding file] & body]
+  `(let [~binding (read-valid-parameters ~file)]
+     (finance/with-parameters ~binding
+       ~@body)))
 
 (defn write-edn [solution file]
   (with-open [w (io/writer (io/as-file file))]

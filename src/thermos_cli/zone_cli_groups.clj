@@ -7,7 +7,8 @@
             [thermos-specs.path :as path]
             [thermos-specs.document :as document]
             [clojure.string :as string]
-            [thermos-backend.solver.interop :as interop]))
+            [thermos-backend.solver.interop :as interop]
+            [hnzp-utils.finance :as finance]))
 
 (defn building-group
   "Find the first non-nil or non-blank field on building from group-fields"
@@ -146,46 +147,46 @@
 (defn round-solution [{:keys [input-file output-file parameters
                                runtime output-geometry]}]
   ;; TODO we could say if there is no heat price cheat and output the input
-  (let [parameters (zone-io/read-edn parameters)
-        solution   (zone-io/read-edn input-file)
+  (zone-io/with-parameters [parameters parameters]
+    (let [solution   (zone-io/read-edn input-file)
 
-        [rounding-decisions rounded-problem]
-        (round-groups solution parameters)
+          [rounding-decisions rounded-problem]
+          (round-groups solution parameters)
 
-        rounded-problem
-        (fix-supply-choice rounded-problem)
+          rounded-problem
+          (fix-supply-choice rounded-problem)
 
-        rounded-problem
-        (cond-> rounded-problem
-          runtime
-          (assoc ::document/maximum-runtime (double (/ runtime 3600))))
+          rounded-problem
+          (cond-> rounded-problem
+            runtime
+            (assoc ::document/maximum-runtime (double (/ runtime 3600))))
 
-        rounded-solution
-        (interop/try-solve rounded-problem (fn [& _]))
+          rounded-solution
+          (interop/try-solve rounded-problem (fn [& _]))
 
-        {buildings :building
-         paths :path}  (document/candidates-by-type rounded-solution)
-        
-        supplies (filter candidate/supply-in-solution? buildings)]
+          {buildings :building
+           paths :path}  (document/candidates-by-type rounded-solution)
+          
+          supplies (filter candidate/supply-in-solution? buildings)]
 
-    (zone-io/output-metadata rounded-solution true output-file)
+      (zone-io/output-metadata rounded-solution true output-file)
 
-    (zone-io/write-sqlite
-     output-file
-     "rounding"
-     [["group" :string (comp str :group)]
-      ["count" :int :n]
-      ["value_in" :double  #(double (get % true 0.0))]
-      ["value_out" :double #(double (get % false 0.0))]
-      ["decision" :string   (comp name :decision)]]
-     rounding-decisions)
+      (zone-io/write-sqlite
+       output-file
+       "rounding"
+       [["group" :string (comp str :group)]
+        ["count" :int :n]
+        ["value_in" :double  #(double (get % true 0.0))]
+        ["value_out" :double #(double (get % false 0.0))]
+        ["decision" :string   (comp name :decision)]]
+       rounding-decisions)
 
-    (zone-io/output rounded-solution
-            buildings
-            paths
-            supplies
-            output-file
-            "EPSG:27700" ;; urgh no
-            output-geometry)
+      (zone-io/output rounded-solution
+                      buildings
+                      paths
+                      supplies
+                      output-file
+                      "EPSG:27700" ;; urgh no
+                      output-geometry)
 
-    rounded-solution))
+      rounded-solution)))

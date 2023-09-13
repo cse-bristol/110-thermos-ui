@@ -168,9 +168,9 @@
                             kwp        (ndp (candidate/solved-peak-demand c mode) 0)
 
                             syscapex   (ndp ;; capex of heatex or individual system
-                                     (+ (-> c ::solution/alternative :capex (:principal 0))
-                                        (-> c ::solution/connection-capex   (:principal 0)))
-                                     0)
+                                        (+ (-> c ::solution/alternative :capex (:principal 0))
+                                           (-> c ::solution/connection-capex   (:principal 0)))
+                                        0)
                             sysopex    (ndp (-> c ::solution/alternative :opex (:annual 0)) 0)
                             sysfuel   (ndp (-> c ::solution/alternative :heat-cost (:annual 0)) 0)
                             revenue (ndp (-> c ::solution/heat-revenue (:annual 0)) 0)

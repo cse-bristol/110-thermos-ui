@@ -19,27 +19,32 @@
                 ::emissions]))
 
 (s/def ::alternative
-  (s/keys :req [::id ::name
-                ::cost-per-kwh
-                ::capex-per-kwp
-                ::capex-per-mean-kw
-                ::opex-per-kwp
-                ::opex-fixed
-                ::fixed-cost
-                ::emissions
+  (s/keys :req-un [::id ::name
 
-                ;; if this field contains a number, then the network model
-                ;; will be told a lie about the cost/kwp for this alternative
-                ::kwp-per-mean-kw
+                   ::capex-fixed
+                   ::capex-per-kwh
+                   ::capex-per-kwp
+                   ::capex-per-m2
+                   ::capex-per-connection
 
-                ;; per-customer related costs
-                ::capex-per-connection
-                ::opex-per-connection
+                   ::repex-fixed
+                   ::repex-per-kwh
+                   ::repex-per-kwp
+                   ::repex-per-m2
+                   ::repex-per-connection
+                   ::repex-interval
+                   
+                   ::opex-fixed
+                   ::opex-per-kwh
+                   ::opex-per-kwp
+                   ::opex-per-m2
+                   ::opex-per-connection
 
-                ;; if true, kwp values will be computed using un-diversified peak
-                ;; this is primarily for handling multi-building sites.
-                ::remove-diversity
-                ]))
+                   ::fuel
+                   ::efficiency
+                   
+                   ::size-for
+                   ]))
 
 (defn principal [candidate capacity-kw annual-kwh n]
   (+ (::fixed-cost candidate 0)
@@ -56,6 +61,9 @@
 
 (defn heat-cost [candidate consumption-kwh]
   (* (or consumption-kwh 0) (::cost-per-kwh candidate 0)))
+
+
+
 
 ;; However, we also have supply parameters for the plant model
 ;; These live in the document at the top level

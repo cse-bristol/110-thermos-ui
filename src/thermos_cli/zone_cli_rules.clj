@@ -45,23 +45,29 @@
                                   (= lc "true")
                                   (= lc "y")
                                   (= lc "1"))))))
-        (:demand< :peak<)
+        (:demand< :peak< :space-peak< :n-addrs<
+         :demand> :peak> :space-peak> :n-addrs>)
         (and
          (candidate/is-building? candidate)
-         (let [threshold (first args)
+         (let [op (name op)
+               comparison (if (= (last op) \<) < >)
+               op        (subs op 0 (dec (count op)))
+               threshold (first args)
                x         (get candidate
-                              (if (= op :demand<) ::demand/kwh ::demand/kwp))]
-           (< x threshold)))
-
-        (:demand> :peak>)
-        (and
-         (candidate/is-building? candidate)
-         (let [threshold (first args)
-               x         (get candidate
-                              (if (= op :demand>) ::demand/kwh ::demand/kwp))]
-           (> x threshold)))
-
-        false))))
+                              (case op
+                                "demand"     ::demand/kwh
+                                "peak"       ::demand/kwp
+                                "space-peak" ::demand/space-kwp
+                                "n-addrs"    ::demand/connection-count
+                                ))
+               per       (or (second args) :per-building)
+               per       (case per
+                           :per-building 1
+                           :per-connection  (::demand/connection-count candidate 1))
+               ]
+           (comparison (/ x per) threshold)))
+        
+        (throw (ex-info "Invalid rule" {:rule rule}))))))
 
 (defn matching-rule [candidate rules]
   (first (filter (fn [[rule value]] (matches-rule? candidate rule)) rules)))

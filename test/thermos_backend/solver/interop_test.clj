@@ -9,69 +9,87 @@
             [thermos-specs.supply :as supply]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.demand :as demand]
-            ))
+            [hnzp-utils.finance :as finance]))
 
 (defn- dp4 [n] (/ (Math/round (* n 1000.0)) 1000.0))
 
-(t/deftest tank-factor-npv-terms
-  (let [;; this is cheating to get hold of a private function
-        ;; #' gets the Var containing the function, and
-        ;; Var implements IFn by delegating to what is inside it.
-        alternative-definitions #'sut/alternative-definitions
-
-        document
-        #::document
-        {:alternatives
-         {0 #::supply
-          {
-           :cost-per-kwh      0.1
-           :opex-per-kwp      3.0
-           :capex-per-kwp     5.0
-           :capex-per-mean-kw 2.0
-           :fixed-cost        100.0
-           :kwp-per-mean-kw   6.0
-           
-           }}
-         :consider-alternatives true
-         :npv-rate 0
-         :npv-term 2
-         }
-        candidate #::demand {:alternatives #{0}}
 
 
+(comment
+  (let [dom-ashp
+        {:name "Dom ASHP",
+         :fuel "Domestic Electricity"
+         
+         :capex-fixed           5001.66
+         :capex-per-kwp         232.36
+         :capex-per-m2          36.68
 
-        {:keys [cost cost%kwh cost%kwp]}
-        (-> (alternative-definitions document candidate)
-            (:alternatives) (first))
+         :opex-fixed            180.0
 
-        document (update-in document [::document/alternatives 0]
-                            dissoc ::supply/kwp-per-mean-kw)
+         :repex-fixed           3397.63
+         :repex-per-kwp         232.36
+         :repex-per-m2          11.08
+         :repex-interval        20
 
-        {cost-notank :cost cost%kwh-notank :cost%kwh cost%kwp-notank :cost%kwp}
-        (-> (alternative-definitions document candidate)
-            (:alternatives) (first))
+         :size-for             :space-heat
+         :efficiency           2.593}
+
+        fuel
+        {"Domestic Electricity"
+         [[0.0 0.12511]
+          [0.0 0.12511]
+          [0.0 0.12511]]}
         ]
-    
+    (binding [finance/*npv-term* 2
+              finance/*npv-rate* 0]
+      (evaluate-alternative
+       dom-ashp
+       1
+       1
+       1
+       1
+       1
+       fuel
+       )
+      ))
 
-    (t/is (== cost 100.0))
-    (t/is (== cost%kwp 0)) ;; because we have shifted all costs onto kWh
+  )
 
-    ;; only 4 decimals because there's a bit of wibbling around in NPV
-    ;; calculation & float opeation order.
-    (t/is (== (dp4 cost%kwh)
-              (dp4 (+ 0.2 ;; fuel cost for 2 years
-                      (/ (+ 2.0 ;; this is per mean kW
-                            (* 6.0
-                               (+ 5.0 ;; capex
-                                  6.0 ;; 2y opex
-                                  )
-                               )) 8760.0)))))
+(t/deftest test-evaluate-alternative
+  (finance/with-parameters {:finance/npv-term 10
+                            :finance/npv-rate 0}
+    (let [cost-types ["capex" "opex" "repex"]
+          units ["fixed" "per-kwh" "per-kwp" "per-m2" "per-connection"]
+          w     {"fixed" 1 "per-kwh" 1 "per-kwp" 1 "per-m2" 1000 "per-connection" 10000}
+          ]
+      (doseq [cost-type cost-types
+              unit units]
+        (let [field (keyword (str cost-type "-" unit))
+              result (#'sut/evaluate-alternative
+                      {field 1
+                       :repex-interval 2
+                       :efficiency 1.0
+                       :size-for :space-and-water}
+                      10 0 100 1000 10000 {})
 
-
-    (t/is (== cost-notank 100.0)) ;; unchanged
-
-    (t/is (== cost%kwp-notank (+ 5.0 6.0)))
-
-    (t/is (== (dp4 cost%kwh-notank) (dp4 (+ 0.2 (/ 2.0 8760.0)))))
-    ))
+              cost (:cost result)
+              cost%kwp (:cost%kwp result)
+              cost%kwh (:cost%kwh result)
+              ]
+          (t/is (=
+                 (* (double (w unit))
+                    (case cost-type
+                      "capex" 1.0
+                      "opex"  9.0
+                      "repex" 4.0))
+                 
+                 (case unit
+                   ("fixed" "per-m2" "per-connection") cost
+                   "per-kwp" cost%kwp
+                   "per-kwh" cost%kwh))
+                (str cost-type "-" unit))
+          
+          ))))
+  
+  )
 

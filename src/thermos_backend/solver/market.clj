@@ -3,7 +3,7 @@
 
 (ns thermos-backend.solver.market
   (:require [thermos-util :as util]
-            [thermos-util.finance :refer [pv]]
+            [hnzp-utils.finance :refer [pv]]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.supply :as supply]
             [thermos-specs.measure :as measure]
