@@ -81,6 +81,11 @@ with lib;
       pg = cfg.postgresql;
       pgis = pkgs.postgis.override { postgresql = pg; };
 
+      oom-kill = queue : (pkgs.writeShellScript "handle-oom.sh" ''
+        ${pkgs.util-linux}/bin/kill --verbose --timeout 1000 TERM --timeout 5000 KILL --signal QUIT $1
+        /run/wrappers/bin/su postgres -c "${pg}/bin/psql -d hnzp -c \"update jobs set state='failed' where state='running' and queue_name='${queue}'\""
+      '');
+      
       enable-postgis = builtins.toFile "enable-postgis.sql"
       "CREATE EXTENSION postgis; CREATE EXTENSION postgis_raster;";
     in {
@@ -186,7 +191,7 @@ with lib;
           export WEB_SERVER_DISABLE_CACHE=false
           export BASE_URL="${cfg.ui.baseUrl}"
 
-          exec ${cfg.jre}/bin/java ${cfg.ui.javaArgs} -jar ${cfg.jar}
+          exec ${cfg.jre}/bin/java "-XX:OnOutOfMemoryError=${oom-kill "email"} %p" ${cfg.ui.javaArgs} -jar ${cfg.jar}
         '';
       };
 
@@ -210,7 +215,7 @@ with lib;
           export IMPORTER_COUNT=0
           export DEFAULT_USER_AUTH=${cfg.ui.defaultUserAuth}
 
-          exec ${cfg.jre}/bin/java ${cfg.model.javaArgs} -jar ${cfg.jar}
+          exec ${cfg.jre}/bin/java "-XX:OnOutOfMemoryError=${oom-kill "problems"} %p" ${cfg.model.javaArgs} -jar ${cfg.jar}
 
         '';
       };
@@ -235,7 +240,7 @@ with lib;
           export IMPORTER_COUNT=${toString cfg.importer.importerCount}
           export DEFAULT_USER_AUTH=${cfg.ui.defaultUserAuth}
 
-          exec ${cfg.jre}/bin/java ${cfg.importer.javaArgs} -jar ${cfg.jar}
+          exec ${cfg.jre}/bin/java "-XX:OnOutOfMemoryError=${oom-kill "imports"} %p" ${cfg.importer.javaArgs} -jar ${cfg.jar}
         '';
       };
     };
