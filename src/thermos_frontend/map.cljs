@@ -79,12 +79,12 @@
 
    :stamen-toner-lite
    (js/L.tileLayer
-    "https:///stamen-tiles-{s}.a.ssl.fastly.net/toner-background/{z}/{x}/{y}.png"
-    (clj->js {:subdomains "abcd"
-              :minZoom 0
+    "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+    (clj->js {:minZoom 0
               :maxZoom 20
+              :className "leaflet-basemap"
               :attribution
-              "Map tiles by <a target=_blank href=\"http://stamen.com/\">Stamen Design</a>, under <a target=_blank href=\"http://creativecommons.org/licenses/by/3.0\">CC BY 3.0</a>. Data by <a target=_blank href=\"http://openstreetmap.org/\">OpenStreetMap</a>, under <a target=_blank href=\"http://creativecommons.org/licenses/by-sa/3.0\">CC BY SA</a>."
+              "Map tiles &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors."
               }))
 
    :satellite
