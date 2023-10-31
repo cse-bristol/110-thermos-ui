@@ -83,7 +83,7 @@ with lib;
 
       oom-kill = queue : (pkgs.writeShellScript "handle-oom.sh" ''
         ${pkgs.util-linux}/bin/kill --verbose --timeout 1000 TERM --timeout 5000 KILL --signal QUIT $1
-        /run/wrappers/bin/su postgres -c "${pg}/bin/psql -d hnzp -c \"update jobs set state='failed' where state='running' and queue_name='${queue}'\""
+        /run/wrappers/bin/su postgres -c "${pg}/bin/psql -d hnzp -c \"update jobs set state='failed', message=message || '\n----\nOut of memory!' where state='running' and queue_name='${queue}'\""
       '');
       
       enable-postgis = builtins.toFile "enable-postgis.sql"
