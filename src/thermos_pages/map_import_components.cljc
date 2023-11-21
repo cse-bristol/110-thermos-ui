@@ -77,10 +77,16 @@
              map (js/L.map node (clj->js {:minZoom 2 :maxZoom 20
                                           :zoom 15 :center [51.553356 -0.109271]}))
 
-             tile-layer (js/L.tileLayer
-                    "https:///stamen-tiles-{s}.a.ssl.fastly.net/toner-background/{z}/{x}/{y}.png"
-                    (clj->js {:subdomains "abcd"
-                              :minZoom 0 :maxZoom 20}))
+             tile-layer
+             (js/L.tileLayer
+              "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+              (clj->js {:minZoom 0
+                        :maxZoom 20
+                        :className "leaflet-basemap"
+                        :attribution
+                        "Map tiles &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors."
+                        }))
+             
              labels (js/L.tileLayer
                      "https://cartodb-basemaps-{s}.global.ssl.fastly.net/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png"
                      (clj->js {:subdomains "abcd"
