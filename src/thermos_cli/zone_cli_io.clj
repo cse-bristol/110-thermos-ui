@@ -148,7 +148,7 @@
       #(-> % ::solution/alternative (:opex 0))
       
       heating-system-fuel
-      #(-> % ::solution/alternative (:fuel 0))
+      #(-> % ::solution/alternative (:fuel-discountable-average 0))
 
       insulation-m2   #(reduce + 0 (keep :area (::solution/insulation %)))
       insulation-capex #(reduce + 0 (keep :capex (::solution/insulation %)))
