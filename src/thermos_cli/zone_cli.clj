@@ -471,16 +471,46 @@ If not given, does the base-case instead (no network)."
          (= :forbidden (::candidate/inclusion b)))
     (assoc ::candidate/inclusion :individual)))
 
-(defn- assign-alternatives [candidate alternatives-map]
-  (let [alts
-        (set
-         (keep
-          (fn [[id alternative]]
-            (when (rules/matches-rule? candidate (:rule alternative)) id))
-          alternatives-map))]
-    (when (empty? alts)
-      (log/warn "No alternatives available for candidate" candidate))
-    (assoc candidate ::demand/alternatives alts)))
+(let [fallback
+      {:name "Failsafe heating system"
+       :capex-fixed          10000.0
+       :capex-per-kwh        1000.0
+       :capex-per-kwp        1000.0
+       :capex-per-connection 1000.0
+       :capex-per-m2         100.0
+       
+       :opex-fixed          10000.0
+       :opex-per-kwh        10.0
+       :opex-per-kwp        0.0
+       :opex-per-connection 0.0
+       :opex-per-m2         0.0
+
+       :repex-fixed          10000.0
+       :repex-per-kwh        1000.0
+       :repex-per-kwp        1000.0
+       :repex-per-connection 1000.0
+       :repex-per-m2         100.0
+
+       :repex-interval 12
+       :oversize-kw 0.0
+       :round-size :exact
+       
+       :efficiency 1.0
+       :size-for   :all-heat}]
+  (defn- assign-alternatives [candidate alternatives-map]
+    (let [alts
+          (set
+           (keep
+            (fn [[id alternative]]
+              (when (rules/matches-rule? candidate (:rule alternative)) id))
+            alternatives-map))
+
+          alts
+          (if (empty? alts)
+            (do (log/warn "No alternatives available for candidate, add fallback" candidate)
+                #{fallback})
+            alts)]
+      (assoc candidate ::demand/alternatives alts))))
 
 (defn- run-optimiser [{:keys [input-file output-file parameters heat-price
                               edn-output-file
