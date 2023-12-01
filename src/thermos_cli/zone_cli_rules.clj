@@ -32,6 +32,7 @@
         :and     (every? #(matches-rule? candidate %) args)
         :or      (some #(matches-rule? candidate %) args)
         :not     (not (matches-rule? candidate (first args)))
+        :rule/label (matches-rule? candidate (second args))
         :in      (let [[field & values] args]
                    (contains? (set values) (get candidate field)))
         :is      (let [[field value] args
