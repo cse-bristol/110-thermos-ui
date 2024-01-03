@@ -315,11 +315,10 @@ The different options are those supplied after --retry, so mostly you can use th
   A :rule is a tuple going [field pattern], so when we (get field
   item) it matches pattern (a regex literal or set of values)"
   [item options & {:keys [match] :or {match :thermos-cli/rule}}]
-  
   (and item
        (filter
         (fn matches? [option]
-          (let [rule (get option match)]
+          (let [rule (match option)]
             (cond
               (= true rule)
               option
@@ -751,6 +750,10 @@ The different options are those supplied after --retry, so mostly you can use th
         saying            (fn [x s] (log/info s) x)
 
         instance          (cond-> instance
+                            (or (seq paths) (seq buildings))
+                            (-> (saying "Replace geometry")
+                                (assoc  ::document/candidates   (make-candidates paths buildings)))
+                            
                             (seq (:tariffs options))
                             (-> (saying "Replace tariffs")
                                 (assoc ::document/tariffs (assoc-by (:tariffs options) ::tariff/id))
@@ -772,9 +775,7 @@ The different options are those supplied after --retry, so mostly you can use th
                                 (assoc  ::document/alternatives (assoc-by (:alternatives options) ::supply/id))
                                 (document/map-buildings (let [alternatives (:alternatives options)] #(add-alternatives % alternatives))))
 
-                            (or (seq paths) (seq buildings))
-                            (-> (saying "Replace geometry")
-                                (assoc  ::document/candidates   (make-candidates paths buildings)))
+                            
 
                             (:default-civil-cost options)
                             (-> (saying "Set default civil cost")
@@ -931,6 +932,14 @@ The different options are those supplied after --retry, so mostly you can use th
             (recur optionses)))))))
 
 (comment
+  (-main
+;;   "-m" "/home/hinton/th/in-buildings.geojson"
+   "-m" "/home/hinton/th/in-roads.geojson"
+   "-m" "/home/hinton/th/in-buildings.geojson"
+   "-o" "/home/hinton/th/out.edn"
+   "--pipe-costs" "/home/hinton/th/simple-pipes.edn"
+   )
+  
   (binding [lp.io/*keep-temp-dir* true]
    
    (-main
