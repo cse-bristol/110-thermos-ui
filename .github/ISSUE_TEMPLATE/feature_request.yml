@@ -1,0 +1,51 @@
+name: "Feature Request"
+description: Use this template for self-contained software feature implementations that take up to ~5 days.
+title: "[Feature Request]: "
+body:
+  - type: textarea
+    id: feature-request-summary
+    attributes:
+      label: "Feature Request Summary"
+      description: Plase provide a short summary of the feature request
+      placeholder: 1 sentence summary of feature request
+      value: "New feature please!"
+  - type: markdown
+    attributes:
+      value: "## Details"
+  - type: textarea
+    id: existing-user-journey
+    attributes:
+      label: "Existing User Journey"
+      description: Describe what happens currently
+      placeholder: "Description of current implementation"
+
+  - type: textarea
+    id: required-user-journey
+    attributes:
+      label: "Required user journey"
+      description: Describe what should happen after implementation of this issue
+      placeholder: "Description of desired feature & steps to implement"
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: "Dependencies"
+      description: Is this issue blocked by or dependent on any other issue?
+      value: "* Blocked by: (list issues here)
+              * Sub-issue of: (provide issues)
+              * Dependent on/ blocked by: (list issues here)"
+
+  - type: checkboxes
+    id: acceptance-criteria
+    attributes:
+      label: "Acceptance Criteria"
+      description: Acceptance criteria for feature requests
+      options:
+        - label: Tests written and pass?
+          required: true
+        - label: Does this satisfy user requirements listed above?
+          required: true
+        - label: All public functions and methods have docstrings?
+          required: true
+        - label: Relevant README updated/created?
+          required: true
