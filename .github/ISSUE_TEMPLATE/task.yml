@@ -1,0 +1,48 @@
+name: "Task Request"
+description: Use this template for tasks to be executed in relation to this project/repo
+title: "[Task Request]: "
+body:
+  - type: textarea
+    id: task-request-summary
+    attributes:
+      label: "Task Request Summary"
+      description: Please provide a short summary of the task request
+      placeholder: 1 sentence summary of task request
+      value: "Task to be completed"
+  - type: markdown
+    attributes:
+      value: "## Details"
+  - type: textarea
+    id: task-context
+    attributes:
+      label: "Task Context"
+      description: Describe the context of the task
+      placeholder: "Context goes here"
+
+  - type: textarea
+    id: desired-outputs-from-task
+    attributes:
+      label: "Desired outputs from task"
+      description: Identify sub-steps and outputs require with a tick-box list
+      placeholder: "- [ ] step 1 completed
+      - [ ] output 2
+      - [ ] output 3"
+
+
+  - type: textarea
+    id: timesheet-code
+    attributes:
+      label: "Timesheet code"
+      description: Timesheet code
+      value: "**FILL IN WITHOUT FAIL**"
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: "Dependencies"
+      description: Is this issue blocked by or dependent on any other issue?
+      value: "* Blocked by: (list issues here)
+              * Sub-issue of: (provide issues)
+              * Dependent on/ blocked by: (list issues here)"
+
+

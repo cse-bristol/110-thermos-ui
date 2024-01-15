@@ -1,0 +1,50 @@
+name: "Bug Report"
+description: Use this ticket template for bug fix requests.
+title: "[Bug]: "
+labels: ["bug"]
+assignees:
+  - octocat
+body:
+  - type: textarea
+    id: bug-fix-summary
+    attributes:
+      label: "Bug Fix Summary"
+      description: Plase provide a short summary of the bug
+      placeholder: 1 sentence summary of bug
+  - type: markdown
+    attributes:
+      value: "## Details"
+  - type: textarea
+    id: what-happens
+    attributes:
+      label: "What happened?"
+      description: Describe what actually happens, bug symptoms
+      placeholder: Detailed description of bug & symptoms
+
+  - type: textarea
+    id: what-should-happen
+    attributes:
+      label: "What should happen?"
+      description: Also tell us, what did you expect to happen?
+      placeholder: Share as much as possible
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: "Dependencies"
+      description: Is this issue blocked by or dependent on any other issue?
+      value: "* Blocked by: (list issues here)
+              * Sub-issue of: (provide issues)"
+  - type: checkboxes
+    id: acceptance-criteria
+    attributes:
+      label: "Acceptance Criteria"
+      description: Acceptance criteria for bug fixes
+      options:
+        - label: Fixed as per requirements above
+          required: true
+        - label: New tests written to cover bug fix, all pass
+          required: true
+        - label: Any relevant docstrings updated if impacted
+          required: true
+        - label: Any relevant documentation (README, etc) updated if impacted
+          required: true
