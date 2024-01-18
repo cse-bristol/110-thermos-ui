@@ -468,6 +468,9 @@
                                   :cooling-kwh-per-year
                                   :cooling-kwp
                                   :connection-count
+                                  :height
+                                  :wall-area
+                                  :ground-area
                                   [(sql/call :ST_AsGeoJson
                                              :geometry) :geometry])
                         (h/from :candidates)

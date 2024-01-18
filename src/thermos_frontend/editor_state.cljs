@@ -128,11 +128,16 @@
         type (if (o/get properties "is-building" false)
                :building :path)
 
+        height (o/get properties "height" nil)
+
+        user-fields (cond-> (js->clj (o/get properties "user-fields" {}))
+                      (and height (pos? height)) (assoc "Height" height))
+        
         basics {::candidate/id (o/get properties "id")
                 ::candidate/type type
                 ::candidate/geometry geometry
                 ::candidate/inclusion :forbidden
-                ::candidate/user-fields (js->clj (o/get properties "user-fields" {}))}
+                ::candidate/user-fields user-fields}
         ]
 
     (case type
