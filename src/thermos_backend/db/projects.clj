@@ -331,6 +331,28 @@
                 [:= :name network-name]])
       (db/execute!)))
 
+(defn rename-networks! [map-id from-name to-name]
+  (loop [u 0]
+    (let [to-name (if (zero? u) to-name
+                      (str to-name " (" u ")"))
+          n-existing (-> (h/select :%count.*)
+                         (h/from :networks)
+                         (h/where [:and
+                                   [:= :map-id map-id]
+                                   [:= :name to-name]])
+                         (db/fetch-one!)
+                         (:count))]
+      (if (zero? n-existing)
+        (do
+          (-> (h/update :networks)
+              (h/sset {:name to-name})
+              (h/where [:and
+                        [:= :map-id map-id]
+                        [:= :name from-name]])
+              (db/execute!))
+          {:new-name to-name})
+        (recur (inc u))))))
+
 (defn is-public-project? [project-id]
   (-> (h/select :public)
       (h/from :projects)
@@ -429,3 +451,4 @@
                 [:= :projects.id project-id]])
       (db/fetch-one!)
       (:count)))
+

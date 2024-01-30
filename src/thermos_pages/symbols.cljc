@@ -10,7 +10,8 @@
 (def ^:const plus "➕")
 (def ^:const dustbin "🗑")
 (def ^:const eye "👁")
-
+(def ^:const pencil "✎")
 (def delete cross)
 (def download down-arrow)
 (def upload up-arrow)
+(def rename pencil)

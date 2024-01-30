@@ -71,10 +71,42 @@
      "DELETE"]]]
   )
 
+(rum/defcs rename-dialog < (rum/local "" ::new-name)
+  [{new-name ::new-name}
+   {object-name :name
+    message :message
+    on-rename :on-rename}]
+  [:div
+   [:h1 "Rename " object-name]
+   [:div message]
+   [:div.flex-cols
+    {:style {:margin-top :1em :margin-bottom :1em}}
+    [:span "Enter the new name:"]
+    [:input.text-input.flex-grow
+     {:type :text
+      :placeholder object-name
+      :value @new-name
+      :on-change
+      #(reset! new-name (.. % -target -value))}]]
+   
+   [:div.flex-cols
+    [:button.button {:style {:margin-left :auto} :on-click close-dialog!} "CANCEL"]
+    [:button.button.button--danger
+     {:disabled (string/blank? @new-name)
+      :on-click #(do (on-rename @new-name)
+                     (close-dialog!))}
+     "RENAME"]]])
+
 (defn show-delete-dialog! [{object-name :name
                             confirm-name :confirm-name
                             message :message
                             on-delete :on-delete
                             :as args}]
   (show-dialog! (delete-dialog args)))
+
+(defn show-rename-dialog! [{object-name :name
+                            message :message
+                            on-rename :on-rename
+                            :as args}]
+  (show-dialog! (rename-dialog args)))
 

@@ -14,7 +14,7 @@
             [thermos-pages.symbols :as symbols]
             [thermos-pages.restriction-components :as restriction-comps]
             #?@(:cljs
-                [[thermos-pages.dialog :refer [show-delete-dialog! show-dialog! close-dialog!]]])
+                [[thermos-pages.dialog :refer [show-delete-dialog! show-rename-dialog! show-dialog! close-dialog!]]])
             [clojure.string :as str]))
 
 (defn- remove-index [v i]
@@ -285,6 +285,21 @@
                                   "/net/" (:id r)
                                   "/data.json")}
                      [:span symbols/download]]
+                    " "
+                    [:a
+                     {:title "Rename this network"
+                      :on-click
+                      (fn-js [e]
+                         (show-rename-dialog!
+                          {:name (:name r)
+                           :message "Rename this network to:"
+                           :on-rename #(POST (str "map/" map-id "/net/rename")
+                                           {:handler on-event
+                                            :params {:from-name (:name r) :to-name %}})})
+                         
+                         (.preventDefault e))
+                      :href "#"}
+                     [:span symbols/rename]]
                     ])
           :title ""
           }

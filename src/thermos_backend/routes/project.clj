@@ -341,6 +341,14 @@
       (response/response)
       (response/content-type "application/json")))
 
+(defn- rename-networks! [{{:keys [from-name to-name map-id]} :params}]
+  {:pre [(string? from-name)
+         (string? to-name)
+         (not (string/blank? from-name))
+         (not (string/blank? to-name))
+         (int? map-id)]}
+  (auth/verify [:write :map map-id]
+    (projects/rename-networks! map-id from-name to-name)))
 
 (def map-routes
   [["/new" {:get new-map-page :post create-new-map!}]
@@ -355,6 +363,7 @@
                           ["/cd/" [long :z] "/" [long :x] "/" [long :y] ".png"] map-cold-density-tile
                           "/net" [["/new" {:get new-network-page
                                            :post network-save!}]
+                                  ["/rename" {:post rename-networks!}]
                                   [["/" [long :net-id]]
                                    {"" {:get  network-editor-page
                                         :head network-poll-status
