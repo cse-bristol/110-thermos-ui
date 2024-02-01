@@ -1,4 +1,8 @@
-[{:title "30th Jan 2024"
+[{:title "1st Feb 2024"
+  :changes [{:title "Bugs fixed"
+             :summary [:p "The model's consideration of pumping costs was incorrect; the cost of pumping energy was incorrectly not converted into a lifetime present cost when combined with the cost of heat from supply points. This has had the effect of reducing the cost to the optimiser of supplying heat, especially with a large pumping overhead configured."]}]}
+ 
+ {:title "30th Jan 2024"
   :changes [{:title "Building height"
              :summary [:p "The model's estimate of building height is displayed in the editor."]}
             {:title "Rename button for networks"

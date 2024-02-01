@@ -520,11 +520,6 @@
             (::supply/capex-per-kwp 0)
             (->> (finance/objective-value instance :supply-capex)))
 
-        heat-cost-per-kwh
-        (-> candidate
-            (::supply/cost-per-kwh 0)
-            (->> (finance/objective-value instance :supply-heat)))
-
         opex-per-kwp
         (-> candidate
             (::supply/opex-per-kwp 0)
@@ -542,14 +537,17 @@
         is-cooling (document/is-cooling? instance)
 
         adjust-for-pumping
-        (fn [main-factor pumping-factor]
-          (+ (* pumping-overhead pumping-factor)
-             (* main-factor (if is-cooling
+        (fn [main-price pumping-price]
+          (+ (* pumping-overhead pumping-price)
+             (* main-price (if is-cooling
                               (+ 1 pumping-overhead)
                               (- 1 pumping-overhead)))))
         
         effective-heat-cost
-        (adjust-for-pumping heat-cost-per-kwh pumping-cost-per-kwh)
+        (adjust-for-pumping (::supply/cost-per-kwh candidate 0) pumping-cost-per-kwh)
+
+        heat-cost-per-kwh
+        (finance/objective-value instance :supply-heat effective-heat-cost)
 
         emissions-factors
         (into {}
