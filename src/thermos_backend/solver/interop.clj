@@ -560,7 +560,7 @@
     
     {:capacity-kw (float (::supply/capacity-kwp  candidate 0))
      :cost        (float fixed-cost)
-     :cost%kwh    (float effective-heat-cost)
+     :cost%kwh    (float heat-cost-per-kwh)
      :cost%kwp    (float (+ capex-per-kwp opex-per-kwp))
 
      :exclusive-groups (::supply/exclusive-groups candidate)
