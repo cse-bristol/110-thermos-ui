@@ -450,8 +450,7 @@
                ;; if changes-peak we need to insert cost/kwp into the cost/kwh
 
                capex%kwh (annual-kwh->kw ;; this converts our cost/kw figures into cost/kwh
-                          (+ (::supply/capex-per-mean-kw alternative 0)
-                             (* (or changes-peak 0) cost%kwp)))
+                          (::supply/capex-per-mean-kw alternative 0))
 
                ;; zero cost%kwp if the measure changes the peak
                ;; we care about this here so that the network model doesn't have to.
@@ -459,6 +458,7 @@
                
                cost%kwh
                (+
+                (* (or changes-peak 0) (annual-kwh->kw cost%kwp))
                 (finance/objective-value instance capex-type capex%kwh)
                 (finance/objective-value instance :alternative-opex
                                          (::supply/cost-per-kwh alternative 0)))]
