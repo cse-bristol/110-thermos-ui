@@ -1,4 +1,9 @@
-[{:title "1st Feb 2024"
+[{:title "22 March 2024"
+  :changes [{:title "Bugs fixed"
+             :summary [:p "Calculation of the tank factor effect for individual systems incorrectly apportioned the kWp part of present cost, causing the optimiser to overestimate the cost ofusing these kinds of individual system. This bug has been removed."]
+             }]}
+
+ {:title "1st Feb 2024"
   :changes [{:title "Bugs fixed"
              :summary [:p "The model's consideration of pumping costs was incorrect; the cost of pumping energy was incorrectly not converted into a lifetime present cost when combined with the cost of heat from supply points. This has had the effect of reducing the cost to the optimiser of supplying heat, especially with a large pumping overhead configured."]}]}
  
