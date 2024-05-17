@@ -57,7 +57,9 @@
    [thermos-util.pipes :as pipes]
    [thermos.opt.net.bounds :as net-model-bounds]
    [thermos.opt.net.core :as net-model]
-   [thermos.opt.net.diversity :as net-diversity]))
+   [thermos.opt.net.diversity :as net-diversity]
+   [thermos-backend.config :refer [config]]
+   ))
 
 (def HOURS-PER-YEAR 8766)
 
@@ -1177,6 +1179,17 @@
         
         net-graph (summarise-attributes net-graph included-candidates)
         ]
+
+    (let [{:keys [max-node-count max-edge-count]
+           :or {max-node-count 10000 max-edge-count 20000}}
+          config]
+      (when (or (> (count (graph/nodes net-graph)) max-node-count)
+                (> (count (graph/edges net-graph)) max-edge-count))
+        (throw (ex-info "This problem is probably too large for THERMOS to solve"
+                        {:nodes (graph/nodes net-graph)
+                         :max-nodes max-node-count
+                         :edges (graph/edges net-graph)
+                         :max-edges max-edge-count}))))
     
     ;; net-graph is now the topology we want. Every edge may be several
     ;; input edges, and nodes can either be real ones or junctions
