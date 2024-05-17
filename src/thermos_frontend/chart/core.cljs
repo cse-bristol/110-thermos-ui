@@ -177,14 +177,15 @@
          [:path (merge line-style {:d (svg-d size [[0 0] [0 1]])})]
 
          ;; we want to know the scale of the range
-         (when (and y-min y-max)
-           (let [y-range (Math/abs (- y-max y-min))
+         (when (and y-min y-max
+                    (not (js/Number.isNaN y-min))
+                    (not (js/Number.isNaN y-max)))
+           (let [y-range (max 1.0 (Math/abs (- y-max y-min)))
                  log-range (int (Math/log10 y-range))
                  step-size (Math/pow 10 log-range)
                  min-step  (Math/ceil    (/ y-min step-size))
-                 max-step  (Math/floor   (/ y-max step-size))
-                 
-                 ]
+                 max-step  (Math/floor   (/ y-max step-size))]
+             
              (for [step (range min-step (inc max-step))]
                (let [value    (* step-size step)
                      fraction (/ (- value y-min) y-range)
