@@ -82,8 +82,12 @@ with lib;
       pgis = pkgs.postgis.override { postgresql = pg; };
 
       oom-kill = queue : (pkgs.writeShellScript "handle-oom.sh" ''
-        curl -d "$2" -H "Title: THERMOS ${queue} OOM" https://ntfy.re.cse.org.uk/system-status
-        ${pkgs.util-linux}/bin/kill --verbose --timeout 5000 KILL --signal TERM $1
+        ${pkgs.curl}/bin/curl -d "$2" -H "Title: THERMOS ${queue} OOM" https://ntfy.re.cse.org.uk/system-status
+        kill -TERM $1
+        sleep 3
+        if [[ kill -0 $1 ]]; then
+           kill -9 $1
+        fi
         /run/wrappers/bin/su postgres -c "${pg}/bin/psql -d thermos -c \"update jobs set state='failed', message=message || '\n----\nOut of memory!' where state='running' and queue_name='${queue}'\""
       '');
       
