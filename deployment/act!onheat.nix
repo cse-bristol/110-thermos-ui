@@ -19,6 +19,10 @@
     services.thermos.jre = pkgs.jre8;
     services.thermos.postgresql = pkgs.postgresql_11;
 
+    services.postgresql.dataDir = "/postgres/11.1";
+    
+    fileSystems."/postgres".device = "/dev/disk/by-id/scsi-0DO_Volume_volume-lon1-02";
+    
     nixpkgs.config.allowUnfree = true;
     
     services.thermos.ui.baseUrl = "https://${hostname}";
