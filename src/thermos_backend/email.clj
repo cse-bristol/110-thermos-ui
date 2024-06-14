@@ -12,7 +12,21 @@
 
 ;; emails are processed on the queue - no idea if this is good
 
+(let [min-send-interval-ms 10000
+      last-send-time (atom 0)]
+  (defn- wait! []
+    (let [now (System/currentTimeMillis)
+
+          last @last-send-time
+          ;; wait at least so many seconds between emails
+          wait (max 0 (- (+ last min-send-interval-ms) now))
+          ]
+      (Thread/sleep wait)
+      (reset! last-send-time (System/currentTimeMillis)))))
+
 (defn- send-message [message progress]
+  (wait!)
+  
   (let [smtp-config
         (cond-> {}
           (config :smtp-host)
@@ -40,7 +54,7 @@
 (defstate mail-queue
   :start
   (when (config :smtp-enabled)
-    (queue/consume :emails send-message)))
+    (queue/consume :emails 1 send-message)))
 
 (defn- format-token [token]
   (str (config :base-url) "/token/" token))
