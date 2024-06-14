@@ -79,6 +79,10 @@
        invited-by " has invited you to a THERMOS project called " project-name "."
        ))}))
 
+(defn- valid-email [email]
+  (and (string? email)
+       (re-matches #".+\@.+\..+" email)))
+
 (defn send-system-message
   "Send a message to all system users except those who aren't interested"
   [users subject message]
@@ -88,13 +92,14 @@
          (not (string/blank? subject))
          (not (string/blank? message))
          (every? (comp string? :id) users)]}
-  (queue-message
-   {:bcc (map :id users)
-    :subject (str "THERMOS: " subject)
-    :body (format "%s
+  (doseq [user-ids (partition-all 50 (filter valid-email (map :id users)))]
+    (queue-message
+     {:bcc user-ids
+      :subject (str "THERMOS: " subject)
+      :body (format "%s
 ----
 You are receiving this message because you have an account on THERMOS.
 You change your settings at %s/settings to unsubscribe from any message like this."
-                  message
-                  (config :base-url))}))
+                    message
+                    (config :base-url))})))
 
