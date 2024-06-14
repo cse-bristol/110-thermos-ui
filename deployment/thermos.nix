@@ -186,12 +186,12 @@ with lib;
           
           export LIDAR_DIRECTORY=/thermos-lidar/
           
-          while [[ ! -f /run/keys/smtp ]]; do 
+          while [[ ! -f /var/keys/smtp ]] ; do 
             echo "waiting for smtp key"
             sleep 2
           done
-          
-          export SMTP_PASSWORD=$(cat /run/keys/smtp)
+
+          export SMTP_PASSWORD=$(cat /var/keys/smtp)
           export SMTP_FROM_ADDRESS="THERMOS <system@thermos-project.eu>"
           export WEB_SERVER_DISABLE_CACHE=false
           export BASE_URL="${cfg.ui.baseUrl}"
