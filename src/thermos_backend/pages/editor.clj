@@ -27,6 +27,7 @@
        :map-bounds map-bounds
        :mode initial-mode
        :read-only read-only
+       :has-gurobi (:has-gurobi config)
        :restriction-info restriction-info})
      [:title (str "THERMOS - " (or name "New network"))]
      [:meta {:charset "UTF-8"}]

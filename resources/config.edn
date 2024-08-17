@@ -35,4 +35,6 @@
  :priority-queue-weight {:basic 1}
  :default-user-auth :basic
  :contact-email "info@thermos-project.eu"
+
+ :has-gurobi false
  }
