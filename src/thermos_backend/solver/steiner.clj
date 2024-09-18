@@ -5,8 +5,13 @@
             [loom.graph :as graph]
             [loom.alg :as alg]
             [loom.attr :as attr]
-            [thermos-frontend.operations :refer [select-candidates]]
-            [clojure.tools.logging :as log]))
+            [thermos-frontend.operations :refer [select-candidates
+                                                 selected-candidates
+                                                 subset-document-to-selected-candidates]]
+            [clojure.tools.logging :as log]
+            [thermos-backend.solver.logcap :as logcap]
+            [thermos-specs.candidate :as candidate]
+            [thermos-specs.document :as document]))
 
 (def ^:private thread-pool (java.util.concurrent.Executors/newFixedThreadPool 3))
 
@@ -15,23 +20,42 @@
     (lazy-cat (for [y s] [(first coll) y])
               (upper-triangle s))))
 
-(defn tree [problem]
+(defn tree- [problem]
   (let [pipe-curves (pipes/curves problem)
 
         cost (memoize (fn [civil-id] (pipes/solved-principal pipe-curves civil-id 100.0)))
 
+        problem (cond-> problem
+                  (seq (selected-candidates problem))
+                  (subset-document-to-selected-candidates))
+        
         graph   (interop/simplified-graph problem)
-        termini (filter #(attr/attr graph % :real-vertex) (graph/nodes graph))
+        termini (set (filter #(attr/attr graph % :real-vertex) (graph/nodes graph)))
+
+        candidates (::document/candidates problem)
         
         _ (log/info "Constructing weighted graph" )
         
         wg    (reduce
                (fn add-edge [g [i j]]
                  (let [lbc (attr/attr graph [i j] :civil-costs)
-                       c (reduce + (for [[id len] lbc] (* len (cost id))))]
+                       c (reduce + (for [[id len] lbc] (* len (cost id))))
+                       existing-terminal-edge (or (and (contains? termini i)
+                                                       (contains? (.vertexSet g) i)
+                                                       (pos? (.outDegreeOf g i))
+                                                       (not (candidate/has-supply? (candidates i))))
+                                                  
+                                                  (and (contains? termini j)
+                                                       (contains? (.vertexSet g) j)
+                                                       (pos? (.outDegreeOf g j))
+                                                       (not (candidate/has-supply? (candidates j)))))
+                       ]
+                   (when existing-terminal-edge
+                     (log/warnf "Edge %s->%s might make the steiner tree bad - skipping it" i j))
                    
                    (cond-> g
-                     (not= i j)
+                     (and (not existing-terminal-edge)
+                          (not= i j))
                      (doto
                        (.addVertex i)
                        (.addVertex j)
@@ -59,7 +83,7 @@
                      (cond-> g
                        path
                        (doto 
-                         (.addVertex i)
+                           (.addVertex i)
                          (.addVertex j)
                          (.addEdge i j path)
                          (.setEdgeWeight i j (.getWeight path))))))
@@ -78,4 +102,26 @@
          (select-candidates problem ids :union)))
      (select-candidates problem #{} :replace)
      (for [path mst edge (.getEdgeList path)] edge))))
+
+
+(defn tree [problem progress]  
+  (let [log-writer (java.io.StringWriter.)]
+    (try
+      (progress :message "Find Steiner tree")
+      (logcap/with-log-messages
+        (fn [^String msg]
+          (.write log-writer msg)
+          (.append log-writer \newline)
+          (progress :message (.toString log-writer)))
+        (tree- problem))
+      (catch InterruptedException ex (throw ex))
+      (catch Throwable ex
+        (progress :message
+                  (with-out-str
+                    (println (.toString log-writer))
+                    (println "---")
+                    (clojure.stacktrace/print-throwable ex)
+                    (println "---")
+                    (clojure.stacktrace/print-cause-trace ex)))
+        problem))))
 
