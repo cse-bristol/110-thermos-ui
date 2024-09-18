@@ -33,6 +33,15 @@
        (vals)
        (filter ::candidate/selected)))
 
+
+(defn subset-document-to-selected-candidates
+  "Return a doc in which non-selected candidates are not there"
+  [doc]
+  (x/setval
+   [::document/candidates x/MAP-VALS (x/not-selected? ::candidate/selected identity)]
+   x/NONE
+   doc))
+
 (defn- included [{inclusion ::candidate/inclusion}]
   (or (= :optional inclusion)
       (= :required inclusion)))
