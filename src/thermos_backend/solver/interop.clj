@@ -1224,7 +1224,13 @@
         
         (let [start-time (System/currentTimeMillis)
               result (if (seq (:vertices model-input))
-                       (net-model/run-model model-input)
+                       (net-model/run-model model-input
+                                            :solver
+                                            (or
+                                             (and
+                                              (:has-gurobi config)
+                                              (::document/solver instance))
+                                             :scip))
                        ::empty)
               
               end-time (System/currentTimeMillis)

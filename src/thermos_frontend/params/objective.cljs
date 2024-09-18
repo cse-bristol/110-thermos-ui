@@ -64,11 +64,11 @@
      param-gap (reagent/cursor document [::document/param-gap])
      iteration-limit (reagent/cursor document [::document/maximum-iterations])
      runtime (reagent/cursor document [::document/maximum-runtime])
+
+     solver (reagent/cursor document [::document/solver])
      ]
     [:div.parameters-component
      [:div.card
-      
-
       [:h1 "Objective"]
       [:div {:style {:margin-top :1em}}
        [:div {:style {:margin-right :2em}}
@@ -243,7 +243,25 @@
                         :step 0.1}] "h"]
        (when-let [max-project-runtime (:max-project-runtime (preload/get-value :restriction-info))]
          [:p "As this is a restricted project, maximum runtime cannot be above "
-          (str max-project-runtime) " hour(s). Any higher values will be ignored."])
-       ]]]))
+          (str max-project-runtime) " hour(s). Any higher values will be ignored."])]
+      
+      (when (preload/get-value :has-gurobi)
+        (let [current-solver (or @solver :scip)]
+          [:div.card {:style {:flex-grow 1}}
+           [:h1 "Solver"]
+           [:p "Use solver: "
+            [:label [:input {:type :radio
+                             :checked (= :scip current-solver)
+                             :on-change #(reset! solver :scip)
+                             :value "solver-group"}]
+             "SCIP"]
+            " "
+            [:label [:input {:type :radio
+                             :checked (= :gurobi current-solver)
+                             :on-change #(reset! solver :gurobi)
+                             :value "solver-group"}]
+             "Gurobi"]
+            ]]))]]))
+
 
 
