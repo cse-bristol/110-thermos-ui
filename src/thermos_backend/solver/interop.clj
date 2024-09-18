@@ -1264,8 +1264,9 @@
 
 (defn simplified-graph [original-instance]
   (let [original-instance (document/remove-solution original-instance)
+
+        instance original-instance
         
-        instance (magic-fields/join original-instance)
         included-candidates (->> (::document/candidates instance)
                                  (vals)
                                  (filter candidate/is-included?))
@@ -1303,11 +1304,11 @@
   
   (let [original-instance (document/remove-solution original-instance)
         
-        instance (magic-fields/join original-instance)
-                included-candidates (->> (::document/candidates instance)
+        instance original-instance
+        included-candidates (->> (::document/candidates instance)
                                  (vals)
                                  (filter candidate/is-included?))
-
+        
         net-graph  (let [{paths :path buildings :building}
                          (group-by ::candidate/type included-candidates)]
                      (create-graph buildings paths))
