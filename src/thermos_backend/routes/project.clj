@@ -295,7 +295,7 @@
           (cache-control/no-store)))))
 
 (defn- network-save! [{{:keys [name run content map-id project-id]} :params}]
-  {:pre [(contains? #{nil "network" "supply" "both"} run)
+  {:pre [(contains? #{nil "network" "supply" "both" "tidy" "tree"} run)
          (int? map-id)
          (int? project-id)
          (string? name)

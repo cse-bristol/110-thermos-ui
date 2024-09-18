@@ -1256,6 +1256,78 @@
           solved-instance)))
     ))
 
+(defn simplified-graph [original-instance]
+  (let [original-instance (document/remove-solution original-instance)
+        
+        instance (magic-fields/join original-instance)
+        included-candidates (->> (::document/candidates instance)
+                                 (vals)
+                                 (filter candidate/is-included?))
+
+        net-graph  (let [{paths :path buildings :building}
+                         (group-by ::candidate/type included-candidates)]
+                     (create-graph buildings paths))
+
+        _ (log/info "Basic graph has"
+                    (count (graph/nodes net-graph))
+                    "nodes,"
+                    (count (graph/edges net-graph)) "edges")
+
+        [net-graph disconnected-cand-ids]
+        (clean-disconnected-components net-graph (::document/consider-alternatives instance))
+
+        _ (log/info "Trimmed graph has"
+                    (count (graph/nodes net-graph))
+                    "nodes,"
+                    (count (graph/edges net-graph)) "edges")
+        
+        net-graph (simplify-topology net-graph)
+
+        _ (log/info "Simplified graph has"
+                    (count (graph/nodes net-graph))
+                    "nodes,"
+                    (count (graph/edges net-graph)) "edges")]
+    
+    (summarise-attributes net-graph included-candidates)))
+
+(defn tidy
+  "Just mark unreachables"
+  [original-instance progress]
+  (log/info "Tidying up...")
+  
+  (let [original-instance (document/remove-solution original-instance)
+        
+        instance (magic-fields/join original-instance)
+                included-candidates (->> (::document/candidates instance)
+                                 (vals)
+                                 (filter candidate/is-included?))
+
+        net-graph  (let [{paths :path buildings :building}
+                         (group-by ::candidate/type included-candidates)]
+                     (create-graph buildings paths))
+
+        _ (log/info "Basic graph has"
+                    (count (graph/nodes net-graph))
+                    "nodes,"
+                    (count (graph/edges net-graph)) "edges")
+
+        [net-graph disconnected-cand-ids]
+        (clean-disconnected-components net-graph (::document/consider-alternatives instance))
+
+        _ (log/info "Trimmed graph has"
+                    (count (graph/nodes net-graph))
+                    "nodes,"
+                    (count (graph/edges net-graph)) "edges")
+        
+        net-graph (simplify-topology net-graph)
+
+        _ (log/info "Simplified graph has"
+                    (count (graph/nodes net-graph))
+                    "nodes,"
+                    (count (graph/edges net-graph)) "edges")]
+    (mark-unreachable instance
+                      net-graph included-candidates disconnected-cand-ids)))
+
 (defn try-solve [instance progress]
   (let [log-writer (java.io.StringWriter.)]
     (try
