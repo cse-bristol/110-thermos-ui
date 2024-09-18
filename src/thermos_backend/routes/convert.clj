@@ -46,6 +46,13 @@
       (response/content-type "application/json")
       (cache-control/no-store)))
 
+(defn problem-to-json-2 [{{state :state} :body-params}]
+  (-> (geojson-converter/network-problem->geojson-2 state)
+      (json/encode)
+      (response/response)
+      (response/content-type "application/json")
+      (cache-control/no-store)))
+
 (def converter-routes
   "Routes for converting a problem to other types.
 
@@ -56,5 +63,6 @@
   "
   ["/convert"
    [["/excel" #'problem-to-excel]
-    ["/json" problem-to-json]]])
+    ["/json" problem-to-json]
+    ["/json-2" problem-to-json-2]]])
 

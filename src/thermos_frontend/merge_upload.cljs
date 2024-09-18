@@ -429,7 +429,6 @@
    [#'merge-dialog result]
    :middle))
 
-
 (defn do-upload []
   (upload-file
    "/convert/excel"

@@ -3,9 +3,13 @@
 
 (ns thermos-util.converter
   (:require [thermos-specs.document :as document]
+            [thermos-specs.demand :as demand]
+            [thermos-specs.path :as path]
+            [thermos-specs.supply :as supply]
             [thermos-specs.candidate :as candidate]
             [clojure.string :as string]
             [clojure.test :as test]
+            [thermos-util :refer [assoc-by]]
             [cljts.core :as jts]
             
             #?@(:clj [[clojure.data.json :as json]]))
@@ -31,40 +35,6 @@
 
 (def process-key (memoize process-key*))
 
-;; (defn- process-value [value]
-;;   (cond
-;;     (or (string? value)
-;;         (boolean? value)
-;;         (nil? value)
-;;         (and (number? value)
-;;              #?(:clj (Double/isFinite value)
-;;                 :cljs (js/isFinite value))))
-;;     value
-
-;;     (or (seq? value)
-;;         (set? value)
-;;         (vector? value))
-;;     (vec (doall (map process-value value)))
-    
-;;     :else (str value)))
-
-
-;; (defn- process-properties
-;;   "Recursively flatten map of properties and simplify column names"
-;;   {:test #(do (assert (= (process-properties {:this/that 1}) {"this-that" 1}))
-;;               (assert (= (process-properties {:x {:y 1}}) {"x:y" 1})))}  
-;;   ([properties] (process-properties properties ""))
-;;   ([properties prefix]
-;;    (reduce-kv
-;;     (fn [a k v]
-;;       (let [k (str prefix (process-key k))]
-;;         (if (map? v)
-;;           (merge a (process-properties v (str k ":")))
-;;           (assoc a k (process-value v)))
-;;         ))
-;;     {} properties)))
-
-
 (defn- to-indexed-seqs [coll]
   (if (map? coll)
     coll
@@ -78,22 +48,23 @@
          (into {}))
     [path step]))
 
+(defn candidate-geometry [candidate]
+  #?(:clj
+     (let [geom (::candidate/geometry candidate)]
+       (cond
+         (string? geom)
+         (json/read-str geom)
 
-;; this is a terrible thing which I do here
-;; it would be preferable to convert the geometry straight into json in the writer.
+         (instance? Geometry geom)
+         (jts/geom->map geom)
+
+         :else geom))
+     
+     :cljs (js/JSON.parse (::candidate/geometry candidate))))
+
+
 (defn network-candidate->geojson [candidate]
-  (let [geometry #?(:clj
-                    (let [geom (::candidate/geometry candidate)]
-                      (cond
-                        (string? geom)
-                        (json/read-str geom)
-
-                        (instance? Geometry geom)
-                        (jts/geom->map geom)
-
-                        :else geom))
-                    
-                    :cljs (js/JSON.parse (::candidate/geometry candidate)))
+  (let [geometry (candidate-geometry candidate)
         other (dissoc candidate ::candidate/geometry)
         kvs (flatten-path [] other)
 
@@ -112,9 +83,7 @@
      :properties
      (into {} (for [[p v] kvs]
                 [(string/join " " (map process-key p))
-                 (json-value v)]))})
-  
-  )
+                 (json-value v)]))}))
 
 (defn network-problem->geojson [document]
   (let [candidates (::document/candidates document)]
@@ -124,4 +93,109 @@
        (assoc
         (network-candidate->geojson candidate)
         :id candidate-id))}))
+
+;; We need to be able to send the properties backwards and forwards
+;; most are pairs
+
+(defn- f1 [f] (fn [x _] (f x)))
+
+(def common-properties
+  [[::candidate/inclusion   "inclusion" (f1 name) (f1 keyword)]
+   [::candidate/user-fields "user_fields"]])
+
+(def building-properties
+  [[::demand/kwh   "annual_kwh"   ]
+   [::demand/kwp   "peak_kw"      ]
+   [::demand/group "demand_group" ]])
+
+(def path-properties
+  [[::path/civil-cost-id    "civil_cost"
+    (fn [id d]
+      (document/civil-cost-name d id))
+    (fn [nm d]
+      (document/civil-cost-by-name d nm))]
+   
+   [::path/maximum-diameter "max_diameter_mm"
+    (f1 #(and % (* % 1000.0)))
+    (f1 #(and % (/ % 1000.0)))]
+   
+   [::path/exists           "path_exists"     (f1 boolean)       (f1 boolean)]])
+
+(def supply-properties
+  [[::supply/capacity-kwp      "supply_capacity_kw"       ]
+   [::supply/fixed-cost        "supply_capex_fixed"       ]
+   [::supply/opex-per-kwp      "supply_opex_per_kw"       ]
+   [::supply/cost-per-kwh      "supply_cost_per_kwh"      ]
+   [::supply/capex-per-kwp     "supply_capex_per_kwp"     ]
+   [::supply/emissions-factors "supply_emissions_factors" ]])
+
+(defn properties-> [properties document candidate output]
+  (reduce
+   (fn [a [internal-key output-key write-fn _]]
+     (let [write-fn (or write-fn (fn [x _] x))
+           value (get candidate internal-key)]
+       (assoc a output-key (write-fn value document))))
+   output properties))
+
+(defn properties<- [properties document input candidate]
+  (reduce
+   (fn [a [internal-key output-key _ read-fn]]
+     (let [read-fn (or read-fn (fn [x _] x))
+           value (get input output-key)]
+       (cond-> a
+         (contains? input output-key)
+         (assoc internal-key (read-fn value document)))))
+   candidate properties))
+
+(defn- candidate-properties [document candidate]
+  (as-> {} out
+    (properties-> common-properties document candidate out)
+    (cond->> out
+      (candidate/is-building? candidate)
+      (properties-> building-properties document candidate))
+    (cond->> out
+      (candidate/is-path? candidate)
+      (properties-> path-properties document candidate))
+    (cond->> out
+      (candidate/has-supply? candidate)
+      (properties-> supply-properties document candidate))))
+
+(defn network-problem->geojson-2 [document]
+  (let [candidates (::document/candidates document)]
+    {:type :FeatureCollection
+     :features
+     (for [[candidate-id candidate] candidates]
+       {:type :Feature
+        :geometry (candidate-geometry candidate)
+        :properties (candidate-properties document candidate)
+        :id candidate-id})}))
+
+(defn get-features [geojson]
+  (case (name (:type geojson (get geojson "type")))
+    "FeatureCollection"
+    (into [] (mapcat get-features (:features geojson (get geojson "features"))))
+    "Feature"
+    [geojson]))
+
+(defn update-from-geojson-2
+  "Copy modified fields from features in the given geojson which have a matching ID
+  back onto the candidates in document."
+  [document geojson]
+  (let [features (-> (get-features geojson)
+                     (assoc-by #(get % "id")))]
+    (document/map-candidates
+     document
+     (fn [c]
+       (if-let [feature (get features (::candidate/id c))]
+         (cond->> c
+           true
+           (properties<- common-properties document feature)
+           
+           (candidate/is-building? c)
+           (properties<- (concat supply-properties building-properties)
+                         document feature)
+
+           (candidate/is-path? c)
+           (properties<- path-properties document feature))
+         c)))))
 

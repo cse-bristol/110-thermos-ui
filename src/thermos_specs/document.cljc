@@ -271,6 +271,13 @@
           (str " (default)"))
       "None")))
 
+(defn civil-cost-by-name [doc cost-name]
+  (when-not (str/blank? cost-name)
+    (->> doc ::pipe-costs :civils
+         (keep
+          (fn [[id nm]] (when (= nm cost-name) id)))
+         (first))))
+
 (defn path-cost [path document]
   (if (::path/exists path)
     0

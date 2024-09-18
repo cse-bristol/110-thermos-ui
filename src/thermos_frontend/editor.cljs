@@ -35,6 +35,8 @@
             [thermos-frontend.editor-keys :as keys]
             [thermos-frontend.theme :as theme]
 
+            [thermos-util.converter :as converter]
+            
             [clojure.pprint :refer [pprint]]
             [clojure.string :as s]
 
@@ -303,7 +305,51 @@
                                      (str (preload/get-value :name) ".json"))
                                (.dispatchEvent a (js/MouseEvent. "click"))))}))
                    }
-                  symbols/download " Geojson"]]]]
+                  symbols/download "Geojson"]]
+
+            [:li [:button.button--link-style
+                  {:on-click
+                   #(let [state (document/keep-interesting @state/state)]
+                      (POST "/convert/json-2"
+                          {:params {:state state}
+                           :response-format
+                           {:type :blob :read -body}
+
+                           :handler
+                           (fn [blob]
+                             (let [a (js/document.createElement "a")]
+                               (set! (.-href a) (js/window.URL.createObjectURL blob))
+                               (set! (.-download a)
+                                     (str (preload/get-value :name) ".json"))
+                               (.dispatchEvent a (js/MouseEvent. "click"))))}))
+                   }
+                  symbols/download "Geojson v2"]]
+
+            [:li [:button.button--link-style
+                  {:on-click
+                   (fn [_]
+                     (let [f (js/document.createElement "input")]
+                       (set! (.-type f) "file")
+                       (.addEventListener
+                        f "change"
+                        (fn [e]
+                          (let [r (js/FileReader.)]
+                            (set!
+                             (.-onload r)
+                             (fn [e]
+                               (->> e
+                                   (.-target)
+                                   (.-result)
+                                   (js/JSON.parse)
+                                   (js->clj)
+                                   (state/edit! state/state
+                                                converter/update-from-geojson-2))))
+                            (.readAsText r (-> e (.-target) (.-files) (aget 0))))))
+                       (.dispatchEvent f (js/MouseEvent. "click"))))
+                   
+                   }
+                  symbols/upload " Geojson v2"]]
+            ]]
           
           [:div.menu-block
            [:h1 "Project"]
