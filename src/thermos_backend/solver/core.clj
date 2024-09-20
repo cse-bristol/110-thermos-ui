@@ -28,7 +28,6 @@
   {:pre [(#{:network :supply :both
             :tidy :tree}
           problem-type)]}
-  (log/info "wat wat wat")
   (let [job-id (queue/enqueue :problems
                               {:id network-id
                                :solve problem-type})]
