@@ -13,7 +13,19 @@ in
   services.thermos.model.enable = true;
   services.thermos.importer.enable = true;
 
-  services.thermos.ui.baseUrl = "https://tool.thermos-project.eu";
+
+  environment.systemPackages = [
+    pkgs.vim
+    pkgs.ranger
+    pkgs.cron
+    gurobi
+  ];
+  
+  services.cron = {
+    enable = true;
+  };
+
+  services.thermos.ui.baseUrl = "http://ec2-13-41-145-247.eu-west-2.compute.amazonaws.com";
   
   services.nginx = {
     enable = true;
