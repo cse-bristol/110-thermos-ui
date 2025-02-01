@@ -412,11 +412,14 @@
                             
                             (annual-demand building))
              
-             peak-value   (case peak-key
-                            :peak-demand     peak-value
-                            :peak-benchmark  (* (:value (:peak-benchmark values)) (::candidate/area building))
-                            :peak-factor     (* (:value (:peak-factor values)) (peak-demand building))
-                            :peak-estimate   (peak/annual->peak-demand demand-value))
+             peak-value   (if set-peak
+                            (case peak-key
+                              :peak-demand     peak-value
+                              :peak-benchmark  (* (:value (:peak-benchmark values)) (::candidate/area building))
+                              :peak-factor     (* (:value (:peak-factor values)) (peak-demand building))
+                              :peak-estimate   (peak/annual->peak-demand demand-value))
+
+                            (peak-demand building))
              
              ;; ensure peak is consistent
              min-peak    (annual-kwh->kw demand-value)
