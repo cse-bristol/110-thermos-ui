@@ -475,6 +475,9 @@
      pumping-overhead     (reagent/cursor document [::document/pumping-overhead])
      pumping-cost-per-kwh (reagent/cursor document [::document/pumping-cost-per-kwh])
 
+     diversity-limit      (reagent/cursor document [::document/diversity-limit])
+     diversity-rate       (reagent/cursor document [::document/diversity-rate])
+     
      pumping-emissions-atoms
      (into
       {}
@@ -486,6 +489,17 @@
      [pipe-costs-table flow]
      [connection-costs document]
 
+     [:div.card
+      [:h1.card-header "Diversity function"]
+      [:p
+       "Diversity limit: "
+       [inputs/number2 {:value-atom diversity-limit :min 0 :max 100 :step 1 :scale 100
+                        :style {:max-width :5em}}] "%. "]
+      [:p
+       "Diversity rate: "
+       [inputs/number2 {:value-atom diversity-rate :min 1 :max 100 :step 1 :scale 1
+                        :style {:max-width :5em}}]]]
+     
      [:div.card
       [:h1.card-header "Pumping costs"]
       [:p

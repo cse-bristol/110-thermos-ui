@@ -307,7 +307,15 @@
 
     ::tariff/market-term 10
     ::tariff/market-discount-rate 0.035
-    ::tariff/market-stickiness 0.1}
+    ::tariff/market-stickiness 0.1
+
+    ::document/diversity-limit 0.62
+    ::document/diversity-rate 1.0
+
+    ::document/objective-scale 1.0
+    ::document/objective-precision 1.0
+    ::document/edge-cost-precision 0.0
+    }
 
    default-supply-model-params
    ))

@@ -66,6 +66,11 @@
      runtime (reagent/cursor document [::document/maximum-runtime])
 
      solver (reagent/cursor document [::document/solver])
+
+     objective-scale (reagent/cursor document [::document/objective-scale])
+     objective-precision (reagent/cursor document [::document/objective-precision])
+     edge-cost-precision (reagent/cursor document [::document/edge-cost-precision])
+     
      ]
     [:div.parameters-component
      [:div.card
@@ -244,6 +249,19 @@
        (when-let [max-project-runtime (:max-project-runtime (preload/get-value :restriction-info))]
          [:p "As this is a restricted project, maximum runtime cannot be above "
           (str max-project-runtime) " hour(s). Any higher values will be ignored."])]
+
+      [:div.card {:style {:flex-grow 1}}
+       [:h1 "Formulation"]
+
+       [:p
+        "Objective scale "
+        [inputs/number {:value-atom objective-scale :step 10 :min 1 :max 100 :scale 1}] "¤"]
+       [:p
+        "Objective precision "
+        [inputs/number {:value-atom objective-precision :step 0.1 :min 0.1 :max 100 :scale 1}] "¤ ✕ scale"]
+       [:p
+        "Edge cost precision "
+        [inputs/number {:value-atom edge-cost-precision :step 0.1 :min 0.0 :max 100 :scale 100}] "% - edges whose variable cost is below this proportion of their fixed cost will be represented only as a fixed cost."]]
       
       (when (preload/get-value :has-gurobi)
         (let [current-solver (or @solver :scip)]

@@ -645,6 +645,11 @@
          :supply-limit    (when-let [l (::document/maximum-supply-sites instance)] (int l))
          :should-be-feasible (boolean (::document/should-be-feasible instance false))
          :infill-connection-targets (::document/infill-targets instance)
+         :objective-scale     (::document/objective-scale instance)
+         :objective-precision (::document/objective-precision instance)
+         :edge-cost-precision (::document/edge-cost-precision instance)
+         :diversity-limit     (::document/diversity-limit instance)
+         :diversity-rate      (::document/diversity-rate instance)
          
          :pipe-losses
          (let [losses (pipes/heat-loss-curve pipe-curves)]

@@ -1,4 +1,13 @@
-[{:title "22 March 2024"
+[{:title "2 Feb 2025"
+  :changes [{:title "Bugs fixed"
+             :summary [:p "The candidate editor would erroneously adjust buildings' peak demand when editing multiple buildings in some circumstances."]}
+            {:title "Adjustable diversity"
+             :summary [:p "The diversity parameters can now be adjusted (under pipe / network paramteers)"]}
+            {:title "Adjustable objective precision and scale"
+             :summary [:p "Some details of how the objective is formulated can be controlled, potentially improving solve time."]}
+            ]}
+
+ {:title "22 March 2024"
   :changes [{:title "Bugs fixed"
              :summary [:p "Calculation of the tank factor effect for individual systems incorrectly apportioned the kWp part of present cost, causing the optimiser to overestimate the cost ofusing these kinds of individual system. This bug has been removed."]
              }]}

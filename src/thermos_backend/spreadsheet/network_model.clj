@@ -262,6 +262,9 @@
          ~["Pumping overhead" (*100 (::document/pumping-overhead doc 0))]
          ~["Pumping cost/kWh" (::document/pumping-cost-per-kwh doc 0)]
 
+         ~["Diversity rate" (::document/diversity-rate doc)]
+         ~["Diversity limit" (::document/diversity-limit doc)]
+
          ~["Default civil cost" (let [pc (-> doc ::document/pipe-costs)
                                       id (:default-civils pc)]
                                   (get (:civils pc) id "none"))]
@@ -299,6 +302,10 @@
          ~["MIP Gap" (::document/mip-gap doc)]
          ~["Param Gap" (::document/param-gap doc)]
          ~["Max runtime" (::document/maximum-runtime doc)]
+
+         ~["Objective scale" (::document/objective-scale doc)]
+         ~["Objective precision" (::document/objective-precision doc)]
+         ~["Edge cost precision" (::document/edge-cost-precision doc)]
 
          ~["Max supplies" (::document/maximum-supply-sites
                             doc
@@ -407,7 +414,9 @@
      (copy-parameter :ground-temperature ::document/ground-temperature)
      (copy-parameter :steam-pressure ::document/steam-pressure)
      (copy-parameter :steam-velocity ::document/steam-velocity)
-     (copy-parameter :pumping-overhead ::document/pumping-overhead)
+     (copy-parameter :pumping-overhead ::document/pumping-overhead
+                     :type number?
+                     :convert #(/ % 100.0))
      (copy-parameter :pumping-cost-per-kwh ::document/pumping-cost-per-kwh)
      (copy-parameter :objective ::document/objective
                      :type #{"network" "system"}
@@ -433,6 +442,12 @@
      (copy-parameter :mip-gap ::document/mip-gap)
      (copy-parameter :param-gap ::document/param-gap)
      (copy-parameter :max-runtime ::document/maximum-runtime)
+
+     (copy-parameter :objective-scale ::document/objective-scale)
+     (copy-parameter :objective-precision ::document/objective-precision)
+     (copy-parameter :edge-cost-precision ::document/edge-cost-precision)
+     (copy-parameter :diversity-rate ::document/diversity-rate)
+     (copy-parameter :diversity-limit ::document/diversity-limit)
 
      (copy-parameter :max-supplies ::document/maximum-supply-sites
                      :type number?

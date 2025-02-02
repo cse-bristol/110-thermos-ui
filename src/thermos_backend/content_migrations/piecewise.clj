@@ -20,9 +20,15 @@
              :refer [tabulate-pipe-parameters]]
 
             [thermos-backend.content-migrations.user-fields
-             :refer [move-user-fields]]))
+             :refer [move-user-fields]]
 
-(def migrations [tabulate-pipe-parameters move-user-fields])
+            [thermos-backend.content-migrations.add-diversity-defaults
+             :refer [add-diversity-and-objective-defaults]]
+            ))
+
+(def migrations [tabulate-pipe-parameters
+                 move-user-fields
+                 add-diversity-and-objective-defaults])
 (def current-version (count migrations))
 
 (defn migrate [problem from-version]
