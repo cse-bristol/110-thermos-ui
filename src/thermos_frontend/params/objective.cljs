@@ -255,10 +255,15 @@
 
        [:p
         "Objective scale "
-        [inputs/number {:value-atom objective-scale :step 10 :min 1 :max 100 :scale 1}] "¤"]
+        [inputs/number {:value-atom objective-scale :step 10 :min 1 :max 100 :scale 1}] "¤"
+        " — the objective will be scaled down by this amount"]
+       
+       
        [:p
         "Objective precision "
-        [inputs/number {:value-atom objective-precision :step 0.1 :min 0.1 :max 100 :scale 1}] "¤ ✕ scale"]
+        [inputs/number {:value-atom objective-precision :step 0.1 :min 0.1 :max 100 :scale 1}] "¤ ✕ scale "
+        " — when possible, objective coefficients will be truncated to this many scaled objective units"]
+       
        [:p
         "Edge cost precision "
         [inputs/number {:value-atom edge-cost-precision :step 0.1 :min 0.0 :max 100 :scale 100}] "% - edges whose variable cost is below this proportion of their fixed cost will be represented only as a fixed cost."]]

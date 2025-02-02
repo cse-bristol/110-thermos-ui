@@ -491,15 +491,17 @@
 
      [:div.card
       [:h1.card-header "Diversity function"]
-      [:p
-       "Diversity limit: "
+      [:p "Calculate diversity as "
        [inputs/number2 {:value-atom diversity-limit :min 0 :max 100 :step 1 :scale 100
-                        :style {:max-width :5em}}] "%. "]
-      [:p
-       "Diversity rate: "
+                        :style {:max-width :5em}}]
+       
+       "% + " (str (* 100 (- 1 @diversity-limit)))
+       "% / ("
        [inputs/number2 {:value-atom diversity-rate :min 1 :max 100 :step 1 :scale 1
-                        :style {:max-width :5em}}]]]
-     
+                        :style {:max-width :5em}}]
+       "✕ N"
+       ")"]]
+          
      [:div.card
       [:h1.card-header "Pumping costs"]
       [:p
