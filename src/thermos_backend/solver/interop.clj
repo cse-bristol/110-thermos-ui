@@ -650,6 +650,7 @@
          :edge-cost-precision (::document/edge-cost-precision instance)
          :diversity-limit     (::document/diversity-limit instance)
          :diversity-rate      (::document/diversity-rate instance)
+         :no-loops            (::document/no-loops instance)
          
          :pipe-losses
          (let [losses (pipes/heat-loss-curve pipe-curves)]

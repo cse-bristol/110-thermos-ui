@@ -70,7 +70,8 @@
      objective-scale (reagent/cursor document [::document/objective-scale])
      objective-precision (reagent/cursor document [::document/objective-precision])
      edge-cost-precision (reagent/cursor document [::document/edge-cost-precision])
-     
+
+     no-loops (reagent/cursor document [::document/no-loops])
      ]
     [:div.parameters-component
      [:div.card
@@ -256,17 +257,28 @@
        [:p
         "Objective scale "
         [inputs/number {:value-atom objective-scale :step 10 :min 1 :max 100 :scale 1}] "¤"
-        " — the objective will be scaled down by this amount"]
+        " — the objective will be scaled down by this amount."]
        
        
        [:p
         "Objective precision "
         [inputs/number {:value-atom objective-precision :step 0.1 :min 0.1 :max 100 :scale 1}] "¤ ✕ scale "
-        " — when possible, objective coefficients will be truncated to this many scaled objective units"]
+        " — when possible, objective coefficients will be truncated to this many scaled objective units."]
        
        [:p
         "Edge cost precision "
-        [inputs/number {:value-atom edge-cost-precision :step 0.1 :min 0.0 :max 100 :scale 100}] "% - edges whose variable cost is below this proportion of their fixed cost will be represented only as a fixed cost."]]
+        [inputs/number {:value-atom edge-cost-precision :step 0.1 :min 0.0 :max 100 :scale 100}] "% — edges whose variable cost is below this proportion of their fixed cost will be represented only as a fixed cost."]
+
+       [:p
+        [:label [inputs/check
+                 {:value (boolean @no-loops)
+                  :on-change
+                  #(if %
+                     (reset! no-loops true)
+                     (reset! no-loops false))}]
+         "Prevent loops - the optimiser will try not to make more than one path through the network to any point."]]]
+      
+      
       
       (when (preload/get-value :has-gurobi)
         (let [current-solver (or @solver :scip)]
