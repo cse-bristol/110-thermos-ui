@@ -56,7 +56,7 @@
   {:extra-deps
    {org.clojure/tools.cli {:mvn/version "0.4.2"},
     thermos/importer
-    {:git/url "ssh://git@github.com/cse-bristol/110-thermos-importer.git",
+    {:git/url "https://github.com/cse-bristol/110-thermos-importer.git",
      :sha "d44bc1a19f69f114342aea18350d46228e5ea0e3"}
     org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"},
     log4j/log4j
@@ -72,7 +72,7 @@
   {:extra-deps
    {org.clojure/tools.cli {:mvn/version "0.4.2"}
     thermos/importer
-    {:git/url "ssh://git@github.com/cse-bristol/110-thermos-importer.git"
+    {:git/url "https://github.com/cse-bristol/110-thermos-importer.git"
      :sha "d44bc1a19f69f114342aea18350d46228e5ea0e3"}
     org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"}
     log4j/log4j
@@ -95,7 +95,7 @@
     ring/ring-defaults {:mvn/version "0.3.2"},
     digest/digest {:mvn/version "1.4.6"},
     thermos/models
-    {:git/url "ssh://git@github.com/cse-bristol/110-thermos-models.git",
+    {:git/url "https://github.com/cse-bristol/110-thermos-models.git",
      :sha "21cd41d499b41bec5f5c75f6da1e983be1108499"},
     clucie/clucie {:mvn/version "0.4.2"},
     honeysql/honeysql {:mvn/version "0.9.4"},
@@ -104,7 +104,7 @@
     org.jgrapht/jgrapht-core {:mvn/version "1.5.2"}
     org.postgresql/postgresql {:mvn/version "9.4.1212.jre7"},
     thermos/importer
-    {:git/url "ssh://git@github.com/cse-bristol/110-thermos-importer.git",
+    {:git/url "https://github.com/cse-bristol/110-thermos-importer.git",
      :sha "d44bc1a19f69f114342aea18350d46228e5ea0e3"},
     clojure-term-colors/clojure-term-colors {:mvn/version "0.1.0"},
     org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"},
