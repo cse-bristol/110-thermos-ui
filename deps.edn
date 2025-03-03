@@ -57,7 +57,7 @@
    {org.clojure/tools.cli {:mvn/version "0.4.2"},
     thermos/importer
     {:git/url "https://github.com/ERMInc/110-thermos-importer.git",
-     :sha "6a1fce47bbc75b78465420656fe09c9cd54b83c8"}
+     :sha "e96151a66df6bf7bfd510f3ee63522e305d95b31"}
     org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"},
     log4j/log4j
     {:mvn/version "1.2.17",
@@ -72,8 +72,8 @@
   {:extra-deps
    {org.clojure/tools.cli {:mvn/version "0.4.2"}
     thermos/importer
-    {:git/url "https://github.com/ERMInc/110-thermos-importer.git"
-     :sha "6a1fce47bbc75b78465420656fe09c9cd54b83c8"}
+    {:git/url "https://github.com/ERMInc/110-thermos-importer.git",
+     :sha "e96151a66df6bf7bfd510f3ee63522e305d95b31"}
     org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"}
     log4j/log4j
     {:mvn/version "1.2.17"
@@ -94,8 +94,8 @@
     org.apache.commons/commons-math3 {:mvn/version "3.6.1"},
     ring/ring-defaults {:mvn/version "0.3.2"},
     digest/digest {:mvn/version "1.4.6"},
-thermos/model {:git/url "https://github.com/ERMInc/110-thermos-models.git",
-     :sha "6ccf30819f63b407dc6b4030673b2e3e9a6f9e40"},
+    thermos/models {:git/url "https://github.com/ERMInc/110-thermos-models.git",
+     :sha "de3b583950891433637cbf0b1bbf522e377c2a10"},
     clucie/clucie {:mvn/version "0.4.2"},
     honeysql/honeysql {:mvn/version "0.9.4"},
     ring/ring-json {:mvn/version "0.4.0"},
@@ -104,7 +104,7 @@ thermos/model {:git/url "https://github.com/ERMInc/110-thermos-models.git",
     org.postgresql/postgresql {:mvn/version "9.4.1212.jre7"},
     thermos/importer
     {:git/url "https://github.com/ERMInc/110-thermos-importer.git",
-     :sha "6a1fce47bbc75b78465420656fe09c9cd54b83c8"},
+     :sha "e96151a66df6bf7bfd510f3ee63522e305d95b31"},
     clojure-term-colors/clojure-term-colors {:mvn/version "0.1.0"},
     org.slf4j/slf4j-log4j12 {:mvn/version "1.7.10"},
     nilenso/honeysql-postgres {:mvn/version "0.2.3"},
