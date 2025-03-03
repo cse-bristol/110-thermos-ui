@@ -2,11 +2,11 @@
 
 let
 
-version = "9.1.1";
+version = "7.0.1";
 
 scip-src = fetchurl {
    url ="https://scip.zib.de/download/release/scipoptsuite-${version}.tgz";
-   sha256 = "0v4sjpnx4qnxz147a5hgz35g6lfhbl457lwmim8q3pbs6qq9y79k";
+   sha256 = "08nldbaidp05994xjdapd29700xmsapihk2mzawcic4nv3r646cp";
 };
 
 ampl-src =  fetchurl {
