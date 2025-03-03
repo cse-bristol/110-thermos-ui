@@ -1,32 +1,31 @@
 {pkgs, config, ...} :
 let
   scip = (pkgs.callPackage ./scip.nix {});
+  gurobi = (pkgs.callPackage ./gurobi.nix {});
 in
 {
   imports = [ ./thermos.nix ];
-  
+
   networking.firewall.allowedTCPPorts = [ 80 ];
 
   nixpkgs.config.allowUnfree = true;
-  
+
   services.thermos.ui.enable = true;
   services.thermos.model.enable = true;
   services.thermos.importer.enable = true;
-
-
   environment.systemPackages = [
     pkgs.vim
     pkgs.ranger
     pkgs.cron
     gurobi
   ];
-  
+
   services.cron = {
     enable = true;
   };
-
-  services.thermos.ui.baseUrl = "http://ec2-13-41-145-247.eu-west-2.compute.amazonaws.com";
   
+  services.thermos.ui.baseUrl = "http://ec2-13-41-145-247.eu-west-2.compute.amazonaws.com";
+
   services.nginx = {
     enable = true;
     recommendedOptimisation = true;
@@ -69,7 +68,7 @@ in
   };
 
   security.sudo.wheelNeedsPassword = false;
-  
+
   users.motd = ''
     THERMOS demo server
     -------------------

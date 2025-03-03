@@ -25,7 +25,7 @@ with lib;
         };
         javaArgs = mkOption {
           type = types.str;
-          default = "-Xmx6g -server";
+          default = "-Xmx8g -server";
         };
         defaultUserAuth = mkOption {
           type = types.str;
@@ -47,7 +47,7 @@ with lib;
         };
         javaArgs = mkOption {
           type = types.str;
-          default = "-Xmx4g -server";
+          default = "-Xmx20g -server";
         };
       };
       importer = {
@@ -72,7 +72,7 @@ with lib;
       };
     };
   };
-    
+
   config =
     let
       cfg = config.services.thermos;
@@ -87,7 +87,7 @@ with lib;
         fi
         /run/wrappers/bin/su postgres -c "${pg}/bin/psql -d thermos -c \"update jobs set state='failed', message=message || '\n----\nOut of memory!' where state='running' and queue_name='${queue}'\""
       '');
-      
+
     in {
 
       environment.systemPackages = [
@@ -106,15 +106,15 @@ with lib;
           '';
         })
       ];
-      
 
-      
+
+
       systemd.services.thermos-web = mkIf cfg.ui.enable {
         serviceConfig = {
           TimeoutStopSec = "60s";
           Restart = "always";
         };
-        
+
         wantedBy = ["multi-user.target"];
 
         script = ''
@@ -130,10 +130,9 @@ with lib;
           export SMTP_PORT=25
           export SMTP_TLS=true
           export SMTP_USER=thermos-project.eu
-          export DEFAULT_USER_AUTH=${cfg.ui.defaultUserAuth}
-          
-          export LIDAR_DIRECTORY=/thermos-lidar/
+          # export DEFAULT_USER_AUTH=${cfg.ui.defaultUserAuth}
 
+          export LIDAR_DIRECTORY=/thermos-lidar/
 
           # while [[ ! -f /var/keys/smtp ]] ; do
           #   echo "waiting for smtp key"
@@ -156,7 +155,7 @@ with lib;
           TimeoutStopSec = "60s";
           Restart = "always";
         };
-        
+
         wantedBy = ["multi-user.target"];
 
         path = [cfg.model.scip];
@@ -185,7 +184,7 @@ with lib;
           TimeoutStopSec = "60s";
           Restart = "always";
         };
-        
+
         wantedBy = ["multi-user.target"];
 
         script = ''
@@ -197,7 +196,6 @@ with lib;
           export WEB_SERVER_ENABLED=false
           export IMPORTER_COUNT=${toString cfg.importer.importerCount}
           export DEFAULT_USER_AUTH=${cfg.ui.defaultUserAuth}
-
           exec ${cfg.jre}/bin/java "-XX:OnOutOfMemoryError=${oom-kill "imports"} %p" ${cfg.importer.javaArgs} -jar ${cfg.jar}
         '';
       };
