@@ -1,16 +1,5 @@
 {pkgs, config, ...} :
 let
-  pg = pkgs.postgresql;
-  pgis = pkgs.postgis.override { postgresql = pg; };
-  create-database = builtins.toFile "create-database.sql"
-  ''
-    CREATE ROLE postgres LOGIN;
-    GRANT root TO postgres;
-    ALTER USER postgres WITH PASSWORD 'therm0s';
-    CREATE DATABASE thermos;
-  '';
-  enable-postgis = builtins.toFile "enable-postgis.sql"
-  "CREATE EXTENSION postgis; CREATE EXTENSION postgis_raster;";
   scip = (pkgs.callPackage ./scip.nix {});
 in
 {
