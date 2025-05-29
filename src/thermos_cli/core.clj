@@ -172,8 +172,9 @@ Use in conjunction with --transfer-field to get diameter off a pipe."]
     "A file containing tariff definitions"
     :assoc-fn conj-arg]
    
-   [nil "--maximum-supply-sites"
-    "Maximum number of supply points to be used by model"]
+   [nil "--maximum-supply-sites N"
+    "Maximum number of supply points to be used by model"
+    :parse-fn #(Integer/parseInt %)]
 
    [nil "--top-n-supplies N" "Number of supplies to introduce into the map by taking the top N demands"
     :default 1
@@ -804,6 +805,10 @@ The different options are those supplied after --retry, so mostly you can use th
                             (:mip-gap options)
                             (assoc :thermos-specs.document/mip-gap
                                    (:mip-gap options))
+                            
+                            (:maximum-supply-sites options)
+                            (assoc :thermos-specs.document/maximum-supply-sites
+                                   (:maximum-supply-sites options))
 
                             (:max-iters options)
                             (assoc :thermos-specs.document/maximum-iterations
@@ -833,17 +838,17 @@ The different options are those supplied after --retry, so mostly you can use th
                             (:solve options)
                             (-> (saying "Solve")
                                 (as-> x 
-                                    (binding [lp.scip/*default-solver-arguments*
-                                              (cond-> lp.scip/*default-solver-arguments*
-                                                (:scip-emphasis options)
-                                                (assoc :emphasis (:scip-emphasis options))
+                                      (binding [lp.scip/*default-solver-arguments*
+                                                (cond-> lp.scip/*default-solver-arguments*
+                                                  (:scip-emphasis options)
+                                                  (assoc :emphasis (:scip-emphasis options))
 
-                                                (:scip-heuristics-emphasis options)
-                                                (assoc :heuristics-emphasis (:scip-heuristics-emphasis options))
-                                                
-                                                (:scip-presolving-emphasis options)
-                                                (assoc :presolving-emphasis (:scip-presolving-emphasis options)))]
-                                      (interop/solve x)))))]
+                                                  (:scip-heuristics-emphasis options)
+                                                  (assoc :heuristics-emphasis (:scip-heuristics-emphasis options))
+                                                  
+                                                  (:scip-presolving-emphasis options)
+                                                  (assoc :presolving-emphasis (:scip-presolving-emphasis options)))]
+                                        (interop/solve x)))))]
     
     
     (binding [output/*problem-id* (:problem-name options)
