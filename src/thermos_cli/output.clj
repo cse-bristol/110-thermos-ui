@@ -15,6 +15,8 @@
             [thermos-specs.candidate :as candidate]
             [thermos-specs.path :as path])
   (:import [org.locationtech.jts.geom Geometry Point]
+           [org.geotools.geopkg GeoPackage]
+           [org.geotools.referencing CRS] 
            [java.util.zip GZIPOutputStream]))
 
 (def ^:dynamic *problem-id* nil)
@@ -38,8 +40,9 @@
         format ;; some shorthands for format?
         (case format
           (:json :gjson :geojson) :json
-          format)
-        ]
+          (:gpkg :geopackage) :gpkg
+          format)]
+        
     [content format]))
 
 (comment
@@ -55,7 +58,7 @@
 (defmulti save-state   output-type)
 
 (defmethod save-state :default [instance path]
-  (throw (ex-info "Don't know how to write this output" {:path path})))
+  (throw (ex-info (str "Don't know how to write this output: " path) {:path path})))
 
 (defn- output ^java.io.Closeable [thing]
   (if (= thing "-")
@@ -106,8 +109,8 @@
        (cond->
            ["lon" "lat" "length" "diameter" "kw" "civils" "capex" "losses" "diversity"]
          *problem-id* (conj "problem")
-         *id-field* (conj "id")
-         ))
+         *id-field* (conj "id")))
+         
       
       (let [candidates (vals (::document/candidates instance))
             mode       (document/mode instance)]
@@ -123,14 +126,14 @@
                             civils     (document/civil-cost-name instance (::path/civil-cost-id c))
                             capex      (ndp (:principal (::solution/pipe-capex c)))
                             losses     (ndp (::solution/losses-kwh c))
-                            diversity  (ndp (::solution/diversity c) 3)
-                            ]
+                            diversity  (ndp (::solution/diversity c) 3)]
+                            
                         (cond->
                             [lon lat length diameter kw civils
                              capex losses diversity]
                           *problem-id* (conj *problem-id*)
-                          *id-field*   (conj (get c *id-field*))
-                          )))]
+                          *id-field*   (conj (get c *id-field*)))))]
+                          
           (tsv-write row))))))
 
 (defmethod save-state [:default :tsv]
@@ -143,11 +146,11 @@
                 "insulation" "insulationarea" "insulationcapex"
                 "systemcapex" "systemfuel" "systemopex" 
                 "networkrevenue"
-                "supplykwp" "supplycapex" "supplyfuel" "supplyopex" 
-                ]
+                "supplykwp" "supplycapex" "supplyfuel" "supplyopex"] 
+                
          *problem-id* (conj "problem")
-         *id-field*   (conj "id")
-         ))
+         *id-field*   (conj "id")))
+         
 
       (let [candidates (vals (::document/candidates instance))
             mode       (document/mode instance)]
@@ -168,9 +171,9 @@
                             kwp        (ndp (candidate/solved-peak-demand c mode) 0)
 
                             syscapex   (ndp ;; capex of heatex or individual system
-                                     (+ (-> c ::solution/alternative :capex (:principal 0))
-                                        (-> c ::solution/connection-capex   (:principal 0)))
-                                     0)
+                                        (+ (-> c ::solution/alternative :capex (:principal 0))
+                                           (-> c ::solution/connection-capex   (:principal 0)))
+                                        0)
                             sysopex    (ndp (-> c ::solution/alternative :opex (:annual 0)) 0)
                             sysfuel   (ndp (-> c ::solution/alternative :heat-cost (:annual 0)) 0)
                             revenue (ndp (-> c ::solution/heat-revenue (:annual 0)) 0)
@@ -194,9 +197,9 @@
                                     (-> c ::solution/alternative :heat-cost (:present 0))) 0)
                             
                             insulation-pv-capex
-                            (ndp (reduce + 0 (keep :present (::solution/insulation c))) 0)
+                            (ndp (reduce + 0 (keep :present (::solution/insulation c))) 0)]
                             
-                            ]
+                            
                         (cond-> [lon lat system
                                  kwh kwp ccount
 
@@ -204,12 +207,12 @@
                                  syscapex sysfuel sysopex
 
                                  revenue
-                                 skwp scapex sheat sopex
-                                 ]
+                                 skwp scapex sheat sopex]
+                                 
                           
                           *problem-id* (conj *problem-id*)
-                          *id-field*   (conj (get c *id-field*))
-                          )))]
+                          *id-field*   (conj (get c *id-field*)))))]
+                          
           (tsv-write row))))))
 
 (defmethod save-state [:summary :json]
@@ -224,13 +227,37 @@
        :iterations (::solution/iterations instance)
        :status     (::solution/state instance)
        :log        (::solution/log instance)
-       :problem    *problem-id*
-       }
+       :problem    *problem-id*}
+       
       :geometry
       (jts/geom->map
        (jts/convex-hull
         (for [c (vals (::document/candidates instance))]
-          (::candidate/geometry c))))
-      }
+          (::candidate/geometry c))))}
+      
      w)))
 
+
+
+
+;; imnplement geopackage write function here
+;; refer to examples in https://github.com/cse-bristol/clj-geometry/blob/master/src/geometry/gpkg.clj
+;; steps
+;; 1. Function to create gpkg
+;; 2. Iterate rows - 
+
+(defmethod save-state [:summary :gpkg]
+  [instance path]
+  (throw (ex-info "GPKG output implementation not complete" {:path path})))
+
+
+
+(comment
+  ;; RCF: Test for save-state with dummy GPKG path  
+  
+  (def dummy-instance "test")
+  (def dummy-path "summary.gpkg")
+
+  (save-state dummy-instance dummy-path)
+  )
+  
