@@ -723,7 +723,7 @@ The different options are those supplied after --retry, so mostly you can use th
         
         [paths buildings] (noder/node-connect geodata options)
         
-        
+        ;; use this geoio/crs here
         buildings         (when (seq buildings)
                             (-> {::geoio/features buildings
                                  ::geoio/crs (::geoio/crs geodata)}
@@ -855,6 +855,7 @@ The different options are those supplied after --retry, so mostly you can use th
               output/*id-field*   (:id-field options)]
       (doseq [output-path output-paths]
         (log/info "Saving state to" output-path)
+        ;; add crs as an argument here?
         (output/save-state instance output-path)))
     
     (mount/stop)

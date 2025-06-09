@@ -3,15 +3,16 @@
    [clojure.string :as string]
    [clojure.java.io :as io]
    [thermos-backend.spreadsheet.schema :as schema])
-  (:import [org.locationtech.jts.geom Geometry Envelope Point]
-           [org.locationtech.jts.geom GeometryFactory Coordinate]
+  (:import [org.locationtech.jts.geom Geometry Envelope GeometryFactory]
            [org.geotools.geopkg GeoPackage FeatureEntry]
-           [org.geotools.data DataUtilities DefaultTransaction]
+           [org.geotools.data DataUtilities DefaultTransaction DataStoreFinder Transaction]
            [org.geotools.referencing CRS]
-           [org.geotools.feature.simple SimpleFeatureImpl$Attribute]
+           [org.geotools.data.simple SimpleFeatureStore]
+           [org.geotools.feature.simple SimpleFeatureBuilder SimpleFeatureTypeBuilder]
+           [org.geotools.feature DefaultFeatureCollection]
            [org.geotools.geometry.jts Geometries ReferencedEnvelope]
-           [org.geotools.jdbc JDBCFeatureReader$ResultSetFeature  ]
-           ))
+           [org.geotools.jdbc JDBCFeatureReader$ResultSetFeature]))
+
 
 
 ;; start fresh
@@ -64,12 +65,6 @@
 (defn point? [g] (and (satisfies? HasGeometry g)
                       (= "Point" (.getGeometryType (geometry g)))))
 
-(defn features
-  "Given the result of calling `gpkg/open`, convert the closable iterator
-   that returns into a lazy sequence of features. This is just a wrapper around
-   iterator-seq."
-  [gpkg]
-  (iterator-seq gpkg))
 
 
 (defn- kv-type [k v]
@@ -206,10 +201,10 @@
 (defn ->feature-entry [table-name spec srid]
   (let [geom-col (spec-geom-field spec)]
     (doto (FeatureEntry.)
-    (.setTableName table-name)
-    (.setGeometryColumn (first geom-col)) 
-    (.setGeometryType (->geotools-type (:type (second geom-col))))
-    (.setBounds (ReferencedEnvelope. 0 0 0 0 (CRS/decode (str "EPSG:" srid)))))))
+      (.setTableName table-name)
+      (.setGeometryColumn (first geom-col))
+      (.setGeometryType (->geotools-type (:type (second geom-col))))
+      (.setBounds (ReferencedEnvelope. 0 0 0 0 (CRS/decode (str "EPSG:" srid)))))))
 
 
 (defn- set-layer-extent!
@@ -252,7 +247,7 @@
 
    Returns nil.
   "
-  ([file table-name ^Iterable features & {:keys [schema batch-insert-size]
+  ([file table-name ^Iterable features & {:keys [schema batch-insert-size add-spatial-index]
                                           :or {batch-insert-size 4000}}]
    {:pre [(or (instance? Iterable features) (nil? features))]}
    (with-open [geopackage (open-for-writing file batch-insert-size)]
@@ -272,10 +267,10 @@
          (.create geopackage feature-entry (->geotools-schema table-name spec))
          (catch java.lang.IllegalArgumentException _))
 
-       ;;    (when add-spatial-index
-       ;;      (try (.createSpatialIndex geopackage feature-entry)
-       ;;           (catch java.io.IOException e
-       ;;             (log/warnf e "Unable to create spatial index in %s on %s" file table-name))))
+       (when add-spatial-index
+         (try (.createSpatialIndex geopackage feature-entry)
+              (catch java.io.IOException e
+                (println e "Unable to create spatial index in %s on %s" file table-name))))
 
 
        ;; It may seem odd that we are getting an iterator out here
@@ -316,51 +311,103 @@
                                   (nil? extent) (ReferencedEnvelope. feature-env crs)
 
                                   :else (doto extent (.expandToInclude feature-env))))))
-                           extent ;; return extent
-                           )))]
+                           extent)))] ;; return extent
+
                  (.commit tx)
-                 extent ;; and return extent
-                 ))]
+                 extent))] ;; and return extent
+
          (set-layer-extent! file table-name layer-extent))))
    nil))
 
+
+;; I couldn't get the implementation as shown in clj-geometry
+;; I kept encountering this fid null pointer error when attempting to commit the transaction
+;; Execution error (NullPointerException) at org.geotools.filter.identity.FeatureIdImpl/setID (FeatureIdImpl.java:55).
+;; fid must not be null
+;; this method below is a little clunkier, utilising the SimpleFeatureTypeBuilder over FeatureEntry
+;; However, one issue is that it doesn't update layer extent in system tables
+
+(defn build-feature-type
+  "Given a table name, schema and crs, this creates a spatial table
+   in a geopackage"
+  [^String table-name spec crs]
+  (let [builder (doto (SimpleFeatureTypeBuilder.)
+                  (.setName table-name)
+                  (.setCRS crs))]
+    (doseq [[field-name {:keys [type]}] spec]
+      (println field-name)
+      (.add builder (name field-name) type))
+    (.buildFeatureType builder)))
+
+(defn write-gpkg [file table-name features schema srid]
+  (let [params {"dbtype" "geopkg" "database" file}
+        datastore (DataStoreFinder/getDataStore params)]
+    (try
+      (let [crs (CRS/decode (str "EPSG:" srid))
+            feature-type (build-feature-type table-name schema crs)]
+
+        ;; this clause checks if the table exists in the datastore, if not 
+        ;; then create it using feature-type schema
+        (when-not (some #{table-name} (.getTypeNames datastore))
+          (.createSchema datastore feature-type))
+
+        ;; 
+        (let [^SimpleFeatureStore store (.getFeatureSource datastore table-name)
+              tx (DefaultTransaction. "create")
+              builder (SimpleFeatureBuilder. feature-type)
+              collection (DefaultFeatureCollection. nil feature-type)]
+
+          (try
+            (doseq [feature features]
+              (.reset builder)
+              (doseq [[k {:keys [accessor]}] schema]
+                (let [val ((or accessor #(get feature k)) feature)]
+                  (.add builder val)))
+              (.add collection (.buildFeature builder nil)))
+            (.setTransaction store tx)
+            (.addFeatures store collection)
+            (.commit tx)
+
+            (catch Exception e
+              (.rollback tx)
+              (throw e))
+            (finally
+              (.close tx)))))
+      (finally
+        ;; THIS IS NEEDED TO CLOSE GPKG correctly, else:
+        ;; SEVERE: There's code using JDBC based datastore and not disposing them. This may lead to temporary loss of database connections. Please make sure all data access code calls DataStore.dispose() before freeing all references to it
+        (.dispose datastore)))))
+
+
 (comment
-  (def demo [:geom {:type :point :srid 4326 :accessor :geom}])
-  
-  (first demo)
-  (:type (second demo))
+  (def test-schema
+    [[:geom {:type org.locationtech.jts.geom.Point :srid 4326 :accessor :geom}]
+     [:name {:type java.lang.String :accessor :name}]
+     [:population {:type java.lang.Integer :accessor :population}]
+     [:area {:type java.lang.Double :accessor :area}]
+     [:capital? {:type java.lang.Boolean :accessor :capital?}]])
 
-  ;; Example schema (optional, can be inferred from features)
-(def example-schema
-  [["geom" {:type :point :srid 4326 :accessor :geom}]
-   ["name" {:type :string :accessor :name}]
-   ["population" {:type :integer :accessor :population}]
-   ["area" {:type :double :accessor :area}]
-   ["capital?" {:type :boolean :accessor :capital?}]])
 
-;; Example features (each map matches the schema)
-(def example-features
-  [{:geom (.createPoint (org.locationtech.jts.geom.GeometryFactory.) 
-                        (org.locationtech.jts.geom.Coordinate. 0.1278 51.5074)) ; London
-    :name "London"
-    :population 9000000
-    :area 1572.0
-    :capital? true}
+  (def test-features
+    [{:geom (.createPoint (org.locationtech.jts.geom.GeometryFactory.)
+                          (org.locationtech.jts.geom.Coordinate. 0.1278 51.5074)) ; London
+      :name "London"
+      :population 9000000
+      :area 1572.0
+      :capital? true}
 
-   {:geom (.createPoint (org.locationtech.jts.geom.GeometryFactory.) 
-                        (org.locationtech.jts.geom.Coordinate. 2.3522 48.8566)) ; Paris
-    :name "Paris"
-    :population 2148000
-    :area 105.4
-    :capital? true}
+     {:geom (.createPoint (org.locationtech.jts.geom.GeometryFactory.)
+                          (org.locationtech.jts.geom.Coordinate. 2.3522 48.8566)) ; Paris
+      :name "Paris"
+      :population 2148000
+      :area 105.4
+      :capital? true}
 
-   {:geom (.createPoint (org.locationtech.jts.geom.GeometryFactory.) 
-                        (org.locationtech.jts.geom.Coordinate. 13.4050 52.5200)) ; Berlin
-    :name "Berlin"
-    :population 3769000
-    :area 891.8
-    :capital? true}])
+     {:geom (.createPoint (org.locationtech.jts.geom.GeometryFactory.)
+                          (org.locationtech.jts.geom.Coordinate. 13.4050 52.5200)) ; Berlin
+      :name "Berlin"
+      :population 3769000
+      :area 891.8
+      :capital? true}])
 
-;; Usage example:
-(write "output.gpkg" "cities" example-features :schema example-schema)
-  )
+  (write-gpkg "test4.gpkg" "cities" test-features test-schema 4326))

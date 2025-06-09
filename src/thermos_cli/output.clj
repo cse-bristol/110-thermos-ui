@@ -15,8 +15,15 @@
             [thermos-specs.candidate :as candidate]
             [thermos-specs.path :as path])
   (:import [org.locationtech.jts.geom Geometry Point]
-           [org.geotools.geopkg GeoPackage]
-           [org.geotools.referencing CRS] 
+           [org.geotools.geopkg GeoPackage FeatureEntry]
+           [org.geotools.data DataUtilities]
+           [org.geotools.referencing CRS]
+           [org.geotools.geometry.jts Geometries ReferencedEnvelope]
+           [org.sqlite
+            SQLiteConfig
+            SQLiteConfig$JournalMode
+            SQLiteConfig$Pragma
+            SQLiteConfig$TransactionMode]
            [java.util.zip GZIPOutputStream]))
 
 (def ^:dynamic *problem-id* nil)
@@ -42,7 +49,7 @@
           (:json :gjson :geojson) :json
           (:gpkg :geopackage) :gpkg
           format)]
-        
+
     [content format]))
 
 (comment
@@ -74,7 +81,7 @@
 (defmethod save-state [:default :edn]
   [instance path]
   (with-open [w (output path)]
-    (if (= path "-") 
+    (if (= path "-")
       (pprint instance w)
       (binding [*out* w] (prn instance)))))
 
@@ -107,11 +114,11 @@
     (binding [*out* w]
       (tsv-write
        (cond->
-           ["lon" "lat" "length" "diameter" "kw" "civils" "capex" "losses" "diversity"]
+        ["lon" "lat" "length" "diameter" "kw" "civils" "capex" "losses" "diversity"]
          *problem-id* (conj "problem")
          *id-field* (conj "id")))
-         
-      
+
+
       (let [candidates (vals (::document/candidates instance))
             mode       (document/mode instance)]
         (doseq [row (for [c (filter candidate/is-path? candidates)
@@ -127,13 +134,13 @@
                             capex      (ndp (:principal (::solution/pipe-capex c)))
                             losses     (ndp (::solution/losses-kwh c))
                             diversity  (ndp (::solution/diversity c) 3)]
-                            
+
                         (cond->
-                            [lon lat length diameter kw civils
-                             capex losses diversity]
+                         [lon lat length diameter kw civils
+                          capex losses diversity]
                           *problem-id* (conj *problem-id*)
                           *id-field*   (conj (get c *id-field*)))))]
-                          
+
           (tsv-write row))))))
 
 (defmethod save-state [:default :tsv]
@@ -144,13 +151,13 @@
        (cond-> ["lon" "lat" "system"
                 "kwh" "kwp" "count"
                 "insulation" "insulationarea" "insulationcapex"
-                "systemcapex" "systemfuel" "systemopex" 
+                "systemcapex" "systemfuel" "systemopex"
                 "networkrevenue"
-                "supplykwp" "supplycapex" "supplyfuel" "supplyopex"] 
-                
+                "supplykwp" "supplycapex" "supplyfuel" "supplyopex"]
+
          *problem-id* (conj "problem")
          *id-field*   (conj "id")))
-         
+
 
       (let [candidates (vals (::document/candidates instance))
             mode       (document/mode instance)]
@@ -177,7 +184,7 @@
                             sysopex    (ndp (-> c ::solution/alternative :opex (:annual 0)) 0)
                             sysfuel   (ndp (-> c ::solution/alternative :heat-cost (:annual 0)) 0)
                             revenue (ndp (-> c ::solution/heat-revenue (:annual 0)) 0)
-                            
+
                             ccount  (::demand/connection-count c 1)
                             skwp    (ndp (-> c (::solution/capacity-kw 0)) 0)
                             scapex  (ndp (-> c ::solution/supply-capex (:principal 0)) 0)
@@ -195,11 +202,11 @@
                             system-pv-opex
                             (ndp (+ (-> c ::solution/alternative :opex (:present 0))
                                     (-> c ::solution/alternative :heat-cost (:present 0))) 0)
-                            
+
                             insulation-pv-capex
                             (ndp (reduce + 0 (keep :present (::solution/insulation c))) 0)]
-                            
-                            
+
+
                         (cond-> [lon lat system
                                  kwh kwp ccount
 
@@ -208,11 +215,11 @@
 
                                  revenue
                                  skwp scapex sheat sopex]
-                                 
-                          
+
+
                           *problem-id* (conj *problem-id*)
                           *id-field*   (conj (get c *id-field*)))))]
-                          
+
           (tsv-write row))))))
 
 (defmethod save-state [:summary :json]
@@ -228,15 +235,14 @@
        :status     (::solution/state instance)
        :log        (::solution/log instance)
        :problem    *problem-id*}
-       
+
       :geometry
       (jts/geom->map
        (jts/convex-hull
         (for [c (vals (::document/candidates instance))]
           (::candidate/geometry c))))}
-      
-     w)))
 
+     w)))
 
 
 
@@ -244,20 +250,28 @@
 ;; refer to examples in https://github.com/cse-bristol/clj-geometry/blob/master/src/geometry/gpkg.clj
 ;; steps
 ;; 1. Function to create gpkg
-;; 2. Iterate rows - 
+;; 2. Iterate rows -
 
+;; I think we can assume we would likely be writing to a new GPKG for now will use GeoPackage() 
+;; over GeoPackage​(File file, SQLiteConfig config, Map<String,​Object> storeParams)
+;; this was due to error relating to Casting Issue with SQLiteConfig
+
+;; to start with will use schema specified in save-state [:summary :json]
+
+;; this method will be dispatched to by the multimethod takes the input, 
+;; assume there would need to be ones for :pipes, :default too
 (defmethod save-state [:summary :gpkg]
-  [instance path]
-  (throw (ex-info "GPKG output implementation not complete" {:path path})))
-
+  )
 
 
 (comment
   ;; RCF: Test for save-state with dummy GPKG path  
-  
+    (def example-clj-spec
+    [["geometry" {:type Geometries/LINESTRING :srid 4326}]
+     ["name"     {:type "java.lang.String"}]
+     ["area"     {:type "java.lang.Double"}]])
+
   (def dummy-instance "test")
   (def dummy-path "summary.gpkg")
-
-  (save-state dummy-instance dummy-path)
-  )
+  (save-state dummy-instance dummy-path))
   
