@@ -1,53 +1,25 @@
 (ns thermos-cli.gpkg-export
   (:require
    [clojure.string :as string]
-   [clojure.java.io :as io])
+   [clojure.java.io :as io]
+   [clojure.java.jdbc :as jdbc])
   (:import [org.locationtech.jts.geom Geometry Envelope]
            [org.geotools.geopkg GeoPackage FeatureEntry]
-           [org.geotools.data DataUtilities DefaultTransaction DataStoreFinder]
-           [org.geotools.referencing CRS]
-           [org.geotools.data.simple SimpleFeatureStore]
-           [org.geotools.feature.simple SimpleFeatureBuilder SimpleFeatureTypeBuilder]
-           [org.geotools.feature DefaultFeatureCollection]
+           [org.geotools.data DataUtilities DefaultTransaction]
+           [org.geotools.referencing CRS] 
            [org.geotools.geometry.jts Geometries ReferencedEnvelope]
            [org.geotools.jdbc JDBCFeatureReader$ResultSetFeature]))
 
 
-
-;; start fresh
-;; start with producing 
-
-;; FeatureEntry needs to be generated
-;; see here: https://docs.geotools.org/stable/javadocs/org/geotools/geopkg/FeatureEntry.html
-;; This alters the following:
-
-"CREATE TABLE gpkg_contents (
-  table_name TEXT NOT NULL PRIMARY KEY,
-  data_type TEXT NOT NULL,
-  identifier TEXT UNIQUE,
-  description TEXT DEFAULT '',
-  min_x DOUBLE,
-  min_y DOUBLE,
-  max_x DOUBLE,
-  max_y DOUBLE,
-  srs_id INTEGER
-);"
-
-;; and
-
-"CREATE TABLE gpkg_geometry_columns (
-  table_name TEXT NOT NULL,
-  column_name TEXT NOT NULL,
-  geometry_type_name TEXT NOT NULL,
-  srs_id INTEGER NOT NULL
-);"
+(defn- sqlite-query! [file query-params]
+  (let [db-spec {:dbtype "sqlite"
+                 :dbname (.getCanonicalPath (io/as-file file))}]
+    (jdbc/execute! db-spec query-params)))
 
 (defn- ->crs [x]
   (cond (string? x) (CRS/decode x true)
         (integer? x) (CRS/decode (str "EPSG:" x) true)
         :else (throw (IllegalArgumentException. (str "Unknown type of CRS " x)))))
-
-
 
 
 (defprotocol HasGeometry
@@ -213,12 +185,20 @@
 
 
 (defn- set-layer-extent!
-  "Refactor of set-layer-extent to use GeoTools api"
-  [^GeoPackage geopackage ^FeatureEntry feature-entry ^ReferencedEnvelope layer-extent]
+  "Update the extent (if not nil) for `table-name` in the geopackage at `file`
+
+  return `file` in case you want to thread"
+  [file table-name  ^ReferencedEnvelope layer-extent]
   (when layer-extent
-    (.setBounds feature-entry layer-extent)
-    (.update geopackage feature-entry))
-  geopackage)
+    (sqlite-query!
+     file
+     ["UPDATE gpkg_contents SET min_x = ?, min_y = ?, max_x = ?, max_y = ? WHERE table_name = ?;"
+      (.getMinX layer-extent)
+      (.getMinY layer-extent)
+      (.getMaxX layer-extent)
+      (.getMaxY layer-extent)
+      table-name]))
+  file)
 
 
 (defn- ->geotools-schema
@@ -276,7 +256,6 @@
             (catch java.io.IOException e
               (println "Spatial index already exists for table")))
 
-
        (let [features (or features [])
              iter ^java.util.Iterator (.iterator ^java.lang.Iterable features)
              ^ReferencedEnvelope layer-extent
@@ -297,12 +276,11 @@
                              (.setAttributes
                               ^JDBCFeatureReader$ResultSetFeature writable-feature
                               ^java.util.List (emit-feature feature))
-                             (.write writer) 
-                             (println "Extent is" extent)
+                             (.write writer)
                              (recur
                               (let [^Geometry geom (or (get feature geom-field)
                                                        (get feature (keyword geom-field))
-                                                       (get feature (name geom-field))) 
+                                                       (get feature (name geom-field)))
                                     ^Envelope feature-env
                                     (cond
                                       (nil? geom) nil
@@ -313,69 +291,10 @@
                                   (nil? extent) (ReferencedEnvelope. feature-env crs)
                                   :else (doto extent (.expandToInclude feature-env))))))
                            extent)))]
-                 (.commit tx) 
-                 extent))] 
+                 (.commit tx)
+                 extent))]
          (set-layer-extent! file table-name layer-extent))))
    nil))
-
-
-;; I couldn't get the implementation as shown in clj-geometry
-;; I kept encountering this fid null pointer error when attempting to commit the transaction
-;; Execution error (NullPointerException) at org.geotools.filter.identity.FeatureIdImpl/setID (FeatureIdImpl.java:55).
-;; fid must not be null
-;; this method below is a little clunkier, utilising the SimpleFeatureTypeBuilder over FeatureEntry
-;; However, one issue is that it doesn't update layer extent in system tables
-
-(defn build-feature-type
-  "Given a table name, schema and crs, this creates a spatial table
-   in a geopackage"
-  [^String table-name spec crs]
-  (let [builder (doto (SimpleFeatureTypeBuilder.)
-                  (.setName table-name)
-                  (.setCRS crs))]
-    (doseq [[field-name {:keys [type]}] spec]
-      (println field-name)
-      (.add builder (name field-name) type))
-    (.buildFeatureType builder)))
-
-(defn write-gpkg [file table-name features schema srid]
-  (let [params {"dbtype" "geopkg" "database" file}
-        datastore (DataStoreFinder/getDataStore params)]
-    (try
-      (let [crs (CRS/decode (str "EPSG:" srid))
-            feature-type (build-feature-type table-name schema crs)]
-
-        ;; this clause checks if the table exists in the datastore, if not 
-        ;; then create it using feature-type schema
-        (when-not (some #{table-name} (.getTypeNames datastore))
-          (.createSchema datastore feature-type))
-
-        ;; 
-        (let [^SimpleFeatureStore store (.getFeatureSource datastore table-name)
-              tx (DefaultTransaction. "create")
-              builder (SimpleFeatureBuilder. feature-type)
-              collection (DefaultFeatureCollection. nil feature-type)]
-
-          (try
-            (doseq [feature features]
-              (.reset builder)
-              (doseq [[k {:keys [accessor]}] schema]
-                (let [val ((or accessor #(get feature k)) feature)]
-                  (.add builder val)))
-              (.add collection (.buildFeature builder nil)))
-            (.setTransaction store tx)
-            (.addFeatures store collection)
-            (.commit tx)
-
-            (catch Exception e
-              (.rollback tx)
-              (throw e))
-            (finally
-              (.close tx)))))
-      (finally
-        ;; THIS IS NEEDED TO CLOSE GPKG correctly, else:
-        ;; SEVERE: There's code using JDBC based datastore and not disposing them. This may lead to temporary loss of database connections. Please make sure all data access code calls DataStore.dispose() before freeing all references to it
-        (.dispose datastore)))))
 
 
 (comment
