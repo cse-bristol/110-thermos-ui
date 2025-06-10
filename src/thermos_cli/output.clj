@@ -14,16 +14,8 @@
             [thermos-specs.solution :as solution]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.path :as path])
-  (:import [org.locationtech.jts.geom Geometry Point]
-           [org.geotools.geopkg GeoPackage FeatureEntry]
-           [org.geotools.data DataUtilities]
-           [org.geotools.referencing CRS]
-           [org.geotools.geometry.jts Geometries ReferencedEnvelope]
-           [org.sqlite
-            SQLiteConfig
-            SQLiteConfig$JournalMode
-            SQLiteConfig$Pragma
-            SQLiteConfig$TransactionMode]
+  (:import [org.locationtech.jts.geom Geometry] 
+           [org.geotools.geometry.jts Geometries] 
            [java.util.zip GZIPOutputStream]))
 
 (def ^:dynamic *problem-id* nil)
