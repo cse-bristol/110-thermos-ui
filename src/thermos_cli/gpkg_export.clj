@@ -252,7 +252,7 @@
 
    Returns nil.
   "
-  ([file table-name ^Iterable features & {:keys [schema batch-insert-size add-spatial-index]
+  ([file table-name ^Iterable features & {:keys [schema batch-insert-size]
                                           :or {batch-insert-size 4000}}]
    {:pre [(or (instance? Iterable features) (nil? features))]}
    (with-open [geopackage (open-for-writing file batch-insert-size)]
@@ -272,10 +272,10 @@
          (.create geopackage feature-entry (->geotools-schema table-name spec))
          (catch java.lang.IllegalArgumentException _))
 
-      (try (.createSpatialIndex geopackage feature-entry)
-           (catch java.io.IOException e
-             (println e "Unable to create spatial index in %s on %s" file table-name)))
-           
+       (try (.createSpatialIndex geopackage feature-entry)
+            (catch java.io.IOException e
+              (println "Spatial index already exists for table")))
+
 
        (let [features (or features [])
              iter ^java.util.Iterator (.iterator ^java.lang.Iterable features)
@@ -297,9 +297,12 @@
                              (.setAttributes
                               ^JDBCFeatureReader$ResultSetFeature writable-feature
                               ^java.util.List (emit-feature feature))
-                             (.write writer)
+                             (.write writer) 
+                             (println "Extent is" extent)
                              (recur
-                              (let [^Geometry geom (get feature geom-field)
+                              (let [^Geometry geom (or (get feature geom-field)
+                                                       (get feature (keyword geom-field))
+                                                       (get feature (name geom-field))) 
                                     ^Envelope feature-env
                                     (cond
                                       (nil? geom) nil
@@ -307,14 +310,11 @@
                                       :else (Envelope. (.getEnvelopeInternal geom)))]
                                 (cond
                                   (nil? feature-env) extent
-
                                   (nil? extent) (ReferencedEnvelope. feature-env crs)
-
                                   :else (doto extent (.expandToInclude feature-env))))))
                            extent)))]
-                 (.commit tx)
-                 extent))]
-         (println layer-extent)
+                 (.commit tx) 
+                 extent))] 
          (set-layer-extent! file table-name layer-extent))))
    nil))
 
@@ -442,5 +442,4 @@
       :population 3769000
       :area 891.8
       :capital? true}])
-  (write "test4.gpkg" "cities" test-features :keys test-schema)
-  )
+  (write "test4.gpkg" "cities" test-features :keys test-schema))
