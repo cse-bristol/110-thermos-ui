@@ -265,21 +265,20 @@
                                      (or (:accessor v)
                                          #(get % k))))]
                           (fn [feature]
-                            (mapv #(% feature) getters))) 
-           feature-entry ^FeatureEntry (->feature-entry table-name spec srid)] 
+                            (mapv #(% feature) getters)))
+           feature-entry ^FeatureEntry (->feature-entry table-name spec srid)]
        (.setBounds feature-entry (ReferencedEnvelope. 0 0 0 0 crs))
        (try
          (.create geopackage feature-entry (->geotools-schema table-name spec))
          (catch java.lang.IllegalArgumentException _))
 
-       (when add-spatial-index
-         (try (.createSpatialIndex geopackage feature-entry)
-              (catch java.io.IOException e
-                (println e "Unable to create spatial index in %s on %s" file table-name))))
-       
-       (let [features (or features [])
-             iter ^java.util.Iterator (.iterator ^java.lang.Iterable features) 
+      (try (.createSpatialIndex geopackage feature-entry)
+           (catch java.io.IOException e
+             (println e "Unable to create spatial index in %s on %s" file table-name)))
+           
 
+       (let [features (or features [])
+             iter ^java.util.Iterator (.iterator ^java.lang.Iterable features)
              ^ReferencedEnvelope layer-extent
              (with-open [tx (DefaultTransaction.)]
                (let [extent
@@ -287,26 +286,18 @@
                        (loop [^ReferencedEnvelope extent nil]
                          (if (.hasNext iter)
                            (let [feature (.next iter)
-                                 values (emit-feature feature)
                                  writable-feature (.next writer)]
-                             (println writable-feature (class writable-feature))
                              ;; this is here because there is a problem with underlying geotools 
                              ;; whereby the fid is pulled in from userData (an empty HashMap) - see:
                              ;; https://github.com/geotools/geotools/blob/dbc12274458ccfb1963240e86782f0ed976cae29/modules/library/jdbc/src/main/java/org/geotools/jdbc/JDBCInsertFeatureWriter.java#L130
                              ;; a non-nil string placeholder value is needed to complete the transaction else 
-                             ;; there will be a NullPointerException
+                             ;; there will be a NullPointerException (fid must not be null)
                              (let [user-data (.getUserData writable-feature)]
-                               (.put user-data
-                                     "fid"
-                                     ""))
-
-                             (dotimes [i (count values)]
-                               (.setAttribute writable-feature i (nth values i)))
+                               (.put user-data "fid" ""))
+                             (.setAttributes
+                              ^JDBCFeatureReader$ResultSetFeature writable-feature
+                              ^java.util.List (emit-feature feature))
                              (.write writer)
-                             ;;  (.setAttributes
-                             ;;   ^JDBCFeatureReader$ResultSetFeature (.next writer)
-                             ;;   ^java.util.List (emit-feature feature))
-                             ;;  (.write writer)
                              (recur
                               (let [^Geometry geom (get feature geom-field)
                                     ^Envelope feature-env
@@ -320,13 +311,11 @@
                                   (nil? extent) (ReferencedEnvelope. feature-env crs)
 
                                   :else (doto extent (.expandToInclude feature-env))))))
-                           extent)))] ;; return extent
-                 (println "333")
+                           extent)))]
                  (.commit tx)
-                 extent))] ;; and return extent
-
-         (set-layer-extent! file table-name layer-extent)
-         )))
+                 extent))]
+         (println layer-extent)
+         (set-layer-extent! file table-name layer-extent))))
    nil))
 
 
@@ -421,14 +410,14 @@
       :area 891.8
       :capital? true}])
 
-  
+
   (def test-schema
     [[:geom {:type org.locationtech.jts.geom.Point :srid 4326 :accessor :geom}]
      [:name {:type java.lang.String :accessor :name}]
      [:population {:type java.lang.Integer :accessor :population}]
      [:area {:type java.lang.Double :accessor :area}]
      [:capital? {:type java.lang.Boolean :accessor :capital?}]])
-  
+
   (def test-features
     [{:geom (doto (.createPoint (org.locationtech.jts.geom.GeometryFactory.)
                                 (org.locationtech.jts.geom.Coordinate. 0.1278 51.5074))
@@ -437,7 +426,7 @@
       :population 9000000
       :area 1572.0
       :capital? true}
-  
+
      {:geom (doto (.createPoint (org.locationtech.jts.geom.GeometryFactory.)
                                 (org.locationtech.jts.geom.Coordinate. 2.3522 48.8566))
               (.setSRID 4326))
@@ -445,7 +434,7 @@
       :population 2148000
       :area 105.4
       :capital? true}
-  
+
      {:geom (doto (.createPoint (org.locationtech.jts.geom.GeometryFactory.)
                                 (org.locationtech.jts.geom.Coordinate. 13.4050 52.5200))
               (.setSRID 4326))
@@ -453,4 +442,5 @@
       :population 3769000
       :area 891.8
       :capital? true}])
-  (write "test4.gpkg" "cities" test-features :keys test-schema))
+  (write "test4.gpkg" "cities" test-features :keys test-schema)
+  )
