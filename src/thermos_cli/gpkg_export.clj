@@ -1,11 +1,10 @@
 (ns thermos-cli.gpkg-export
   (:require
    [clojure.string :as string]
-   [clojure.java.io :as io]
-   [thermos-backend.spreadsheet.schema :as schema])
-  (:import [org.locationtech.jts.geom Geometry Envelope GeometryFactory]
+   [clojure.java.io :as io])
+  (:import [org.locationtech.jts.geom Geometry Envelope]
            [org.geotools.geopkg GeoPackage FeatureEntry]
-           [org.geotools.data DataUtilities DefaultTransaction DataStoreFinder Transaction]
+           [org.geotools.data DataUtilities DefaultTransaction DataStoreFinder]
            [org.geotools.referencing CRS]
            [org.geotools.data.simple SimpleFeatureStore]
            [org.geotools.feature.simple SimpleFeatureBuilder SimpleFeatureTypeBuilder]
@@ -54,6 +53,12 @@
 (defprotocol HasGeometry
   (geometry ^org.locationtech.jts.geom.Geometry [g])
   (update-geometry [x g]))
+
+
+(extend-type Geometry HasGeometry
+             (geometry [g] g)
+             (update-geometry [_ g] g))
+
 
 (defrecord Feature [^Geometry geometry table crs]
   HasGeometry
@@ -260,8 +265,8 @@
                                      (or (:accessor v)
                                          #(get % k))))]
                           (fn [feature]
-                            (mapv #(% feature) getters)))
-           feature-entry ^FeatureEntry (->feature-entry table-name spec srid)]
+                            (mapv #(% feature) getters))) 
+           feature-entry ^FeatureEntry (->feature-entry table-name spec srid)] 
        (.setBounds feature-entry (ReferencedEnvelope. 0 0 0 0 crs))
        (try
          (.create geopackage feature-entry (->geotools-schema table-name spec))
@@ -271,21 +276,9 @@
          (try (.createSpatialIndex geopackage feature-entry)
               (catch java.io.IOException e
                 (println e "Unable to create spatial index in %s on %s" file table-name))))
-
-
-       ;; It may seem odd that we are getting an iterator out here
-       ;; rather than just doing doseq [feature features], but for
-       ;; reasons Neil & Tom were unable to discern that prevents
-       ;; garbage collection of features (even though it looks
-       ;; eligible for locals clearing).
+       
        (let [features (or features [])
-             iter ^java.util.Iterator (.iterator ^java.lang.Iterable features)
-
-             ;; It is important that there are two with-opens here.
-             ;; because the ordering of events has to be
-             ;; (.close writer)
-             ;; (.commit tx)
-             ;; (.close tx)
+             iter ^java.util.Iterator (.iterator ^java.lang.Iterable features) 
 
              ^ReferencedEnvelope layer-extent
              (with-open [tx (DefaultTransaction.)]
@@ -293,11 +286,27 @@
                      (with-open [writer (.writer geopackage feature-entry true nil tx)]
                        (loop [^ReferencedEnvelope extent nil]
                          (if (.hasNext iter)
-                           (let [feature (.next iter)]
-                             (.setAttributes
-                              ^JDBCFeatureReader$ResultSetFeature (.next writer)
-                              ^java.util.List (emit-feature feature))
+                           (let [feature (.next iter)
+                                 values (emit-feature feature)
+                                 writable-feature (.next writer)]
+                             (println writable-feature (class writable-feature))
+                             ;; this is here because there is a problem with underlying geotools 
+                             ;; whereby the fid is pulled in from userData (an empty HashMap) - see:
+                             ;; https://github.com/geotools/geotools/blob/dbc12274458ccfb1963240e86782f0ed976cae29/modules/library/jdbc/src/main/java/org/geotools/jdbc/JDBCInsertFeatureWriter.java#L130
+                             ;; a non-nil string placeholder value is needed to complete the transaction else 
+                             ;; there will be a NullPointerException
+                             (let [user-data (.getUserData writable-feature)]
+                               (.put user-data
+                                     "fid"
+                                     ""))
+
+                             (dotimes [i (count values)]
+                               (.setAttribute writable-feature i (nth values i)))
                              (.write writer)
+                             ;;  (.setAttributes
+                             ;;   ^JDBCFeatureReader$ResultSetFeature (.next writer)
+                             ;;   ^java.util.List (emit-feature feature))
+                             ;;  (.write writer)
                              (recur
                               (let [^Geometry geom (get feature geom-field)
                                     ^Envelope feature-env
@@ -312,11 +321,12 @@
 
                                   :else (doto extent (.expandToInclude feature-env))))))
                            extent)))] ;; return extent
-
+                 (println "333")
                  (.commit tx)
                  extent))] ;; and return extent
 
-         (set-layer-extent! file table-name layer-extent))))
+         (set-layer-extent! file table-name layer-extent)
+         )))
    nil))
 
 
@@ -381,7 +391,7 @@
 
 (comment
   (def test-schema
-    [[:geom {:type org.locationtech.jts.geom.Point :srid 4326 :accessor :geom}]
+    [[:geom {:type Geometries/POINT :srid 4326 :accessor :geom}]
      [:name {:type java.lang.String :accessor :name}]
      [:population {:type java.lang.Integer :accessor :population}]
      [:area {:type java.lang.Double :accessor :area}]
@@ -401,7 +411,8 @@
       :name "Paris"
       :population 2148000
       :area 105.4
-      :capital? true}
+      :capital? true
+      :fid 1}
 
      {:geom (.createPoint (org.locationtech.jts.geom.GeometryFactory.)
                           (org.locationtech.jts.geom.Coordinate. 13.4050 52.5200)) ; Berlin
@@ -410,4 +421,36 @@
       :area 891.8
       :capital? true}])
 
-  (write-gpkg "test4.gpkg" "cities" test-features test-schema 4326))
+  
+  (def test-schema
+    [[:geom {:type org.locationtech.jts.geom.Point :srid 4326 :accessor :geom}]
+     [:name {:type java.lang.String :accessor :name}]
+     [:population {:type java.lang.Integer :accessor :population}]
+     [:area {:type java.lang.Double :accessor :area}]
+     [:capital? {:type java.lang.Boolean :accessor :capital?}]])
+  
+  (def test-features
+    [{:geom (doto (.createPoint (org.locationtech.jts.geom.GeometryFactory.)
+                                (org.locationtech.jts.geom.Coordinate. 0.1278 51.5074))
+              (.setSRID 4326))
+      :name "London"
+      :population 9000000
+      :area 1572.0
+      :capital? true}
+  
+     {:geom (doto (.createPoint (org.locationtech.jts.geom.GeometryFactory.)
+                                (org.locationtech.jts.geom.Coordinate. 2.3522 48.8566))
+              (.setSRID 4326))
+      :name "Paris"
+      :population 2148000
+      :area 105.4
+      :capital? true}
+  
+     {:geom (doto (.createPoint (org.locationtech.jts.geom.GeometryFactory.)
+                                (org.locationtech.jts.geom.Coordinate. 13.4050 52.5200))
+              (.setSRID 4326))
+      :name "Berlin"
+      :population 3769000
+      :area 891.8
+      :capital? true}])
+  (write "test4.gpkg" "cities" test-features :keys test-schema))
