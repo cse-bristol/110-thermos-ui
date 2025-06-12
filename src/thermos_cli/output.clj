@@ -290,76 +290,23 @@
       *id-field*   (conj (get c *id-field*)))))
 
 
+;; I initially put the 
 (defmethod save-state [:default :gpkg]
   [instance path]
   (let [candidates (vals (::document/candidates instance))
-        mode (document/mode instance)]
-    ;; this could be done more effecitvely by using condition branch
-    (let [path-features 
-          (for [c (filter candidate/is-path? candidates) 
-                :when (candidate/in-solution? c)] (let [geom       ^Geometry (::candidate/geometry c)
-                                                                      centroid   (jts/centroid geom)
-                                                                      lon        (ndp (.getX centroid) 6)
-                                                                      lat        (ndp (.getY centroid) 6)
-                                                                      length     (ndp (::path/length c))
-                                                                      diameter   (ndp (::solution/diameter-mm c))
-                                                                      kw         (ndp (::solution/capacity-kw c) 0)
-                                                                      civils     (document/civil-cost-name instance (::path/civil-cost-id c))
-                                                                      capex      (ndp (:principal (::solution/pipe-capex c)))
-                                                                      losses     (ndp (::solution/losses-kwh c))
-                                                                      diversity  (ndp (::solution/diversity c) 3)]
+        mode (document/mode instance)
+        
+        path-features
+        (for [c (filter candidate/is-path? candidates)
+              :when (candidate/in-solution? c)]
+          (path-row instance c))
 
-                                                                  (cond->
-                                                                   [lon lat length diameter kw civils
-                                                                    capex losses diversity]
-                                                                    *problem-id* (conj *problem-id*)
-                                                                    *id-field*   (conj (get c *id-field*)))))]
-      (gpkg/write path "pipes" path-features))
-    (let [building-features (for [c (filter candidate/is-building? candidates)]
-                              (let [geom       ^Geometry (::candidate/geometry c)
-                                    centroid   (jts/centroid geom)
-                                    lon        (ndp (.getX centroid) 6)
-                                    lat        (ndp (.getY centroid) 6)
-                                    system     (candidate/solution-description c)
+        building-features
+        (for [c (filter candidate/is-building? candidates)]
+          (building-row c mode))]
 
-                                    kwh-orig   (candidate/annual-demand c mode)
-                                    kwh        (candidate/solved-annual-demand c mode)
-                                    insulation (ndp (- kwh-orig kwh) 0)
-
-                                    kwh        (ndp kwh 0)
-
-                                    kwp        (ndp (candidate/solved-peak-demand c mode) 0)
-
-                                    syscapex   (ndp ;; capex of heatex or individual system
-                                                (+ (-> c ::solution/alternative :capex (:principal 0))
-                                                   (-> c ::solution/connection-capex   (:principal 0)))
-                                                0)
-                                    sysopex    (ndp (-> c ::solution/alternative :opex (:annual 0)) 0)
-                                    sysfuel   (ndp (-> c ::solution/alternative :heat-cost (:annual 0)) 0)
-                                    revenue (ndp (-> c ::solution/heat-revenue (:annual 0)) 0)
-
-                                    ccount  (::demand/connection-count c 1)
-                                    skwp    (ndp (-> c (::solution/capacity-kw 0)) 0)
-                                    scapex  (ndp (-> c ::solution/supply-capex (:principal 0)) 0)
-                                    sopex   (ndp (-> c ::solution/supply-opex (:annual 0)) 0)
-                                    sheat   (ndp (-> c ::solution/heat-cost (:annual 0)) 0)
-                                    icapex  (ndp (reduce + 0 (keep :principal (::solution/insulation c))) 0)
-                                    iarea   (ndp (reduce + 0 (keep :area (::solution/insulation c))) 0)]
-
-
-                                (cond-> [lon lat system
-                                         kwh kwp ccount
-
-                                         insulation iarea icapex
-                                         syscapex sysfuel sysopex
-
-                                         revenue
-                                         skwp scapex sheat sopex]
-
-
-                                  *problem-id* (conj *problem-id*)
-                                  *id-field*   (conj (get c *id-field*)))))]
-      (gpkg/write path "buildings" building-features))))
+    (gpkg/write path "buildings" building-features)
+    (gpkg/write path "pipes" path-features)))
 
 
 
