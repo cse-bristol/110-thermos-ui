@@ -337,8 +337,4 @@
     (gpkg/write path "buildings" building-features :keys building-spec)
     (gpkg/write path "pipes" pipe-features :keys pipe-spec)))
 
-
-
-
-(comment)
   
