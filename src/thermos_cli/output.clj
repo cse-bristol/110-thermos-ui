@@ -296,7 +296,7 @@
   (let [candidates (vals (::document/candidates instance))
         mode (document/mode instance)
         
-        path-features
+        pipe-features
         (for [c (filter candidate/is-path? candidates)
               :when (candidate/in-solution? c)]
           (path-row instance c))
@@ -306,7 +306,7 @@
           (building-row c mode))]
 
     (gpkg/write path "buildings" building-features)
-    (gpkg/write path "pipes" path-features)))
+    (gpkg/write path "pipes" pipe-features)))
 
 
 
