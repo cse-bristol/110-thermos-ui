@@ -32,15 +32,18 @@
                  (keyword (file-extension (.substring name 0 (- (.length name) 3))))
                  (keyword extension))
 
+        format
+        (case format
+          (:json :gjson :geojson) :json
+          format)
+        ;; changed this so by default :gpkg will handle both pipes and default
         content (cond
                   (re-find #"pipe"    name) :pipes
                   (re-find #"summary" name) :summary
-                  :else :default)
+                  (= format :gpkg) :full
+                  :else :default)]
 
-        format ;; some shorthands for format?
-        (case format
-          (:json :gjson :geojson) :json
-          format)]
+
 
     [content format]))
 
@@ -222,22 +225,7 @@
      w)))
 
 
-;; imnplement geopackage write function here
-;; refer to examples in https://github.com/cse-bristol/clj-geometry/blob/master/src/geometry/gpkg.clj
-;; steps
-;; 1. Function to create gpkg
-;; 2. Iterate rows -
-
-;; I think we can assume we would likely be writing to a new GPKG for now will use GeoPackage() 
-;; over GeoPackage​(File file, SQLiteConfig config, Map<String,​Object> storeParams)
-;; this was due to error relating to Casting Issue with SQLiteConfig
-
-;; to start with will use schema specified in save-state [:summary :json]
-
-;; this method will be dispatched to by the multimethod takes the input, 
-;; assume there would need to be ones for :pipes, :default too
-
-(defn- path-row [instance c]
+(defn- pipe-row [instance c]
   (let [geom ^Geometry (::candidate/geometry c)
         centroid   (jts/centroid geom)
         lon        (ndp (.getX centroid) 6)
@@ -290,16 +278,17 @@
       *id-field*   (conj (get c *id-field*)))))
 
 
-;; I initially put the 
-(defmethod save-state [:default :gpkg]
+;; I initially put the buildings and pipe variables in with the save-state
+;; it was a bit unwieldy so took them out as separate functions
+(defmethod save-state [:full :gpkg]
   [instance path]
   (let [candidates (vals (::document/candidates instance))
         mode (document/mode instance)
-        
+
         pipe-features
         (for [c (filter candidate/is-path? candidates)
               :when (candidate/in-solution? c)]
-          (path-row instance c))
+          (pipe-row instance c))
 
         building-features
         (for [c (filter candidate/is-building? candidates)]
@@ -311,16 +300,5 @@
 
 
 
-(comment
-  ;; RCF: Test for save-state with dummy GPKG path  
-  (def example-clj-spec
-    [["geometry" {:type Geometries/LINESTRING :srid 4326}]
-     ["name"     {:type "java.lang.String"}]
-     ["area"     {:type "java.lang.Double"}]])
-
-  (def dummy-instance "test")
-  (def dummy-path "test.gpkg")
-  (save-state dummy-instance dummy-path)
-
-  (output-type dummy-instance dummy-path))
+(comment)
   
