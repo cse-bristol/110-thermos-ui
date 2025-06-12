@@ -700,7 +700,7 @@ The different options are those supplied after --retry, so mostly you can use th
   (mount/start-with {#'thermos-backend.config/config {:has-gurobi (:use-gurobi options)}})
   (let [output-paths         (:output options)
         ;; summary-output-paths (:summary-output options)
-        
+
         geodata           (when (seq (:map options))
                             (geoio/read-from-multiple (:map options)
                                                       :key-transform identity))
@@ -718,19 +718,18 @@ The different options are those supplied after --retry, so mostly you can use th
                                           (log/info
                                            "Ignored" (- (count features) (count out))
                                            "paths of" (count features) "geoms")
-                                          out)
-                                        ))))
-        
+                                          out)))))
+
         [paths buildings] (noder/node-connect geodata options)
-        
+
         ;; use this geoio/crs here
         buildings         (when (seq buildings)
                             (-> {::geoio/features buildings
                                  ::geoio/crs (::geoio/crs geodata)}
 
-                                (generate-demands    options)
-
-                                ))
+                                (generate-demands    options)))
+        
+        crs (::geoio/crs geodata)
         
         instance
         (apply merge
@@ -742,7 +741,7 @@ The different options are those supplied after --retry, so mostly you can use th
                    (when (:import/errors in)
                      (throw (ex-info "Spreadsheet not valid" in)))
                    in))
-               
+
                (when-let [base
                           (seq
                            (filter
@@ -752,14 +751,14 @@ The different options are those supplied after --retry, so mostly you can use th
                                e)
                             (:base options)))]
                  (doall (map read-edn (reverse base)))))
-        
+
         saying            (fn [x s] (log/info s) x)
 
         instance          (cond-> instance
                             (or (seq paths) (seq buildings))
                             (-> (saying "Replace geometry")
                                 (assoc  ::document/candidates   (make-candidates paths buildings)))
-                            
+
                             (seq (:tariffs options))
                             (-> (saying "Replace tariffs")
                                 (assoc ::document/tariffs (assoc-by (:tariffs options) ::tariff/id))
@@ -775,13 +774,13 @@ The different options are those supplied after --retry, so mostly you can use th
                             (-> (saying "Replace insulation")
                                 (assoc  ::document/insulation   (assoc-by (:insulation options) ::measure/id))
                                 (document/map-buildings (let [insulation (:insulation options)] #(add-insulation % insulation))))
-                            
+
                             (seq (:alternatives options))
                             (-> (saying "Replace alts")
                                 (assoc  ::document/alternatives (assoc-by (:alternatives options) ::supply/id))
                                 (document/map-buildings (let [alternatives (:alternatives options)] #(add-alternatives % alternatives))))
 
-                            
+
 
                             (:default-civil-cost options)
                             (-> (saying "Set default civil cost")
@@ -790,7 +789,7 @@ The different options are those supplied after --retry, so mostly you can use th
                             (:connector-civil-cost options)
                             (-> (saying "Set connector civil cost")
                                 (set-connector-civil-cost (:connector-civil-cost options)))
-                            
+
                             (seq (:supply options))
                             (-> (saying "Add supplies")
                                 (select-supply-location options))
@@ -805,7 +804,7 @@ The different options are those supplied after --retry, so mostly you can use th
                             (:mip-gap options)
                             (assoc :thermos-specs.document/mip-gap
                                    (:mip-gap options))
-                            
+
                             (:maximum-supply-sites options)
                             (assoc :thermos-specs.document/maximum-supply-sites
                                    (:maximum-supply-sites options))
@@ -817,7 +816,7 @@ The different options are those supplied after --retry, so mostly you can use th
                             (:param-gap options)
                             (assoc :thermos-specs.document/param-gap
                                    (:param-gap options))
-                            
+
                             (:require-all options)
                             (-> (saying "Requiring all buildings")
                                 (require-all-buildings))
@@ -830,14 +829,14 @@ The different options are those supplied after --retry, so mostly you can use th
                             (-> (saying "Infer peak demand field")
                                 (infer-peak-demand (:infer-peak-from-diameter options)
                                                    (:infer-peak-at options 0.5)))
-                            
+
                             (:use-gurobi options)
-                            (assoc ::document/solver 
+                            (assoc ::document/solver
                                    :gurobi)
-                            
+
                             (:solve options)
                             (-> (saying "Solve")
-                                (as-> x 
+                                (as-> x
                                       (binding [lp.scip/*default-solver-arguments*
                                                 (cond-> lp.scip/*default-solver-arguments*
                                                   (:scip-emphasis options)
@@ -845,19 +844,19 @@ The different options are those supplied after --retry, so mostly you can use th
 
                                                   (:scip-heuristics-emphasis options)
                                                   (assoc :heuristics-emphasis (:scip-heuristics-emphasis options))
-                                                  
+
                                                   (:scip-presolving-emphasis options)
                                                   (assoc :presolving-emphasis (:scip-presolving-emphasis options)))]
                                         (interop/solve x)))))]
-    
-    
+
+
     (binding [output/*problem-id* (:problem-name options)
               output/*id-field*   (:id-field options)]
       (doseq [output-path output-paths]
         (log/info "Saving state to" output-path)
         ;; add crs as an argument here?
-        (output/save-state instance output-path)))
-    
+        (output/save-state instance output-path crs)))
+
     (mount/stop)
 
     (cond
@@ -869,7 +868,7 @@ The different options are those supplied after --retry, so mostly you can use th
       ;; the status:
       (= :time-limit (::solution/state instance))
       :timeout
-      
+
       :else :unknown)))
 
 (defn- generate-ids [things id]

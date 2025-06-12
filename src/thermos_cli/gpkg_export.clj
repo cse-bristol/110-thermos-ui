@@ -361,4 +361,8 @@
       :population 3769000
       :area 891.8
       :capital? true}])
-  (write "test4.gpkg" "cities" test-features :keys test-schema))
+  (write "test4.gpkg" "cities" test-features :keys test-schema)
+  
+  (def crs (CRS/decode (str "EPSG:" 27700)))
+  (def srid (CRS/lookupEpsgCode crs true)))
+  )
