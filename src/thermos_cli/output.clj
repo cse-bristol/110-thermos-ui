@@ -39,9 +39,9 @@
            format)
          ;; changed this so by default :gpkg will handle both pipes and default
          content (cond
+                   (= format :gpkg) :full
                    (re-find #"pipe"    name) :pipes
                    (re-find #"summary" name) :summary
-                   (= format :gpkg) :full
                    :else :default)]
 
      [content format]))
