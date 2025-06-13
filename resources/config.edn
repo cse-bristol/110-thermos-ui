@@ -39,5 +39,7 @@
  :default-user-auth :basic
  :contact-email "info@thermos-project.eu"
 
- :has-gurobi false
+ :has-gurobi true
+ :max-nodes 1000000
+ :max-edges 1000000
  }
