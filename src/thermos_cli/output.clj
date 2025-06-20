@@ -223,96 +223,42 @@
            (::candidate/geometry c))))}
       w)))
 
+ (defn- pipe-schema [srid instance]
+   [["geom" {:type Geometries/LINESTRING :srid srid :accessor ::candidate/geometry}]
+    ["requirement" {:type :string :accessor (comp name ::candidate/inclusion)}]
+    ["length"    {:type java.lang.Double :accessor ::path/length}]
+    ["diameter"  {:type java.lang.Double :accessor ::solution/diameter-mm}]
+    ["kw"        {:type java.lang.Double :accessor ::solution/capacity-kw}]
+    ["civils"    {:type java.lang.String :accessor #(document/civil-cost-name instance (::path/civil-cost-id %))}]
+    ["capex"     {:type java.lang.Double :accessor #(:principal (::solution/pipe-capex %))}]
+    ["losses"    {:type java.lang.Double :accessor ::solution/losses-kwh}]
+    ["diversity" {:type java.lang.Double :accessor ::solution/diversity}]
+    ["problem-id" {:type java.lang.Integer :accessor (constantly *problem-id*)}]
+    ["id-field" {:type java.lang.String :accessor #(get % *id-field*)}]])
 
- (defn- pipe-row [instance c]
-   (let [geom       ^Geometry (::candidate/geometry c)
-         centroid   (jts/centroid geom)
-         lon        (ndp (.getX centroid) 6)
-         lat        (ndp (.getY centroid) 6)
-         length     (ndp (::path/length c))
-         diameter   (ndp (::solution/diameter-mm c))
-         kw         (ndp (::solution/capacity-kw c) 0)
-         civils     (document/civil-cost-name instance (::path/civil-cost-id c))
-         capex      (ndp (:principal (::solution/pipe-capex c)))
-         losses     (ndp (::solution/losses-kwh c))
-         diversity  (ndp (::solution/diversity c) 3)]
-     (cond->
-      [lon lat length diameter kw civils
-       capex losses diversity]
-       *problem-id* (conj *problem-id*)
-       *id-field*   (conj (get c *id-field*)))))
-
- (defn- pipe-schema [srid]
-   [[:geom {:type Geometries/LINESTRING :srid srid :accessor :geom}]
-    [:lon       {:type java.lang.Double :accessor :lon}]
-    [:lat       {:type java.lang.Double :accessor :lat}]
-    [:length    {:type java.lang.Double :accessor :length}]
-    [:diameter  {:type java.lang.Double :accessor :diameter}]
-    [:kw        {:type java.lang.Double :accessor :kw}]
-    [:civils    {:type java.lang.String :accessor :civils}]
-    [:capex     {:type java.lang.Double :accessor :capex}]
-    [:losses    {:type java.lang.Double :accessor :losses}]
-    [:diversity {:type java.lang.Double :accessor :diversity}]
-    [:problem-id {:type java.lang.Integer :accessor :problem-id}]
-    [:id-field {:type java.lang.String :accessor :id-field}]])
-
-
- (defn- building-row [c mode]
-   (let [geom       ^Geometry (::candidate/geometry c)
-         centroid   (jts/centroid geom)
-         lon        (ndp (.getX centroid) 6)
-         lat        (ndp (.getY centroid) 6)
-         system     (candidate/solution-description c)
-         kwh-orig   (candidate/annual-demand c mode)
-         kwh        (candidate/solved-annual-demand c mode)
-         insulation (ndp (- kwh-orig kwh) 0)
-         kwh        (ndp kwh 0)
-         kwp        (ndp (candidate/solved-peak-demand c mode) 0)
-         syscapex   (ndp ;; capex of heatex or individual system
-                     (+ (-> c ::solution/alternative :capex (:principal 0))
-                        (-> c ::solution/connection-capex   (:principal 0)))
-                     0)
-         sysopex    (ndp (-> c ::solution/alternative :opex (:annual 0)) 0)
-         sysfuel   (ndp (-> c ::solution/alternative :heat-cost (:annual 0)) 0)
-         revenue (ndp (-> c ::solution/heat-revenue (:annual 0)) 0)
-         ccount  (::demand/connection-count c 1)
-         skwp    (ndp (-> c (::solution/capacity-kw 0)) 0)
-         scapex  (ndp (-> c ::solution/supply-capex (:principal 0)) 0)
-         sopex   (ndp (-> c ::solution/supply-opex (:annual 0)) 0)
-         sheat   (ndp (-> c ::solution/heat-cost (:annual 0)) 0)
-         icapex  (ndp (reduce + 0 (keep :principal (::solution/insulation c))) 0)
-         iarea   (ndp (reduce + 0 (keep :area (::solution/insulation c))) 0)]
-     (cond-> [geom lon lat system
-              kwh kwp ccount
-              insulation iarea icapex
-              syscapex sysfuel sysopex
-              revenue skwp scapex
-              sheat sopex]
-       *problem-id* (conj *problem-id*)
-       *id-field*   (conj (get c *id-field*)))))
-
- (defn- building-schema [srid]
-   [[:geom {:type Geometries/POLYGON :srid srid :accessor :geom}]
-    [:lon {:type java.lang.Double :accessor :lon}]
-    [:lat {:type java.lang.Double :accessor :lat}]
-    [:system {:type java.lang.String :accessor :system}]
-    [:kwh {:type java.lang.Double :accessor :kwh}]
-    [:kwp {:type java.lang.Double :accessor :kwp}]
-    [:count {:type java.lang.Integer :accessor :count}]
-    [:insulation {:type java.lang.Double :accessor :insulation}]
-    [:iarea {:type java.lang.Double :accessor :iarea}]
-    [:icapex {:type java.lang.Double :accessor :icapex}]
-    [:syscapex {:type java.lang.Double :accessor :syscapex}]
-    [:sysfuel {:type java.lang.Double :accessor :sysfuel}]
-    [:sysopex {:type java.lang.Double :accessor :sysopex}]
-    [:revenue {:type java.lang.Double :accessor :revenue}]
-    [:skwp {:type java.lang.Double :accessor :skwp}]
-    [:scapex {:type java.lang.Double :accessor :scapex}]
-    [:sheat {:type java.lang.Double :accessor :sheat}]
-    [:sopex {:type java.lang.Double :accessor :sopex}]
-    [:problem-id {:type java.lang.Integer :accessor :problem-id}]
-    [:id-field {:type java.lang.String :accessor :id-field}]])
-
+ (defn- building-schema [srid mode]
+   [["geom" {:type Geometries/POLYGON :srid srid :accessor ::candidate/geometry}]
+    ["requirement" {:type :string :accessor (comp name ::candidate/inclusion)}]
+    ["system" {:type :string :accessor candidate/solution-description}]
+    ["kwh" {:type java.lang.Double :accessor #(candidate/solved-annual-demand % mode)}]
+    ["kwp" {:type java.lang.Double :accessor #(candidate/solved-peak-demand % mode)}]
+    ["count" {:type java.lang.Integer :accessor #(::demand/connection-count % 1)}]
+    ["insulation" {:type java.lang.Double :accessor #(- (candidate/annual-demand % mode)
+                                                        (candidate/solved-annual-demand % mode))}]
+    ["iarea" {:type java.lang.Double :accessor #(reduce + 0 (keep :area (::solution/insulation %)))}]
+    ["icapex" {:type java.lang.Double :accessor #(reduce + 0 (keep :principal (::solution/insulation %)))}]
+    ["syscapex" {:type java.lang.Double :accessor #(+ (-> % ::solution/alternative :capex (:principal 0))
+                                                      (-> % ::solution/connection-capex   (:principal 0)))}]
+    ["sysfuel" {:type java.lang.Double :accessor #(-> % ::solution/alternative :heat-cost (:annual 0))}]
+    ["sysopex" {:type java.lang.Double :accessor #(-> % ::solution/alternative :opex (:annual 0))}]
+    ["revenue" {:type java.lang.Double :accessor #(-> % ::solution/heat-revenue (:annual 0))}]
+    ["skwp" {:type java.lang.Double :accessor #(-> % (::solution/capacity-kw 0))}]
+    ["scapex" {:type java.lang.Double :accessor #(-> % ::solution/supply-capex (:principal 0))}]
+    ["sheat" {:type java.lang.Double :accessor #(-> % ::solution/heat-cost (:annual 0))}]
+    ["sopex" {:type java.lang.Double :accessor #(-> % ::solution/supply-opex (:annual 0))}]
+    ["problem-id" {:type java.lang.Integer :accessor (constantly *problem-id*)}]
+    ["id-field" {:type java.lang.String :accessor #(get % *id-field*)}]
+    ])
 
 ;; I initially put the buildings and pipe variables in with the save-state
 ;; it was a bit unwieldy so took them out as separate functions
@@ -321,20 +267,11 @@
   (let [candidates (vals (::document/candidates instance))
         mode (document/mode instance)
         
-        pipe-features
-        (for [c (filter candidate/is-path? candidates)
-              :when (candidate/in-solution? c)]
-          (pipe-row instance c))
+        pipe-features (filter candidate/is-path? candidates)
+        building-features (filter candidate/is-building? candidates)
 
-        building-features
-        (for [c (filter candidate/is-building? candidates)]
-          (building-row c mode))
+        srid (CRS/lookupEpsgCode (CRS/decode crs true) true)]
 
-        srid (CRS/lookupEpsgCode (CRS/decode crs true) true)
-        pipe-spec (pipe-schema srid)
-        building-spec (building-schema srid)]
-
-    (gpkg/write path "buildings" building-features :keys building-spec)
-    (gpkg/write path "pipes" pipe-features :keys pipe-spec)))
-
-  
+    (gpkg/write path "buildings" building-features :schema (building-schema srid mode))
+    (gpkg/write path "pipes" pipe-features :schema (pipe-schema srid instance))
+    ))

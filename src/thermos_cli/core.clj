@@ -131,6 +131,7 @@ Use in conjunction with --transfer-field to get diameter off a pipe."]
 
    [nil "--count-field FIELD" "Connection count. Otherwise we assume 1."]
    [nil "--require-all" "Require all buildings be connected to network."]
+   [nil "--require-field FIELD" "Set the requirement for candidates by this field. Field can say: true, required | false, forbidden | nil, blank, optional | individual. default optional."]
    [nil "--transfer-field FIELD"
     "Set FIELD on buildings to the value of FIELD on the road the connect to."]
    [nil "--group-field FIELD" "Use FIELD to group buildings connection decisions together."]
@@ -645,6 +646,20 @@ The different options are those supplied after --retry, so mostly you can use th
    instance
    things-to-set))
 
+(defn- require-by-field [instance field]
+  (document/map-candidates
+   instance
+   (fn [candidate]
+     (let [value (get candidate field)]
+       (assoc candidate ::candidate/inclusion
+              (case (string/lower-case (string/trim (str (or value ""))))
+                ("" "optional" "nil" "null") :optional
+                ("forbidden" "false") :forbidden
+                ("required" "true") :required
+                ("individual") :individual
+
+                :optional))))))
+
 (defn- require-all-buildings [instance]
   (document/map-buildings
    instance
@@ -825,6 +840,10 @@ The different options are those supplied after --retry, so mostly you can use th
                             (assoc :thermos-specs.document/param-gap
                                    (:param-gap options))
 
+                            (:require-field options)
+                            (-> (saying "Requiring by field")
+                                (require-by-field (:require-field options)))
+                            
                             (:require-all options)
                             (-> (saying "Requiring all buildings")
                                 (require-all-buildings))
@@ -953,7 +972,8 @@ The different options are those supplied after --retry, so mostly you can use th
             (log/info "No solution, retry with next options")
             (recur optionses)))))
 
-    (shutdown-agents)))
+    ;; (shutdown-agents)
+    ))
 
 (comment
   (-main
@@ -967,15 +987,14 @@ The different options are those supplied after --retry, so mostly you can use th
   (binding [lp.io/*keep-temp-dir* true]
    
    (-main
-    "-m"               "/home/hinton/p/738-cddp/cluster-runner/c_500_5=306.gpkg"
-    "--spreadsheet"    "/home/hinton/p/738-cddp/cluster-runner/cddp-thermos-parameters-current.xlsx"
-    "--supply"         "/home/hinton/p/738-cddp/cluster-runner/5p.edn"
-    "--demand-field" "annual_demand" "--peak-field" "peak_demand" "--count-field" "connection_count"
-    "--ignore-paths" "hierarchy=path"
-    "--default-civil-cost" "soft"
-    "-o" "/home/hinton/tmp/blah-pipes.tsv"
-    "-o" "/home/hinton/tmp/blah.json"
-    ) 
+    "-m"               "/home/hinton/dl/optimiser-inputs-1ef5dd8d-64dc-5c1a-9444-09dcce96bd79-275.gpkg"
+    "--supply"         "/home/hinton/p/thermos/110-thermos-ui/supply.edn"
+    "--top-n-supplies" "1"
+    "--fit-supply-capacity"
+    "--solve"
+
+    "-o" "/home/hinton/out.gpkg"
+    )
    )
 
   

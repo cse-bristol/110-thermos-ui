@@ -178,11 +178,10 @@
 (defn ->feature-entry [table-name spec srid]
   (let [geom-col (spec-geom-field spec)]
     (doto (FeatureEntry.)
-      (.setTableName table-name)
-      (.setGeometryColumn (first geom-col))
+      (.setTableName (name table-name))
+      (.setGeometryColumn (name (first geom-col)))
       (.setGeometryType (->geotools-type (:type (second geom-col))))
       (.setBounds (ReferencedEnvelope. 0 0 0 0 (CRS/decode (str "EPSG:" srid)))))))
-
 
 (defn- set-layer-extent!
   "Update the extent (if not nil) for `table-name` in the geopackage at `file`
@@ -207,9 +206,9 @@
   (DataUtilities/createType
    table-name
    (string/join ","
-                (for [[name {:keys [type srid]}] spec]
+                (for [[field-name {:keys [type srid]}] spec]
                   (let [type (->geotools-type type)]
-                    (str name ":" type (when srid (str ":srid=" srid))))))))
+                    (str (name field-name) ":" type (when srid (str ":srid=" srid))))))))
 
 
 (defn write
@@ -242,8 +241,7 @@
            crs (CRS/decode (str "EPSG:" srid))
            emit-feature (let [getters
                               (vec (for [[k v] spec]
-                                     (or (:accessor v)
-                                         #(get % k))))]
+                                     (or (:accessor v) #(get % k))))]
                           (fn [feature]
                             (mapv #(% feature) getters)))
            feature-entry ^FeatureEntry (->feature-entry table-name spec srid)]
