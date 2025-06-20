@@ -697,7 +697,15 @@ The different options are those supplied after --retry, so mostly you can use th
       (->> (S/setval [::document/candidates S/MAP-VALS (S/pred :connector) ::path/civil-cost-id] cost-id)))))
 
 (defn --main [options]
-  (mount/start-with {#'thermos-backend.config/config {:has-gurobi (:use-gurobi options)}})
+  (mount/start-with {#'thermos-backend.config/config
+                     {:has-gurobi (:use-gurobi options)
+                      :max-node-count (if (:use-gurobi options)
+                                        Long/MAX_VALUE
+                                        10000)
+                      :max-edge-count (if (:use-gurobi options)
+                                        Long/MAX_VALUE
+                                        20000)
+                      }})
   (let [output-paths         (:output options)
         ;; summary-output-paths (:summary-output options)
         
