@@ -94,6 +94,28 @@
         [:td
          "¤/kWp"]
         ]
+       [:tr {:key "capex per connection"}
+        [:td "Capex per Connection"]
+        [:td
+         [inputs/number2
+          {:style {:max-width :6em}
+           :value (::supply/capex-per-connection alternative 0)
+           :on-change #(swap! *alternatives assoc-in
+                              [id ::supply/capex-per-connection] %)}]]
+        [:td
+         "¤/n"]
+        ]
+       [:tr {:key "opex per connection"}
+        [:td "Opex per Connection"]
+        [:td
+         [inputs/number2
+          {:style {:max-width :6em}
+           :value (::supply/opex-per-connection alternative 0)
+           :on-change #(swap! *alternatives assoc-in
+                              [id ::supply/opex-per-connection] %)}]]
+        [:td
+         "¤/n"]
+        ]
        [:tr
         [:td [:span.has-tt
               {:title "If provided, the peak supplied by this system will be calculated as this multiple of the average heat demand in the year. This models systems with hot water tanks, like heat pumps - a value of 6.5 is reasonable."}
