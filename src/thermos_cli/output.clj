@@ -330,7 +330,7 @@
         (for [c (filter candidate/is-building? candidates)]
           (building-row c mode))
 
-        srid (CRS/lookupEpsgCode crs true)
+        srid (CRS/lookupEpsgCode (CRS/decode crs true) true)
         pipe-spec (pipe-schema srid)
         building-spec (building-schema srid)]
 
