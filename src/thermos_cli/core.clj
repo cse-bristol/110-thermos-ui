@@ -951,7 +951,9 @@ The different options are those supplied after --retry, so mostly you can use th
               ]
           (when (and (= outcome :timeout) (seq optionses))
             (log/info "No solution, retry with next options")
-            (recur optionses)))))))
+            (recur optionses)))))
+
+    (shutdown-agents)))
 
 (comment
   (-main
