@@ -150,8 +150,8 @@ Use in conjunction with --transfer-field to get diameter off a pipe."]
    [nil "--supply FILE*"
     "A file containing supply parameters for supply point. See also --supply-capex etc"]
 
-   [nil "--use-gorubi" 
-    "Use Gorubi optimiser as problem solver (Default is SCIP)" 
+   [nil "--use-gurobi" 
+    "Use gurobi optimiser as problem solver (Default is SCIP)" 
     :default false]
    
    [nil "--supply-capex C"
