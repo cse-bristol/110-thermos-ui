@@ -25,7 +25,7 @@
 
  (defn- filename [x] (.getName (io/as-file x)))
 
- (defn- output-type [instance output-path]
+ (defn- output-type [_instance output-path _crs]
    (let [name      (filename output-path)
          extension (file-extension output-path)
 
