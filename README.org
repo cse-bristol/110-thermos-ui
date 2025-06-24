@@ -49,7 +49,7 @@ Builds using scripts in build-src.
 - For production
   
   #+BEGIN_EXAMPLE sh
-  clojure -Adev:server:client jar
+  clojure -Adev:server:client pkg
   #+END_EXAMPLE
 
   Should spit out a jar in target/
