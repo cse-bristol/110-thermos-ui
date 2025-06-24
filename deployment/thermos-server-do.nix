@@ -22,7 +22,7 @@ in
   
   ###
   # Below line needs to be commented out when first creating DO instance
-  deployment.keys.smtp.transient = false;
+  #deployment.keys.smtp.transient = false;
   ###
 
   deployment.keys.spaces-access-key.keyFile = ./spaces-access-key;
@@ -32,7 +32,7 @@ in
 
   imports = [ ./thermos.nix ];
   
-  networking.firewall.allowedTCPPorts = [ 80 ];
+  networking.firewall.allowedTCPPorts = [ 80 443 ];
 
   nixpkgs.config.allowUnfree = true;
   
@@ -51,44 +51,56 @@ in
   #services.thermos.ui.baseUrl = "https://tool.thermos-project.eu";
   services.thermos.ui.baseUrl = "https://dr.thermos.cse.org.uk";
   
+  security.acme = {
+    email = "robots@cse.org.uk";
+    acceptTerms = true;
+  };
+
   services.nginx = {
     enable = true;
     recommendedOptimisation = true;
     recommendedTlsSettings = true;
     recommendedGzipSettings = true;
     recommendedProxySettings = true;
-    virtualHosts = {};
+
+    virtualHosts."xx.xx.xx.xx" = {
+    #virtualHosts."dr.thermos.cse.org.uk" = {
+    #virtualHosts."thermos-project.eu" = {
+      forceSSL = true;
+      enableACME = true;
+
+      extraConfig = ''
+        client_max_body_size 1000M;
+        gzip on;
+        gzip_proxied any;
+        gzip_types text/css text/javascript application/json text/plain text/xml application/javascript application/octet-stream;
+        error_page 403 404 500 502 503 504 /error.html;
+      '';
+
+      locations = {
+        "/" = {
+          proxyPass = "http://localhost:${toString config.services.thermos.ui.port}/";
+          extraConfig = ''
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_read_timeout 7200;
+            proxy_send_timeout 7200;
+            send_timeout 7200;
+          '';
+        };
+        "/error.html" = {
+          extraConfig = ''
+            internal;
+          '';
+          root = "${./error}";
+        };
+      };
+    };
+
     appendHttpConfig = ''
       # GZIP more MIME types than in the recommended gzip settings
       gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript application/x-javascript image/svg+xml text/html application/xhtml+xml;
 
       add_header Strict-Transport-Security max-age=15768000;
-
-      server {
-           listen 80 default_server;
-
-           client_max_body_size 1000M;
-
-           gzip on;
-           gzip_proxied any;
-           gzip_types text/css text/javascript application/json text/plain text/xml application/javascript application/octet-stream;
-           error_page 403 404 500 502 503 504 /error.html;
-
-           location /error.html {
-             internal;
-             root ${./error};
-           }
-
-           location / {
-             proxy_pass http://localhost:${toString config.services.thermos.ui.port}/;
-             proxy_set_header Host $host;
-             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-             proxy_read_timeout 7200;
-             proxy_send_timeout 7200;
-             send_timeout 7200;
-           }
-
-      }
     '';
   };
 
