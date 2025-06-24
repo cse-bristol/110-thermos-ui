@@ -22,7 +22,7 @@ in
   
   ###
   # Below line needs to be commented out when first creating DO instance
-  #deployment.keys.smtp.transient = false;
+  deployment.keys.smtp.transient = false;
   ###
 
   deployment.keys.spaces-access-key.keyFile = ./spaces-access-key;
@@ -63,8 +63,8 @@ in
     recommendedGzipSettings = true;
     recommendedProxySettings = true;
 
-    virtualHosts."xx.xx.xx.xx" = {
-    #virtualHosts."dr.thermos.cse.org.uk" = {
+    #virtualHosts."xx.xx.xx.xx" = {
+    virtualHosts."dr.thermos.cse.org.uk" = {
     #virtualHosts."thermos-project.eu" = {
       forceSSL = true;
       enableACME = true;
@@ -105,6 +105,33 @@ in
   };
 
   security.sudo.wheelNeedsPassword = false;
+
+  ###
+  # From "buzz.nix"
+  # Backup postgres to digitalocean S3
+  services.postgresqlBackup.enable = true;
+
+  systemd.services.uploadBackup = {
+      path = [ pkgs.s3cmd ];
+      script = ''
+        s3cmd --access_key=$(cat /var/keys/spaces-access-key) \
+              --secret_key=$(cat /var/keys/spaces-secret-key) \
+              --host ams3.digitaloceanspaces.com \
+              --host-bucket='%(bucket)s.ams3.digitaloceanspaces.com' \
+              --force \
+           put ${config.services.postgresqlBackup.location}/all.sql.gz \
+           s3://thermos-backup/$(cat /var/keys/backup-file-name)-$(date +%a)
+      '';
+      
+      # yuck
+      after = [
+        "postgresqlBackup.service"
+      ];
+      wantedBy = [
+        "postgresqlBackup.service"
+      ];
+  };
+  ###
   
   users.motd = ''
     THERMOS demo server
