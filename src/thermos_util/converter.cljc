@@ -175,7 +175,8 @@
     "FeatureCollection"
     (into [] (mapcat get-features (:features geojson (get geojson "features"))))
     "Feature"
-    [geojson]))
+    [(assoc (get geojson "properties")
+            "id" (get geojson "id"))]))
 
 (defn update-from-geojson-2
   "Copy modified fields from features in the given geojson which have a matching ID

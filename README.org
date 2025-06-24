@@ -58,3 +58,147 @@ Builds using scripts in build-src.
 
 The application has a few config settings, defaults in ~resources/config.edn~.
 These are settable through the environment.
+
+* How to move things between databases
+
+e.g. for a given user
+
+#+begin_src sql
+  CREATE TABLE export_projects AS
+  SELECT * FROM projects WHERE id IN
+  (SELECT project_id FROM users_projects WHERE user_id = 'user@domain.com');
+
+  CREATE TABLE export_maps AS
+  SELECT * FROM maps WHERE project_id IN
+  (SELECT id FROM export_projects);
+
+  CREATE TABLE export_candidates AS
+  SELECT * FROM candidates WHERE map_id IN
+  (SELECT id FROM export_maps);
+
+  CREATE TABLE export_buildings AS
+  SELECT * FROM buildings WHERE candidate_id IN
+  (SELECT id FROM export_candidates);
+
+  CREATE TABLE export_buildings AS
+  SELECT * FROM buildings WHERE candidate_id IN
+  (SELECT id FROM export_candidates);
+
+  CREATE TABLE export_paths AS
+  SELECT * FROM paths WHERE candidate_id IN
+  (SELECT id FROM export_candidates);
+
+  CREATE TABLE export_networks AS
+  SELECT * FROM networks WHERE map_id IN
+  (SELECT id FROM export_maps);
+
+  CREATE TABLE export_map_centres AS
+  SELECT * FROM map_centres where map_id in
+  (select id from export_maps);
+
+  CREATE TABLE export_map_icons AS
+  SELECT * FROM map_icons where map_id in
+  (select id from export_maps);
+#+end_src
+
+dump the created tables
+
+#+begin_src sh
+  pg_dump -U postgres thermos \
+          -t export_projects \
+          -t export_maps \
+          -t export_networks \
+          -t export_candidates \
+          -t export_buildings \
+          -t export_paths \
+          -t export_map_icons \
+          -t export_map_centres | gzip > export.sql.gz
+#+end_src
+
+load them at the other side
+
+#+begin_src sh
+  zcat export.sql.gz | psql -U postgres thermos
+
+  or
+
+  zcat export.sql.gz | nixops ssh -d thermos-live thermos-app psql -U postgres 
+-d thermos # on buzz
+#+end_src
+
+insert them into the database and remap their IDs
+
+#+begin_src sql
+  BEGIN;
+
+  ALTER TABLE projects ADD COLUMN import_id INTEGER;
+  ALTER TABLE maps ADD COLUMN import_id INTEGER;
+  ALTER TABLE networks ADD COLUMN import_id INTEGER;
+  ALTER TABLE candidates ADD COLUMN import_id INTEGER;
+
+  CREATE INDEX ON projects(import_id);
+  CREATE INDEX ON maps(import_id);
+  CREATE INDEX ON networks(import_id);
+  CREATE INDEX ON candidates(import_id);
+
+  CREATE INDEX ON export_projects(id);
+  CREATE INDEX ON export_maps(id);
+  CREATE INDEX ON export_networks(id);
+  CREATE INDEX ON export_candidates(id);
+  CREATE INDEX ON export_buildings(candidate_id);
+  CREATE INDEX ON export_paths(candidate_id);
+
+
+  INSERT INTO projects (name, description, public, import_id)
+  (SELECT name, description, public, id FROM export_projects);
+
+  INSERT INTO maps (project_id, name, parameters, import_completed, estimation_stats, import_id)
+  (SELECT (SELECT id FROM projects WHERE import_id = project_id), name, parameters, import_completed, estimation_stats, id from export_maps);
+
+  INSERT INTO networks (map_id, name, content, created, has_run, user_id, version, meta)
+  (SELECT (SELECT id FROM maps WHERE import_id = map_id), name, content, created, has_run, user_id, version, meta from export_networks);
+
+  INSERT INTO candidates (geoid, orig_id, geometry, map_id, user_fields, import_id)
+  (SELECT geoid, orig_id, geometry, (SELECT id FROM maps WHERE import_id = map_id), user_fields, id from export_candidates);
+
+  INSERT INTO buildings (connection_id, demand_kwh_per_year, demand_kwp, connection_count, candidate_id, peak_source, demand_source, floor_area, height, wall_area, roof_area, ground_area, cooling_kwh_per_year, cooling_kwp, conn_group)
+  (SELECT connection_id, demand_kwh_per_year, demand_kwp, connection_count, candidates.id, peak_source, demand_source, floor_area, height, wall_area, roof_area, ground_area, cooling_kwh_per_year, cooling_kwp, conn_group FROM export_buildings JOIN candidates ON export_buildings.candidate_id = candidates.import_id AND candidates.import_id IS NOT NULL);
+
+  INSERT INTO paths (start_id, end_id, length, candidate_id)
+  (SELECT start_id, end_id, length, candidates.id FROM export_paths JOIN candidates ON export_paths.candidate_id = candidates.import_id AND candidates.import_id IS NOT NULL);
+
+  INSERT INTO map_centres (map_id, envelope)
+  (SELECT (SELECT id FROM maps WHERE import_id = map_id), envelope FROM export_map_centres);
+
+  INSERT INTO map_icons (png, map_id)
+  (SELECT png, (SELECT id FROM maps WHERE import_id = map_id) FROM export_map_icons);
+
+  INSERT INTO users_projects (project_id, user_id, auth)
+  (SELECT id FROM projects WHERE import_id IS NOT NULL, 'xxx', 'admin');
+
+  ALTER TABLE projects DROP COLUMN import_id ;
+  ALTER TABLE maps DROP COLUMN import_id ;
+  ALTER TABLE networks DROP COLUMN import_id ;
+  ALTER TABLE candidates DROP COLUMN import_id ;
+
+  DROP TABLE export_projects ;
+  DROP TABLE export_maps ;
+  DROP TABLE export_networks ;
+  DROP TABLE export_candidates ;
+  DROP TABLE export_buildings ;
+  DROP TABLE export_paths ;
+  DROP TABLE export_map_icons ;
+  DROP TABLE export_map_centre;
+
+  COMMIT;
+#+end_src
+
+The insert from select can be very slow; may want to disable indexes, insert and rebuild
+
+e.g.
+
+#+begin_src sql
+   update pg_index set indisready=[true, false] where indrelid = (select oid from pg_class where
+  relname = 'buildings');
+  reindex buildings;
+#+end_src

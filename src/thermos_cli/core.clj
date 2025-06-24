@@ -55,7 +55,7 @@
    ["-i" "--base FILES" "The problem to start with - this may contain geometry already.
 An efficient way to use the tool is to put back in a file produced by a previous -o output."
     :assoc-fn conj-arg]
-   
+
    ["-o" "--output FILE*" "The problem will be written out here. Format determined by file extension. Can be repeated.
 If the file is a tsv file then if the name contains 'pipe' the output will be about pipes, otherwise buildings.
 If the file name contains 'summary' summary data will be written.
@@ -112,37 +112,36 @@ If there are buildings, they will have demand and peak demand computed, subject 
    [nil "--ignore-paths FIELD=VALUE*" "Ignore paths where FIELD=VALUE"
     :assoc-fn conj-arg
     :parse-fn #(string/split % #"=")]
-   
+
    [nil "--solve" "Run the network model solver."]
    [nil "--height-field FIELD" "A height field, used in preference to LIDAR."]
    [nil "--supply-field FIELD" "A field which, if true, will be used to select a supply location."]
    [nil "--fallback-height-field FIELD" "A height field, used if LIDAR (and given height) is missing."]
    [nil "--resi-field FIELD" "A field which is used to tell the demand model if a building is residential."]
    [nil "--demand-field FIELD" "A kwh/yr field. If given, this will be used in preference to the demand model."]
-   
+
    [nil "--peak-field FIELD" "A kwp field. If given, this will be used in preference to peak model."]
    [nil "--infer-peak-from-diameter FIELD"
     "If given, the peak will be determined from the diameter in FIELD.
-Use in conjunction with --transfer-field to get diameter off a pipe."
-    ]
+Use in conjunction with --transfer-field to get diameter off a pipe."]
    [nil "--infer-peak-at VAL"
     "When inferring peak from diameter, there is a range from (next lowest dia) + 1kW to (next highest) - 1kW. This value is used to interpolate between them."
     :default 0.5
-    :parse-fn #(Double/parseDouble %)
-    ]
-   
+    :parse-fn #(Double/parseDouble %)]
+
    [nil "--count-field FIELD" "Connection count. Otherwise we assume 1."]
    [nil "--require-all" "Require all buildings be connected to network."]
+   [nil "--require-field FIELD" "Set the requirement for candidates by this field. Field can say: true, required | false, forbidden | nil, blank, optional | individual. default optional."]
    [nil "--transfer-field FIELD"
     "Set FIELD on buildings to the value of FIELD on the road the connect to."]
    [nil "--group-field FIELD" "Use FIELD to group buildings connection decisions together."]
-  
+
    [nil "--connector-civil-cost NAME" "Use civil cost with NAME for connectors"]
    [nil "--default-civil-cost NAME" "Set the default civil cost to that with NAME"]
-   
+
    [nil "--spreadsheet FILE"
     "Load parameters from an excel spreadsheet; this will only be useful if you also set up the magic fields."]
-   
+
    [nil "--insulation FILE*"
     "A file containing insulation definitions"
     :assoc-fn conj-arg]
@@ -152,6 +151,10 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
    [nil "--supply FILE*"
     "A file containing supply parameters for supply point. See also --supply-capex etc"]
 
+   [nil "--use-gurobi" 
+    "Use gurobi optimiser as problem solver (Default is SCIP)" 
+    :default false]
+   
    [nil "--supply-capex C"
     "Instead of using --supply; add a supply with this fixed cost"
     :parse-fn #(Double/parseDouble %)]
@@ -169,6 +172,10 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
    [nil "--tariffs FILE*"
     "A file containing tariff definitions"
     :assoc-fn conj-arg]
+   
+   [nil "--maximum-supply-sites N"
+    "Maximum number of supply points to be used by model"
+    :parse-fn #(Integer/parseInt %)]
 
    [nil "--top-n-supplies N" "Number of supplies to introduce into the map by taking the top N demands"
     :default 1
@@ -187,7 +194,7 @@ Use in conjunction with --transfer-field to get diameter off a pipe."
 
    [nil "--param-gap X%" "Stop if parameter fixing has less than X% effect"
     :parse-fn #(/ (Double/parseDouble %) 100.0)]
-   
+
    [nil "--set '[A B C V]'"
     "Set the value at path A B C to value V"
     :parse-fn #(edn/read-string %)
@@ -639,6 +646,20 @@ The different options are those supplied after --retry, so mostly you can use th
    instance
    things-to-set))
 
+(defn- require-by-field [instance field]
+  (document/map-candidates
+   instance
+   (fn [candidate]
+     (let [value (get candidate field)]
+       (assoc candidate ::candidate/inclusion
+              (case (string/lower-case (string/trim (str (or value ""))))
+                ("" "optional" "nil" "null") :optional
+                ("forbidden" "false") :forbidden
+                ("required" "true") :required
+                ("individual") :individual
+
+                :optional))))))
+
 (defn- require-all-buildings [instance]
   (document/map-buildings
    instance
@@ -691,10 +712,18 @@ The different options are those supplied after --retry, so mostly you can use th
       (->> (S/setval [::document/candidates S/MAP-VALS (S/pred :connector) ::path/civil-cost-id] cost-id)))))
 
 (defn --main [options]
-  (mount/start-with {#'thermos-backend.config/config {}})
+  (mount/start-with {#'thermos-backend.config/config
+                     {:has-gurobi (:use-gurobi options)
+                      :max-node-count (if (:use-gurobi options)
+                                        Long/MAX_VALUE
+                                        10000)
+                      :max-edge-count (if (:use-gurobi options)
+                                        Long/MAX_VALUE
+                                        20000)
+                      }})
   (let [output-paths         (:output options)
         ;; summary-output-paths (:summary-output options)
-        
+
         geodata           (when (seq (:map options))
                             (geoio/read-from-multiple (:map options)
                                                       :key-transform identity))
@@ -712,19 +741,18 @@ The different options are those supplied after --retry, so mostly you can use th
                                           (log/info
                                            "Ignored" (- (count features) (count out))
                                            "paths of" (count features) "geoms")
-                                          out)
-                                        ))))
-        
+                                          out)))))
+
         [paths buildings] (noder/node-connect geodata options)
-        
-        
+
+        ;; use this geoio/crs here
         buildings         (when (seq buildings)
                             (-> {::geoio/features buildings
                                  ::geoio/crs (::geoio/crs geodata)}
 
-                                (generate-demands    options)
-
-                                ))
+                                (generate-demands    options)))
+        
+        crs (::geoio/crs geodata)
         
         instance
         (apply merge
@@ -736,7 +764,7 @@ The different options are those supplied after --retry, so mostly you can use th
                    (when (:import/errors in)
                      (throw (ex-info "Spreadsheet not valid" in)))
                    in))
-               
+
                (when-let [base
                           (seq
                            (filter
@@ -746,14 +774,14 @@ The different options are those supplied after --retry, so mostly you can use th
                                e)
                             (:base options)))]
                  (doall (map read-edn (reverse base)))))
-        
+
         saying            (fn [x s] (log/info s) x)
 
         instance          (cond-> instance
                             (or (seq paths) (seq buildings))
                             (-> (saying "Replace geometry")
                                 (assoc  ::document/candidates   (make-candidates paths buildings)))
-                            
+
                             (seq (:tariffs options))
                             (-> (saying "Replace tariffs")
                                 (assoc ::document/tariffs (assoc-by (:tariffs options) ::tariff/id))
@@ -769,13 +797,13 @@ The different options are those supplied after --retry, so mostly you can use th
                             (-> (saying "Replace insulation")
                                 (assoc  ::document/insulation   (assoc-by (:insulation options) ::measure/id))
                                 (document/map-buildings (let [insulation (:insulation options)] #(add-insulation % insulation))))
-                            
+
                             (seq (:alternatives options))
                             (-> (saying "Replace alts")
                                 (assoc  ::document/alternatives (assoc-by (:alternatives options) ::supply/id))
                                 (document/map-buildings (let [alternatives (:alternatives options)] #(add-alternatives % alternatives))))
 
-                            
+
 
                             (:default-civil-cost options)
                             (-> (saying "Set default civil cost")
@@ -784,7 +812,7 @@ The different options are those supplied after --retry, so mostly you can use th
                             (:connector-civil-cost options)
                             (-> (saying "Set connector civil cost")
                                 (set-connector-civil-cost (:connector-civil-cost options)))
-                            
+
                             (seq (:supply options))
                             (-> (saying "Add supplies")
                                 (select-supply-location options))
@@ -800,6 +828,10 @@ The different options are those supplied after --retry, so mostly you can use th
                             (assoc :thermos-specs.document/mip-gap
                                    (:mip-gap options))
 
+                            (:maximum-supply-sites options)
+                            (assoc :thermos-specs.document/maximum-supply-sites
+                                   (:maximum-supply-sites options))
+
                             (:max-iters options)
                             (assoc :thermos-specs.document/maximum-iterations
                                    (:max-iters options))
@@ -807,6 +839,10 @@ The different options are those supplied after --retry, so mostly you can use th
                             (:param-gap options)
                             (assoc :thermos-specs.document/param-gap
                                    (:param-gap options))
+
+                            (:require-field options)
+                            (-> (saying "Requiring by field")
+                                (require-by-field (:require-field options)))
                             
                             (:require-all options)
                             (-> (saying "Requiring all buildings")
@@ -820,29 +856,34 @@ The different options are those supplied after --retry, so mostly you can use th
                             (-> (saying "Infer peak demand field")
                                 (infer-peak-demand (:infer-peak-from-diameter options)
                                                    (:infer-peak-at options 0.5)))
-                            
+
+                            (:use-gurobi options)
+                            (assoc ::document/solver
+                                   :gurobi)
+
                             (:solve options)
                             (-> (saying "Solve")
-                                (as-> x 
-                                    (binding [lp.scip/*default-solver-arguments*
-                                              (cond-> lp.scip/*default-solver-arguments*
-                                                (:scip-emphasis options)
-                                                (assoc :emphasis (:scip-emphasis options))
+                                (as-> x
+                                      (binding [lp.scip/*default-solver-arguments*
+                                                (cond-> lp.scip/*default-solver-arguments*
+                                                  (:scip-emphasis options)
+                                                  (assoc :emphasis (:scip-emphasis options))
 
-                                                (:scip-heuristics-emphasis options)
-                                                (assoc :heuristics-emphasis (:scip-heuristics-emphasis options))
-                                                
-                                                (:scip-presolving-emphasis options)
-                                                (assoc :presolving-emphasis (:scip-presolving-emphasis options)))]
-                                      (interop/solve x)))))]
-    
-    
+                                                  (:scip-heuristics-emphasis options)
+                                                  (assoc :heuristics-emphasis (:scip-heuristics-emphasis options))
+
+                                                  (:scip-presolving-emphasis options)
+                                                  (assoc :presolving-emphasis (:scip-presolving-emphasis options)))]
+                                        (interop/solve x)))))]
+
+
     (binding [output/*problem-id* (:problem-name options)
               output/*id-field*   (:id-field options)]
       (doseq [output-path output-paths]
         (log/info "Saving state to" output-path)
-        (output/save-state instance output-path)))
-    
+        ;; add crs as an argument here?
+        (output/save-state instance output-path crs)))
+
     (mount/stop)
 
     (cond
@@ -854,7 +895,7 @@ The different options are those supplied after --retry, so mostly you can use th
       ;; the status:
       (= :time-limit (::solution/state instance))
       :timeout
-      
+
       :else :unknown)))
 
 (defn- generate-ids [things id]
@@ -929,7 +970,10 @@ The different options are those supplied after --retry, so mostly you can use th
               ]
           (when (and (= outcome :timeout) (seq optionses))
             (log/info "No solution, retry with next options")
-            (recur optionses)))))))
+            (recur optionses)))))
+
+    ;; (shutdown-agents)
+    ))
 
 (comment
   (-main
@@ -943,14 +987,13 @@ The different options are those supplied after --retry, so mostly you can use th
   (binding [lp.io/*keep-temp-dir* true]
    
    (-main
-    "-m"               "/home/hinton/p/738-cddp/cluster-runner/c_500_5=306.gpkg"
-    "--spreadsheet"    "/home/hinton/p/738-cddp/cluster-runner/cddp-thermos-parameters-current.xlsx"
-    "--supply"         "/home/hinton/p/738-cddp/cluster-runner/5p.edn"
-    "--demand-field" "annual_demand" "--peak-field" "peak_demand" "--count-field" "connection_count"
-    "--ignore-paths" "hierarchy=path"
-    "--default-civil-cost" "soft"
-    "-o" "/home/hinton/tmp/blah-pipes.tsv"
-    "-o" "/home/hinton/tmp/blah.json"
+    "-m"               "/home/hinton/dl/optimiser-inputs-1ef5dd8d-64dc-5c1a-9444-09dcce96bd79-275.gpkg"
+    "--supply"         "/home/hinton/p/thermos/110-thermos-ui/supply.edn"
+    "--top-n-supplies" "1"
+    "--fit-supply-capacity"
+    "--solve"
+
+    "-o" "/home/hinton/out.gpkg"
     )
    )
 
