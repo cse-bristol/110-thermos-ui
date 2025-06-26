@@ -22,7 +22,7 @@ in
   
   ###
   # Below line needs to be commented out when first creating DO instance
-  deployment.keys.smtp.transient = false;
+  #deployment.keys.smtp.transient = false;
   ###
 
   deployment.keys.spaces-access-key.keyFile = ./spaces-access-key;
@@ -48,8 +48,8 @@ in
 
   services.thermos.jre = pkgs.jdk11;		# Same version as in use by clojure when building jar. There is no "jre11" in channel 23.05.
 
-  #services.thermos.ui.baseUrl = "https://tool.thermos-project.eu";
-  services.thermos.ui.baseUrl = "https://dr.thermos.cse.org.uk";
+  services.thermos.ui.baseUrl = "https://tool.thermos-project.eu";
+  #services.thermos.ui.baseUrl = "https://dr.thermos.cse.org.uk";
   
   security.acme = {
     email = "robots@cse.org.uk";
@@ -63,11 +63,11 @@ in
     recommendedGzipSettings = true;
     recommendedProxySettings = true;
 
-    #virtualHosts."xx.xx.xx.xx" = {
-    virtualHosts."dr.thermos.cse.org.uk" = {
+    virtualHosts."xx.xx.xx.xx" = {
+    #virtualHosts."dr.thermos.cse.org.uk" = {
     #virtualHosts."thermos-project.eu" = {
-      forceSSL = true;
-      enableACME = true;
+      #forceSSL = true;
+      #enableACME = true;
 
       extraConfig = ''
         client_max_body_size 1000M;
@@ -114,13 +114,13 @@ in
   systemd.services.uploadBackup = {
       path = [ pkgs.s3cmd ];
       script = ''
-        s3cmd --access_key=$(cat /var/keys/spaces-access-key) \
-              --secret_key=$(cat /var/keys/spaces-secret-key) \
+        s3cmd --access_key=$(cat /run/keys/spaces-access-key) \
+              --secret_key=$(cat /run/keys/spaces-secret-key) \
               --host ams3.digitaloceanspaces.com \
               --host-bucket='%(bucket)s.ams3.digitaloceanspaces.com' \
               --force \
            put ${config.services.postgresqlBackup.location}/all.sql.gz \
-           s3://thermos-backup/$(cat /var/keys/backup-file-name)-$(date +%a)
+           s3://thermos-backup/$(cat /run/keys/backup-file-name)-$(date +%a)
       '';
       
       # yuck
