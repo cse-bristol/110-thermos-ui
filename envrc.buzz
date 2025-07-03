@@ -1,0 +1,14 @@
+# On buzz this is symlinked to .envrc
+# ln -s envrc.buzz .envrc
+
+# For buzz
+PATH_add bin
+# Updated from 20.11 Jul 2025
+# Thermos is using Postgres 13.7 which is the default from nixos 21.11
+export NIX_PATH=nixpkgs=channel:nixos-21.11
+export NIXOPS_DEPLOYMENT=thermos-live
+
+# Commented as giving error running deployment and nix-shell
+# This caused a nix-shell to be created using shell.nix - for building (clojure 
+# from shell.nix) and doing git things (git from shell.nix)
+#use_nix

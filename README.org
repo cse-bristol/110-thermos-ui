@@ -1,5 +1,9 @@
 #+TITLE: Thermos UI
 
+n.b. July 2025
+On buzz Thermos is using Postgres 13.7 which is the default from nixos 21.11, so it's this channel that's set in envrc.buzz /.envrc
+
+
 See LICENSE for licensing information.
 
 THERMOS as a whole is split into a few parts, which see:

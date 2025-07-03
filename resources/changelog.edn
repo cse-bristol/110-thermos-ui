@@ -1,4 +1,14 @@
-[{:title "2 Feb 2025"
+[
+{:title "2 Jul 2025"
+  :change [{:title "Geopackage outputs"
+	    :summary [:p "CLI users can now output a solution as a geopackage."]}
+	   {:title "Gurobi compatability"
+	    :summary [:p "CLI users can opt to use gurobi for problem sovler (Default is scip)."]}
+	   {:title "Adjust number of supply points"
+	    :summary [:p "CLI users can adjust the number of supply points to use."]}
+	   ]}
+
+{:title "2 Feb 2025"
   :changes [{:title "Bugs fixed"
              :summary [:p "The candidate editor would erroneously adjust buildings' peak demand when editing multiple buildings in some circumstances."]}
             {:title "Adjustable diversity"
