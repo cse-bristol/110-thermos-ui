@@ -1,6 +1,6 @@
 [
 {:title "2 Jul 2025"
-  :change [{:title "Geopackage outputs"
+  :changes [{:title "Geopackage outputs"
 	    :summary [:p "CLI users can now output a solution as a geopackage."]}
 	   {:title "Gurobi compatability"
 	    :summary [:p "CLI users can opt to use gurobi for problem sovler (Default is scip)."]}
