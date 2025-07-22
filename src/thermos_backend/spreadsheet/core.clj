@@ -22,3 +22,8 @@
              (supply-model/input-from-spreadsheet spreadsheet))
 
       {:import/errors errors})))
+
+
+(comment
+  (nil? (:import/errors (schema/validate-spreadsheet (common/read-to-tables "/home/jbullard/Downloads/Test project(2).xlsx"))))
+  )
