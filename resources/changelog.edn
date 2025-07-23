@@ -1,12 +1,16 @@
-[
+[{:title "22 Jul 2025"
+  :changes [{:title "Bug fix"
+             :summary [:p "Fixed a bug where users were unable to upload xlsx files with fields added during an earlier update"]}
+            {:title "Bug fix"
+             :summary [:p "Fixed a bug where the geopackage schema type for the problem field was incorrect"]}]}
+
  {:title "2 Jul 2025"
   :changes [{:title "Geopackage outputs"
-	    :summary [:p "CLI users can now output a solution as a geopackage."]}
-	   {:title "Gurobi compatability"
-	    :summary [:p "CLI users can opt to use gurobi for problem sovler (Default is scip)."]}
-	   {:title "Adjust number of supply points"
-	    :summary [:p "CLI users can adjust the number of supply points to use."]}
-	   ]}
+             :summary [:p "CLI users can now output a solution as a geopackage."]}
+            {:title "Gurobi compatability"
+             :summary [:p "CLI users can opt to use gurobi for problem sovler (Default is scip)."]}
+            {:title "Adjust number of supply points"
+             :summary [:p "CLI users can adjust the number of supply points to use."]}]}
 
  {:title "2 Feb 2025"
   :changes [{:title "Bugs fixed"
@@ -14,40 +18,36 @@
             {:title "Adjustable diversity"
              :summary [:p "The diversity parameters can now be adjusted (under pipe / network paramteers)"]}
             {:title "Adjustable objective precision and scale"
-             :summary [:p "Some details of how the objective is formulated can be controlled, potentially improving solve time."]}
-            ]}
+             :summary [:p "Some details of how the objective is formulated can be controlled, potentially improving solve time."]}]}
 
  {:title "22 March 2024"
   :changes [{:title "Bugs fixed"
-             :summary [:p "Calculation of the tank factor effect for individual systems incorrectly apportioned the kWp part of present cost, causing the optimiser to overestimate the cost ofusing these kinds of individual system. This bug has been removed."]
-             }]}
+             :summary [:p "Calculation of the tank factor effect for individual systems incorrectly apportioned the kWp part of present cost, causing the optimiser to overestimate the cost ofusing these kinds of individual system. This bug has been removed."]}]}
 
  {:title "1st Feb 2024"
   :changes [{:title "Bugs fixed"
              :summary [:p "The model's consideration of pumping costs was incorrect; the cost of pumping energy was incorrectly not converted into a lifetime present cost when combined with the cost of heat from supply points. This has had the effect of reducing the cost to the optimiser of supplying heat, especially with a large pumping overhead configured."]}]}
- 
+
  {:title "30th Jan 2024"
   :changes [{:title "Building height"
              :summary [:p "The model's estimate of building height is displayed in the editor."]}
             {:title "Rename button for networks"
              :summary [:p "Click the pencil icon next to a network problem in the project page to rename it."]}]}
- 
+
  {:title "8th August 2023"
   :changes [{:title "Bug fixes"
              :summary
              [:p "The candidate editor would sometimes erroneously amend buildings' peak demand values, and some improvements have been made to technical details of the optimisation."]}]}
- 
+
  {:title "13th December 2022"
   :changes [{:title "Bug fix"
              :summary
-             [:p "Hiding unconstrained candidates no longer makes the application forget any edits the user has made to those candidates."]
-             }]}
+             [:p "Hiding unconstrained candidates no longer makes the application forget any edits the user has made to those candidates."]}]}
 
  {:title "8th December 2022"
   :changes [{:title "Improved demand editing"
              :summary
-             [:p "The demand editor (e key) now lets you adjust demands by a percentage."]
-             }
+             [:p "The demand editor (e key) now lets you adjust demands by a percentage."]}
             {:title "Existing pipes"
              :summary
              [:p "If a pipe is marked as existing with a max. diameter, that is the diameter of pipe that will be used. "
@@ -60,32 +60,26 @@
              [:ul
               [:li "Cooling demand model works again - it was accidentally disconnected."]
               [:li "Entering numbers doesn't make the focus jump around."]]}
-            
+
             {:title "UI improvements"
-             :summary [:p "A bit more information is shown about runs on the project page."]}
-            
-            ]
-  }
+             :summary [:p "A bit more information is shown about runs on the project page."]}]}
 
  {:title "9th March 2022"
   :changes
   [{:title "Bug fixes"
     :summary
-    [:p "The spreadsheet download would sometimes produce an invalid spreadsheet when a solution involved counterfactual heating systems."]
-    }]}
+    [:p "The spreadsheet download would sometimes produce an invalid spreadsheet when a solution involved counterfactual heating systems."]}]}
 
  {:title "22nd Feb 2022"
   :changes
   [{:title "Bug fixes"
     :summary
-    [:p "The pipe costs table erroneously displayed zero for default capacity values, and the spreadsheet import/export now preserves the default civil cost."]}]
-  }
+    [:p "The pipe costs table erroneously displayed zero for default capacity values, and the spreadsheet import/export now preserves the default civil cost."]}]}
 
  {:title "9th Feb 2022"
   :changes
   [{:title "Bug fixes"
-    :summary [:p "Carbon factors for supply plant were not properly incorporated when evaluating carbon limits. Now they are."]
-    }
+    :summary [:p "Carbon factors for supply plant were not properly incorporated when evaluating carbon limits. Now they are."]}
    {:title "Market rate output"
     :summary [:p "When using market tariff, the market rate used is now shown for building that don't get connected, as well as those who do."]}]}
 
@@ -125,8 +119,7 @@
      [:li "The selection info panel would incorrectly display a building's peak demand for its insulated demand, if it had not been included in a solution."]
      [:li "Manually edited buildings or paths whose constraint status is forbidden were incorrectly reset to their original state when they were not visible on the map for a period of time. User edits are now remembered even when you can't see the edited candidate."]
      [:li "Connection costs have been moved into the pipe costs page, for consistency."]
-     [:li "The checkboxes controlling insulation & individual systems are disabled when not in whole-system mode."]
-     ]}
+     [:li "The checkboxes controlling insulation & individual systems are disabled when not in whole-system mode."]]}
 
    {:title "Supply model bug fixes"
     :summary
@@ -135,7 +128,7 @@
      [:li [:p "The supply model's interface to the network model only considered the first supply location in networks with multiple supplies, so the supply model would be solving for only part of the system peak / annual demand."]
       [:p "Now, if there are multiple supplies their peak and annual demands are summed for the supply model, which still solves them as a single system. "
        "This is still a simplification, but hopefully a better one."]]]}]}
- 
+
  {:title "Feb 26th 2021"
   :changes
   [{:title "Features: upload your own lidar, auto HDD, hot water tank."
@@ -153,28 +146,23 @@
      [:li "NPV or annualization terms of zero are taken as one year. Previously this would stop the model running."]
      [:li "The hot water demand part of the demand model produced values 1.15 times larger than it should have; this is fixed, for new maps only."]
      [:li "The application should do a better job of processing email addresses when inviting people to a project."]
-     [:li "The diversity calculation is corrected in the case where the optimisation solution includes multiple paths from the supply to a vertex. Previously, if one path had a very small heat flow the diversity on that path could be incorrect."]
-     ]
-    }
-   ]
-  }
+     [:li "The diversity calculation is corrected in the case where the optimisation solution includes multiple paths from the supply to a vertex. Previously, if one path had a very small heat flow the diversity on that path could be incorrect."]]}]}
  {:title "5th February 2021"
   :changes
   [{:title "Features: user-defined fields, building groups, spreadsheet input/output, and more"
     :summary
-    [:ul 
+    [:ul
      [:li "Buildings and roads can now have arbitrary user-defined fields on them."]
      [:li "The largest zoom level at which the map is visible has been increased"]
-     [:li "Buildings can be placed in groups, for which there is only a single connection decision (all or none of the buildings in a group must be connected). " 
+     [:li "Buildings can be placed in groups, for which there is only a single connection decision (all or none of the buildings in a group must be connected). "
       "Groups can be inferred automatically during map creation from what road segment a building is connected to."]
      [:li "Tiny holes in the network are now automatically closed during map creation."]
      [:li "Model parameters can now be saved to and loaded from an excel spreadsheet."]
      [:li "Underlying optimiser updated to a newer version."]
      [:li "Project pages now show which problems have a solution. Running problems can be cancelled by clicking on the spinning thermos icon."]
      [:li "The objective settings page now lets you stop the optimisation early if parameter fixing is not having a large effect on the result."]
-     [:li "To help find holes in the network, pipes which are connected to the network but go nowhere are now distinguished from those which are not connected at all."]
-     ]}
-   
+     [:li "To help find holes in the network, pipes which are connected to the network but go nowhere are now distinguished from those which are not connected at all."]]}
+
    {:title "Some bug fixes"
     :summary
     [:ul
@@ -184,8 +172,7 @@
      [:li "The candidate editor did not set connection costs when told to."]
      [:li "It is no longer possible to tell the supply model that a technology is CHP but has no power efficiency; doing this this caused the supply model to fail."]
      [:li "An incorrect bounds calculation for the maximum power flow on pipes to buildings with a connection count of more than 1 is fixed. This mistake made some solutions infeasible that shouldn't have been."]
-     [:li "The cooling peak demand was not assignable during map creation; it now is."]
-     ]}]}
+     [:li "The cooling peak demand was not assignable during map creation; it now is."]]}]}
 
  {:title "27th October 2020"
   :changes
@@ -210,10 +197,7 @@
      [:li "The info panel now has a row to tell you if you have edited a given candidate."]
      [:li "The solution view in the map defaults to showing the pipe size."]
      [:li "The splitters in the map part of the editor now have a button to minimize them."]
-     [:li "The changelog notification has been made more obnoxious."]
-     ]}
-   ]
-  }
+     [:li "The changelog notification has been made more obnoxious."]]}]}
 
  {:title "24th June 2020"
   :changes
@@ -227,10 +211,8 @@
      "It is still possible that a required path will not be included in a solution, if the alternative chosen is cheaper including the cost of digging up the required path."]}
 
    {:title "Category & Address editing"
-    :summary [:div "You can now change the category and name/address for things on the map through the candidate editor (the " [:b "e"] " key)."]
-    }
-   ]}
- 
+    :summary [:div "You can now change the category and name/address for things on the map through the candidate editor (the " [:b "e"] " key)."]}]}
+
  {:title "14th April 2020"
   :changes [{:title "Model improvements"
              :summary
@@ -238,26 +220,20 @@
               [:li "The network flow bounds calculation has been made faster."]
               [:li "Network topology pre-processing no longer fails if the network contains a peripheral closed loop (a circular connected path that touches no buildings)."]
               [:li "Backward flow along connectors has been forbidden. This means that a network can no longer pass through a building."]
-              [:li "A bug has been removed which caused the model to ignore civil costs on some paths after they had been simplified to remove spurious junctions."]
-              ]
-             
-             }]}
- 
+              [:li "A bug has been removed which caused the model to ignore civil costs on some paths after they had been simplified to remove spurious junctions."]]}]}
+
  {:title "31st March 2020"
   :changes [{:title "Public Projects"
              :summary
              [:div "You can now make projects public. "
-              "In a public project, anyone who knows the URL can see maps and projects, but they cannot change anything."]
-             
-             }]
-  }
+              "In a public project, anyone who knows the URL can see maps and projects, but they cannot change anything."]}]}
 
  {:title "20th March 2020"
   :changes [{:title "Support forum"
              :summary [:div
                        "There's now a support forum - click forum at the top to go there. "
                        "Unfortunately you will have to sign up for a separate account there, as it's a separate system."]}]}
- 
+
  {:title "27th Feb 2020"
   :changes [{:title "International numbers"
              :summary
@@ -271,23 +247,20 @@
               [:li
                "When using the line drawing tool, if the new line split an existing line in two, each half of the split line would have the original length. "
                "The expected (and now correct) outcome is that the length of each half is recalculated. "
-               "This fix does " [:em "not"] " apply retroactively to existing network problems."]
-              ]
-             }]
-  }
+               "This fix does " [:em "not"] " apply retroactively to existing network problems."]]}]}
  {:title "4th Feb 2020"
   :changes [{:title "Cooling model"
              :summary
              [:div
               "The network editor can now model cooling networks. "
               "Existing maps will not have cooling demands, so you will need to make a new map to make a cooling network."]}]}
- 
+
  {:title "23rd Jan 2020"
   :changes [{:title "Fixed bug with GIS height"
              :summary
              [:div "User-specified height fields in GIS data were being ignored. "
               "This has been corrected."]}]}
- 
+
  {:title "17th Jan 2020"
   :changes [{:title "Map info"
              :summary
@@ -296,8 +269,7 @@
 
  {:title "10th Jan 2020"
   :changes [{:title "Individual system display"
-             :summary [:div "The selection info window now shows what individual systems are in use, rather than just saying 'individual'."]
-             }
+             :summary [:div "The selection info window now shows what individual systems are in use, rather than just saying 'individual'."]}
             {:title "Unset counterfactual"
              :summary [:div "You can now remove a counterfactual option from buildings."]}
 
@@ -306,7 +278,7 @@
              [:ul
               [:li "The variable capital cost for individual systems is now included. "
                "It was accidentally left out of the objective for the optimiser."]]}]}
- 
+
 
  {:title "6th December 2019"
   :changes
@@ -334,9 +306,7 @@
               [:ul
                [:li "Multipolygons now have peak demand estimated correctly."]
                [:li "Password recovery button should work without a password in the box"]
-               [:li "Some units were wrong in the results summary page"]]]}]
-  
-  }
+               [:li "Some units were wrong in the results summary page"]]]}]}
  {:title "29th November 2019"
   :changes
   [{:title "OSM Roundabouts"
@@ -355,16 +325,11 @@
     :summary [:div
               "To make the network NPV objective interact properly with carbon prices and the counterfactual, we have added a special tariff called " [:b "market"] ". "
 
-              "Buildings on this tariff will have their unit rate calculated from the cost of their best alternative non-networked choice, including any cost of carbon."
-              ]
-    }
+              "Buildings on this tariff will have their unit rate calculated from the cost of their best alternative non-networked choice, including any cost of carbon."]}
 
    {:title "Documentation updated"
-    :summary [:div "The documentation has been updated to be more correct for changes to teh application, and to cover more details about the demand model and the network model."]
-    }
-   ]
-  }
- 
+    :summary [:div "The documentation has been updated to be more correct for changes to teh application, and to cover more details about the demand model and the network model."]}]}
+
  {:title "15th October 2019"
   :changes
   [{:title "Demand model fixes"
@@ -372,21 +337,16 @@
               "The demand model had a couple of things wrong with it:"
               [:ul
                [:li "The projection used to calculate the predictors caused demands to be overestimated, by making some buildings' areas too large"]
-               [:li "The fallback linear model used when the SVM prediction is out of bounds was not implemented properly"]
-               ]
+               [:li "The fallback linear model used when the SVM prediction is out of bounds was not implemented properly"]]
               "Both these issues are fixed; predictors are now calculated using the closest UTM zone, which should work alright, and the linear model implementation has had an error removed."]}]}
 
  {:title "4th October 2019"
   :changes
   [{:title "UI Improvements"
-    :summary [:div "A bunch of minor improvements to the user interface, following feedback."]
-    }
+    :summary [:div "A bunch of minor improvements to the user interface, following feedback."]}
    {:title "Pipe diameter limits"
-    :summary [:div "The pipe cost parameters page now lets you set the minimum and maximum pipe diameter the model will consider."]
-    }
-   ]
-  }
- 
+    :summary [:div "The pipe cost parameters page now lets you set the minimum and maximum pipe diameter the model will consider."]}]}
+
  {:title "29th August 2019"
   :changes
   [{:title "Better connectors"
@@ -395,28 +355,25 @@
      "When creating a new map, connectors will be preferred if they "
      "connect to the middle of a building, and if they connect to existing road "
      "(rather than to another connector)."]}]}
- 
+
  {:title "16th August 2019"
   :changes
-  [
-   {:title "Whole-system optimisation"
+  [{:title "Whole-system optimisation"
     :summary
     [:div
-     "The model can now optimise for whole-system impacts, by considering alternative heating systems and demand reduction measures."
-     ]}]}
-  
+     "The model can now optimise for whole-system impacts, by considering alternative heating systems and demand reduction measures."]}]}
+
  {:title "4th July 2019"
   :changes
   [{:title "Categorised civil engineering costs"
     :summary [:div
               [:p "Similarly to tariffs, civil engineering costs are now defined for categories of path."]
               [:p "You can select paths and assign them to categories as you wish."]]}
-   
+
    {:title "Improved tariff structure"
     :summary [:div
               [:p "Tariffs can now include standing and capacity charges. Connection cost can now include a fixed component."]
-              [:p "Connection costs have been combined into the tariff. They are no longer stored within a map as part of a building, but are part of a network design."]
-              ]}
+              [:p "Connection costs have been combined into the tariff. They are no longer stored within a map as part of a building, but are part of a network design."]]}
 
    {:title "New menu"
     :summary "The menu in the network editor has been moved."}
@@ -425,19 +382,14 @@
     :summary "The map creation tool now supports multipolygon geometry for buildings."}
 
    {:title "Change messages"
-    :summary "The application now shows these change messages."
-    }
-   ]
-  }
+    :summary "The application now shows these change messages."}]}
  {:title "7th June 2019"
   :changes
   [{:title "Better heat demand estimates"
     :summary "Heat demand estimates now use a fallback linear model for buildings in which the support vector machine model produces a bad result"}
    {:title "Fewer bugs"
-    :summary "A bug where importing a map would delete things from other maps in the same location has been removed."
-    }]
-  }
- 
+    :summary "A bug where importing a map would delete things from other maps in the same location has been removed."}]}
+
  {:title "4th June 2019"
   :changes
   [{:title "Data usage statement"
@@ -450,11 +402,8 @@
    {:title "A connection drawing tool"
     :summary "You can now add new connections between candidates on the map by drawing them."}
    {:title "Better colours"
-    :summary "The colour for excluded candidates in the solution has been changed from light green to yellow, to make it easier to distinguish. Also, colour coding is showed in the selection info panel on the right."}]
-  
-  
-  }
- 
+    :summary "The colour for excluded candidates in the solution has been changed from light green to yellow, to make it easier to distinguish. Also, colour coding is showed in the selection info panel on the right."}]}
+
  {:title "17th May 2019"
   :changes
   [{:title "Improved documentation"
@@ -462,10 +411,10 @@
     [:div
      "The documentation has been extended to explain more about how the model works. "
      "Some contextual help is now available within the application as tool-tips, indicated by a dotted underline."]}
-   
+
    {:title "Reporting of connection costs"
     :summary "Connection costs for buildings are now shown in the financial model summary on the results page."}]}
- 
+
  {:title "15th May 2019"
   :changes
   [{:title "Improved documentation"
