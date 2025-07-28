@@ -58,6 +58,29 @@ Builds using scripts in build-src.
 
   Should spit out a jar in target/
 
+* Production deployment on buzz
+
+- Deploy after building
+
+  #+BEGIN_EXAMPLE sh
+  cd /srv/nixops/110-thermos-tool/live
+  sudo nixops deploy -d thermos-live
+  #+END_EXAMPLE
+
+- Access container shell
+
+  #+BEGIN_EXAMPLE sh
+  nixops ssh -d thermos-live thermos-app
+  #+END_EXAMPLE
+
+- Other nixops command lines that might be useful
+
+  #+BEGIN_EXAMPLE sh
+  nixops info -d thermos-live
+  nixops ssh-for-each -d thermos-live
+  nixops deploy --debug -d thermos-live
+  #+END_EXAMPLE
+
 * Configuration
 
 The application has a few config settings, defaults in ~resources/config.edn~.
