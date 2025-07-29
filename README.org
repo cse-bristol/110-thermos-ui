@@ -64,7 +64,7 @@ Builds using scripts in build-src.
 
   #+BEGIN_EXAMPLE sh
   cd /srv/nixops/110-thermos-tool/live
-  sudo nixops deploy -d thermos-live
+  nixops deploy -d thermos-live
   #+END_EXAMPLE
 
 - Access container shell
