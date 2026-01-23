@@ -47,7 +47,7 @@ with lib;
         };
         javaArgs = mkOption {
           type = types.str;
-          default = "-Xmx20g -server";
+          default = "-Xmx20g -Xss8m -server";
         };
       };
       importer = {

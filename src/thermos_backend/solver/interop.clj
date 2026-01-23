@@ -1187,7 +1187,7 @@
         ]
 
     (let [{:keys [max-node-count max-edge-count]
-           :or {max-node-count 10000 max-edge-count 20000}}
+           :or {max-node-count 100000 max-edge-count 200000}}
           config]
       (when (or (> (count (graph/nodes net-graph)) max-node-count)
                 (> (count (graph/edges net-graph)) max-edge-count))

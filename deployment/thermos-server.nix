@@ -17,6 +17,7 @@ in
     pkgs.vim
     pkgs.ranger
     pkgs.cron
+    pkgs.fzf
     gurobi
   ];
 

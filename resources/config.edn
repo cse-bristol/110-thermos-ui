@@ -22,8 +22,8 @@
 
  :restart-running-jobs false
 
- :solver-count 10
- :importer-count 4
+ :solver-count 2
+ :importer-count 2
  
  :import-directory "import-work"
  :lidar-directory "lidar"
