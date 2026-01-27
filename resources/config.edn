@@ -29,8 +29,8 @@
  :lidar-directory "lidar"
  :error-dumps "error-dumps"
 
- :max-node-count 10000
- :max-edge-count 20000
+ :max-node-count 1000000
+ :max-edge-count 1000000
 
  :max-project-runtime {:basic 1.0 :intermediate 2.0}
  :max-jobs-per-week {:basic 10 :intermediate 20}

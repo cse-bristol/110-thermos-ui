@@ -2,10 +2,10 @@
 
 stdenv.mkDerivation rec {
   pname = "gurobi";
-  version = "11.0.3";
+  version = "13.0.1";
 
   # Replace fetchurl with a path to the local tar file
-  src = /root/thermos-main/thermos-ui/resources/gurobi-11.0.3-linux64.tar.gz;
+  src = /root/thermos-main/thermos-ui/resources/gurobi13.0.1_linux64.tar.gz;
 
   sourceRoot = "gurobi${builtins.replaceStrings ["."] [""] version}/linux64";
 
@@ -19,10 +19,10 @@ stdenv.mkDerivation rec {
   installPhase = ''
     mkdir -p $out/bin
     cp bin/* $out/bin/
-    rm $out/bin/gurobi.sh
-    rm $out/bin/python*
+    rm -f $out/bin/gurobi.sh
+    rm -f $out/bin/python*
 
-    cp lib/gurobi.py $out/bin/gurobi.sh
+    [ -f lib/gurobi.py ] && cp lib/gurobi.py $out/bin/gurobi.sh || true
 
     mkdir -p $out/include
     cp include/gurobi*.h $out/include/
@@ -30,8 +30,8 @@ stdenv.mkDerivation rec {
     mkdir -p $out/lib
     cp lib/*.jar $out/lib/
     cp lib/libGurobiJni*.so $out/lib/
-    cp lib/libgurobi*.so* $out/lib/
-    cp lib/libgurobi*.a $out/lib/
+    cp -P lib/libgurobi*.so* $out/lib/
+    cp -P lib/libgurobi*.a $out/lib/ 2>/dev/null || true
     cp src/build/*.a $out/lib/
 
     mkdir -p $out/share/java
