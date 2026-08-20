@@ -17,6 +17,8 @@
     config = {config, pkgs, ...}: {
       imports = [./thermos-server.nix];
 
+      services.thermos.model.scip = pkgs.scipopt-scip;
+
       # required because we deployed a long time ago
       system.stateVersion = "21.11";
       
