@@ -10,7 +10,7 @@
 
     # make key materials exist in the right place
     bindMounts."/var/keys" = {
-      hostPath = "/srv/containers/110-thermos-tool/keys";
+      hostPath = "/srv/containers/config/110-thermos-tool/keys";
       isReadOnly = true;
     };
 
@@ -18,7 +18,7 @@
       imports = [./thermos-server.nix];
 
       services.thermos.model.scip = pkgs.scipopt-scip;
-      services.thermos.postgresql = pkgs.postgresql_13.withPackages(p:[p.postgis]);
+      services.thermos.postgresql = pkgs.postgresql_17.withPackages(p:[p.postgis]);
 
       # required because we deployed a long time ago
       system.stateVersion = "21.11";
