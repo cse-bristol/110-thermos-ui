@@ -18,6 +18,7 @@
       imports = [./thermos-server.nix];
 
       services.thermos.model.scip = pkgs.scipopt-scip;
+      services.thermos.postgresql = pkgs.postgresql_13.withPackages(p:[p.postgis]);
 
       # required because we deployed a long time ago
       system.stateVersion = "21.11";

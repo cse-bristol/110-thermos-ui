@@ -69,7 +69,7 @@ with lib;
 
       postgresql = mkOption {
         type = types.package;
-        default = pkgs.postgresql;
+        default = pkgs.postgresql.withPackages (p : [p.postgis]);
       };
     };
   };
@@ -115,7 +115,7 @@ with lib;
       services.postgresql = {
         enable = true;
         package = pg;
-        extraPlugins = [ pgis ];
+
         enableTCPIP = true;
 
         authentication = ''
