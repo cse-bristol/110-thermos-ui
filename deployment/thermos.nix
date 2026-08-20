@@ -96,7 +96,6 @@ with lib;
     in {
 
       environment.systemPackages = [
-        pkgs.rxvt_unicode.terminfo
 
         (pkgs.stdenv.mkDerivation {
           name="get-lidar";
