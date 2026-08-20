@@ -31,6 +31,14 @@ in
   ####
 
   imports = [ ./thermos.nix ];
+
+  systemd.services.thermos-web.after = [
+    "keys@smtp.service"
+  ];
+
+  systemd.services.thermos-web.wants = [
+    "keys@smtp.service"
+  ];
   
   networking.firewall.allowedTCPPorts = [ 80 443 ];
 

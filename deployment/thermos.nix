@@ -161,12 +161,7 @@ with lib;
         };
         
         wantedBy = ["multi-user.target"];
-        after = [
-          "enable-postgis.service"
-          "keys@smtp.service"
-        ];
-        
-        wants = [ "keys@smtp.service" ];
+        after = [ "enable-postgis.service" ];
         requires = ["enable-postgis.service"];
 
         script = ''
