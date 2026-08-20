@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+nix-shell -p clojure -p git --run "clojure -Adev:server:client pkg"
