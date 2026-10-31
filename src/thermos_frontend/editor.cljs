@@ -11,6 +11,8 @@
             [thermos-specs.view :as view]
             [thermos-specs.document :as document]
             [thermos-frontend.editor-state :as state]
+            [thermos-frontend.subs]
+            [re-frame.core :as rf]
             [thermos-frontend.preload :as preload]
 
             [thermos-frontend.operations :as operations]
@@ -134,7 +136,7 @@
     :hamburger
     [:button.hamburger
      {:on-click #(swap! *show-menu not)
-      :class (when (state/is-running-or-queued?) "spin-around")
+      :class (when @(rf/subscribe [:server/running-or-queued]) "spin-around")
       :style (merge
               {:background :none
                :border :none}
@@ -145,7 +147,7 @@
      theme/icon]
 
     :name (preload/get-value :name)
-    :unsaved? (state/needs-save?)}])
+    :unsaved? @(rf/subscribe [:server/needs-save])}])
 
 (defn- rough-duration
   "A duration in seconds, to the nearest minute or so"
@@ -508,7 +510,7 @@
        ^{:key :navbar} [navbar *show-menu *is-cooling]
 
        (cond
-         (state/is-running-or-queued?)
+         @(rf/subscribe [:server/running-or-queued])
          [:div {:key :run-state-overlay
                 :style {:position :absolute
                         :z-index 1000000
@@ -516,9 +518,9 @@
                         :height :100%
                         :display :flex
                         :background "rgba(0,0,0,0.75)"}}
-          (let [position (state/queue-position)
-                run-state (state/run-state)
-                timing (state/run-timing)]
+          (let [{position :queue-position
+                 timing :run-timing
+                 :keys [run-state run-message]} @(rf/subscribe [:server/run])]
             [:div.popover-menu
              {:style {:background :white
                       :padding :1em
@@ -533,7 +535,7 @@
                [:<>
                 [:b "Model is running"]
                 [run-progress timing]
-                [run-log (state/run-message)]]
+                [run-log run-message]]
 
                [run-estimate (:position timing position) timing])
              (when-not (#{:cancel :cancelling} run-state)

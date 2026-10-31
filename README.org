@@ -61,6 +61,12 @@ nix develop
   clojure -X:server:test
   #+END_EXAMPLE
 
+  and for the editor's clojurescript, on node
+
+  #+BEGIN_EXAMPLE sh
+  clojure -M:server:client:test -m shadow.cljs.devtools.cli compile test
+  #+END_EXAMPLE
+
 - For production
 
   #+BEGIN_EXAMPLE sh

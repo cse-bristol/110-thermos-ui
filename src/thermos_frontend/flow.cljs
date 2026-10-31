@@ -2,8 +2,7 @@
 ;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
 
 (ns thermos-frontend.flow
-  (:require [goog.async.nextTick]
-            [reagent.ratom])
+  (:require [reagent.ratom])
   ;; (:require-macros [thermos-frontend.flow-macro :refer [cache-view!]])
   )
 
@@ -27,8 +26,7 @@ can itself depend on other views by asking for them")
 
 (defprotocol IHandler
   "A reference type for doing a reactive type web thing"
-  (fire! [this event])
-  (flush! [this]))
+  (fire! [this event]))
 
 (declare cache-view!)
 
@@ -93,7 +91,7 @@ can itself depend on other views by asking for them")
           (set! (.-views view) (assoc (.-views view) key subview))
           subview))))
 
-(deftype Root [state handler v ^:mutable events]
+(deftype Root [state dispatch v]
   IView
   (view   [t f]          (view v f))
   (view   [t f x]        (view v f x))
@@ -113,40 +111,10 @@ can itself depend on other views by asking for them")
   (-remove-watch [this key] (remove-watch state key) this)
   
   IHandler
-  (fire! [t event]
-    (when (empty? events)
-      (goog.async.nextTick #(flush! t)))
-    (set! events (conj events event)))
-  
-  (flush! [t]
-    (let [to-run events]
-      (set! events #queue [])
-      (let [[new-state fx]
-            (loop [state @state
-                   to-run to-run
-                   fx nil]
-              (if (empty? to-run)
-                [state fx]
-                (let [out (handler state (first to-run))]
-                  (if-let [effects (::effects out)]
-                    (recur
-                     (::state out state)
-                     (rest to-run)
-                     (conj fx (::effects out)))
-                    
-                    (recur out (rest to-run) fx))
-                  )))
-            ]
-        ;; trigger side-effects
-        
-        ;; update state (since we have no contention issues in js we
-        ;; don't use swap!)
-        (reset! state new-state)))))
+  (fire! [t event] (dispatch event)))
 
-(defn create-root [{:keys [state handler]}]
-  (Root.
-   state
-   handler
-   (View. state {})
-   #queue []))
+(defn create-root
+  "A root view of `state`, whose `fire!` calls `dispatch` with the event"
+  [{:keys [state dispatch]}]
+  (Root. state dispatch (View. state {})))
 

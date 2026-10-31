@@ -10,11 +10,13 @@
   it and then fire off an xmlhttprequest."
   (:require [cljs.reader :refer [read-string]]))
 
+;; goog.global rather than js/window, so this loads in tests on node,
+;; where there are no preloads
 (def preloaded-values
-  (atom (read-string
-         (aget js/window "thermos_preloads"))))
+  (atom (some-> (aget js/goog.global "thermos_preloads")
+                (read-string))))
 
-(aset js/window "thermos_preloads" nil)
+(aset js/goog.global "thermos_preloads" nil)
 
 (defn get-value [key & {:keys [clear]}]
   (let [out (get @preloaded-values key)]

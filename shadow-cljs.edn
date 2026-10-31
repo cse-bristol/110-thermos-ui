@@ -25,4 +25,15 @@
    {:watch-dir "target/resources/public"
     :ignore-warnings true}
 
-   :release {:compiler-options {:infer-externs :auto}}}}}
+   :release {:compiler-options {:infer-externs :auto}}}
+
+  ;; cljs tests (test/**/*_test.cljs) on node: run with
+  ;; clojure -M:server:client:test -m shadow.cljs.devtools.cli compile test
+  :test
+  {:target :node-test
+   :output-to "target/test/node-tests.js"
+   :ns-regexp "^thermos-frontend\\..*-test$"
+   :autorun true
+   ;; bundle npm packages, as for the browser, so cljsjs.jsts resolves
+   :js-options {:js-provider :shadow
+                :resolve {"cljsjs.jsts" {:target :npm :require "jsts"}}}}}}
