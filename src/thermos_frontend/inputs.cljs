@@ -2,23 +2,53 @@
 ;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
 
 (ns thermos-frontend.inputs
+  "Form inputs. Those which take :value-atom can instead take :path, a path
+  into the document, which they read with the :doc/get subscription and
+  change with the :doc/set event."
   (:require [reagent.core :as reagent]
             [reagent.dom :as rdom]
+            [reagent.ratom]
+            [re-frame.core :as rf]
+            [re-frame.db]
             [clojure.string :as string]
-            [clojure.set :refer [map-invert]]
+            [clojure.set :as set :refer [map-invert]]
             [thermos-frontend.util :refer [target-value]]
             [thermos-frontend.format :as format]))
 
-(defn text [{:keys [value-atom] :as ks
-               :or {value-atom nil}}]
-  [:input.input.text-input
-   (merge {:type :text
-           :placeholder "some text"
-           :on-change (when value-atom #(reset! value-atom (target-value %)))
-           }
-          (when value-atom
-            {:value @value-atom})
-          (dissoc ks :value-atom))])
+(deftype ^:private DocumentPath [path]
+  IDeref
+  (-deref [_]
+    ;; outside a render (e.g. in an event handler) a subscription would
+    ;; not be disposed of, and re-frame complains
+    (if reagent.ratom/*ratom-context*
+      @(rf/subscribe [:doc/get path])
+      (get-in @re-frame.db/app-db path)))
+
+  IReset
+  (-reset! [_ value]
+    ;; synchronously, so a controlled input's value doesn't lag behind
+    (rf/dispatch-sync [:doc/set path value])
+    value))
+
+(defn- with-path
+  "Input attributes `atts` in which :path, if there is one, has been
+  turned into a :value-atom (or whatever `k` is)"
+  ([atts] (with-path atts :value-atom))
+  ([{:keys [path] :as atts} k]
+   (cond-> atts
+     path (-> (dissoc :path)
+              (assoc k (DocumentPath. path))))))
+
+(defn text [atts]
+  (let [{:keys [value-atom] :as ks} (with-path atts)]
+    [:input.input.text-input
+     (merge {:type :text
+             :placeholder "some text"
+             :on-change (when value-atom #(reset! value-atom (target-value %)))
+             }
+            (when value-atom
+              {:value (or @value-atom "")})
+            (dissoc ks :value-atom))]))
 
 (defn- default-validate [s x]
   (when (nil? x)
@@ -70,15 +100,11 @@
        ])}))
 
 
-(defn number2 [{:keys [value-atom
-                       scale
-                       step
-                       empty-value
-                       on-change
-                       on-blur]
-                :or {scale 1.0}
-                :as atts}]
-  (let [has-empty-value empty-value
+(defn number2 [atts]
+  (let [{:keys [value-atom scale step empty-value on-change on-blur]
+         :or {scale 1.0}
+         :as atts} (with-path atts)
+        has-empty-value empty-value
         [empty-value empty-value-label] empty-value
 
         on-change
@@ -117,12 +143,13 @@
 
 (defn number
   "Render a number input. SCALE of 100 means display value is 100 times larger than real value."
-  [{value-atom :value-atom scale :scale step :step
-    empty-value :empty-value
-    :as ks }]
+  [atts]
   (reagent/with-let [element  (atom nil)
                      is-blank (reagent/atom false)]
-    (let [scale (or scale 1)
+    (let [{value-atom :value-atom scale :scale step :step
+           empty-value :empty-value
+           :as ks} (with-path atts)
+          scale (or scale 1)
           step  (or step 1)
 
           digits (max 0 (- (Math/log10 step)))
@@ -208,11 +235,11 @@
                     
                     )}))])))
 
-(defn select [{value-atom :value-atom values :values
-               value :value on-change :on-change
-               :as attrs
-               }]
-  (let [index->key (into {} (map-indexed #(vector (str %1) %2) (map first values)))
+(defn select [atts]
+  (let [{value-atom :value-atom values :values
+         value :value on-change :on-change
+         :as attrs} (with-path atts)
+        index->key (into {} (map-indexed #(vector (str %1) %2) (map first values)))
         key->index (map-invert index->key)]
     [:select.select
      (merge
@@ -230,16 +257,23 @@
        (let [k (key->index k)]
          [:option {:value (str k) :key k} v]))]))
 
-(defn check-number [{check-atom :check-atom :as ks}]
-  [:div {:style {:display :flex}}
-   [:input.input
-    {:type :checkbox
-     :checked (boolean (and check-atom @check-atom))
-     :on-change (fn [e] (reset! check-atom (.. e -target -checked)))
-     }]
-   [number (-> ks
-               (dissoc :check-atom)
-               (assoc :disabled (not (and check-atom @check-atom))))]])
+(defn check-number
+  "A number input with a checkbox to enable it. :check-path is a path to
+  the checkbox's value, as :path is to the number's"
+  [atts]
+  (let [{check-atom :check-atom :as ks} (-> atts
+                                            (with-path)
+                                            (set/rename-keys {:check-path :path})
+                                            (with-path :check-atom))]
+    [:div {:style {:display :flex}}
+     [:input.input
+      {:type :checkbox
+       :checked (boolean (and check-atom @check-atom))
+       :on-change (fn [e] (reset! check-atom (.. e -target -checked)))
+       }]
+     [number (-> ks
+                 (dissoc :check-atom)
+                 (assoc :disabled (not (and check-atom @check-atom))))]]))
 
 (def group-ids (atom 0))
 

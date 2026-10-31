@@ -3,6 +3,8 @@
 
 (ns thermos-frontend.params.profiles
   (:require [reagent.core :as reagent]
+            [re-frame.core :as rf]
+            [thermos-frontend.doc :as doc]
             [clojure.string :as string]
             [thermos-pages.symbols :as syms]
             [thermos-frontend.inputs :as inputs]
@@ -117,30 +119,29 @@
                  :style       (:style atts)}
          ])})))
 
-(defn- day-type-parameters [doc day-type]
-  (let [*divisions (reagent/cursor doc [::supply/day-types day-type :divisions])
-        *frequency (reagent/cursor doc [::supply/day-types day-type :frequency])
-        *total-frequency (reagent/track
-                          #(let [day-types (::supply/day-types @doc)]
-                             (reduce + 0 (map :frequency (vals day-types)))))]
+(defn- day-type-parameters [day-type]
+  (let [day-types       (doc/value [::supply/day-types])
+        divisions       (get-in day-types [day-type :divisions])
+        frequency       (get-in day-types [day-type :frequency])
+        total-frequency (reduce + 0 (map :frequency (vals day-types)))]
     [:div
      [:label "Relative frequency: "
-      [inputs/number {:value-atom *frequency
+      [inputs/number {:path [::supply/day-types day-type :frequency]
                       :key day-type ;; this is on here to make it
                       ;; re-render. Otherwise reagent sees it as same element
                       :max 365
                       :min 0
                       :step 1}]
-      " of " @*total-frequency " (or ~"
-      (int (* 365 (/ (double @*frequency)
-                     (double @*total-frequency))))
+      " of " total-frequency " (or ~"
+      (int (* 365 (/ (double frequency)
+                     (double total-frequency))))
       " days per year)"]
      
      
      [:label {:style {:margin-left :1em}}
       "Time precision: "
       [inputs/parsed
-       {:value @*divisions
+       {:value divisions
         :type :number
         :class :number-input
         :min 1
@@ -149,11 +150,11 @@
         :parse (fn [t]
                  (let [t (js/parseInt t)]
                    (when (and (js/isFinite t) (> t 0)) t)))
-        :on-blur (fn [e v] (swap! doc supply/change-divisions day-type v))
+        :on-blur (fn [e v] (rf/dispatch [:doc/edit supply/change-divisions day-type v]))
         :on-key-down
         (fn [e]
           (when (= e.key "Enter")
-            (swap! doc supply/change-divisions day-type (.. e -target -parsedValue))))
+            (rf/dispatch [:doc/edit supply/change-divisions day-type (.. e -target -parsedValue)])))
         }
        ]
       ]]))
@@ -200,68 +201,67 @@
      [add-tab-button {:placeholder "Name"
                       :on-add-tab  on-add-row}])])
 
-(defn profiles-parameters [doc]
-  (reagent/with-let [day-types         (reagent/cursor doc [::supply/day-types])
-                     selected-day-type (reagent/atom (first (keys @day-types)))
+(defn- zeroes
+  "A block of zeroes suitable for the day types in `document`"
+  [document]
+  (for-map [[day-type {d :divisions}] (::supply/day-types document)]
+           day-type (vec (repeat d 0.0))))
 
-                     heat-profiles (reagent/cursor doc [::supply/heat-profiles])
-                     fuels         (reagent/cursor doc [::supply/fuels])
-                     substations   (reagent/cursor doc [::supply/substations])
+(defn- shown-day-type
+  "The day type to show, given the `selected` one, which is nil before one
+  has been chosen, or :latest to show the latest, as after adding one"
+  [day-types selected]
+  (cond
+    (contains? day-types selected) selected
+    (empty? day-types)             nil
+    (nil? selected)                (first (keys day-types))
+    :else                          (apply max (keys day-types))))
 
-                     grid-offer    (reagent/cursor doc [::supply/grid-offer])
-                     default-profile (reagent/cursor doc [::supply/default-profile])
-                     
-                     zeroes (fn [] ;; a block of zeroes suitable for current day types
-                              (let [day-types @day-types]
-                                (for-map [[day-type {d :divisions}] day-types]
-                                         day-type (vec (repeat d 0.0)))))
-
-                     counter (reagent/atom 0)
+(defn profiles-parameters []
+  (reagent/with-let [selected-day-type (reagent/atom nil)
 
                      fuel-block
                      (fn [{:keys [scale today key on-add-row]}]
                        [tabular-block
                         {:key     [key today]
                          :scale   scale
-                         :columns (:divisions (get @day-types today) 1)
+                         :columns (:divisions (get (doc/value [::supply/day-types]) today) 1)
                          :row-label
                          (fn [fuel-id x]
                            [:div.flex-cols {:style {:max-width :100%}}
                             [:button.button--link-style
                              {:style    {:margin-left :auto}
-                              :on-click #(swap! doc supply/remove-fuel fuel-id)}
+                              :on-click #(rf/dispatch [:doc/edit supply/remove-fuel fuel-id])}
                              syms/delete]
                             
                             [:input {:value     (:name x)
                                      :style     {:flex-shrink 1 :flex-grow 1 :width 1
                                                  :border-radius 0 :border :none}
-                                     :on-change #(swap! fuels assoc-in [fuel-id :name]
-                                                        (.. % -target -value))}]]
+                                     :on-change #(doc/update! [::supply/fuels] assoc-in [fuel-id :name] (.. % -target -value))}]]
                            )
                          :cell-values (fn [x] (get (key x) today))
-                         :data        @fuels
+                         :data        (doc/value [::supply/fuels])
                          :on-change   (fn [fuel division val]
-                                        (swap! fuels
-                                               assoc-in-v [fuel key today division] val))
+                                        (doc/update! [::supply/fuels] assoc-in-v [fuel key today division] val))
                          :on-add-row  on-add-row
                          }])
 
                      add-fuel-row
                      (fn [name]
-                       (swap! doc supply/add-fuel
-                              {:name  name
-                               :price (zeroes)
-                               :pm25  (zeroes)
-                               :co2   (zeroes)
-                               :nox   (zeroes)
-                               }))
+                       (rf/dispatch
+                        [:doc/edit
+                         #(supply/add-fuel % {:name  name
+                                              :price (zeroes %)
+                                              :pm25  (zeroes %)
+                                              :co2   (zeroes %)
+                                              :nox   (zeroes %)})]))
 
                      substation-load-block
                      (fn [{:keys [today]}]
                        [tabular-block
-                        {:columns (:divisions (get @day-types today) 1)
+                        {:columns (:divisions (get (doc/value [::supply/day-types]) today) 1)
                          :scale (/ 1000.0)
-                         :data @substations
+                         :data (doc/value [::supply/substations])
                          :row-label
                          (fn [sub-id sub-data]
                            (:name sub-data (str "Substation " sub-id)))
@@ -270,9 +270,7 @@
                            (get (:load-kw sub-data) today))
                          :on-change
                          (fn [sub-id hh val]
-                           (swap! substations
-                                  assoc-in-v
-                                  [sub-id :load-kw today hh] val))
+                           (doc/update! [::supply/substations] assoc-in-v [sub-id :load-kw today hh] val))
                          }
                         
                         ]
@@ -282,68 +280,67 @@
                      (fn [{:keys [today]}]
                        [tabular-block
                         {:key     [:heat today] ;; this causes react to redraw content on day switch
-                         :columns (:divisions (get @day-types today) 1)
+                         :columns (:divisions (get (doc/value [::supply/day-types]) today) 1)
                          :row-label
                          (fn [profile-id x]
                            [:div.flex-cols {:style {:max-width :100%}}
                             [:button.button--link-style
                              {:style    {:margin-left :auto}
-                              :on-click #(swap! doc supply/remove-profile profile-id)}
+                              :on-click #(rf/dispatch [:doc/edit supply/remove-profile profile-id])}
                              syms/delete]
                             
                             [:input {:value     (:name x)
                                      :style     {:flex-shrink 1 :flex-grow 1 :width 1
                                                  :border-radius 0 :border :none}
                                      
-                                     :on-change #(swap! heat-profiles assoc-in [profile-id :name]
-                                                        (.. % -target -value))}]]
+                                     :on-change #(doc/update! [::supply/heat-profiles] assoc-in [profile-id :name] (.. % -target -value))}]]
                            )
                          
                          :cell-values (fn [x] (get (:demand x) today))
-                         :data        @heat-profiles
+                         :data        (doc/value [::supply/heat-profiles])
                          :on-change   (fn [profile division val]
-                                        (swap! heat-profiles
-                                               assoc-in-v [profile :demand today division] val))
+                                        (doc/update! [::supply/heat-profiles] assoc-in-v [profile :demand today division] val))
                          :on-add-row
                          (fn [name]
-                           (swap! doc supply/add-profile
-                                  {:name   name
-                                   :demand (zeroes)}))}])
+                           (rf/dispatch
+                            [:doc/edit
+                             #(supply/add-profile % {:name   name
+                                                     :demand (zeroes %)})]))}])
                      ]
-    
+   (let [day-types (doc/value [::supply/day-types])
+         today     (shown-day-type day-types @selected-day-type)]
     [:div.card.flex-grow.parameters-component
      [:h1.card-header "Default profile"]
      [:div "This profile will be used for buildings where you have not set a profile: "
       [inputs/select {:values
-                      (for [[profile-id {name :name}] @heat-profiles]
+                      (for [[profile-id {name :name}] (doc/value [::supply/heat-profiles])]
                         [profile-id name])
-                      :value (or @default-profile (min (keys @heat-profiles)))
-                      :on-change #(reset! default-profile %)
+                      :value (or (doc/value [::supply/default-profile]) (min (keys (doc/value [::supply/heat-profiles]))))
+                      :on-change #(doc/set-value! [::supply/default-profile] %)
                       }]
       ]
      
      [:h1.card-header "Day types"]
      [day-type-tabs
-      {:day-types @day-types :selected @selected-day-type
+      {:day-types day-types :selected today
        :on-select #(reset! selected-day-type %)
        :on-create #(do
-                     (swap! doc supply/add-day-type {:name % :frequency 1 :divisions 24})
-                     (reset! selected-day-type (apply max (keys @day-types))))
+                     (rf/dispatch [:doc/edit supply/add-day-type {:name % :frequency 1 :divisions 24}])
+                     (reset! selected-day-type :latest))
        :on-delete (fn [id]
-                    (swap! doc supply/remove-day-type id)
-                    (reset! selected-day-type (apply max (keys @day-types))))
+                    (rf/dispatch [:doc/edit supply/remove-day-type id])
+                    (reset! selected-day-type :latest))
        :on-rename (fn [day-type new-name]
-                    (swap! day-types assoc-in [day-type :name] new-name))
+                    (doc/set-value! [::supply/day-types day-type :name] new-name))
        }]
 
-     [day-type-parameters doc @selected-day-type]
+     [day-type-parameters today]
 
      [:div {:style {:padding-top :1em
                     :padding-bottom :1em}}
       "Press the " [:b "="] " key to set all values in a row to the focused cell."]
      
-     (let [today         @selected-day-type
-           columns-today (:divisions (get @day-types today) 1)]
+     (let [columns-today (:divisions (get day-types today) 1)]
 
        [:div {:style {:overflow-x :auto}}
         [:h1.card-header "Heat profiles"]
@@ -361,9 +358,9 @@
           :scale       100.0
           :row-label   (constantly "Grid offer")
           :cell-values (fn [x] (get x today))
-          :data        [[0 @grid-offer]]
+          :data        [[0 (doc/value [::supply/grid-offer])]]
           :on-change   (fn [_ division val]
-                         (swap! grid-offer assoc-in-v [today division] val))}]
+                         (doc/update! [::supply/grid-offer] assoc-in-v [today division] val))}]
         
         [fuel-block {:key        :price
                      :scale      100.0
@@ -394,11 +391,10 @@
                      }]
 
 
-        (when (seq @substations)
+        (when (seq (doc/value [::supply/substations]))
           [:<>
            [:h1.card-header {:style {:margin-top :1em}} "Substation load — MW"]
            [substation-load-block {:today today}]])
         
         ])
-     ]))
-
+     ])))

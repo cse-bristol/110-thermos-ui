@@ -21,7 +21,6 @@
             [thermos-frontend.selection-info-panel :as selection-info-panel]
             [thermos-frontend.popover :as popover]
             [thermos-frontend.view-control :as view-control]
-            [thermos-frontend.params.global :as global-parameters]
             [thermos-frontend.params.objective :as objective]
             [thermos-frontend.params.tariffs :as tariff-parameters]
             [thermos-frontend.params.pipes :as pipe-parameters]
@@ -552,28 +551,28 @@
           [map-page state/state]
 
           (= selected-tab :parameters)
-          [objective/objective-parameters state/state]
+          [objective/objective-parameters]
 
           (= selected-tab :tariffs)
-          [tariff-parameters/tariff-parameters state/state]
+          [tariff-parameters/tariff-parameters]
 
           (= selected-tab :pipe-costs)
-          [pipe-parameters/pipe-parameters state/state]
+          [pipe-parameters/pipe-parameters]
 
           (= selected-tab :insulation)
-          [insulation/insulation-parameters state/state]
+          [insulation/insulation-parameters]
 
           (= selected-tab :alternatives)
-          [alternatives/alternatives-parameters state/state]
+          [alternatives/alternatives-parameters]
 
           (= selected-tab :profiles)
-          [profiles/profiles-parameters state/state]
+          [profiles/profiles-parameters]
 
           (= selected-tab :supply-technologies)
-          [supply-technologies/supply-tech-parameters state/state]
+          [supply-technologies/supply-tech-parameters]
 
           (= selected-tab :supply-objective)
-          [supply-objective/supply-objective-parameters state/state]
+          [supply-objective/supply-objective-parameters]
           
           (= selected-tab :solution)
           [solution-view/solution-summary state/state]

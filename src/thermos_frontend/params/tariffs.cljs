@@ -3,10 +3,11 @@
 
 (ns thermos-frontend.params.tariffs
   (:require [reagent.core :as reagent]
+            [re-frame.core :as rf]
+            [thermos-frontend.doc :as doc]
             [thermos-frontend.inputs :as inputs]
             [thermos-specs.document :as document]
             [thermos-specs.tariff :as tariff]
-            [thermos-frontend.util :refer [target-value]]
             [thermos-pages.symbols :as symbols]
             [clojure.string :as string]))
 
@@ -19,23 +20,19 @@
 
 
 (defn- tariff-row
-  [{id :key} *document *tariffs]
-  (let [get #(get-in @*tariffs [id %])
-        put #(swap! *tariffs assoc-in [id %1] %2)
-        delete-tariff #(swap! *document document/remove-tariff id)]
+  [{id :key}]
+  (let [path #(vector ::document/tariffs id %)]
     [:tr {:key id}
      [:td [inputs/text
            {:placeholder (str "Tariff " id)
-            :value (get ::tariff/name)
-            :on-change #(put ::tariff/name (target-value %))}]]
+            :path (path ::tariff/name)}]]
      [:td [:label
            [inputs/number2
             {:title "A fixed annual payment from customers on this tariff."
              :style {:max-width  :4em}
              :max 1000
              :min 0
-             :value (get ::tariff/standing-charge)
-             :on-change #(put ::tariff/standing-charge %)
+             :path (path ::tariff/standing-charge)
              }]
            " " standing-charge-unit]]
      [:td [:label
@@ -46,8 +43,7 @@
              :min 0
              :scale 100
              :step 0.1
-             :value (get ::tariff/unit-charge)
-             :on-change #(put ::tariff/unit-charge %)
+             :path (path ::tariff/unit-charge)
              }]
            " " unit-rate-unit]]
      [:td [:label
@@ -56,41 +52,42 @@
              :style {:max-width  :4em}
              :max 1000
              :min 0
-             :value (get ::tariff/capacity-charge)
-             :on-change #(put ::tariff/capacity-charge %)
+             :path (path ::tariff/capacity-charge)
              }]
            " " capacity-charge-unit]
       ]
      [:td {:style {:width :1px} :title "Delete"}
       [:button.button {:style {:margin-left :1em}
-                            :on-click delete-tariff}
+                            :on-click #(rf/dispatch [:doc/edit document/remove-tariff id])}
             symbols/dustbin]]
      ]))
 
-(defn tariff-parameters
-  [doc]
-  (reagent/with-let
-    [*tariffs          (reagent/cursor doc [::document/tariffs])
-     
-     *market-rate      (reagent/cursor doc [::tariff/market-discount-rate])
-     *market-term      (reagent/cursor doc [::tariff/market-term])
-     *market-stick     (reagent/cursor doc [::tariff/market-stickiness])
-     *objective        (reagent/cursor doc [::document/objective])
-     ]
+(defn- add-tariff [tariffs]
+  (let [id (inc (reduce max -1 (keys tariffs)))]
+    (assoc tariffs id
+           {::tariff/name ""
+            ::tariff/id id ;; urgh? yes? no?
+            ::tariff/standing-charge 0
+            ::tariff/capacity-charge 0
+            ::tariff/unit-charge 0})))
+
+(defn tariff-parameters []
+  (let [tariffs   (doc/value [::document/tariffs])
+        objective (doc/value [::document/objective])]
     [:div
      [:div.card
       [:h2.card-header "Tariffs"]
       [:p "Each building can have an associated tariff, which determines the revenue to the network operator. "]
 
-      (when (= :system @*objective)
+      (when (= :system objective)
         [:p [:b "Note: " ]
          "these settings will have no effect while the objective is whole-system NPV. "
          "Change to network NPV to make network revenue part of the objective."])
       
-      (when-not (seq @*tariffs)
+      (when-not (seq tariffs)
         [:p "At the moment you have no tariffs, so connections will produce no revenue or cost. Click 'add' to define a tariff."])
 
-      (when (seq @*tariffs)
+      (when (seq tariffs)
         [:table.table {:style {:max-width :900px}}
          [:thead
           [:tr
@@ -101,24 +98,13 @@
            [:th]]]
          [:tbody
           (doall
-            (for [id (sort (keys @*tariffs))]
-              [tariff-row {:key id} doc *tariffs]))]])
+            (for [id (sort (keys tariffs))]
+              [tariff-row {:key id}]))]])
 
       [:div.centre {:style {:max-width :900px}}
        [:button.button
         {:style {:margin-top :1em}
-         :on-click #(swap! *tariffs
-                           (fn [t]
-                             (let [id (inc (reduce max -1 (keys t)))]
-                               (assoc
-                                t
-                                id
-                                {::tariff/name ""
-                                 ::tariff/id id ;; urgh? yes? no?
-                                 ::tariff/standing-charge 0
-                                 ::tariff/capacity-charge 0
-                                 ::tariff/unit-charge 0
-                                 }))))}
+         :on-click #(doc/update! [::document/tariffs] add-tariff)}
         symbols/plus " Add tariff"]]
 
       [:div {:style {:margin-top :2em}}
@@ -142,7 +128,7 @@
               :max 10
               :scale 100
               :step 0.1
-              :value-atom *market-rate}]
+              :path [::tariff/market-discount-rate]}]
             " %"]]
 
           [:tr
@@ -153,7 +139,7 @@
               :min 0
               :max 50
               :step 1
-              :value-atom *market-term}]
+              :path [::tariff/market-term]}]
             " yr"]]
 
           [:tr
@@ -165,7 +151,7 @@
               :max 100
               :scale 100
               :step 0.5
-              :value-atom *market-stick}]
+              :path [::tariff/market-stickiness]}]
             " %"]]]]]]]
 
 

@@ -8,9 +8,9 @@
             [thermos-specs.tariff :as tariff]
             [thermos-frontend.inputs :as inputs]
             [reagent.core :as reagent]
-            [thermos-frontend.util :refer [target-value]]
             [thermos-pages.symbols :as symbols]
             [re-frame.core :as rf]
+            [thermos-frontend.doc :as doc]
             [thermos-util.pipes :as pipe-calcs]
             [thermos-util :refer [kw->annual-kwh]]
             [clojure.set :as set]
@@ -288,23 +288,19 @@
 (def conn-var-unit "¤/kWp")
 
 (defn- connection-cost-row
-  [{id :key} *document *connection-costs]
-  (let [get #(get-in @*connection-costs [id %])
-        put #(swap! *connection-costs assoc-in [id %1] %2)
-        delete-connection-cost #(swap! *document document/remove-connection-cost id)]
+  [{id :key}]
+  (let [path #(vector ::document/connection-costs id %)]
     [:tr {:key id}
      [:td [inputs/text
            {:placeholder (str "Connection cost " id)
-            :value (get ::tariff/name)
-            :on-change #(put ::tariff/name (target-value %))}]]
+            :path (path ::tariff/name)}]]
      [:td [:label
            [inputs/number2
             {:title "The fixed part of the capital cost of connecting a building."
              :style {:max-width :5em}
              :max 1000
              :min 0
-             :value (get ::tariff/fixed-connection-cost)
-             :on-change #(put ::tariff/fixed-connection-cost %)
+             :path (path ::tariff/fixed-connection-cost)
              }]
            " " conn-fixed-unit]]
      [:td [:label
@@ -314,23 +310,30 @@
              :max 100
              :min 0
              :step 0.1
-             :value (get ::tariff/variable-connection-cost)
-             :on-change #(put ::tariff/variable-connection-cost %)
+             :path (path ::tariff/variable-connection-cost)
              }]
            " " conn-var-unit]]
 
      [:td {:style {:width :1px}}
-      [:button.button {:on-click delete-connection-cost}
+      [:button.button {:on-click #(rf/dispatch [:doc/edit document/remove-connection-cost id])}
        symbols/dustbin]]
      ]))
 
-(defn- connection-costs [doc]
-  (reagent/with-let [*connection-costs (reagent/cursor doc [::document/connection-costs])]
+(defn- add-connection-cost [costs]
+  (let [id (inc (reduce max -1 (keys costs)))]
+    (assoc costs id
+           {::tariff/name ""
+            ::tariff/cc-id id
+            ::tariff/fixed-connection-cost 0
+            ::tariff/variable-connection-cost 0})))
+
+(defn- connection-costs []
+  (let [connection-costs (doc/value [::document/connection-costs])]
     [:div.card
     [:h2.card-header "Connection Costs"]
     [:p "Each building also has associated connection costs, which determine the capital costs of connecting the building to the network. These costs are borne by the network operator."]
 
-    (when (seq @*connection-costs)
+    (when (seq connection-costs)
       [:table.table {:style {:max-width :700px}}
        [:thead
         [:tr
@@ -340,59 +343,33 @@
          [:th]]]
        [:tbody
         (doall
-         (for [id (sort (keys @*connection-costs))]
-           [connection-cost-row {:key id} doc *connection-costs]))]])
+         (for [id (sort (keys connection-costs))]
+           [connection-cost-row {:key id}]))]])
 
     [:div.centre {:style {:max-width :700px}}
      [:button.button
       {:style {:margin-top :1em}
-       :on-click #(swap! *connection-costs
-                         (fn [t]
-                           (let [id (inc (reduce max -1 (keys t)))]
-                             (assoc
-                              t
-                              id
-                              {::tariff/name ""
-                               ::tariff/cc-id id
-                               ::tariff/fixed-connection-cost 0
-                               ::tariff/variable-connection-cost 0
-                               }))))}
+       :on-click #(doc/update! [::document/connection-costs] add-connection-cost)}
       symbols/plus " Add connection cost"]]
 
     ]))
 
-(defn pipe-parameters [document]
-  (reagent/with-let
-    [flow-temperature (reagent/cursor document [::document/flow-temperature])
-     return-temperature (reagent/cursor document [::document/return-temperature])
-     ground-temperature (reagent/cursor document [::document/ground-temperature])
-
-     pumping-overhead     (reagent/cursor document [::document/pumping-overhead])
-     pumping-cost-per-kwh (reagent/cursor document [::document/pumping-cost-per-kwh])
-
-     diversity-limit      (reagent/cursor document [::document/diversity-limit])
-     diversity-rate       (reagent/cursor document [::document/diversity-rate])
-     
-     pumping-emissions-atoms
-     (into
-      {}
-      (for [e candidate/emissions-types]
-        [e (reagent/cursor document [::document/pumping-emissions e])]))
-     ]
+(defn pipe-parameters []
+  (let [diversity-limit (doc/value [::document/diversity-limit])]
     [:div {:key :pipe-parameters}
      ^{:key :cost-model} [cost-model]
      [pipe-costs-table]
-     [connection-costs document]
+     [connection-costs]
 
      [:div.card
       [:h1.card-header "Diversity function"]
       [:p "Calculate diversity as "
-       [inputs/number2 {:value-atom diversity-limit :min 0 :max 100 :step 1 :scale 100
+       [inputs/number2 {:path [::document/diversity-limit] :min 0 :max 100 :step 1 :scale 100
                         :style {:max-width :5em}}]
        
-       "% + " (str (* 100 (- 1 @diversity-limit)))
+       "% + " (str (* 100 (- 1 diversity-limit)))
        "% / ("
-       [inputs/number2 {:value-atom diversity-rate :min 1 :max 100 :step 1 :scale 1
+       [inputs/number2 {:path [::document/diversity-rate] :min 1 :max 100 :step 1 :scale 1
                         :style {:max-width :5em}}]
        "✕ N"
        ")"]]
@@ -404,10 +381,10 @@
        "In a heat network they offset supply output. "
        "In a cooling network, they add to the required supply output."]
       [:p "Pumping overheads are "
-       [inputs/number2 {:value-atom pumping-overhead :min 0 :max 100 :step 1 :scale 100
+       [inputs/number2 {:path [::document/pumping-overhead] :min 0 :max 100 :step 1 :scale 100
                         :style {:max-width :5em}}]
        " % of system output, and cost "
-       [inputs/number2 {:value-atom pumping-cost-per-kwh
+       [inputs/number2 {:path [::document/pumping-cost-per-kwh]
                         :style {:max-width :5em}
                        :min 0 :max 50 :step 0.01 :scale 100}] "c/kWh. "
        "They cause emissions of"
@@ -415,7 +392,7 @@
         ", "
         (for [e candidate/emissions-types]
           [:<> {:key e}
-           [inputs/number2 {:value-atom (pumping-emissions-atoms e)
+           [inputs/number2 {:path [::document/pumping-emissions e]
                             :style {:max-width :5em}
                             :min 0 :max 1000 :step 1
                             :scale (candidate/emissions-factor-scales e)
