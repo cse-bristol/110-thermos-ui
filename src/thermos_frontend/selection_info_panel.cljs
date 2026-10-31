@@ -12,14 +12,12 @@
             [thermos-specs.solution :as solution]
             [thermos-specs.view :as view]
             [thermos-specs.supply :as supply]
-            [thermos-frontend.editor-state :as state]
-            [thermos-frontend.operations :as operations]
             [thermos-frontend.tag :as tag]
             [thermos-frontend.format :refer [si-number local-format]]
             [thermos-util :refer [annual-kwh->kw]]
             [thermos-frontend.format :as format]
             [thermos-frontend.inputs :as inputs]
-            [thermos-frontend.flow :as flow]
+            [re-frame.core :as rf]
 
             [clojure.string :as string]))
 
@@ -79,7 +77,7 @@
 
 (defonce *open-rows (reagent/atom {}))
 
-(defn- chips-row [flow selection title value
+(defn- chips-row [selection title value
                   & {:keys [add-classes nil-value default-closed]}]
   (reagent/with-let [*open (reagent/cursor *open-rows [title])]
     (let [by-value (dissoc (group-by (if nil-value
@@ -113,14 +111,9 @@
                     :count (count candidates)
                     :body value
                     :close true
-                    :on-select #(flow/fire!
-                                 flow
-                                 [:select-ids (map ::candidate/id candidates)])
+                    :on-select #(rf/dispatch [:select-ids (map ::candidate/id candidates)])
                     
-                    :on-close #(flow/fire!
-                                flow
-                                [operations/deselect-candidates
-                                 (map ::candidate/id candidates)])
+                    :on-close #(rf/dispatch [:deselect-ids (map ::candidate/id candidates)])
                     }])))
              ))
          :extra-class "selection-table-cell--tag-container"
@@ -238,60 +231,15 @@
         "W/m"]])))
 
 
-(defn- custom-keys [root]
-  (let [selection @(flow/view* root operations/selected-candidates)]
-    
-    (->
-     (reduce
-      (fn [acc candidate]
-        (let [uf (::candidate/user-fields candidate)]
-          (reduce-kv
-           (fn [acc field val]
-             (let [new (not (contains? acc field))
-                   cur (get acc field :none)
-                   nxt (cond
-                         (nil? val)               :none
-                         (or (= 0 val) (= 1 val)) :bit
-                         (number? val)            :number
-                         (boolean? val)           :boolean
-                         :else :string)
-                   ]
-               (cond
-                 (or new (= :none cur)) (assoc! acc field nxt)
-                 (= cur nxt)            acc
-                 (and (= :number nxt)
-                      (= :bit cur))     (assoc! acc field :number)
-                 :else                  (assoc! acc field :string))))
-           acc
-           uf)))
-      
-      (transient {})
-      selection)
-     (persistent!)
-     (->> (into (sorted-map))))))
-
-
 (defn component
   "The panel in the bottom right which displays some information about the currently selected candidates."
-  [root]
-  (let [flow        (flow/view* root dissoc ::view/view-state) ;; stripping
-                                                               ;; off
-                                                               ;; view
-                                                               ;; state
-                                                               ;; prevents
-                                                               ;; us
-                                                               ;; re-rendering
-                                                               ;; when
-                                                               ;; nothing
-                                                               ;; has
-                                                               ;; changed
-        selection @(flow/view* flow operations/selected-candidates)
-        has-solution @(flow/view* flow document/has-solution?)
-        model-mode @(flow/view* flow document/mode)
-        mode-name (case model-mode :cooling "Cold" "Heat")
-        cost-factors @(flow/view* flow dissoc ::document/candidates)
-        custom-keys (sort-by first @(flow/view flow custom-keys))
-        ]
+  []
+  (let [selection    @(rf/subscribe [:candidates/selected])
+        has-solution @(rf/subscribe [:doc/has-solution])
+        model-mode   @(rf/subscribe [:doc/mode])
+        mode-name    (case model-mode :cooling "Cold" "Heat")
+        cost-factors @(rf/subscribe [:doc/cost-factors])
+        custom-keys  @(rf/subscribe [:candidates/selected-user-fields])]
 
     [:div.component--selection-info
      [:header.selection-header
@@ -300,7 +248,7 @@
             (empty? (rest selection)) "One candidate selected"
             :else (str (count selection) " candidates selected"))]
 
-     (let [chips-row  (partial chips-row root selection)
+     (let [chips-row  (partial chips-row selection)
            number-row (partial number-row selection)
            base-cost  (partial base-cost cost-factors model-mode)
            ]

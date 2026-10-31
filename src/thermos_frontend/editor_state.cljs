@@ -17,7 +17,6 @@
             [thermos-frontend.db :as db]
             [thermos-frontend.io :as io]
             [thermos-frontend.operations :as operations]
-            [thermos-frontend.flow :as flow]
             [thermos-frontend.events]
             [thermos-frontend.fx]))
 
@@ -25,14 +24,6 @@
   "The document, as a reagent atom. Code that changes it with swap! should
   dispatch events instead."
   re-frame.db/app-db)
-
-(defn fire-event!
-  "Dispatch `e`, which is either a re-frame event, or [f & args] for
-  calling f on the document with args"
-  [e]
-  (rf/dispatch (if (keyword? (first e)) e (into [:doc/edit] e))))
-
-(def flow (flow/create-root {:state state :dispatch fire-event!}))
 
 (defn needs-save? [] (db/needs-save? @state))
 

@@ -49,7 +49,6 @@
             [goog.object :as gobj]
             [thermos-frontend.util :refer [target-value]]
 
-            [thermos-frontend.flow]
             [thermos-frontend.splitter :refer [splitter]]
             [thermos-backend.content-migrations.messages :as migration-messages]
 
@@ -81,7 +80,7 @@
           (toaster/show! [:div.toaster.toaster--success "Project saved"]))))))
 
 
-(defn map-page [doc flow]
+(defn map-page [doc]
   (r/with-let [h-split-pos (r/cursor doc
                                      [::view/view-state
                                       ::view/map-page-h-split]
@@ -107,17 +106,17 @@
          :on-split-change #(reset! h-split-pos %)
          :left
          [:div.map-container
-          [map/component doc flow]
+          [map/component doc]
           [view-control/component doc]]
          
          :right
-         [selection-info-panel/component flow]
+         [selection-info-panel/component]
          }]
 
        :bottom
        [:div
         {:style {:width :100%}}
-        [network-candidates-panel/component flow]
+        [network-candidates-panel/component]
         ]
        }
       ]
@@ -550,7 +549,7 @@
 
         (cond
           (= selected-tab :candidates)
-          [map-page state/state state/flow]
+          [map-page state/state]
 
           (= selected-tab :parameters)
           [objective/objective-parameters state/state]
@@ -559,7 +558,7 @@
           [tariff-parameters/tariff-parameters state/state]
 
           (= selected-tab :pipe-costs)
-          [pipe-parameters/pipe-parameters state/state state/flow]
+          [pipe-parameters/pipe-parameters state/state]
 
           (= selected-tab :insulation)
           [insulation/insulation-parameters state/state]
@@ -588,8 +587,7 @@
           :else
           [:div "Unknown page!!! urgh!"])]
        (when-let [messages
-                  (seq @(thermos-frontend.flow/view* state/flow
-                                                     ::document/migration-messages))]
+                  (seq @(rf/subscribe [:doc/migration-messages]))]
          [:div {:style {:position :fixed :top 0 :left :0 :width :100% :height :100%
                         :z-index 2000
                         :display :flex :flex-direction :column
@@ -614,8 +612,7 @@
            [:div {:style {:display :flex}}
             [:button.button 
              {:style {:margin-left :auto}
-              :on-click #(thermos-frontend.flow/fire! state/flow
-                                                      [dissoc ::document/migration-messages])}
+              :on-click #(rf/dispatch [:doc/dismiss-migration-messages])}
              
              "OK"]]
            ]

@@ -55,6 +55,11 @@
    (operations/select-candidates db ids (or method :replace))))
 
 (rf/reg-event-db
+ :deselect-ids
+ (fn [db [_ ids]]
+   (operations/deselect-candidates db ids)))
+
+(rf/reg-event-db
  :group-selection
  (fn [db _]
    (document/group-candidates db (operations/selected-candidates-ids db))))
@@ -68,6 +73,44 @@
  :group-select-members
  (fn [db _]
    (document/select-group-members db)))
+
+;; The candidates table's column filters
+
+(rf/reg-event-db
+ :table/open-filter
+ (fn [db [_ key]] (operations/open-table-filter db key)))
+
+(rf/reg-event-db
+ :table/close-filter
+ (fn [db _] (operations/close-table-filter db)))
+
+(rf/reg-event-db
+ :table/clear-filters
+ (fn [db _] (operations/clear-filters db)))
+
+(rf/reg-event-db
+ :table/set-filter
+ (fn [db [_ key value]] (operations/set-table-filter-value db key value)))
+
+(rf/reg-event-db
+ :table/remove-filter
+ (fn [db [_ key]] (operations/remove-all-table-filter-values db key)))
+
+(rf/reg-event-db
+ :table/add-filter-value
+ (fn [db [_ key value]] (operations/add-table-filter-value db key value)))
+
+(rf/reg-event-db
+ :table/add-filter-values
+ (fn [db [_ key values]] (operations/add-table-filter-values db key values)))
+
+(rf/reg-event-db
+ :table/remove-filter-value
+ (fn [db [_ key value]] (operations/remove-table-filter-value db key value)))
+
+(rf/reg-event-db
+ :doc/dismiss-migration-messages
+ (fn [db _] (dissoc db ::document/migration-messages)))
 
 ;; Pipe costs
 

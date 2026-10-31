@@ -10,7 +10,7 @@
             [reagent.core :as reagent]
             [thermos-frontend.util :refer [target-value]]
             [thermos-pages.symbols :as symbols]
-            [thermos-frontend.flow :as f]
+            [re-frame.core :as rf]
             [thermos-util.pipes :as pipe-calcs]
             [thermos-util :refer [kw->annual-kwh]]
             [clojure.set :as set]
@@ -46,7 +46,7 @@
              (assoc out h i i h)
              t (rest ix))))))))
 
-(defn- pipe-costs-table [flow]
+(defn- pipe-costs-table []
   ;; this bit is a horrible thing to provide a stable rownumber for each row
   ;; in the face of changing diameters.
 
@@ -54,7 +54,7 @@
   (reagent/with-let [indexed-table
                      (let [dia-index (atom {})]
                        (reagent/track
-                        #(let [pipe-costs @(f/view* flow ::document/pipe-costs)
+                        #(let [pipe-costs @(rf/subscribe [:doc/pipe-costs])
                                indices
                                (swap! dia-index match-indices
                                       (keys (:rows pipe-costs)))]
@@ -70,7 +70,7 @@
                               )))))]
     (let [{:keys [civils rows default-civils]} @indexed-table
 
-          pipe-parameters    @(f/view* flow pipe-calcs/select-parameters)]
+          pipe-parameters    @(rf/subscribe [:doc/pipe-parameters])]
 
       [:div.card
        [:h1.card-header "Pipe costs"]
@@ -106,9 +106,7 @@
                             :placeholder "Cost name"
                             :on-change
                             (fn [el]
-                              (f/fire!
-                               flow
-                               [:pipe/rename-civils
+                              (rf/dispatch [:pipe/rename-civils
                                 cid (-> el .-target .-value)]))
                             }]
               [:button.button.button--outline.square-left
@@ -117,9 +115,7 @@
                         }
                 :title "Remove column"
                 :on-click
-                #(f/fire!
-                  flow
-                  [:pipe/remove-civils cid])}
+                #(rf/dispatch [:pipe/remove-civils cid])}
                symbols/delete]]]
             )
           [:th]
@@ -133,8 +129,7 @@
                                   :style {:max-width :5em}
                                   :on-blur
                                   (fn [v]
-                                    (f/fire!
-                                     flow [:pipe/change-diameter dia v]))
+                                    (rf/dispatch [:pipe/change-diameter dia v]))
                                   }]]
             [:td
              [inputs/parsed
@@ -154,8 +149,7 @@
                :style {:max-width :5em}
                :on-change
                (fn [_ v]
-                 (f/fire!
-                  flow [:pipe/change-capacity dia
+                 (rf/dispatch [:pipe/change-capacity dia
                         (if (= :empty v) nil (/ v 1000.0))]))
                
                :placeholder
@@ -182,8 +176,7 @@
 
                                     :on-change
                                     (fn [v]
-                                      (f/fire!
-                                       flow [:pipe/change-losses dia v]))
+                                      (rf/dispatch [:pipe/change-losses dia v]))
                                     
                                     }])
              ]
@@ -193,8 +186,7 @@
                                   :min 0 :max 1000
                                   :on-change
                                   (fn [v]
-                                    (f/fire!
-                                     flow [:pipe/change-cost dia v]))
+                                    (rf/dispatch [:pipe/change-cost dia v]))
                                   }]]
             (for [[cid cc] civils]
               [:td {:key cid}
@@ -203,14 +195,13 @@
                                 :min 0 :max 1000
                                 :on-change
                                 (fn [v]
-                                  (f/fire!
-                                   flow [:pipe/change-civil-cost dia cid v]))
+                                  (rf/dispatch [:pipe/change-civil-cost dia cid v]))
                                 }]]
               )
             
             [:td
              [:button.button.button--circular.button--outline
-              {:on-click #(f/fire! flow [:pipe/remove-diameter dia])
+              {:on-click #(rf/dispatch [:pipe/remove-diameter dia])
                :title "Remove row"}
               symbols/delete]]
             ]
@@ -222,16 +213,14 @@
         [:button.button
          {:on-click
           #(let [max-dia (reduce max 0 (map :diameter (vals rows)))]
-             (f/fire!
-              flow
-              [:pipe/add-diameter (+ max-dia 50)])
+             (rf/dispatch [:pipe/add-diameter (+ max-dia 50)])
              
              )
           }
          "Add diameter"]
         [:button.button
          {:on-click
-          #(f/fire! flow [:pipe/add-civils (str "Cost "
+          #(rf/dispatch [:pipe/add-civils (str "Cost "
                                                 (inc (count civils)))])
           
           }
@@ -243,12 +232,12 @@
           {:value default-civils
            :values (conj (vec civils) [nil "None"])
            :on-change (fn [cid]
-                        (f/fire! flow [:pipe/set-default-civils cid]))}]]
+                        (rf/dispatch [:pipe/set-default-civils cid]))}]]
         ]
        ]))
   )
 
-(defn cost-model [flow]
+(defn cost-model []
   [:div.card {:key :a}
    [:h1.card-header "Capacity & loss model"]
    [:div.flex-cols {:key :b}
@@ -260,22 +249,22 @@
      [:label "Flow temperature: "]
      [inputs/number2
       {:key :flow-temperature
-       :value @(f/view* flow ::document/flow-temperature)
-       :on-change #(f/fire! flow [:pipe/change-flow-temperature %])}
+       :value @(rf/subscribe [:doc/get [::document/flow-temperature]])
+       :on-change #(rf/dispatch [:pipe/change-flow-temperature %])}
       ]
      [:label "℃"]
 
      [:label "Return temperature:"]
      [inputs/number2
-      {:value     @(f/view* flow ::document/return-temperature)
-       :on-change #(f/fire! flow [:pipe/change-return-temperature %])
+      {:value     @(rf/subscribe [:doc/get [::document/return-temperature]])
+       :on-change #(rf/dispatch [:pipe/change-return-temperature %])
        }]
      [:label "℃"]
 
      [:label "Ground temperature:"]
      [inputs/number2
-      {:value @(f/view* flow ::document/ground-temperature)
-       :on-change #(f/fire! flow [:pipe/change-ground-temperature %])}]
+      {:value @(rf/subscribe [:doc/get [::document/ground-temperature]])
+       :on-change #(rf/dispatch [:pipe/change-ground-temperature %])}]
      [:label "℃"]
      ]
 
@@ -372,7 +361,7 @@
 
     ]))
 
-(defn pipe-parameters [document flow]
+(defn pipe-parameters [document]
   (reagent/with-let
     [flow-temperature (reagent/cursor document [::document/flow-temperature])
      return-temperature (reagent/cursor document [::document/return-temperature])
@@ -391,8 +380,8 @@
         [e (reagent/cursor document [::document/pumping-emissions e])]))
      ]
     [:div {:key :pipe-parameters}
-     ^{:key :cost-model} [cost-model flow]
-     [pipe-costs-table flow]
+     ^{:key :cost-model} [cost-model]
+     [pipe-costs-table]
      [connection-costs document]
 
      [:div.card

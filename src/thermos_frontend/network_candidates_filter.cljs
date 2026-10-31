@@ -3,18 +3,15 @@
 
 (ns thermos-frontend.network-candidates-filter
   (:require [reagent.core :as reagent]
-            [thermos-frontend.editor-state :as state]
-            [thermos-frontend.format :refer [si-number]]
-            [thermos-frontend.operations :as operations]
-            [thermos-frontend.flow :as f]))
+            [re-frame.core :as rf]
+            [thermos-frontend.format :refer [si-number]]))
 
 (defn component
-  [document
-   {items :items key :key}
+  [{items :items key :key}
    type]
   (let [keyfn (if (seqable? key) #(get-in % key) #(get % key))
         filter-set (set (map keyfn items))
-        selected-filters @(f/view* document operations/get-table-filters key)]
+        selected-filters @(rf/subscribe [:table/filter key])]
     (case type
       ;; Searchable text field filter
       ;; @TODO put these inline styles into CSS file
@@ -41,15 +38,12 @@
                          (js/clearTimeout @timeout)
                          (reset! timeout (js/setTimeout
                                           (fn []
-                                            (f/fire! document
-                                                     [operations/add-table-filter-value
-                                                      key
-                                                      e.target.value])) 200))
+                                            (rf/dispatch [:table/add-filter-value key e.target.value])) 200))
                          )}]
           [:button.filter-text-input__clear-button
            {:on-click (fn [e]
                         (set! e.target.previousSibling.value "")
-                        (f/fire! document [operations/remove-all-table-filter-values key]))}
+                        (rf/dispatch [:table/remove-filter key]))}
            "×"]]])
 
       ;; Checkbox filter
@@ -63,8 +57,8 @@
            [:input {:type "checkbox"
                     :default-checked (= filter-set selected-filters)
                     :on-change (fn [e] (if e.target.checked
-                                         (f/fire! document [operations/add-table-filter-values key filter-set])
-                                         (f/fire! document [operations/remove-all-table-filter-values key])))}]
+                                         (rf/dispatch [:table/add-filter-values key filter-set])
+                                         (rf/dispatch [:table/remove-filter key])))}]
            "All"]])
        (map
         (fn [val]
@@ -73,8 +67,8 @@
             [:input {:type "checkbox"
                      :checked (contains? selected-filters val)
                      :on-change (fn [e] (if e.target.checked
-                                          (f/fire! document [operations/add-table-filter-value key val])
-                                          (f/fire! document [operations/remove-table-filter-value key val])))}]
+                                          (rf/dispatch [:table/add-filter-value key val])
+                                          (rf/dispatch [:table/remove-filter-value key val])))}]
             (if (or (nil? val) (boolean? val))
               (if val "Yes" "No")
               val)]])
@@ -96,11 +90,7 @@
           [:input.double-range {:type :range
                                 :value s0
                                 :on-change
-                                #(f/fire!
-                                  document
-                                  [operations/set-table-filter-value
-                                   key
-                                   [(js/parseFloat (.. % -target -value)) s1]])
+                                #(rf/dispatch [:table/set-filter key [(js/parseFloat (.. % -target -value)) s1]])
                                 
                                 :min lb
                                 :max ub}]
@@ -108,17 +98,13 @@
           [:input.double-range {:type :range
                                 :value s1
                                 :on-change
-                                #(f/fire!
-                                  document
-                                  [operations/set-table-filter-value
-                                   key
-                                   [s0 (js/parseFloat (.. % -target -value))]])
+                                #(rf/dispatch [:table/set-filter key [s0 (js/parseFloat (.. % -target -value))]])
                                 :min lb
                                 :max ub}]
           [:br][:br]
           [:button
            {:on-click
-            #(f/fire! document [operations/remove-all-table-filter-values key])
+            #(rf/dispatch [:table/remove-filter key])
             }
            "Clear"]]
          )

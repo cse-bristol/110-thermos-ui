@@ -9,7 +9,6 @@
             ["leaflet-draw"] ;; this adds L.Draw and L.Control.Draw to leaflet
             [reagent.dom :as rdom]
             [cljts.core :as jts]
-            [com.rpl.specter :as S]
 
             [thermos-frontend.io :as io]
             [thermos-frontend.operations :as operations]
@@ -38,7 +37,7 @@
             [goog.events :refer [listen]]
             [goog.functions :refer [debounce]]
 
-            [thermos-frontend.flow :as flow]
+            [re-frame.core :as rf]
 
             [thermos-specs.demand :as demand]))
 
@@ -62,14 +61,14 @@
 (defn component
   "Draw a cartographic map for the given `document`, which should be a reagent atom
   containing a document map"
-  [document flow]
+  [document]
   (let [watches (atom [])
         map-node (atom nil)
         ]
     (reagent/create-class
      {:reagent-render (fn [document]
                         [:div.map {:ref (partial reset! map-node)}])
-      :component-did-mount    (partial mount document flow watches map-node)
+      :component-did-mount    (partial mount document watches map-node)
       :component-will-unmount (partial unmount watches)
       })))
 
@@ -124,7 +123,7 @@
 
 (defn mount
   "Make a leaflet control when this component is being put on screen"
-  [document flow watches map-node component]
+  [document watches map-node component]
   (let [map-node @map-node
         
         edit!  (fn [f & a] (apply state/edit! document f a))
@@ -147,7 +146,7 @@
         ;; to the server for tile data, so if the tilesize changes, effectively
         ;; the meaning of the zoom, or equivalently the x and y changes too.
         ;; Halve this => increase zoom by 1 in queries below.
-        candidates-layer (candidates-layer flow document
+        candidates-layer (candidates-layer document
                                            {:tileSize 256
                                             :minZoom 13
                                             :maxZoom 21})
@@ -435,103 +434,35 @@
   (doseq [watch @watches] (watch))
   (reset! watches nil))
 
-;; so the rubbish thin ghere is no way to use a subscription within
-;; another one - can I improve that somehow
-(defn- filtered-candidates-ids [doc]
-  (set (map ::candidate/id @(flow/view* doc operations/get-filtered-candidates))))
-
-(defn- any-filters? [flow]
-  (not (empty? @(flow/view* flow operations/get-all-table-filters))))
-
-(defn- tile-candidates-ids [flow bbox]
-  (-> (flow/view*
-       flow select-keys
-       [::spatial/spatial-index ::spatial/update-counter])
-
-      ;; the projection above will make this fire a bit less often
-      
-      (deref)
-      (spatial/find-candidates-ids-in-bbox bbox)))
-
-(defn- selection-adjacent-by-group
-  "Given the document, return a set of all IDs which are in the same
-  group as any selected candidates"
-  [f]
-  (let [candidates @(flow/view* f ::document/candidates)
-
-        ;; a map from group-id to group member ids
-        groups     (->> (for [[id {g ::demand/group}] candidates
-                              :when g] [g id])
-                        (group-by first)
-                        (S/multi-transform
-                         [S/MAP-VALS (S/multi-path
-                                      [S/ALL (S/terminal second)]
-                                      (S/terminal set))]))
-
-        ]
-    (set
-     (for [[id {g ::demand/group
-                s ::candidate/selected}]
-           candidates
-           :when (and s g)
-           adj (groups g)]
-       adj))))
-
-(defn candidates-layer [flow doc args]
-  (let [just-candidates
-        (flow/view* flow ::document/candidates)
-
-        adjacent-ids
-        (flow/view flow selection-adjacent-by-group)
-
-        solution
-        (flow/view* flow document/has-solution?)
-
-        filtered-candidates-ids
-        (flow/view flow filtered-candidates-ids)
-
-        selected-candidates-ids
-        (flow/view* flow operations/selected-candidates-ids)
-
-        showing-forbidden?
-        (flow/view* flow operations/showing-forbidden?)
-
-        any-filters?
-        (flow/view flow any-filters?)
-
-        map-view        (flow/view* flow get-in [::view/view-state ::view/map-view])
-        show-diameters? (flow/view* flow get-in [::view/view-state ::view/show-pipe-diameters])
-
-        min-max-diameters
+(defn candidates-layer
+  "The layer which draws the candidates. Each tile repaints when the
+  candidates in it, or the way they are shown, change."
+  [doc args]
+  (let [min-max-diameters
         (reagent/track
-         #(when @solution
+         #(when @(rf/subscribe [:doc/has-solution])
             (reduce
              (fn [[l u] d]
                [(or (and l (min d l)) d)
                 (or (and u (max d u)) d)])
              []
-             (keep ::soln/diameter-mm (vals @just-candidates)))))
-        ]
-    
+             (keep ::soln/diameter-mm (vals @(rf/subscribe [:doc/candidates]))))))]
 
     (reactive-layer/create
      :internal-id "candidates-layer"
      :constructor-args args
      :paint-tile
      (fn [canvas coords layer bbox]
-       (let [;; contains just the IDs of candidates in this box
-             tile-candidates-ids
-             (flow/view flow tile-candidates-ids bbox)
-
-             tile-contents
+       (let [tile-contents
              (reagent/track
               (fn []
-                (let [adjacent-ids        @adjacent-ids
-                      just-candidates     @just-candidates
-                      tile-candidates-ids @tile-candidates-ids
+                (let [adjacent-ids        @(rf/subscribe [:candidates/in-selected-groups])
+                      just-candidates     @(rf/subscribe [:doc/candidates])
+                      ;; contains just the IDs of candidates in this box
+                      tile-candidates-ids @(rf/subscribe [:map/tile-candidate-ids bbox])
 
-                      showing-forbidden? @showing-forbidden?
-                      any-filters?       @any-filters?
+                      showing-forbidden? @(rf/subscribe [:map/showing-forbidden])
+                      any-filters?       (not (empty? @(rf/subscribe [:table/filters])))
                       tile-candidates    (if showing-forbidden?
                                            (keep just-candidates tile-candidates-ids)
                                            (keep #(let [c (just-candidates %)]
@@ -543,7 +474,7 @@
 
                   (cond-> tile-candidates
                     any-filters?
-                    (->> (map (let [f @filtered-candidates-ids]
+                    (->> (map (let [f @(rf/subscribe [:table/filtered-candidate-ids])]
                                 #(assoc % :filtered (not (f (::candidate/id %)))))))
 
                     any-adjacent?
@@ -557,22 +488,22 @@
          ;; we return our tracks for later disposal
          (list (reagent/track!
                 (fn []
-                  (when @showing-forbidden?
+                  (when @(rf/subscribe [:map/showing-forbidden])
                     (state/load-tile! doc (.-x coords) (.-y coords) (.-z coords)))))
 
                (reagent/track!
                 (fn []
                   (tile/render-tile
-                   @solution
+                   @(rf/subscribe [:doc/has-solution])
                    @tile-contents
                    canvas
                    layer
-                   (or @map-view ::view/constraints)
-                   (and @show-diameters? @min-max-diameters))
+                   (or @(rf/subscribe [:view/map-view]) ::view/constraints)
+                   (and @(rf/subscribe [:view/show-pipe-diameters]) @min-max-diameters))
                   )))
          )))))
 
- (defn connector-layer [doc args]
+(defn connector-layer [doc args]
   (let [map-view (reagent/track #(-> @doc ::view/view-state ::view/map-view))]
     (reactive-layer/create
      :constructor-args args
@@ -708,13 +639,13 @@
               :sub-menu
               [{:value "Group buildings (G)"
                 :key "group-buildings"
-                :on-select #(state/fire-event! [:group-selection])}
+                :on-select #(rf/dispatch [:group-selection])}
                {:value "Ungroup buildings (U)"
                 :key "ungroup-buildings"
-                :on-select #(state/fire-event! [:ungroup-selection])}
+                :on-select #(rf/dispatch [:ungroup-selection])}
                {:value "Select same group (g)"
                 :key "select-group"
-                :on-select #(state/fire-event! [:group-select-members])}]}
+                :on-select #(rf/dispatch [:group-select-members])}]}
              
              
              {:value [:div.popover-menu__divider] :key "divider-2"}))

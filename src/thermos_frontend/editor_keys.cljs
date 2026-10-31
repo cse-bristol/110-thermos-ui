@@ -3,6 +3,7 @@
 
 (ns thermos-frontend.editor-keys
   (:require [thermos-frontend.editor-state :as state]
+            [re-frame.core :as rf]
             [thermos-frontend.operations :as operations]
             [thermos-frontend.popover :as popover]
             
@@ -124,9 +125,9 @@
         "e" (edit-demand-or-path!)
         "i" (show-pprint-thing)
         "j" connector-tool/toggle!
-        "g" (state/fire-event! [:group-select-members])
-        "G" (state/fire-event! [:group-selection])
-        "U" (state/fire-event! [:ungroup-selection])
+        "g" (rf/dispatch [:group-select-members])
+        "G" (rf/dispatch [:group-selection])
+        "U" (rf/dispatch [:ungroup-selection])
         "?" (show-help)
         :default))))
 
