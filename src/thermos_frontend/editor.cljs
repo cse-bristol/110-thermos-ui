@@ -3,7 +3,7 @@
 
 (ns thermos-frontend.editor
   (:require [reagent.core :as r :refer [atom]]
-            [reagent.dom :as rdom]
+            [reagent.dom.client :as rdc]
             [thermos-frontend.map :as map]
             [thermos-urls :as urls]
             [thermos-specs.candidate :as candidate]
@@ -605,8 +605,11 @@
        [toaster/component]]
       )))
 
+(defonce ^:private root
+  (delay (rdc/create-root (.getElementById js/document "app"))))
+
 (defn ^:dev/after-load mount-root []
-  (rdom/render [main-page] (.getElementById js/document "app")))
+  (rdc/render @root [main-page]))
 
 (defn init
   "The entry point, called once when the page loads"

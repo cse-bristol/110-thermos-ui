@@ -7,7 +7,7 @@
             [reagent.core :as reagent]
             ["leaflet" :as L]
             ["leaflet-draw"] ;; this adds L.Draw and L.Control.Draw to leaflet
-            [reagent.dom :as rdom]
+            [reagent.dom.client :as rdc]
             [cljts.core :as jts]
 
             [thermos-frontend.io :as io]
@@ -693,15 +693,27 @@
       [(o/get oe "clientX") (o/get oe "clientY")]])))
 
 (defn create-leaflet-control
+  "A leaflet control class whose content is the reagent `component`, given
+  the map and `args`, rendered in a React root of its own"
   [component & args]
   (->> {:onAdd (fn [map]
-                 (let [box (.create L/DomUtil "div")]
-                   (.disableClickPropagation L/DomEvent box)
-                   (rdom/render (into [component map] args) box)
-                   box))
+                 (this-as control
+                   (let [box  (.create L/DomUtil "div")
+                         root (rdc/create-root box)]
+                     (.disableClickPropagation L/DomEvent box)
+                     (o/set control "reactRoot" root)
+                     (rdc/render root (into [component map] args))
+                     box)))
+        :onRemove (fn [map]
+                    (this-as control
+                      (when-let [root (o/get control "reactRoot")]
+                        ;; this happens while react is unmounting the map,
+                        ;; when it can't unmount another root
+                        (js/setTimeout #(.unmount root)))))
         }
        clj->js
        (.extend L/Control)))
+
 
 
 (rf/reg-event-fx

@@ -6,7 +6,6 @@
   into the document, which they read with the :doc/get subscription and
   change with the :doc/set event."
   (:require [reagent.core :as reagent]
-            [reagent.dom :as rdom]
             [reagent.ratom]
             [re-frame.core :as rf]
             [re-frame.db]
@@ -56,48 +55,52 @@
 
 (defn fmt [{:keys [on-change on-blur value validate read print]
             :or {validate default-validate}}]
-  (reagent/create-class
-   {:display-name "fmt-input"
-
-    :component-did-update
-    (fn [this old-argv]
-      (let [{:keys [value print read validate]}
-            (-> (reagent/argv this)
-                (second))
-            element (rdom/dom-node this)]
-        (when-not (and
-                   (= js/document.activeElement element)
-                   ;; this may be a little slow, but it's easy
-                   (= (read (.-value element)) value))
-          (set! (.-value element) (print value)))))
-
-    :reagent-render
-    (fn [{:keys [value print read on-change on-blur validate]
-          :or {validate default-validate}
-          :as atts}]
-      [:input
-       (-> atts
-           (dissoc :value :print :read :validate)
-           (assoc :type (:type atts :text)
-                  :default-value (print value)
-                  :on-change (and on-change
-                                  (fn [e]
-                                    (let [s (-> e .-target .-value)
-                                          v (read s)
-                                          err (validate s v)]
-                                      (when (and on-change (not err))
-                                        (on-change v)))))
-                  :on-blur (if on-blur
-                             (fn [e]
-                               (let [s (-> e .-target .-value)
-                                     v (read s)
-                                     err (validate s v)]
-                                 (when-not err (on-blur v))))
-                             
-                             (fn [e]
-                               (set! (-> e .-target .-value) (print value))))
-                  ))
-       ])}))
+  (let [element (atom nil)]
+    (reagent/create-class
+     {:display-name "fmt-input"
+  
+      :component-did-update
+      (fn [this old-argv]
+        (let [{:keys [value print read validate]}
+              (-> (reagent/argv this)
+                  (second))
+              element @element]
+          (when-not (and
+                     (= js/document.activeElement element)
+                     ;; this may be a little slow, but it's easy
+                     (= (read (.-value element)) value))
+            (set! (.-value element) (print value)))))
+  
+      :reagent-render
+      (fn [{:keys [value print read on-change on-blur validate]
+            :or {validate default-validate}
+            :as atts}]
+        [:input
+         (-> atts
+             (dissoc :value :print :read :validate)
+             (assoc :type (:type atts :text)
+                    :default-value (print value)
+                    :on-change (and on-change
+                                    (fn [e]
+                                      (let [s (-> e .-target .-value)
+                                            v (read s)
+                                            err (validate s v)]
+                                        (when (and on-change (not err))
+                                          (on-change v)))))
+                    :ref (fn [e]
+                           (reset! element e)
+                           (when-let [ref (:ref atts)] (ref e)))
+                    :on-blur (if on-blur
+                               (fn [e]
+                                 (let [s (-> e .-target .-value)
+                                       v (read s)
+                                       err (validate s v)]
+                                   (when-not err (on-blur v))))
+                               
+                               (fn [e]
+                                 (set! (-> e .-target .-value) (print value))))
+                    ))
+         ])})))
 
 
 (defn number2 [atts]
@@ -243,8 +246,10 @@
         key->index (map-invert index->key)]
     [:select.select
      (merge
-      {:value (key->index (cond value-atom @value-atom
-                                value value))
+      {:value (or (key->index (cond value-atom @value-atom
+                                    value value))
+                  ;; when no option matches, as nil would make it uncontrolled
+                  "")
        :on-change
        (cond value-atom
              #(reset! value-atom (index->key (.. % -target -value)))
@@ -315,8 +320,8 @@
         )
       :component-did-mount
       (fn [_ ] (paint value))
-      :component-will-update
-      (fn [_ [_ {value :value}]] (paint value))
+      :component-did-update
+      (fn [this _] (paint (:value (reagent/props this))))
       })))
 
 (defn parsed [{:keys [parse render on-change on-blur on-key-down value]
