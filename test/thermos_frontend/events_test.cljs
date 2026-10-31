@@ -138,7 +138,11 @@
   (letfn [(status [last-state new-state]
             (events/run-status {:db (assoc-in a-db [::db/server :run-state] last-state)}
                                [:server/run-status {:state new-state :message "log"}]))]
-    (is (= [[::fx/poll [:server/poll]]] (:fx (status nil :running))))
+    (is (= [[::fx/poll [:server/poll]] [:dispatch [:push-offer/consider nil]]]
+           (:fx (status nil :running))))
+    (is (= [::fx/poll [:server/poll]] (first (:fx (status :running :cancelling)))))
+    (is (nil? (second (:fx (status :running :cancelling))))
+        "no notification offer while cancelling")
     (is (= "log" (:run-message (db/server (:db (status nil :running))))))
     (is (= [[::fx/poll nil] [:dispatch [:server/load]]] (:fx (status :running :completed)))
         "loads the solution when a run finishes")

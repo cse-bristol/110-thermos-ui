@@ -12,6 +12,7 @@
             [thermos-specs.document :as document]
             [thermos-frontend.editor-state :as state]
             [thermos-frontend.subs]
+            [thermos-frontend.push-offer :as push-offer]
             [thermos-frontend.db :as db]
             [thermos-frontend.doc :as doc]
             [thermos-frontend.fx :as fx]
@@ -48,7 +49,6 @@
             [goog.events :refer [listen]]
             [goog.math :refer [Size]]
             [goog.functions :refer [debounce]]
-            [goog.object :as gobj]
             [thermos-frontend.util :refer [target-value]]
 
             [thermos-frontend.splitter :refer [splitter]]
@@ -262,61 +262,6 @@
       [:br]
       [:small "This assumes every job ahead uses its whole time limit, so it may well be sooner."]])])
 
-(def ^:private push-offer-seconds
-  "Offer push notifications for runs that may take longer than this"
-  (* 20 60))
-
-(def ^:private push-offered-key "thermos-push-offered")
-
-;; nil until there's a long run, then :checking, :show, :enabled or :hide
-(defonce ^:private *push-offer (r/atom nil))
-
-(defn- push-api [] (gobj/get js/window "thermosPush"))
-
-(defn- consider-push-offer!
-  "The first time a run may take a while, offer to send a notification when
-  it's done, unless this browser has them already or can't have them."
-  [{:keys [finishes-in]}]
-  (when (and (nil? @*push-offer)
-             (number? finishes-in)
-             (> finishes-in push-offer-seconds))
-    (let [api (push-api)
-          offered (try (.getItem js/localStorage push-offered-key)
-                       (catch :default _ "unknown"))]
-      (if (or (not api) offered)
-        (reset! *push-offer :hide)
-        (do (reset! *push-offer :checking)
-            (-> (js-invoke api "state")
-                (.then (fn [s]
-                         (if (= s "off")
-                           (do (try (.setItem js/localStorage push-offered-key "yes")
-                                    (catch :default _))
-                               (reset! *push-offer :show))
-                           (reset! *push-offer :hide))))
-                (.catch #(reset! *push-offer :hide))))))))
-
-(defn- push-offer [timing]
-  (consider-push-offer! timing)
-  (case @*push-offer
-    :show
-    [:div {:style {:margin "0.5em 0" :padding "0.5em" :background "#eef6fb"
-                   :display :flex :align-items :center :gap "0.5em"}}
-     [:span {:style {:flex-grow 1}}
-      "This could take a while. Would you like a notification in this browser when it's done?"]
-     [:button.button
-      {:on-click (fn []
-                   (-> (js-invoke (push-api) "enable")
-                       (.then #(reset! *push-offer (if (= % "on") :enabled :hide)))
-                       (.catch #(reset! *push-offer :hide))))}
-      "Notify me"]
-     [:button.button {:on-click #(reset! *push-offer :hide)} "No thanks"]]
-
-    :enabled
-    [:div {:style {:margin "0.5em 0"}}
-     "We'll let you know when it's done. You can change this in your account settings."]
-
-    nil))
-
 (defn- tab-switcher
   "A button in the menu which shows the tab `key`. (A component of its own,
   so that the buttons stay put when the page re-renders.)"
@@ -520,7 +465,7 @@
 
                [run-estimate (:position timing position) timing])
              (when-not (#{:cancel :cancelling} run-state)
-               [push-offer timing])
+               [push-offer/component])
              [:a {:href "../../../"} "Back to project"]])])
 
        [:div {:style {:key :main-body

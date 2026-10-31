@@ -263,7 +263,10 @@
                  :run-timing timing)
      :fx (cond
            (contains? db/running-states state)
-           [[::fx/poll [:server/poll]]]
+           [[::fx/poll [:server/poll]]
+            ;; see thermos-frontend.push-offer
+            (when (#{:ready :running} state)
+              [:dispatch [:push-offer/consider timing]])]
 
            (and (= :completed state) (#{:ready :running} last-run-state))
            [[::fx/poll nil]
