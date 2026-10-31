@@ -12,6 +12,9 @@
             [thermos-specs.document :as document]
             [thermos-frontend.editor-state :as state]
             [thermos-frontend.subs]
+            [thermos-frontend.db :as db]
+            [thermos-frontend.doc :as doc]
+            [thermos-frontend.fx :as fx]
             [re-frame.core :as rf]
             [thermos-frontend.preload :as preload]
 
@@ -58,36 +61,58 @@
 
 (enable-console-print!)
 
+(rf/reg-event-fx
+ ::save
+ ;; save the document as `name`, and run it if `run?` (:network,
+ ;; :supply, ...) and it can be run
+ (fn [{db :db} [_ name run?]]
+   (let [can-run (document/is-runnable? db)
+         invalid (and run? (not can-run))]
+     {:fx
+      [(when invalid
+         [::fx/call [toaster/show!
+                     [:div.toaster.toaster--error
+                      "Cannot optimise until you have added some demands and supplies!"]]])
+
+       (when-not (and invalid (not (db/needs-save? db)))
+         [:dispatch
+          [:server/save name (when (and run? can-run) run?)
+           #(cond
+              (= % 403)
+              (toaster/show! [:div.toaster.toaster--error "You have exceeded your weekly job quota"])
+
+              (not invalid)
+              (toaster/show! [:div.toaster.toaster--success "Project saved"]))]])]})))
+
 (defn do-save [name run?]
-  (let [can-run (document/is-runnable? @state/state)
-        invalid (and run? (not can-run))]
-    (when invalid
-      (toaster/show!
-       [:div.toaster.toaster--error
-        "Cannot optimise until you have added some demands and supplies!"]))
-    
-    (when-not (and invalid (not (state/needs-save?)))
-      (state/save!
-       name
-       :run (when (and run? can-run) run?)
-       :callback
-       #(cond
-          (= % 403)
-          (toaster/show! [:div.toaster.toaster--error "You have exceeded your weekly job quota"])
+  (rf/dispatch [::save name run?]))
 
-          (not invalid)
-          (toaster/show! [:div.toaster.toaster--success "Project saved"]))))))
+(defn- download!
+  "Post `network` to `url`, which converts it into a file, and download
+  the file, named for the network with `extension`"
+  ;; not called `document`, which would hide js/document
+  [network url extension]
+  (POST url
+      {:params {:state network}
+       :response-format
+       {:type :blob :read -body}
+       :handler
+       (fn [blob]
+         (let [a (js/document.createElement "a")]
+           (set! (.-href a) (js/window.URL.createObjectURL blob))
+           (set! (.-download a)
+                 (str (preload/get-value :name) extension))
+           (.dispatchEvent a (js/MouseEvent. "click"))))}))
+
+(rf/reg-event-fx
+ ::export
+ (fn [{db :db} [_ url extension]]
+   {:fx [[::fx/call [download! (document/keep-interesting db) url extension]]]}))
 
 
-(defn map-page [doc]
-  (r/with-let [h-split-pos (r/cursor doc
-                                     [::view/view-state
-                                      ::view/map-page-h-split]
-                                     )
-               v-split-pos (r/cursor doc
-                                     [::view/view-state
-                                      ::view/map-page-v-split]
-                                     )
+(defn map-page []
+  (r/with-let [h-split-path [::view/view-state ::view/map-page-h-split]
+               v-split-path [::view/view-state ::view/map-page-v-split]
                v-splitter-element (atom nil)
                v-splitter-dblclick-listener (atom nil)
                ]
@@ -95,18 +120,18 @@
      
      [splitter
       {:axis :h
-       :split (or @v-split-pos 75)
-       :on-split-change #(reset! v-split-pos %)
+       :split (doc/value v-split-path 75)
+       :on-split-change #(doc/set-value! v-split-path %)
        
        :top
        [splitter
         {:axis :v
-         :split (or @h-split-pos 60)
-         :on-split-change #(reset! h-split-pos %)
+         :split (doc/value h-split-path 60)
+         :on-split-change #(doc/set-value! h-split-path %)
          :left
          [:div.map-container
-          [map/component doc]
-          [view-control/component doc]]
+          [map/component]
+          [view-control/component]]
          
          :right
          [selection-info-panel/component]
@@ -139,7 +164,7 @@
               {:background :none
                :border :none}
 
-              (when @*is-cooling
+              (when (= :cooling @*is-cooling)
                 {:transform "scaleY(-1)"}))
       }
      theme/icon]
@@ -292,13 +317,23 @@
 
     nil))
 
+(defn- tab-switcher
+  "A button in the menu which shows the tab `key`. (A component of its own,
+  so that the buttons stay put when the page re-renders.)"
+  [key label]
+  (let [path [::view/view-state ::view/selected-tab]]
+    [:li [:button.button--link-style
+          {:on-click #(doc/set-value! path key)
+           :class (when (= (doc/value path :candidates) key) "selected")}
+          label]]))
+
 (defn main-page []
-  (r/with-let [*selected-tab (r/cursor state/state [::view/view-state ::view/selected-tab])
+  (r/with-let [selected-tab-path [::view/view-state ::view/selected-tab]
                *show-menu (r/atom false)
-               *is-cooling (r/track #(document/is-cooling? @state/state))
-               has-solution? (r/track #(document/has-solution? @state/state))
-               has-supply-solution? (r/track #(document/has-supply-solution? @state/state))
-               has-valid-solution? (r/track #(solution/exists? @state/state))]
+               menu-timer (atom nil)
+               *is-cooling (rf/subscribe [:doc/mode])
+               has-solution? (rf/subscribe [:doc/has-solution])
+               has-supply-solution? (rf/subscribe [:doc/has-supply-solution])]
 
     (let [close-popover
           (fn [e]
@@ -310,19 +345,9 @@
 
           close-table-filter
           (fn [e]
-            (when (operations/table-filter-open? @state/state)
-              (state/edit! state/state operations/close-table-filter)))
+            (rf/dispatch [:table/close-filter]))
 
-          menu-timer (atom nil)
-
-          goto #(reset! *selected-tab %)
-          selected-tab (or @*selected-tab :candidates)
-
-          switcher (fn [key label]
-                     [:li [:button.button--link-style
-                           {:on-click #(goto key)
-                            :class (when (= @*selected-tab key) "selected")}
-                           label]])
+          selected-tab (doc/value selected-tab-path :candidates)
 
           ]
 
@@ -358,36 +383,36 @@
           [:div.menu-block
            [:h1 "Network problem"]
            [:ul
-            [switcher :candidates "Map view"]
-            [switcher :parameters "Objective"]
+            [tab-switcher :candidates "Map view"]
+            [tab-switcher :parameters "Objective"]
             
-            [switcher :tariffs "Tariffs"]
-            [switcher :pipe-costs "Pipe & connection costs"]
-            [switcher :insulation "Insulation"]
-            [switcher :alternatives "Individual systems"]
+            [tab-switcher :tariffs "Tariffs"]
+            [tab-switcher :pipe-costs "Pipe & connection costs"]
+            [tab-switcher :insulation "Insulation"]
+            [tab-switcher :alternatives "Individual systems"]
             ]]
 
           (when @has-solution?
             [:div.menu-block
              [:h1 "Network solution"]
              [:ul
-              [switcher :solution "Solution summary"]
-              [switcher :run-log "Run log"]
+              [tab-switcher :solution "Solution summary"]
+              [tab-switcher :run-log "Run log"]
               ]])
           
           [:div.menu-block
            [:h1 "Supply problem"]
            [:ul
-            [switcher :profiles "Profiles"]
-            [switcher :supply-technologies "Technologies"]
-            [switcher :supply-objective "Objective"]
+            [tab-switcher :profiles "Profiles"]
+            [tab-switcher :supply-technologies "Technologies"]
+            [tab-switcher :supply-objective "Objective"]
             ]]
 
           (when @has-supply-solution?
             [:div.menu-block
              [:h1 "Supply solution"]
              [:ul
-              [switcher :supply-solution "Solution summary"]
+              [tab-switcher :supply-solution "Solution summary"]
               ]])
 
           [:div.menu-block
@@ -415,21 +440,7 @@
            [:h1 "Import / Export Data"]
            [:ul
             [:li [:button.button--link-style
-                  {:on-click
-                   #(let [state (document/keep-interesting @state/state)]
-                      (POST "/convert/excel"
-                          {:params {:state state}
-                           :response-format
-                           {:type :blob :read -body}
-                           :handler
-                           (fn [blob]
-                             (let [a (js/document.createElement "a")]
-                               (set! (.-href a) (js/window.URL.createObjectURL blob))
-                               (set! (.-download a)
-                                     (str (preload/get-value :name) ".xlsx"))
-                               (.dispatchEvent a (js/MouseEvent. "click"))))}))
-                   
-                   }
+                  {:on-click #(rf/dispatch [::export "/convert/excel" ".xlsx"])}
                   symbols/download " Excel Spreadsheet"]]
 
             [:li [:button.button--link-style
@@ -437,39 +448,11 @@
                   symbols/upload " Excel Spreadsheet"]]
             
             [:li [:button.button--link-style
-                  {:on-click
-                   #(let [state (document/keep-interesting @state/state)]
-                      (POST "/convert/json"
-                          {:params {:state state}
-                           :response-format
-                           {:type :blob :read -body}
-
-                           :handler
-                           (fn [blob]
-                             (let [a (js/document.createElement "a")]
-                               (set! (.-href a) (js/window.URL.createObjectURL blob))
-                               (set! (.-download a)
-                                     (str (preload/get-value :name) ".json"))
-                               (.dispatchEvent a (js/MouseEvent. "click"))))}))
-                   }
+                  {:on-click #(rf/dispatch [::export "/convert/json" ".json"])}
                   symbols/download "Geojson"]]
 
             [:li [:button.button--link-style
-                  {:on-click
-                   #(let [state (document/keep-interesting @state/state)]
-                      (POST "/convert/json-2"
-                          {:params {:state state}
-                           :response-format
-                           {:type :blob :read -body}
-
-                           :handler
-                           (fn [blob]
-                             (let [a (js/document.createElement "a")]
-                               (set! (.-href a) (js/window.URL.createObjectURL blob))
-                               (set! (.-download a)
-                                     (str (preload/get-value :name) ".json"))
-                               (.dispatchEvent a (js/MouseEvent. "click"))))}))
-                   }
+                  {:on-click #(rf/dispatch [::export "/convert/json-2" ".json"])}
                   symbols/download "Geojson v2"]]
 
             [:li [:button.button--link-style
@@ -489,8 +472,8 @@
                                    (.-result)
                                    (js/JSON.parse)
                                    (js->clj)
-                                   (state/edit! state/state
-                                                converter/update-from-geojson-2))))
+                                   (vector :doc/edit converter/update-from-geojson-2)
+                                   (rf/dispatch))))
                             (.readAsText r (-> e (.-target) (.-files) (aget 0))))))
                        (.dispatchEvent f (js/MouseEvent. "click"))))
                    
@@ -548,7 +531,7 @@
 
         (cond
           (= selected-tab :candidates)
-          [map-page state/state]
+          [map-page]
 
           (= selected-tab :parameters)
           [objective/objective-parameters]
@@ -575,13 +558,13 @@
           [supply-objective/supply-objective-parameters]
           
           (= selected-tab :solution)
-          [solution-view/solution-summary state/state]
+          [solution-view/solution-summary]
 
           (= selected-tab :supply-solution)
-          [supply-solution-view/supply-solution state/state]
+          [supply-solution-view/supply-solution]
 
           (= selected-tab :run-log)
-          [solution-view/run-log state/state]
+          [solution-view/run-log]
 
           :else
           [:div "Unknown page!!! urgh!"])]
@@ -618,7 +601,7 @@
           
           ]
          )
-       [popover/component state/state]
+       [popover/component]
        [toaster/component]]
       )))
 

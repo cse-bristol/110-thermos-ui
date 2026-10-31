@@ -2,10 +2,8 @@
 ;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
 
 (ns thermos-frontend.editor-state
-  "The editor's state is re-frame's app-db, which holds the document (see
-  thermos-frontend.db). The functions here are what the editor used before
-  re-frame; they work in terms of events and app-db, while the code which
-  calls them moves over to dispatch and subscribe."
+  "Setting up the editor's state, which is re-frame's app-db holding the
+  document (see thermos-frontend.db), and loading candidates for the map."
   (:require [goog.object :as o]
             [clojure.string :as string]
             [re-frame.core :as rf]
@@ -21,8 +19,7 @@
             [thermos-frontend.fx]))
 
 (def state
-  "The document, as a reagent atom. Code that changes it with swap! should
-  dispatch events instead."
+  "The document, as a reagent atom. Change it with events, not swap!."
   re-frame.db/app-db)
 
 (defn needs-save? [] (db/needs-save? @state))
@@ -38,24 +35,6 @@
       (add-watch state ::mark-unsaved-changes #(mark-unsaved-changes %1 %2 %3 %4))
       (rf/dispatch [:server/poll])
       true))
-
-(defn edit!
-  "Update the document, but please do not change the spatial details this way!
-  `document` is ignored, as there is only one."
-  [_document f & args]
-  (rf/dispatch-sync (into [:doc/edit f] args)))
-
-(defn edit-geometry!
-  "Change the document with f and any arguments, and update its spatial index.
-  `document` is ignored, as there is only one."
-  [_document f & args]
-  (rf/dispatch-sync (into [:doc/edit-geometry f] args)))
-
-(defn save!
-  "Save the document to the server, and run it if `run` is :network or
-  :supply. `callback` gets the response's HTTP status."
-  [title & {:keys [run callback]}]
-  (rf/dispatch [:server/save title run callback]))
 
 (defn- feature->candidate
   "Convert a GEOJSON feature into a candidate map"
@@ -101,7 +80,7 @@
              ::demand/source           (o/get properties "demand-source" nil)
              ::candidate/connections   (string/split (o/get properties "connection-ids") #",")))))
 
-(defn load-tile! [document x y z]
+(defn load-tile! [x y z]
   (io/request-geometry
    x y z
    (fn [json]
@@ -125,6 +104,4 @@
            ]
 
        ;; 2: update the document to contain the new candidates
-       (edit-geometry! document
-                       operations/insert-candidates
-                       candidates)))))
+       (rf/dispatch [:doc/edit-geometry operations/insert-candidates candidates])))))

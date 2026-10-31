@@ -3,6 +3,7 @@
 
 (ns thermos-frontend.supply-solution-view
   (:require [reagent.core :as reagent]
+            [thermos-frontend.doc :as doc]
             [thermos-frontend.debug-box :refer [pprint-pre]]
             [thermos-specs.solution :as solution]
             [thermos-frontend.chart.core :as chart]
@@ -33,19 +34,24 @@
 (defn- store-name [problem store-type]
   (-> problem :storage-options (get store-type) :name))
 
+(defn- summary-details*
+  [open on-toggle summary detail]
+  [:details {:open open}
+   [:summary.card-header {:style {:margin-bottom 0 :cursor :pointer
+                                  :user-select :none}
+                          :on-click on-toggle} summary]
+   (when open
+     [:div {:style {:margin-top :1em}} detail])])
+
 (defn- summary-details
   "This is like using normal details/summary, but we don't render details
-  at all if the display is closed."
+  at all if the display is closed. Given {:path path}, whether it is open
+  is kept at path in the document."
   ([summary detail]
    (reagent/with-let [open (reagent/atom false)]
-     [summary-details {:open open} summary detail]))
-  ([{open :open} summary detail]
-   [:details {:open @open}
-    [:summary.card-header {:style {:margin-bottom 0 :cursor :pointer
-                                   :user-select :none}
-                           :on-click #(swap! open not)} summary]
-    (when @open
-      [:div {:style {:margin-top :1em}} detail])]))
+     [summary-details* @open #(swap! open not) summary detail]))
+  ([{path :path} summary detail]
+   [summary-details* (doc/value path) #(doc/update! path not) summary detail]))
 
 (defn- color-square [color]
   [:span {:style {:width :0.8em :height :0.8em
@@ -458,25 +464,23 @@
          [:td.num (format/si-number (* 1000 capacity-kw)) "Wp"]
          [:td.num (format/si-number (capex-format capital-cost)) "¤"]]))]])
 
-(defn valid-solution [doc]
+(defn valid-solution []
   (reagent/with-let [highlight (reagent/atom nil)
                      *capex-mode (reagent/atom :total-cost)
                      *opex-mode  (reagent/atom :total-cost)]
-    (let [problem  (::solution/supply-problem @doc)
-          solution (::solution/supply-solution @doc)
+    (let [problem  (doc/value [::solution/supply-problem])
+          solution (doc/value [::solution/supply-solution])
           capex-mode @*capex-mode
           opex-mode  @*opex-mode]
       
       [:div.solution-component
        [:div.card
         
-        [summary-details {:open (reagent/cursor doc [::view/view-state :supply-solution
-                                                     :total-open])}
+        [summary-details {:path [::view/view-state :supply-solution :total-open]}
          "Total cost summary"
          [total-cost-summary problem solution highlight]]
         
-        [summary-details {:open (reagent/cursor doc [::view/view-state :supply-solution
-                                                     :plant-storage-open])}
+        [summary-details {:path [::view/view-state :supply-solution :plant-storage-open]}
          "Plant and storage"
          [:div
           [:section.display-control-section
@@ -510,16 +514,14 @@
            [plant-summary problem solution highlight capex-mode opex-mode]
            [store-summary problem solution highlight capex-mode]]]]
         
-        [summary-details {:open (reagent/cursor doc [::view/view-state :supply-solution
-                                                     :heat-production-open])}
+        [summary-details {:path [::view/view-state :supply-solution :heat-production-open]}
          "Heat production"
          [:div
           [heat-production-charts problem solution highlight]
           [heat-production-tables problem solution highlight]]
          ]
 
-        [summary-details {:open (reagent/cursor doc [::view/view-state :supply-solution
-                                                     :fuel-consumption-open])}
+        [summary-details {:path [::view/view-state :supply-solution :fuel-consumption-open]}
          "Fuel consumption and grid export"
 
          (let [fuel-colors
@@ -654,8 +656,7 @@
                       [:th (fuel-name fuel)]
                       (value-cells consumption division-weight day-weight)])]])])])]
 
-        [summary-details {:open (reagent/cursor doc [::view/view-state :supply-solution
-                                                     :emissions-open])}
+        [summary-details {:path [::view/view-state :supply-solution :emissions-open]}
          "Emissions"
          (reagent/with-let [span (reagent/atom :yearly)]
            [:div
@@ -713,13 +714,13 @@
 
         ]])))
 
-(defn supply-solution [doc]
-  (case (-> @doc ::solution/supply-solution :state)
+(defn supply-solution []
+  (case (doc/value [::solution/supply-solution :state])
     :uncaught-error
     [:div.card
      [:h1.card-header "Oops - something went wrong in the optimisation"]
      [:details
       [:summary "View log"]
-      [:pre (-> @doc ::solution/supply-solution :log)]]]
-    [valid-solution doc]))
+      [:pre (doc/value [::solution/supply-solution :log])]]]
+    [valid-solution]))
 

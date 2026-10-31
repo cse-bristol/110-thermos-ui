@@ -4,7 +4,7 @@
 (ns thermos-frontend.hide-forbidden-control
     (:require
       [reagent.core :as reagent]
-      [thermos-frontend.editor-state :as state]
+      [re-frame.core :as rf]
       [thermos-specs.document :as document]
       [thermos-specs.view :as view]
       [thermos-specs.candidate :as candidate]
@@ -12,14 +12,13 @@
 
 (defn component
   [leaflet-map]
-  (let [show-forbidden? (operations/showing-forbidden? @state/state)]
+  (let [show-forbidden? @(rf/subscribe [:map/showing-forbidden])]
     [:div
      [:input {:type "checkbox"
               :id "hide-forbidden-candidates"
               :style {:display "none"}
               :checked (not show-forbidden?)
-              :on-change (fn [e] (state/edit-geometry! state/state operations/toggle-showing-forbidden)
-                           )
+              :on-change #(rf/dispatch [:doc/edit-geometry operations/toggle-showing-forbidden])
               }]
      [:label.leaflet-control-button.hide-forbidden-control
       {:for "hide-forbidden-candidates"

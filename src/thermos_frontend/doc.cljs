@@ -5,7 +5,8 @@
   "Shorthand for components which read and change values in the document
   by their path, using the :doc/get subscription and the :doc/set and
   :doc/update events. Form inputs take a :path to do this themselves."
-  (:require [re-frame.core :as rf]))
+  (:require [re-frame.core :as rf]
+            [re-frame.db]))
 
 (defn value
   "The value at `path` in the document, or `not-found` if there is none.
@@ -13,6 +14,13 @@
   ([path] @(rf/subscribe [:doc/get path]))
   ([path not-found]
    (let [v (value path)] (if (nil? v) not-found v))))
+
+(defn current
+  "The value at `path` in the document now, without subscribing to it. For
+  imperative code which runs once rather than rendering, such as setting
+  up a Leaflet map."
+  [path]
+  (get-in @re-frame.db/app-db path))
 
 (defn set-value!
   "Set the value at `path` in the document"

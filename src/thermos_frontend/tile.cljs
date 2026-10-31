@@ -5,7 +5,6 @@
   (:require [reagent.core :as reagent]
             ["leaflet" :as L]
             [thermos-frontend.operations :as operations]
-            [thermos-frontend.editor-state :as state]
 
             [thermos-specs.document :as document]
             [thermos-specs.path :as path]

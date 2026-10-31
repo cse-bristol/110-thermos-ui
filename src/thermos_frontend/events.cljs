@@ -82,7 +82,11 @@
 
 (rf/reg-event-db
  :table/close-filter
- (fn [db _] (operations/close-table-filter db)))
+ ;; this happens on any click in the editor, so it mustn't change
+ ;; anything unless a filter is open
+ (fn [db _]
+   (cond-> db
+     (operations/table-filter-open? db) (operations/close-table-filter))))
 
 (rf/reg-event-db
  :table/clear-filters

@@ -2,7 +2,8 @@
 ;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
 
 (ns thermos-frontend.solution-view
-  (:require [thermos-specs.solution :as solution]
+  (:require [thermos-frontend.doc :as doc]
+            [thermos-specs.solution :as solution]
             [thermos-specs.demand :as demand]
             [thermos-specs.path :as path]
             [thermos-specs.supply :as supply]
@@ -64,7 +65,7 @@
 (defn- number-cell [& {:keys [scale] :or {scale 1}}]
   #(format/si-number (* (o/get % "cellData") scale)))
 
-(defn- unknown-state [document]
+(defn- unknown-state []
   (reagent/with-let [show-log (reagent/atom false)]
     [:div
      [:p "The optimisation has produced an unexpected outcome."]
@@ -77,15 +78,15 @@
          [:div
           (map-indexed
            (fn [i l] [:div {:key i} l])
-           (s/split (::solution/log @document) #"\n"))])]]]))
+           (s/split (doc/value [::solution/log]) #"\n"))])]]]))
 
-(defn invalid-solution [state document]
+(defn invalid-solution [state]
   [:div.solution-component
    (case state
      :empty-problem [problem-empty]
      :infeasible [solution-infeasible]
      :time-limit [solution-not-found]
-     [unknown-state document])])
+     [unknown-state])])
 
 (defn- unit-header [& stuff]
   [:thead.solution-table-unit-header
@@ -100,9 +101,8 @@
 (defn- summary-card [{opex-mode        :opex-mode
                       capex-mode       :capex-mode
                       opex-label       :opex-label
-                      capex-label      :capex-label}
-                     document]
-  (let [summary (solution-summary/data-table @document capex-mode opex-mode)]
+                      capex-label      :capex-label}]
+  (let [summary (solution-summary/data-table (doc/value []) capex-mode opex-mode)]
     [:section
      [:table.table.table--hover {:style {:max-width :900px}}
       [:thead
@@ -595,17 +595,16 @@
            (second (::solution/bounds @parameters)))
           ]]])]]])
 
-(defn- solution-summary* [document]
+(defn- solution-summary* []
   (reagent/with-let
     [solution-members (reagent/track
-                       #(->> document deref
-                             ::document/candidates
+                       #(->> (doc/value [::document/candidates])
                              vals
                              (filter candidate/in-solution?)))
 
      parameters
      (reagent/track
-      #(-> document deref
+      #(-> (doc/value [])
            (select-keys [::document/pipe-costs
                          ::document/flow-temperature
                          ::document/return-temperature
@@ -720,7 +719,7 @@
               name]))]
         [:ul.tabs__pages
          [:li.tabs__page {:class (when (= @active-tab :cost-summary) "tabs__page--active")}
-          [summary-card card-arguments document]]
+          [summary-card card-arguments]]
          [:li.tabs__page {:class (when (= @active-tab :network) "tabs__page--active")}
           [network-card card-arguments parameters]]
          [:li.tabs__page {:class (when (= @active-tab :alternatives) "tabs__page--active")}
@@ -734,14 +733,14 @@
         ]])
     ))
 
-(defn solution-summary [document]
-  (if (solution/exists? @document)
-    [solution-summary* document]
-    [invalid-solution (::solution/state @document) document]))
+(defn solution-summary []
+  (if (solution/exists? (doc/value []))
+    [solution-summary*]
+    [invalid-solution (doc/value [::solution/state])]))
 
-(defn run-log [document]
+(defn run-log []
   [:pre {:style {:text-wrap :pre-wrap}}
-   (::solution/log @document)
+   (doc/value [::solution/log])
    ]
   ;; [:div {:style {:font-family "Monospace"}}
   ;;  (map-indexed

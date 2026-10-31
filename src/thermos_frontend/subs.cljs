@@ -10,6 +10,7 @@
             [thermos-specs.candidate :as candidate]
             [thermos-specs.demand :as demand]
             [thermos-specs.document :as document]
+            [thermos-specs.solution :as solution]
             [thermos-specs.view :as view]
             [thermos-util :refer [count-if]]
             [thermos-util.pipes :as pipe-calcs]
@@ -27,6 +28,8 @@
 (rf/reg-sub :doc/candidates (fn [db _] (::document/candidates db)))
 
 (rf/reg-sub :doc/has-solution (fn [db _] (document/has-solution? db)))
+
+(rf/reg-sub :doc/has-supply-solution (fn [db _] (document/has-supply-solution? db)))
 
 (rf/reg-sub :doc/mode (fn [db _] (document/mode db)))
 
@@ -109,6 +112,20 @@
          (transient {}))
         (persistent!)
         (into (sorted-map)))))
+
+(rf/reg-sub
+ :solution/diameter-range
+ ;; [smallest largest] pipe diameter in mm in the solution, if there is one
+ :<- [:doc/has-solution]
+ :<- [:doc/candidates]
+ (fn [[has-solution candidates] _]
+   (when has-solution
+     (reduce
+      (fn [[l u] d]
+        [(or (and l (min d l)) d)
+         (or (and u (max d u)) d)])
+      []
+      (keep ::solution/diameter-mm (vals candidates))))))
 
 ;; View state: the map and the candidates table
 

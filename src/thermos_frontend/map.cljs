@@ -38,6 +38,8 @@
             [goog.functions :refer [debounce]]
 
             [re-frame.core :as rf]
+            [thermos-frontend.doc :as doc]
+            [thermos-frontend.fx :as fx]
 
             [thermos-specs.demand :as demand]))
 
@@ -55,20 +57,20 @@
          latlng->jsts-shape
          latlng->jsts-point
          on-right-click-on-map
-         create-leaflet-control
-         unload-candidates)
+         popover-content
+         with-candidate-at
+         create-leaflet-control)
 
 (defn component
-  "Draw a cartographic map for the given `document`, which should be a reagent atom
-  containing a document map"
-  [document]
+  "Draw a cartographic map of the document"
+  []
   (let [watches (atom [])
         map-node (atom nil)
         ]
     (reagent/create-class
-     {:reagent-render (fn [document]
+     {:reagent-render (fn []
                         [:div.map {:ref (partial reset! map-node)}])
-      :component-did-mount    (partial mount document watches map-node)
+      :component-did-mount    (partial mount watches map-node)
       :component-will-unmount (partial unmount watches)
       })))
 
@@ -123,15 +125,17 @@
 
 (defn mount
   "Make a leaflet control when this component is being put on screen"
-  [document watches map-node component]
+  [watches map-node component]
   (let [map-node @map-node
-        
-        edit!  (fn [f & a] (apply state/edit! document f a))
+
+        edit!  (fn [f & a] (rf/dispatch (into [:doc/edit f] a)))
         track! (fn [f & a]
                  (let [watch (apply reagent/track! f a)]
                    (swap! watches conj #(reagent/dispose! watch))))
 
-        map-bounding-box (reagent/cursor document [::view/view-state ::view/bounding-box])
+        bounding-box-path [::view/view-state ::view/bounding-box]
+        map-layers-path   [::view/view-state ::view/map-layers]
+        cooling?          (document/is-cooling? (doc/current []))
 
         map (L/map map-node (clj->js {:preferCanvas true
                                          :fadeAnimation true
@@ -139,14 +143,14 @@
                                          :center
                                          (let [{n :north s :south
                                                 w :west e :east}
-                                               @map-bounding-box]
+                                               (doc/current bounding-box-path)]
                                            [(* 0.5 (+ w e)) (* 0.5 (+ n s))])}))
 
         ;; The tilesize of 256 is related to the x, y values when talking
         ;; to the server for tile data, so if the tilesize changes, effectively
         ;; the meaning of the zoom, or equivalently the x and y changes too.
         ;; Halve this => increase zoom by 1 in queries below.
-        candidates-layer (candidates-layer document
+        candidates-layer (candidates-layer
                                            {:tileSize 256
                                             :minZoom 13
                                             :maxZoom 21})
@@ -171,7 +175,7 @@
         (L/layerGroup #js [candidates-layer connector-layer demand-tool-layer])
 
         density-layer
-        (if (document/is-cooling? @document)
+        (if cooling?
           cold-density-layer heat-density-layer)
         
         normal-layers {::view/candidates-layer candidates-layer
@@ -187,7 +191,7 @@
                                      (name k)) v]))
 
                         {"Candidates" candidates-layer
-                         (if (document/is-cooling? @document)
+                         (if cooling?
                            "Coldmap" "Heatmap")
                          
                          density-layer
@@ -215,10 +219,8 @@
                    :west (.getWest bounds)
                    :east (.getEast bounds)}))
 
-        map-layers (reagent/cursor document [::view/view-state ::view/map-layers])
-
         show-map-layers!
-        #(let [target-state @map-layers
+        #(let [target-state (doc/value map-layers-path)
 
                target-state
                (merge
@@ -253,7 +255,7 @@
 
         show-bounding-box!
         #(let [{n :north s :south
-                w :west e :east} @map-bounding-box]
+                w :west e :east} (doc/value bounding-box-path)]
            (when (and n s w e)
              (.fitBounds map (L/latLngBounds (clj->js [ [s w] [n e] ])))))
 
@@ -316,32 +318,27 @@
 
       (.on map (.. L/Draw -Event -CREATED)
            (fn [e]
-             (state/edit! document
-                          spatial/select-intersecting-candidates
-                          (layer->jsts-shape (o/get e "layer"))
-                          @method)
+             (edit! spatial/select-intersecting-candidates
+                    (layer->jsts-shape (o/get e "layer"))
+                    @method)
              (reset! method :replace)))
 
       (.on map "mousemove"
            (fn [e]
              (cond
                (connector/is-drawing?)
-               (let [latln  (o/get e "latlng")
-                     hitbox (latlng->jsts-shape latln (pixel-size))
-
-                     hover-candidate (first (spatial/find-intersecting-candidates @document hitbox))]
-                 (if hover-candidate
-                   (connector/mouse-moved-to-candidate! hover-candidate)
-                   (connector/mouse-moved-to-point! (latlng->jsts-point latln))))
+               (let [latln (o/get e "latlng")]
+                 (with-candidate-at
+                   (latlng->jsts-shape latln (pixel-size))
+                   #(if %
+                      (connector/mouse-moved-to-candidate! %)
+                      (connector/mouse-moved-to-point! (latlng->jsts-point latln)))))
 
                (demand-tool/is-drawing?)
-               (let [latln  (o/get e "latlng")
-                     hitbox (latlng->jsts-shape latln (pixel-size))
-                     hover-candidate (first (spatial/find-intersecting-candidates @document hitbox))]
-                 
-                 (if hover-candidate
-                   (demand-tool/draw-at! nil)
-                   (demand-tool/draw-at! (latlng->jsts-point latln))))
+               (let [latln (o/get e "latlng")]
+                 (with-candidate-at
+                   (latlng->jsts-shape latln (pixel-size))
+                   #(demand-tool/draw-at! (when-not % (latlng->jsts-point latln)))))
                )))
 
       (.on map "click"
@@ -365,16 +362,13 @@
                  (reset! draw-state nil)
 
                  :else
-                 (state/edit! document
-                              spatial/select-intersecting-candidates
+                 (edit! spatial/select-intersecting-candidates
+                        (latlng->jsts-shape
+                         (o/get e "latlng")
+                         (pixel-size))
+                        @method)))))
 
-                              (latlng->jsts-shape
-                               (o/get e "latlng")
-                               (pixel-size))
-
-                              @method)))))
-
-      (.on map "contextmenu" (fn [e] (on-right-click-on-map e document pixel-size))))
+      (.on map "contextmenu" (fn [e] (on-right-click-on-map e pixel-size))))
 
     ;; When zooming or moving, unload the candidates which fall out of the current view
     (let [;; We'll use this timeout to wait a bit before doing the unloading.
@@ -388,13 +382,13 @@
                            (if @timeout (js/clearTimeout @timeout))
                            (reset! timeout
                                    (js/setTimeout
-                                    (fn [] (unload-candidates))
+                                    (fn [] (rf/dispatch [::unload-distant-candidates]))
                                     400))))
       (.on map "zoomend" (fn []
                            (if @timeout (js/clearTimeout @timeout))
                            (reset! timeout
                                    (js/setTimeout
-                                    (fn [] (unload-candidates))
+                                    (fn [] (rf/dispatch [::unload-distant-candidates]))
                                     400))))
       )
 
@@ -415,10 +409,10 @@
                                ]
                            (cond
                              (and layer-visible basemap-key)
-                             (swap! map-layers assoc ::view/basemap-layer basemap-key)
+                             (doc/update! map-layers-path assoc ::view/basemap-layer basemap-key)
 
                              normal-key
-                             (swap! map-layers assoc normal-key layer-visible))))]
+                             (doc/update! map-layers-path assoc normal-key layer-visible))))]
 
       (.on map "overlayadd" watch-layers)
       (.on map "overlayremove" watch-layers)
@@ -437,87 +431,77 @@
 (defn candidates-layer
   "The layer which draws the candidates. Each tile repaints when the
   candidates in it, or the way they are shown, change."
-  [doc args]
-  (let [min-max-diameters
-        (reagent/track
-         #(when @(rf/subscribe [:doc/has-solution])
-            (reduce
-             (fn [[l u] d]
-               [(or (and l (min d l)) d)
-                (or (and u (max d u)) d)])
-             []
-             (keep ::soln/diameter-mm (vals @(rf/subscribe [:doc/candidates]))))))]
+  [args]
+  (reactive-layer/create
+   :internal-id "candidates-layer"
+   :constructor-args args
+   :paint-tile
+   (fn [canvas coords layer bbox]
+     (let [tile-contents
+           (reagent/track
+            (fn []
+              (let [adjacent-ids        @(rf/subscribe [:candidates/in-selected-groups])
+                    just-candidates     @(rf/subscribe [:doc/candidates])
+                    ;; contains just the IDs of candidates in this box
+                    tile-candidates-ids @(rf/subscribe [:map/tile-candidate-ids bbox])
 
-    (reactive-layer/create
-     :internal-id "candidates-layer"
-     :constructor-args args
-     :paint-tile
-     (fn [canvas coords layer bbox]
-       (let [tile-contents
-             (reagent/track
+                    showing-forbidden? @(rf/subscribe [:map/showing-forbidden])
+                    any-filters?       (not (empty? @(rf/subscribe [:table/filters])))
+                    tile-candidates    (if showing-forbidden?
+                                         (keep just-candidates tile-candidates-ids)
+                                         (keep #(let [c (just-candidates %)]
+                                                  (when (candidate/is-included? c) c))
+                                               tile-candidates-ids))
+
+                    any-adjacent? (not-empty adjacent-ids)
+                    ]
+
+                (cond-> tile-candidates
+                  any-filters?
+                  (->> (map (let [f @(rf/subscribe [:table/filtered-candidate-ids])]
+                              #(assoc % :filtered (not (f (::candidate/id %)))))))
+
+                  any-adjacent?
+                  (->> (map (fn [c]
+                              (cond-> c
+                                (contains? adjacent-ids (::candidate/id c))
+                                (assoc :in-selected-group true))
+                              ))))
+                )))
+           ]
+       ;; we return our tracks for later disposal
+       (list (reagent/track!
               (fn []
-                (let [adjacent-ids        @(rf/subscribe [:candidates/in-selected-groups])
-                      just-candidates     @(rf/subscribe [:doc/candidates])
-                      ;; contains just the IDs of candidates in this box
-                      tile-candidates-ids @(rf/subscribe [:map/tile-candidate-ids bbox])
+                (when @(rf/subscribe [:map/showing-forbidden])
+                  (state/load-tile! (.-x coords) (.-y coords) (.-z coords)))))
 
-                      showing-forbidden? @(rf/subscribe [:map/showing-forbidden])
-                      any-filters?       (not (empty? @(rf/subscribe [:table/filters])))
-                      tile-candidates    (if showing-forbidden?
-                                           (keep just-candidates tile-candidates-ids)
-                                           (keep #(let [c (just-candidates %)]
-                                                    (when (candidate/is-included? c) c))
-                                                 tile-candidates-ids))
+             (reagent/track!
+              (fn []
+                (tile/render-tile
+                 @(rf/subscribe [:doc/has-solution])
+                 @tile-contents
+                 canvas
+                 layer
+                 (or @(rf/subscribe [:view/map-view]) ::view/constraints)
+                 (and @(rf/subscribe [:view/show-pipe-diameters])
+                      @(rf/subscribe [:solution/diameter-range])))
+                )))
+       ))))
 
-                      any-adjacent? (not-empty adjacent-ids)
-                      ]
+(defn connector-layer [args]
+  (reactive-layer/create
+   :constructor-args args
+   :internal-id "connectors"
+   :paint-tile
+   (fn [canvas coords layer bbox]
+     ;; because there is not a lot to render in the connector layer,
+     ;; we don't need to do optimisations for it
+     (list
+      (reagent/track!
+       (fn []
+         (connector/render-tile! canvas coords layer)))))))
 
-                  (cond-> tile-candidates
-                    any-filters?
-                    (->> (map (let [f @(rf/subscribe [:table/filtered-candidate-ids])]
-                                #(assoc % :filtered (not (f (::candidate/id %)))))))
-
-                    any-adjacent?
-                    (->> (map (fn [c]
-                                (cond-> c
-                                  (contains? adjacent-ids (::candidate/id c))
-                                  (assoc :in-selected-group true))
-                                ))))
-                  )))
-             ]
-         ;; we return our tracks for later disposal
-         (list (reagent/track!
-                (fn []
-                  (when @(rf/subscribe [:map/showing-forbidden])
-                    (state/load-tile! doc (.-x coords) (.-y coords) (.-z coords)))))
-
-               (reagent/track!
-                (fn []
-                  (tile/render-tile
-                   @(rf/subscribe [:doc/has-solution])
-                   @tile-contents
-                   canvas
-                   layer
-                   (or @(rf/subscribe [:view/map-view]) ::view/constraints)
-                   (and @(rf/subscribe [:view/show-pipe-diameters]) @min-max-diameters))
-                  )))
-         )))))
-
-(defn connector-layer [doc args]
-  (let [map-view (reagent/track #(-> @doc ::view/view-state ::view/map-view))]
-    (reactive-layer/create
-     :constructor-args args
-     :internal-id "connectors"
-     :paint-tile
-     (fn [canvas coords layer bbox]
-       ;; because there is not a lot to render in the connector layer,
-       ;; we don't need to do optimisations for it
-       (list
-        (reagent/track!
-         (fn []
-           (connector/render-tile! canvas coords layer))))))))
-
-(defn demand-tool-layer [doc args]
+(defn demand-tool-layer [args]
   (reactive-layer/create
    :constructor-args args
    :internal-id "new-buildings"
@@ -553,7 +537,7 @@
       (jts/json->geom)
       (o/get "geometry")))
 
-(defn popover-content [document selected-candidates]
+(defn popover-content [selected-candidates]
   (let [{paths :path
          buildings :building}
         (group-by ::candidate/type selected-candidates)
@@ -566,24 +550,17 @@
 
         set-inclusion!
         (fn [candidates-ids inclusion-value]
-          (state/edit!
-           document
-           #(operations/set-candidates-inclusion % candidates-ids inclusion-value))
+          (rf/dispatch [:doc/edit operations/set-candidates-inclusion candidates-ids inclusion-value])
           (popover/close!))
 
         forbid-supply!
         (fn [candidate-ids]
-          (state/edit! document
-                       #(document/map-candidates %
-                         candidate/forbid-supply!
-                         candidate-ids))
+          (rf/dispatch [:doc/edit document/map-candidates candidate/forbid-supply! candidate-ids])
           (popover/close!))
 
         delete-selection!
         (fn [candidate-ids]
-          (state/edit-geometry!
-           document
-           document/remove-candidates candidate-ids)
+          (rf/dispatch [:doc/edit-geometry document/remove-candidates candidate-ids])
           (popover/close!))
         ]
     [popover-menu/component
@@ -674,32 +651,46 @@
                    }))
         ])]))
 
+(rf/reg-event-fx
+ ::with-candidate-at
+ (fn [{db :db} [_ shape f]]
+   {:fx [[::fx/call [f (first (spatial/find-intersecting-candidates db shape))]]]}))
+
+(defn- with-candidate-at
+  "Call `f` with the first candidate under `shape`, or nil. This happens
+  straight away, so that the drawing tools know what the mouse is over
+  before a click which follows the move."
+  [shape f]
+  (rf/dispatch-sync [::with-candidate-at shape f]))
+
+(rf/reg-event-fx
+ ::right-click
+ ;; select what was clicked on, unless it is already selected, and
+ ;; open a menu for the selection at screen position `position`
+ (fn [{db :db} [_ click-range position]]
+   (let [current-selection  (operations/selected-candidates-ids db)
+         clicked-candidates (spatial/find-intersecting-candidates-ids db click-range)
+         db (if (empty? (set/intersection (set current-selection)
+                                          (set clicked-candidates)))
+              (operations/select-candidates db clicked-candidates :replace)
+              db)
+         selection (operations/selected-candidates db)]
+     {:db db
+      :fx [[::fx/call
+            (if (empty? selection)
+              [popover/close!]
+              [popover/open! [popover-content selection] position])]]})))
+
 (defn on-right-click-on-map
   "Callback for when you right-click on the map.
   If you are clicking on a selected candidate, open up a popover menu
   allowing you to edit the selected candidates in situ."
-  [e document pixel-size]
-
-  (let [current-selection (operations/selected-candidates-ids @document)
-
-        oe (o/get e "originalEvent")
-        click-range (latlng->jsts-shape
-                     (o/get e "latlng")
-                     (pixel-size))
-
-        clicked-candidates (spatial/find-intersecting-candidates-ids @document click-range)
-
-        update-selection (if (empty? (set/intersection (set current-selection)
-                                                       (set clicked-candidates)))
-                           #(operations/select-candidates % clicked-candidates :replace)
-                           identity)
-        ]
-    (state/edit! document update-selection)
-    (let [selection (operations/selected-candidates @document)]
-      (if (empty? selection)
-        (popover/close!)
-        (popover/open! [popover-content document selection]
-                       [(o/get oe "clientX") (o/get oe "clientY")])))))
+  [e pixel-size]
+  (let [oe (o/get e "originalEvent")]
+    (rf/dispatch
+     [::right-click
+      (latlng->jsts-shape (o/get e "latlng") (pixel-size))
+      [(o/get oe "clientX") (o/get oe "clientY")]])))
 
 (defn create-leaflet-control
   [component & args]
@@ -712,37 +703,38 @@
        clj->js
        (.extend L/Control)))
 
-(defn unload-candidates
-  []
-  (let [;; Get all the candidates in the bbox
-        bbox (get-in @state/state [::view/view-state ::view/bounding-box])
-        ;; Use the height and width of the box to naively add a buffer to the bbox
-        bbox-height (- (:north bbox) (:south bbox))
-        bbox-width (- (:east bbox) (:west bbox))
-        bbox {:minY (- (:south bbox) (/ bbox-height 2))
-              :maxY (+ (:north bbox) (/ bbox-height 2))
-              :minX (- (:west bbox) (/ bbox-width 2))
-              :maxX (+ (:east bbox) (/ bbox-width 2))}
 
-        candidates-in-bbox-ids (set (spatial/find-candidates-ids-in-bbox @state/state bbox))
-        
-        keep-constraints #{:required :optional}
-        loaded-candidates (::document/candidates @state/state)
-        
-        
-        ]
-    ;; Remove all the candidates that we don't want to keep
-    (when (< (count candidates-in-bbox-ids)
-             (count loaded-candidates))
-      (let [candidates-to-keep
-            (persistent!
-             (reduce-kv (fn [out k v]
-                          (cond-> out
-                            (or (::candidate/selected v)
-                                (::candidate/modified v)
-                                (keep-constraints (::candidate/inclusion v))
-                                (contains? candidates-in-bbox-ids k))
-                            (assoc! k v)))
-                        (transient {})
-                        loaded-candidates))]
-        (state/edit-geometry! state/state assoc ::document/candidates candidates-to-keep)))))
+(rf/reg-event-fx
+ ::unload-distant-candidates
+ ;; forget the candidates well outside the map's bounding box which
+ ;; haven't been selected, changed or constrained
+ (fn [{db :db} _]
+   (let [;; Get all the candidates in the bbox
+         bbox (get-in db [::view/view-state ::view/bounding-box])
+         ;; Use the height and width of the box to naively add a buffer to the bbox
+         bbox-height (- (:north bbox) (:south bbox))
+         bbox-width (- (:east bbox) (:west bbox))
+         bbox {:minY (- (:south bbox) (/ bbox-height 2))
+               :maxY (+ (:north bbox) (/ bbox-height 2))
+               :minX (- (:west bbox) (/ bbox-width 2))
+               :maxX (+ (:east bbox) (/ bbox-width 2))}
+
+         candidates-in-bbox-ids (set (spatial/find-candidates-ids-in-bbox db bbox))
+
+         keep-constraints #{:required :optional}
+         loaded-candidates (::document/candidates db)]
+     ;; Remove all the candidates that we don't want to keep
+     (when (< (count candidates-in-bbox-ids)
+              (count loaded-candidates))
+       (let [candidates-to-keep
+             (persistent!
+              (reduce-kv (fn [out k v]
+                           (cond-> out
+                             (or (::candidate/selected v)
+                                 (::candidate/modified v)
+                                 (keep-constraints (::candidate/inclusion v))
+                                 (contains? candidates-in-bbox-ids k))
+                             (assoc! k v)))
+                         (transient {})
+                         loaded-candidates))]
+         {:dispatch [:doc/edit-geometry assoc ::document/candidates candidates-to-keep]})))))

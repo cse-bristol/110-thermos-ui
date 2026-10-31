@@ -2,8 +2,8 @@
 ;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
 
 (ns thermos-frontend.editor-keys
-  (:require [thermos-frontend.editor-state :as state]
-            [re-frame.core :as rf]
+  (:require [re-frame.core :as rf]
+            [thermos-frontend.fx :as fx]
             [thermos-frontend.operations :as operations]
             [thermos-frontend.popover :as popover]
             
@@ -22,55 +22,64 @@
             [goog.object :as o]
             [clojure.string :as string]))
 
+(rf/reg-event-fx
+ ::with-selection
+ ;; call f with the document and the selected candidates, for keys which
+ ;; open a dialog about the selection
+ (fn [{db :db} [_ f]]
+   {:fx [[::fx/call [f db (operations/selected-candidates db)]]]}))
+
 (defn- rotate-inclusion! []
-  (state/edit!
-   state/state
-   operations/rotate-candidates-inclusion
-   (operations/selected-candidates-ids @state/state)))
+  (rf/dispatch
+   [:doc/edit #(operations/rotate-candidates-inclusion
+                % (operations/selected-candidates-ids %))]))
 
 (defn- edit-supply! []
-  (->> @state/state
-       (operations/selected-candidates)
-       (filter candidate/is-building?)
-       (map ::candidate/id)
-       (supply-parameters/show-editor!)))
+  (rf/dispatch
+   [::with-selection
+    (fn [_ selection]
+      (->> selection
+           (filter candidate/is-building?)
+           (map ::candidate/id)
+           (supply-parameters/show-editor!)))]))
 
 (defn edit-demand-or-path! []
-  (->> @state/state
-       (operations/selected-candidates)
-       (map ::candidate/id)
-       (candidate-editor/show-editor!)))
+  (rf/dispatch
+   [::with-selection
+    (fn [_ selection]
+      (candidate-editor/show-editor! (map ::candidate/id selection)))]))
 
 (defn- zoom-to-fit! []
-  (state/edit!
-   state/state
-   spatial/zoom-to-selection))
+  (rf/dispatch [:doc/edit spatial/zoom-to-selection]))
+
+(defn- select-filtered [network method]
+  (operations/select-candidates
+   network
+   (map ::candidate/id (operations/get-filtered-candidates network))
+   method))
 
 (defn- select-all! []
-  (state/edit! state/state operations/select-candidates
-               (map ::candidate/id
-                    (operations/get-filtered-candidates @state/state))
-               :replace))
+  (rf/dispatch [:doc/edit select-filtered :replace]))
 
 (defn- select-inverse! []
-  (state/edit! state/state operations/select-candidates
-               (map ::candidate/id
-                    (operations/get-filtered-candidates @state/state))
-               :xor))
+  (rf/dispatch [:doc/edit select-filtered :xor]))
 
 
 (defn- show-pprint-thing []
-  (popover/open!
-   [:div.popover-dialog
-    {:style {:max-width :80vw
-             :max-height :80vh
-             :display :flex}}
-    [:button.popover-close-button {:on-click popover/close!} "⨯"]
-    [debug-box/debug-box
-     (or (seq (operations/selected-candidates @state/state))
-         (dissoc @state/state :thermos-specs.document/candidates))]
-    ]
-   :middle))
+  (rf/dispatch
+   [::with-selection
+    (fn [network selection]
+      (popover/open!
+       [:div.popover-dialog
+        {:style {:max-width :80vw
+                 :max-height :80vh
+                 :display :flex}}
+        [:button.popover-close-button {:on-click popover/close!} "⨯"]
+        [debug-box/debug-box
+         (or (seq selection)
+             (dissoc network :thermos-specs.document/candidates))]
+        ]
+       :middle))]))
 
 (def descriptions
   [:table
@@ -124,7 +133,7 @@
         "A" (select-inverse!)
         "e" (edit-demand-or-path!)
         "i" (show-pprint-thing)
-        "j" connector-tool/toggle!
+        "j" (connector-tool/toggle!)
         "g" (rf/dispatch [:group-select-members])
         "G" (rf/dispatch [:group-selection])
         "U" (rf/dispatch [:ungroup-selection])

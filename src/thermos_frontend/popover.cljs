@@ -2,8 +2,7 @@
 ;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
 
 (ns thermos-frontend.popover
-  (:require [reagent.core :as reagent]
-            [thermos-frontend.editor-state :as state]))
+  (:require [reagent.core :as reagent]))
 
 (defonce state (reagent/atom {}))
 (defonce focus-element (atom nil))
