@@ -23,21 +23,32 @@
 
 (declare component)
 
-(defn stats-loop [values]
-  (loop [vmin ##Inf
-         vmax ##-Inf
-         vsum 0
-         vcount 0
-         values values]
-    (if (empty? values)
-      [vmin vmax vsum vcount]
-      (let [[x & values] values]
-        (recur
-         (min vmin x)
-         (max vmax x)
-         (+ vsum x)
-         (inc vcount)
-         values)))))
+(defn- stats
+  "[min max sum count] of the non-nil values of (value x) for the xs"
+  [value xs]
+  (let [acc (reduce (fn [^js acc x]
+                      (when-let [v (value x)]
+                        (aset acc 0 (min (aget acc 0) v))
+                        (aset acc 1 (max (aget acc 1) v))
+                        (aset acc 2 (+ (aget acc 2) v))
+                        (aset acc 3 (inc (aget acc 3))))
+                      acc)
+                    (array ##Inf ##-Inf 0 0)
+                    xs)]
+    [(aget acc 0) (aget acc 1) (aget acc 2) (aget acc 3)]))
+
+(defn- group-ids
+  "A map from (value x) to the ids of the xs with that value, leaving out
+  those whose value is nil"
+  [value xs]
+  (persistent!
+   (reduce (fn [groups x]
+             (let [k (value x)]
+               (if (nil? k)
+                 groups
+                 (assoc! groups k (conj (get groups k []) (::candidate/id x))))))
+           (transient {})
+           xs)))
 
 (defn- row [title body & {:keys [extra-class]}]
   [:div.selection-table__row
@@ -50,11 +61,10 @@
 (defn- number-row [selection title value &
                    {:keys [unit summary scale tooltip]
                     :or {unit "" summary :sum}}]
-  (let [values (keep (if scale (fn [x] (when-let [x (value x)] (* scale x))) value)
-                     selection)]
-    (when-not (empty? values)
-      (let [[vmin vmax vsum vcount] (stats-loop values)
-            vmean (/ vsum vcount)]
+  (let [value (if scale (fn [x] (when-let [x (value x)] (* scale x))) value)
+        [vmin vmax vsum vcount] (stats value selection)]
+    (when (pos? vcount)
+      (let [            vmean (/ vsum vcount)]
         [row
          (if tooltip
            [:span.has-tt {:title tooltip} title]
@@ -80,11 +90,10 @@
 (defn- chips-row [selection title value
                   & {:keys [add-classes nil-value default-closed]}]
   (reagent/with-let [*open (reagent/cursor *open-rows [title])]
-    (let [by-value (dissoc (group-by (if nil-value
-                                       #(or (value %) nil-value)
-                                       value)
-                                     selection)
-                           nil)
+    (let [by-value (group-ids (if nil-value
+                               #(or (value %) nil-value)
+                               value)
+                             selection)
           n-groups (count by-value)
           open     @*open
           open     (or open (and (nil? open) (not default-closed)))
@@ -102,18 +111,18 @@
            (let [groups (sort-by str (keys by-value))]
              (remove
               nil?
-              (for [value groups :let [candidates (get by-value value)]]
-                (when (and value (not-empty candidates))
+              (for [value groups :let [ids (get by-value value)]]
+                (when (and value (not-empty ids))
                   [tag/component
                    {:key value
                     :class (when add-classes (add-classes value))
                     
-                    :count (count candidates)
+                    :count (count ids)
                     :body value
                     :close true
-                    :on-select #(rf/dispatch [:select-ids (map ::candidate/id candidates)])
+                    :on-select #(rf/dispatch [:select-ids ids])
                     
-                    :on-close #(rf/dispatch [:deselect-ids (map ::candidate/id candidates)])
+                    :on-close #(rf/dispatch [:deselect-ids ids])
                     }])))
              ))
          :extra-class "selection-table-cell--tag-container"
@@ -150,9 +159,9 @@
   (when (candidate/is-path? x)
     (document/civil-cost-name doc (::path/civil-cost-id x))))
 
-(defn- base-cost [determinants model-mode x]
+(defn- base-cost [path-cost determinants model-mode x]
   (case (::candidate/type x)
-      :path (document/path-cost x determinants) ;; args wrong way around so no workio
+      :path (path-cost x)
       :building (tariff/connection-cost
                  (document/connection-cost-for-id determinants (::tariff/cc-id x))
                  (candidate/annual-demand x model-mode)
@@ -248,12 +257,10 @@
             (empty? (rest selection)) "One candidate selected"
             :else (str (count selection) " candidates selected"))]
 
-     (let [chips-row  (partial chips-row selection)
-           number-row (partial number-row selection)
-           base-cost  (partial base-cost cost-factors model-mode)
-           ]
+     (let [base-cost (partial base-cost (document/path-cost-fn cost-factors)
+                              cost-factors model-mode)]
        [:div.selection-table
-        [chips-row "Type"
+        [chips-row selection "Type"
          (fn [c]
            (cond
              (candidate/has-supply? c) "supply"
@@ -266,11 +273,11 @@
           [:<> {:key field}
            (case type
              :number
-             [number-row field (fn [x] (-> x ::candidate/user-fields (get field)))
+             [number-row selection field (fn [x] (-> x ::candidate/user-fields (get field)))
               :summary :sum :unit "" :default-closed true]
 
              :bit
-             [chips-row field
+             [chips-row selection field
               (fn [x]
                 (let [s (-> x ::candidate/user-fields (get field))]
                   (case s
@@ -281,7 +288,7 @@
               :nil-value "None" :default-closed true]
 
              :boolean
-             [chips-row field
+             [chips-row selection field
               (fn [x]
                 (let [s (-> x ::candidate/user-fields (get field))]
                   (case s
@@ -290,27 +297,27 @@
                     nil)))
               :nil-value "None" :default-closed true]
              
-             [chips-row field (fn [x]
+             [chips-row selection field (fn [x]
                                 (let [s (-> x ::candidate/user-fields (get field))]
                                   (if (string/blank? s) nil s)))
               
               :nil-value "None" :default-closed true])])
         
-        [chips-row "Constraint" ::candidate/inclusion
+        [chips-row selection "Constraint" ::candidate/inclusion
          :nil-value "Forbidden" :add-classes (fn [x] ["constraint" (name x)])]
-        [chips-row "Tariff"    (partial building-tariff-name cost-factors)]
-        [chips-row "Edited"    (comp {false "no" true "yes" nil "no"} ::candidate/modified)]
-        [chips-row "Profile"   (partial building-profile-name cost-factors)]
-        [number-row "Market rate" ::solution/market-rate
+        [chips-row selection "Tariff"    (partial building-tariff-name cost-factors)]
+        [chips-row selection "Edited"    (comp {false "no" true "yes" nil "no"} ::candidate/modified)]
+        [chips-row selection "Profile"   (partial building-profile-name cost-factors)]
+        [number-row selection "Market rate" ::solution/market-rate
          :summary :mean :unit "c/kWh" :scale 100]
-        [chips-row "Civils"    (partial path-civil-cost-name cost-factors)]
+        [chips-row selection "Civils"    (partial path-civil-cost-name cost-factors)]
 
-        [number-row "Length" ::path/length :unit "m"]
-        [number-row "Base cost" base-cost :unit "¤"
+        [number-row selection "Length" ::path/length :unit "m"]
+        [number-row selection "Base cost" base-cost :unit "¤"
          :tooltip (str "For buildings this is the connection cost. "
                        "For paths it is the cost of the smallest pipe.")]
 
-        [number-row (str mode-name " demand") #(candidate/annual-demand % model-mode)
+        [number-row selection (str mode-name " demand") #(candidate/annual-demand % model-mode)
          :unit "Wh/yr" :scale 1000]
 
         (when (and has-solution
@@ -319,11 +326,11 @@
                            (candidate/annual-demand % model-mode))
                          selection))
 
-          [number-row "Insulated demand" #(candidate/solved-annual-demand % model-mode)
+          [number-row selection "Insulated demand" #(candidate/solved-annual-demand % model-mode)
            :tooltip "Demand after solving, including efect of insulation"
            :unit "Wh/yr" :scale 1000])
         
-        [number-row (str mode-name " peak") #(candidate/peak-demand % model-mode)
+        [number-row selection (str mode-name " peak") #(candidate/peak-demand % model-mode)
          :tooltip (when has-solution "Peak demand input for optimisation model")
          :unit "Wp" :scale 1000]
 
@@ -332,7 +339,7 @@
                            (candidate/solved-peak-demand % model-mode)
                            (candidate/peak-demand % model-mode))
                          selection))
-          [number-row "System peak" #(candidate/solved-peak-demand % model-mode)
+          [number-row selection "System peak" #(candidate/solved-peak-demand % model-mode)
            :tooltip "Peak after solving, including peak adjustments from tank factor"
            :unit "Wp" :scale 1000])
 
@@ -340,20 +347,20 @@
 
         (when has-solution
           [:<>
-           [chips-row "In solution" candidate/solution-description
+           [chips-row selection "In solution" candidate/solution-description
             :nil-value "no" :add-classes solution-row-classes]
-           [number-row "Coincidence" ::solution/diversity
+           [number-row selection "Coincidence" ::solution/diversity
             :summary :mean :unit "%" :scale 100]
-           [number-row "Required capacity" ::solution/capacity-kw
+           [number-row selection "Required capacity" ::solution/capacity-kw
             :summary :max :unit "W" :scale 1000]
-           [number-row "Max. capacity" ::solution/max-capacity-kw
+           [number-row selection "Max. capacity" ::solution/max-capacity-kw
             :summary :max :unit "W" :scale 1000]
-           [number-row "Diameter" ::solution/diameter-mm
+           [number-row selection "Diameter" ::solution/diameter-mm
             :summary :max :unit "m" :scale 0.001]
 
            [cost-row selection]
            
-           [number-row "Revenue" (comp :annual ::solution/heat-revenue)
+           [number-row selection "Revenue" (comp :annual ::solution/heat-revenue)
             :unit "¤/yr"]
            
            [losses-row selection]

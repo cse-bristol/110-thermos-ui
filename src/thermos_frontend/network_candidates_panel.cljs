@@ -29,7 +29,7 @@
         filtered-candidates (rf/subscribe [:table/filtered-candidates])
         open-filter         (rf/subscribe [:table/open-filter])
         pipe-costs          @(rf/subscribe [:doc/pipe-costs])
-        pipe-cost-function  #(document/path-cost % {::document/pipe-costs pipe-costs})]
+        pipe-cost-function  (document/path-cost-fn {::document/pipe-costs pipe-costs})]
     (let [data-value (fn [arg] (o/get arg "cellData"))
           data-name  (fn [arg]
                        (if-let [v (data-value arg)]

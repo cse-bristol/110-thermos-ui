@@ -4,7 +4,11 @@
 (ns thermos-frontend.subs
   "re-frame subscriptions for the editor. Those which only need part of the
   document get it from :doc/candidates or :view/state, so they aren't
-  recalculated whenever anything else in the document changes."
+  recalculated whenever anything else in the document changes.
+
+  Subscriptions return vectors rather than lazy sequences, as reagent
+  compares each new value with the last, and that is much slower for a
+  long lazy sequence."
   (:require [re-frame.core :as rf]
             [com.rpl.specter :as S]
             [thermos-specs.candidate :as candidate]
@@ -52,12 +56,12 @@
 (rf/reg-sub
  :candidates/included
  :<- [:doc/candidates]
- (fn [candidates _] (operations/included-candidates (candidates-doc candidates))))
+ (fn [candidates _] (vec (operations/included-candidates (candidates-doc candidates)))))
 
 (rf/reg-sub
  :candidates/selected
  :<- [:doc/candidates]
- (fn [candidates _] (operations/selected-candidates (candidates-doc candidates))))
+ (fn [candidates _] (vec (operations/selected-candidates (candidates-doc candidates)))))
 
 (rf/reg-sub
  :candidates/selected-ids
@@ -183,8 +187,9 @@
  :<- [:doc/candidates]
  :<- [:view/state]
  (fn [[candidates view-state] _]
-   (operations/get-filtered-candidates
-    {::document/candidates candidates ::view/view-state view-state})))
+   (vec
+    (operations/get-filtered-candidates
+     {::document/candidates candidates ::view/view-state view-state}))))
 
 (rf/reg-sub
  :table/filtered-candidate-ids

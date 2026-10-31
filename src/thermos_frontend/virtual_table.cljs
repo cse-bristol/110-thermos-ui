@@ -56,7 +56,10 @@
              :sortDirection sort-dir
              :sort #(reset! sort-order [(.-sortBy %) (.-sortDirection %)])
              }
-            {:items items}
+            ;; the table passes props on to its grid, which re-renders
+            ;; when they change. A JS array, as reagent would turn a
+            ;; vector into JS objects all the way down, every render.
+            {:items (array items)}
             (js->clj dims :keywordize-keys true))
            (for [{key :key :as col} (remove nil? columns)]
              ^{:key key} ;; this is to make reagent shut up about :key

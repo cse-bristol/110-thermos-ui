@@ -210,6 +210,80 @@
        (keep-interesting-candidates)
        (remove-transient-keys)))
 
+(defn- transient-differs? [a b]
+  (not= (remove-transient-keys a) (remove-transient-keys b)))
+
+(defn- interesting-candidates-change?
+  "Whether the interesting candidates in two ::candidates maps differ,
+  looking only at candidates which aren't identical in both"
+  [old new]
+  (and
+   (not (identical? old new))
+   (let [changed?
+         (fn [o n]
+           (and (not (identical? o n))
+                (let [oi (and o (is-interesting? o))
+                      ni (and n (is-interesting? n))]
+                  (cond
+                    (and oi ni) (transient-differs? o n)
+                    (or oi ni)  true
+                    :else       false))))]
+     (or (reduce-kv (fn [_ id n] (if (changed? (get old id) n) (reduced true) false))
+                    false new)
+         (reduce-kv (fn [_ id o] (if (and (not (contains? new id)) (is-interesting? o))
+                                   (reduced true) false))
+                    false old)))))
+
+(defn interesting-change?
+  "Whether (keep-interesting old) and (keep-interesting new) differ, worked
+  out without making either. Only values which aren't identical in both
+  are looked at, so this is quick for the changes events make, where most
+  of the document is shared.
+
+  One difference: keep-interesting turns a document without ::candidates
+  into one with nil ::candidates, and one with only uninteresting
+  candidates into one with {}, which differ; that is not a change here."
+  {:test
+   #(let [check (fn [old new]
+                  (test/is (= (not= (keep-interesting old) (keep-interesting new))
+                              (boolean (interesting-change? old new)))
+                           (pr-str old new)))
+          a {::candidates {"a" {::candidate/inclusion :optional ::candidate/selected false}
+                           "b" {::candidate/inclusion :forbidden}}
+             ::npv-term 30
+             ::pipe-costs {:rows {100 {:pipe 1 :transient/x 2}}}
+             :some.ns/transient [1 2 3]}]
+      (check a a)
+      (check a (assoc a :some.ns/transient [4]))
+      (check a (assoc-in a [::pipe-costs :rows 100 :transient/x] 3))
+      (check a (assoc-in a [::pipe-costs :rows 100 :pipe] 3))
+      (check a (assoc a ::npv-term 31))
+      (check a (dissoc a ::npv-term))
+      (check a (assoc a ::npv-term nil))
+      (check a (assoc-in a [::candidates "a" ::candidate/selected] true))
+      (check a (assoc-in a [::candidates "a" :some.ns/geometry] 1))
+      (check a (assoc-in a [::candidates "b" ::candidate/selected] true))
+      (check a (assoc-in a [::candidates "b" ::candidate/inclusion] :required))
+      (check a (assoc-in a [::candidates "c"] {::candidate/inclusion :forbidden}))
+      (check a (assoc-in a [::candidates "c"] {::candidate/modified true}))
+      (check a (update a ::candidates dissoc "a"))
+      (check a (update a ::candidates dissoc "b"))
+      (test/is (not (interesting-change? (dissoc a ::candidates)
+                                         (assoc a ::candidates {"b" {}})))))}
+  [old new]
+  (or
+   (some (fn [k]
+           (let [a (get old k ::absent)
+                 b (get new k ::absent)]
+             (and (not (identical? a b))
+                  (if (= k ::candidates)
+                    (interesting-candidates-change?
+                     (when (map? a) a) (when (map? b) b))
+                    (transient-differs? a b)))))
+         (into #{} (remove is-transient-key?)
+               (concat (keys old) (keys new))))
+   false))
+
 (defn map-candidates
   "Go through a document and apply f to all the indicated candidates."
   ([doc f]
@@ -275,25 +349,24 @@
           (fn [[id nm]] (when (= nm cost-name) id)))
          (first))))
 
+(defn path-cost-fn
+  "A function of a path, giving its cost with the smallest pipe in
+  `document`. Works out which pipe that is once, for costing many paths."
+  [document]
+  (let [default (:default-civils (::pipe-costs document))
+        rows    (:rows (::pipe-costs document))
+        dia     (when (seq rows) (reduce min (keys rows)))
+        row     (get rows dia)
+        pipe    (get row :pipe 0)]
+    (fn [path]
+      (if (::path/exists path)
+        0
+        (let [cost-id (::path/civil-cost-id path default)
+              length  (::path/length path 0)]
+          (* (+ pipe (get row cost-id 0)) length))))))
+
 (defn path-cost [path document]
-  (if (::path/exists path)
-    0
-    (let [default (:default-civils (::pipe-costs document))
-
-          cost-id (::path/civil-cost-id path default)
-          length  (::path/length path 0)
-          rows    (:rows (::pipe-costs document))
-
-          dia     (when (seq rows) (reduce min (keys rows)))
-
-          row     (get rows dia)
-          
-          cost-per-m (+ (get row :pipe 0)
-                        (get row cost-id 0))
-          ]
-
-      (* cost-per-m length)
-      )))
+  ((path-cost-fn document) path))
 
 (defn is-runnable?
   "Tells you if the document might be runnable.

@@ -35,7 +35,8 @@
   [path]
   (let [{:keys [network-id] :as ids} (parse-network-url path)]
     (assoc ids
-           :needs-save false
+           ;; a network which has never been saved is unsaved
+           :needs-save (= :new network-id)
            :needs-load (not= :new network-id)
            :queue-position 0
            :run-state nil
@@ -79,7 +80,6 @@
   [old-db new-db]
   (and (not (needs-save? new-db))
        (= (:revision (server old-db)) (:revision (server new-db)))
-       (not= (document/keep-interesting old-db)
-             (document/keep-interesting new-db))))
+       (document/interesting-change? old-db new-db)))
 
 (defn running-or-queued? [db] (contains? running-states (:run-state (server db))))
