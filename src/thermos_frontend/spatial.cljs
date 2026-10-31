@@ -7,7 +7,7 @@
             [thermos-specs.document :as document]
             [thermos-specs.view :as view]
             [thermos-frontend.operations :as operations]
-            ["rbush" :as rbush]
+            ["rbush$default" :as RBush]
             [cljts.core :as jts]
             [reagent.core :as reagent]
             [goog.object :as o]
@@ -73,7 +73,7 @@
   ([document added removed]
    (let [document (document/map-candidates document add-jsts-geometry added)
          candidates-bboxes (::candidates-bboxes document)
-         spatial-index (or (::spatial-index document) (rbush))
+         spatial-index (or (::spatial-index document) (RBush.))
          indexed-candidates
          (-> (::indexed-candidates document)
              (set/union added)
