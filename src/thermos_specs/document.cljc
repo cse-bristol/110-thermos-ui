@@ -470,33 +470,41 @@
   and no other candidates have that value."
 
   {:test
-   #(do
+   #(let [b      {::candidate/type :building}
+          b-in   (fn [g] (assoc b ::demand/group g ::candidate/modified true))]
       (test/is
        (-> {::candidates
-            {0 {} 1 {}
-             2 {} 3 {::demand/group 0}}}
+            {0 b 1 b
+             2 b 3 (assoc b ::demand/group 0)}}
            (group-candidates (list 0 1))
            (= {::candidates
-               {0 {::demand/group 1 ::candidate/modified true}
-                1 {::demand/group 1 ::candidate/modified true}
-                2 {} 3 {::demand/group 0}}})))
+               {0 (b-in 1) 1 (b-in 1)
+                2 b 3 (assoc b ::demand/group 0)}})))
       (test/is
        (-> {::candidates
-            {0 {} 1 {}
-             2 {} 3 {}}}
+            {0 b 1 b
+             2 b 3 b}}
            (group-candidates (list 0 1))
            (= {::candidates
-               {0 {::demand/group 0 ::candidate/modified true}
-                1 {::demand/group 0 ::candidate/modified true}
-                2 {} 3 {}}})))
+               {0 (b-in 0) 1 (b-in 0)
+                2 b 3 b}})))
 
+      ;; grouping one thing ungroups it
       (test/is
        (-> {::candidates
-            {0 {::demand/group 0} 1 {::demand/group 0}}}
+            {0 (assoc b ::demand/group 0) 1 (assoc b ::demand/group 0)}}
            (group-candidates (list 0))
            (= {::candidates
-               {0 {} 1 {::demand/group 0 ::candidate/modified true}}})))
-      )}
+               {0 (assoc b ::candidate/modified true)
+                1 (assoc b ::demand/group 0)}})))
+
+      ;; only buildings are grouped
+      (test/is
+       (-> {::candidates
+            {0 b 1 {::candidate/type :path}}}
+           (group-candidates (list 0 1))
+           (= {::candidates
+               {0 (b-in 0) 1 {::candidate/type :path}}}))))}
 
   [doc candidates-ids]
   (cond

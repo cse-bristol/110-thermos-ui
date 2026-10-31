@@ -65,8 +65,11 @@
 
 (defn parse-double [v]
   (and (string? v)
-       #?(:cljs (when-let [x (js/parseFloat v)]
-                  (when (js/isFinite x) x))
+       ;; js/Number rather than js/parseFloat, which ignores anything after
+       ;; a number ("12abc" is 12); but js/Number reads "" and " " as 0
+       #?(:cljs (when-not (string/blank? v)
+                  (let [x (js/Number v)]
+                    (when (js/isFinite x) x)))
           :clj (try (Double/parseDouble v)
                     (catch NumberFormatException e)))))
 

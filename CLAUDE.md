@@ -27,7 +27,7 @@ Tools come from the flake devShell: `nix develop` gives clojure on JDK 21, `less
 
 Tests are plain `clojure.test`. Run them all with `clojure -X:server:test` (cognitect test-runner), or one namespace with `clojure -X:server:test :nses '[thermos-backend.solver.interop-test]'`.
 
-The editor's cljs tests (`test/thermos_frontend/*_test.cljs`) run on node with `clojure -M:server:client:test -m shadow.cljs.devtools.cli compile test` (the `:test` build in `shadow-cljs.edn`). That build also runs the inline `{:test ...}` metadata in the shared cljc code, which the clj runner doesn't; some of those fail (stale `group-candidates` tests, `as-double` differing in cljs).
+The editor's cljs tests (`test/thermos_frontend/*_test.cljs`) run on node with `clojure -M:server:client:test -m shadow.cljs.devtools.cli compile test` (the `:test` build in `shadow-cljs.edn`). That build also runs the inline `{:test ...}` metadata in the shared cljc code, which the clj runner doesn't.
 
 Some test namespaces under `test/thermos_ui/test/...` don't match their file paths, so check the `ns` form before you require one.
 
