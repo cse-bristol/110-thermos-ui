@@ -2,43 +2,46 @@
 ;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
 
 (ns thermos-frontend.toaster
-  (:require [reagent.core :as reagent]))
+  "Brief messages at the bottom of the editor. The current one is in
+  app-db under ::toast, which document/keep-interesting strips off."
+  (:require [re-frame.core :as rf]))
 
-(defonce state (reagent/atom {:showing false
-                              :content []}))
+(rf/reg-event-fx
+ ::show
+ (fn [{db :db} [_ content duration-ms]]
+   (let [expires (+ (js/Date.now) duration-ms)]
+     {:db (assoc db ::toast {:showing true :content content :expires expires})
+      :fx [[:dispatch-later {:ms duration-ms :dispatch [::expire]}]]})))
 
-(defn show! [content & {:keys [ duration coordinates ]
-                        :or { duration 2 }
-                        }]
-  (let [duration (* 1000 duration)]
-    (swap! state
-           assoc
-           :showing true
-           :content content
-           :expires (+ (js/Date.now) duration))
-    
-    (js/window.setTimeout
-     #(let [now (js/Date.now)]
-        (swap! state
-               (fn [{e :expires :as state}]
-                 (if (>= now e)
-                   (assoc state :showing false)
-                   state))))
-     duration)))
+(rf/reg-event-db
+ ::expire
+ ;; hide the toast, unless a later one has replaced it
+ (fn [db _]
+   (cond-> db
+     (>= (js/Date.now) (get-in db [::toast :expires] 0))
+     (assoc-in [::toast :showing] false))))
+
+(rf/reg-event-db
+ ::hide
+ (fn [db _]
+   (update db ::toast assoc :showing false :expires 0)))
+
+(rf/reg-sub ::toast (fn [db _] (::toast db)))
+
+(defn show!
+  "Show `content` for `duration` seconds"
+  [content & {:keys [duration]
+              :or {duration 2}}]
+  (rf/dispatch [::show content (* 1000 duration)]))
 
 (defn hide! []
-  (swap! state assoc :showing false :expires 0))
+  (rf/dispatch [::hide]))
 
 (defn component
   []
-  (let [{showing :showing content :content} @state]
+  (let [{showing :showing content :content} @(rf/subscribe [::toast])]
     [(if showing
        :div.toaster__container.toaster__container--showing
-         :div.toaster__container)
+       :div.toaster__container)
      (when showing content)
      ]))
-
-
-
-
-

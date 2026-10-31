@@ -70,6 +70,19 @@
     (is (not (db/unsaved-change? a-db (db/saved changed {})))
         "saving or loading")))
 
+(deftest needs-save
+  (testing "changing the document"
+    (is (db/needs-save? (after [:doc/set [::document/npv-term] 7]))))
+  (testing "changing something transient"
+    (is (not (db/needs-save? (after [:doc/set [::spatial/update-counter] 7])))))
+  (testing "loading"
+    ;; without candidates, which have no geometry for the spatial index here
+    (reset! re-frame.db/app-db (dissoc a-db ::document/candidates))
+    (rf/dispatch-sync [:doc/set [::document/npv-term] 7])
+    (is (db/needs-save? @re-frame.db/app-db))
+    (rf/dispatch-sync [:server/loaded {:document {::document/npv-term 30}}])
+    (is (not (db/needs-save? @re-frame.db/app-db)))))
+
 (deftest saving
   (testing "the request"
     (let [{{:keys [run content on-response]} ::fx/save}

@@ -24,15 +24,8 @@
 
 (defn needs-save? [] (db/needs-save? @state))
 
-(defn- mark-unsaved-changes [_ _ old-db new-db]
-  (when (db/unsaved-change? old-db new-db)
-    (swap! state assoc-in [::db/server :needs-save] true)))
-
 (defonce initialise
-  (do (reset! state (db/initial-db))
-      ;; a watch rather than an interceptor, since much of the editor
-      ;; still changes the document without events
-      (add-watch state ::mark-unsaved-changes #(mark-unsaved-changes %1 %2 %3 %4))
+  (do (rf/dispatch-sync [:editor/initialise])
       (rf/dispatch [:server/poll])
       true))
 

@@ -14,6 +14,26 @@
             [thermos-frontend.operations :as operations]
             [thermos-frontend.spatial :as spatial]))
 
+(def mark-unsaved-changes
+  "Notes in the ::db/server state when an event has changed the document in
+  a way that needs saving (see db/unsaved-change?). A global interceptor,
+  so it comes first and its :after sees the final db."
+  (rf/->interceptor
+   :id ::mark-unsaved-changes
+   :after
+   (fn [context]
+     (let [old-db (rf/get-coeffect context :db)
+           new-db (rf/get-effect context :db)]
+       (cond-> context
+         (and new-db (db/unsaved-change? old-db new-db))
+         (rf/assoc-effect :db (assoc-in new-db [::db/server :needs-save] true)))))))
+
+(rf/reg-global-interceptor mark-unsaved-changes)
+
+(rf/reg-event-db
+ :editor/initialise
+ (fn [_ _] (db/initial-db)))
+
 (def spatial-index
   "For events which change candidates' geometry, or which candidates there
   are: brings the spatial index up to date afterwards"
