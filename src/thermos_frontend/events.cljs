@@ -249,6 +249,11 @@
       (db/saved {:run-state run-state
                  :queue-position queue-position})))
 
+(defn poll [{db :db} _]
+  ;; a network which has never been saved has no run status to ask for
+  (when (not= :new (:network-id (db/server db)))
+    {::fx/run-status {:on-response [:server/run-status]}}))
+
 (defn run-status [{db :db} [_ {:keys [state queue-position message timing]}]]
   (let [last-run-state (:run-state (db/server db))]
     {:db (update db ::db/server assoc
@@ -271,5 +276,5 @@
 (rf/reg-event-fx :server/saved saved)
 (rf/reg-event-fx :server/load load)
 (rf/reg-event-db :server/loaded [spatial-index] loaded)
-(rf/reg-event-fx :server/poll (fn [_ _] {::fx/run-status {:on-response [:server/run-status]}}))
+(rf/reg-event-fx :server/poll poll)
 (rf/reg-event-fx :server/run-status run-status)

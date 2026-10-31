@@ -131,6 +131,10 @@
       (is (not (db/unsaved-change? before after))))))
 
 (deftest polling
+  (is (nil? (events/poll {:db (assoc-in a-db [::db/server :network-id] :new)} [:server/poll]))
+      "a network which has never been saved has no status to ask for")
+  (is (= {::fx/run-status {:on-response [:server/run-status]}}
+         (events/poll {:db a-db} [:server/poll])))
   (letfn [(status [last-state new-state]
             (events/run-status {:db (assoc-in a-db [::db/server :run-state] last-state)}
                                [:server/run-status {:state new-state :message "log"}]))]
