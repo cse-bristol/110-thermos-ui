@@ -54,6 +54,7 @@
     (println "Installing npm packages")
     (-> (ProcessBuilder. ["npm" "ci"]) (.inheritIO) (.start) (.waitFor)))
   (vendor/copy-vendor-js "target/resources")
+  (vendor/copy-vendor-images "target/resources")
 
   (reset! repl-server
           (if emacs

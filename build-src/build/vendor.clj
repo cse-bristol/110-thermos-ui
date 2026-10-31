@@ -25,3 +25,20 @@
         (throw (ex-info (str "Missing " in ", has npm install been run?") {:file in})))
       (io/make-parents out)
       (io/copy in out))))
+
+(def ^:private image-dirs
+  "Images which the stylesheets the LESS imports refer to as images/...
+  relative to themselves, which is public/css in the compiled css"
+  ["leaflet/dist/images" "leaflet-draw/dist/images"])
+
+(defn copy-vendor-images
+  "Copy the images the vendor stylesheets use into public/css/images under
+  `target-dir`"
+  [target-dir]
+  (doseq [dir image-dirs
+          :let [in (io/file "node_modules" dir)]
+          f (.listFiles in)
+          :when (.isFile f)]
+    (let [out (io/file target-dir "public" "css" "images" (.getName f))]
+      (io/make-parents out)
+      (io/copy f out))))

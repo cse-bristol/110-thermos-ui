@@ -77,8 +77,9 @@
       (throw (ex-info "ClojureScript compilation failed" {})))))
 
 (defn- vendor-js []
-  (step "copy vendor js")
-  (vendor/copy-vendor-js generated))
+  (step "copy vendor js and images")
+  (vendor/copy-vendor-js generated)
+  (vendor/copy-vendor-images generated))
 
 (defn- git-rev []
   (let [rev (b/git-process {:git-args "rev-parse HEAD"})]
