@@ -3,7 +3,7 @@
 
 (ns thermos-frontend.reactive-layer
   "Common code for creating a leaflet layer that is painted reactively with canvas."
-  (:require [cljsjs.leaflet]
+  (:require ["leaflet" :as L]
             [goog.object :as o]
             [reagent.core :as reagent]))
 
@@ -20,7 +20,7 @@
                   size (.getTileSize layer)
 
                   north-west (.unproject map-control (.scaleBy coords size) zoom)
-                  south-east (.unproject map-control (.scaleBy (.add coords (js/L.point 1 1)) size) zoom)
+                  south-east (.unproject map-control (.scaleBy (.add coords (L/point 1 1)) size) zoom)
 
                   bbox {:minY (min (.-lat north-west) (.-lat south-east))
                         :maxY (max (.-lat north-west) (.-lat south-east))
@@ -45,14 +45,14 @@
         initialize
         (fn [options]
           (this-as this
-            (.call (.. js/L.GridLayer -prototype -initialize) this options)
+            (.call (.. L/GridLayer -prototype -initialize) this options)
             (.on this "tileunload" destroy-tile)))
 
         constructor (->> {:initialize initialize
                           :createTile make-canvas
                           :internalId internal-id}
                          (clj->js)
-                         (.extend js/L.GridLayer))
+                         (.extend L/GridLayer))
         ]
     (constructor.
      (clj->js constructor-args)

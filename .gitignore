@@ -14,7 +14,7 @@ pom.xml
 .nrepl-port
 .lein-failures
 node_modules
-package.json
+/.shadow-cljs/
 solver-work/
 import-work/
 .cpcache/

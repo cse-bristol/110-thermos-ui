@@ -3,6 +3,7 @@
 
 (ns thermos-frontend.editor
   (:require [reagent.core :as r :refer [atom]]
+            [reagent.dom :as rdom]
             [thermos-frontend.map :as map]
             [thermos-urls :as urls]
             [thermos-specs.candidate :as candidate]
@@ -623,10 +624,13 @@
        [toaster/component]]
       )))
 
-(defn on-js-reload [])
+(defn ^:dev/after-load mount-root []
+  (rdom/render [main-page] (.getElementById js/document "app")))
 
-(defn mount-root []
-  (r/render [main-page] (.getElementById js/document "app"))
+(defn init
+  "The entry point, called once when the page loads"
+  []
+  (mount-root)
 
   ;; Warn the user they have unsaved changes if they try to leave the page.
   (when-not (preload/get-value :read-only)
@@ -639,12 +643,5 @@
   ;; unfortunately react event propagation seems to be weird
   ;; if we put the listener on the editor container, it doesn't
   ;; get the key events it should.
-  )
-
-(defonce keyhandler
-  (js/document.addEventListener
-   "keypress"
-   keys/handle-keypress))
-
-;; (state/load-document! @document-identity mount-root)
-(mount-root)
+  ;; (the indirection lets hot reloads of editor-keys take effect)
+  (js/document.addEventListener "keypress" #(keys/handle-keypress %)))

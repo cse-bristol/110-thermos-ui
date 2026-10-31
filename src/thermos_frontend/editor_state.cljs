@@ -85,7 +85,6 @@
   [e]
   (flow/fire! flow e))
 
-(set! js/thermos_initial_state nil)
 
 (def running-state? #{:ready :running :cancel :cancelling})
 (defn run-state [] (:run-state @save-state))

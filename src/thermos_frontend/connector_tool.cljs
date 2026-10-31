@@ -13,7 +13,7 @@
   Only one of these can exist in a given js environment at once because of the
   global state, but that would be easy to change."
   (:require [reagent.core :as reagent]
-            [cljsjs.jsts :as jsts]
+            ["jsts" :as jsts]
 
             [cljts.core :as jts]
             

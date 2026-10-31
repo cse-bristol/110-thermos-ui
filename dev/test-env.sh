@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # A throwaway PostGIS server and a dev THERMOS running against it.
 #
-#   dev/test-env.sh up            start the database, then the app (figwheel etc.)
+#   dev/test-env.sh up            start the database, then the app (shadow-cljs etc.)
 #                                 in the foreground; stops the database on exit
 #   dev/test-env.sh start | stop  just the database
 #   dev/test-env.sh app           just the app (database must be running)
@@ -75,7 +75,9 @@ make_admin() { # EMAIL [LOGIN-TOKEN]
     local token="${2:+'$2'}"
     psql -q -d "$DB" -c "INSERT INTO users (id, name, auth, reset_token)
                          VALUES ('$1', '$1', 'admin', ${token:-NULL})
-                         ON CONFLICT (id) DO UPDATE SET auth = 'admin'"
+                         ON CONFLICT (id) DO UPDATE
+                         SET auth = 'admin',
+                             reset_token = COALESCE(EXCLUDED.reset_token, users.reset_token)"
 }
 
 # wait for the app to be up (so it has migrated the database), then add

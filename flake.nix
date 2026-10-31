@@ -22,6 +22,7 @@
           (pkgs.clojure.override { inherit jdk; })
           jdk
           pkgs.lessc
+          pkgs.nodejs
           pkgs.git
           pkgs.curl
           pkgs.scipopt-scip

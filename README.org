@@ -42,10 +42,12 @@ nix develop
      clojure -M:dev:server:client
      #+END_EXAMPLE
 
-     which starts an nREPL, the backend, figwheel-main for the editor
-     ([[./dev.cljs.edn]]) and a LESS watcher. Add =--emacs= for the cider
-     middleware. For a cljs REPL, call =(figwheel.main.api/cljs-repl "dev")=
-     from the nREPL.
+     which starts an nREPL, the backend, a LESS watcher, and shadow-cljs
+     watching the editor ([[./shadow-cljs.edn]]). Add =--emacs= for the
+     cider middleware. The nREPL has shadow's middleware, so for a cljs
+     REPL call =(shadow.cljs.devtools.api/repl :editor)= in it. The
+     editor's javascript libraries are npm packages ([[./package.json]]);
+     the first run does =npm ci=.
 
   If you want to hack on the dependencies locally as well, you can check them out into ../, and do
 

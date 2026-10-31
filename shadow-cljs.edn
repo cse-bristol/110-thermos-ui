@@ -1,0 +1,28 @@
+;; The editor's clojurescript. build.dev runs `watch` inside the dev JVM, and
+;; build.clj runs `release`; the classpath comes from the :server and :client
+;; aliases of deps.edn. Javascript libraries come from node_modules
+;; (package.json).
+{;; build.dev's nREPL has shadow's middleware, so it does cljs as well
+ :nrepl false
+
+ :builds
+ {:editor
+  {:target :browser
+   :output-dir "target/resources/public/js"
+   :asset-path "/js"
+   :modules {:editor {:init-fn thermos-frontend.editor/init}}
+
+   :js-options
+   ;; cljts.core (from thermos/importer) requires jsts as the cljsjs
+   ;; package, whose foreign lib shadow-cljs doesn't use
+   {:resolve {"cljsjs.jsts" {:target :npm :require "jsts"}}}
+
+   :devtools
+   ;; the backend serves the page, and target/resources/public/css is
+   ;; where the LESS watcher writes css. Without :ignore-warnings, shadow
+   ;; won't hot reload while there are any warnings, and some dependencies
+   ;; (specter) always have some.
+   {:watch-dir "target/resources/public"
+    :ignore-warnings true}
+
+   :release {:compiler-options {:infer-externs :auto}}}}}

@@ -5,9 +5,9 @@
   (:require [clojure.set :as set]
 
             [reagent.core :as reagent]
-            [cljsjs.leaflet]
-            [cljsjs.leaflet-draw] ;; this modifies js/L.Control in-place
-            [cljsjs.jsts :as jsts]
+            ["leaflet" :as L]
+            ["leaflet-draw"] ;; this adds L.Draw and L.Control.Draw to leaflet
+            [reagent.dom :as rdom]
             [cljts.core :as jts]
             [com.rpl.specter :as S]
 
@@ -75,10 +75,10 @@
 
 (def basemaps
   {:none
-   (js/L.tileLayer "")
+   (L/tileLayer "")
 
    :stamen-toner-lite
-   (js/L.tileLayer
+   (L/tileLayer
     "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
     (clj->js {:minZoom 0
               :maxZoom 20
@@ -88,7 +88,7 @@
               }))
 
    :satellite
-   (js/L.tileLayer
+   (L/tileLayer
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
     (clj->js {:minZoom 0 :maxZoom 21
               :attribution
@@ -102,21 +102,21 @@
    :satellite "Satellite"})
 
 (def heat-density-layer
-  (js/L.tileLayer
+  (L/tileLayer
    "../d/{z}/{x}/{y}.png"
    (clj->js {:opacity 0.6
              :minZoom 12
              :maxZoom 21})))
 
 (def cold-density-layer
-  (js/L.tileLayer
+  (L/tileLayer
    "../cd/{z}/{x}/{y}.png"
    (clj->js {:opacity 0.6
              :minZoom 12
              :maxZoom 21})))
 
 (def labels-layer
-  (js/L.tileLayer
+  (L/tileLayer
    "https://cartodb-basemaps-{s}.global.ssl.fastly.net/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png"
    (clj->js {:subdomains "abcd"
              :minZoom 14
@@ -134,7 +134,7 @@
 
         map-bounding-box (reagent/cursor document [::view/view-state ::view/bounding-box])
 
-        map (js/L.map map-node (clj->js {:preferCanvas true
+        map (L/map map-node (clj->js {:preferCanvas true
                                          :fadeAnimation true
                                          :zoom 15
                                          :center
@@ -169,7 +169,7 @@
                                            }})
 
         candidates-layer
-        (js/L.layerGroup #js [candidates-layer connector-layer demand-tool-layer])
+        (L/layerGroup #js [candidates-layer connector-layer demand-tool-layer])
 
         density-layer
         (if (document/is-cooling? @document)
@@ -256,13 +256,13 @@
         #(let [{n :north s :south
                 w :west e :east} @map-bounding-box]
            (when (and n s w e)
-             (.fitBounds map (js/L.latLngBounds (clj->js [ [s w] [n e] ])))))
+             (.fitBounds map (L/latLngBounds (clj->js [ [s w] [n e] ])))))
 
         pixel-size
         (fn []
           (let [zoom (.getZoom map)
-                zz (.unproject map (js/L.point 0 0) zoom)
-                oo (.unproject map (js/L.point 1 1) zoom)]
+                zz (.unproject map (L/point 0 0) zoom)
+                oo (.unproject map (L/point 1 1) zoom)]
             (Math/sqrt
              (+ (Math/pow (- (.-lat zz) (.-lat oo)) 2)
                 (Math/pow (- (.-lng zz) (.-lng oo)) 2)))
@@ -303,19 +303,19 @@
     (let [draw-state (atom nil)
           method (atom :replace)]
 
-      (.on map (.. js/L.Draw -Event -DRAWSTART)
+      (.on map (.. L/Draw -Event -DRAWSTART)
            #(reset! draw-state
                     (case (o/get % "layerType")
                       "polygon" :drawing-polygon
                       "rectangle" :drawing-rectangle)))
 
-      (.on map (.. js/L.Draw -Event -DRAWSTOP)
+      (.on map (.. L/Draw -Event -DRAWSTOP)
            #(reset! draw-state
                     (case (o/get % "layerType")
                       "polygon" nil
                       "rectangle" :stop-rectangle)))
 
-      (.on map (.. js/L.Draw -Event -CREATED)
+      (.on map (.. L/Draw -Event -CREATED)
            (fn [e]
              (state/edit! document
                           spatial/select-intersecting-candidates
@@ -603,13 +603,13 @@
   "Create a leaflet control to choose which layers are displayed on the map.
   `choices` is a list of layers of which only one may be selected (radios).
   `extras` is a list of layers of which any number may be selected (checkboxes)."
-  (js/L.control.layers
-   (clj->js choices)
-   (clj->js extras)
-   #js{:collapsed false}))
+  (.. L -control (layers
+                  (clj->js choices)
+                  (clj->js extras)
+                  #js{:collapsed false})))
 
 (defn- draw-control [args]
-  (js/L.Control.Draw. (clj->js args)))
+  (new (.. L -Control -Draw) (clj->js args)))
 
 (defn latlng->jsts-point [ll]
   (jts/create-point (.-lng ll) (.-lat ll)))
@@ -773,13 +773,13 @@
 (defn create-leaflet-control
   [component & args]
   (->> {:onAdd (fn [map]
-                 (let [box (.create js/L.DomUtil "div")]
-                   (.disableClickPropagation js/L.DomEvent box)
-                   (reagent/render (into [component map] args) box)
+                 (let [box (.create L/DomUtil "div")]
+                   (.disableClickPropagation L/DomEvent box)
+                   (rdom/render (into [component map] args) box)
                    box))
         }
        clj->js
-       (.extend js/L.Control)))
+       (.extend L/Control)))
 
 (defn unload-candidates
   []

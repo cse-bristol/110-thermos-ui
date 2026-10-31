@@ -1,8 +1,0 @@
-^{:watch-dirs ["src"]
-  :css-dirs ["target/resources/public/css"]
-  :open-url false}
-{:main thermos-frontend.editor
- :output-to "target/resources/public/js/editor.js"
- :output-dir "target/resources/public/js/editor.out"
- :asset-path "/js/editor.out"
- :externs ["externs/leaflet-extra.js"]}

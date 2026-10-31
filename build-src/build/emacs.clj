@@ -4,11 +4,13 @@
 (ns build.emacs
   (:require [nrepl.server :refer [default-handler]]
             [refactor-nrepl.middleware]
+            [cider.nrepl :refer [cider-middleware]]
             [cider.piggieback]
-            [cider.nrepl :refer [cider-middleware]]))
+            [shadow.cljs.devtools.server.nrepl]))
 
 (def emacs-middleware
   (apply default-handler
          #'cider.piggieback/wrap-cljs-repl
+         #'shadow.cljs.devtools.server.nrepl/middleware
          #'refactor-nrepl.middleware/wrap-refactor
          (map resolve cider-middleware)))

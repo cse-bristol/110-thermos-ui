@@ -2,42 +2,26 @@
 ;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
 
 (ns build.vendor
-  "Javascript and CSS libraries that come out of the cljsjs jars the
-  editor uses, so there is only one version of each. Resources are looked
-  up in `loader`, by default the current classpath."
+  "Javascript and CSS libraries from node_modules (package.json), which the
+  editor's clojurescript uses too, so there is only one version of each."
   (:require [clojure.java.io :as io]))
 
 (def ^:private js-files
-  {"cljsjs/leaflet/production/leaflet.min.inc.js"           "leaflet.js"
-   "cljsjs/leaflet-draw/production/leaflet-draw.min.inc.js" "leaflet-draw.js"})
-
-(def ^:private less-imports
-  ["cljsjs/leaflet/common/leaflet.inc.css"
-   "cljsjs/leaflet-draw/common/leaflet-draw.inc.css"])
+  {"leaflet/dist/leaflet.js"           "leaflet.js"
+   "leaflet-draw/dist/leaflet.draw.js" "leaflet-draw.js"})
 
 (def less-include-dir
-  "Where `copy-less-imports` puts the files, for lessc's --include-path"
-  "target/less-include")
-
-(defn- default-loader [] (.getContextClassLoader (Thread/currentThread)))
-
-(defn- copy-resource [^ClassLoader loader resource out]
-  (io/make-parents out)
-  (with-open [in (io/input-stream (or (io/resource resource loader)
-                                      (throw (ex-info "Missing vendor resource" {:resource resource}))))]
-    (io/copy in out)))
+  "For lessc's --include-path, so LESS can @import stylesheets from npm
+  packages, e.g. \"leaflet/dist/leaflet.css\""
+  "node_modules")
 
 (defn copy-vendor-js
   "Copy the javascript libraries into public/js/vendor under `target-dir`"
-  ([target-dir] (copy-vendor-js target-dir (default-loader)))
-  ([target-dir loader]
-   (doseq [[resource file-name] js-files]
-     (copy-resource loader resource (io/file target-dir "public" "js" "vendor" file-name)))))
-
-(defn copy-less-imports
-  "Copy the stylesheets our LESS imports from the classpath into
-  `less-include-dir`, at their classpath paths"
-  ([] (copy-less-imports (default-loader)))
-  ([loader]
-   (doseq [resource less-imports]
-     (copy-resource loader resource (io/file less-include-dir resource)))))
+  [target-dir]
+  (doseq [[source file-name] js-files]
+    (let [in (io/file "node_modules" source)
+          out (io/file target-dir "public" "js" "vendor" file-name)]
+      (when-not (.exists in)
+        (throw (ex-info (str "Missing " in ", has npm install been run?") {:file in})))
+      (io/make-parents out)
+      (io/copy in out))))

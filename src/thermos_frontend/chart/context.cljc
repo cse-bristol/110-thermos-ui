@@ -2,9 +2,10 @@
 ;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
 
 (ns thermos-frontend.chart.context
-  (:require [reagent.core :as reagent]))
+  (:require [reagent.core :as reagent]
+            #?(:cljs ["react" :as react])))
 
-(defn create [n] #?(:cljs (js/React.createContext n)))
+(defn create [n] #?(:cljs (react/createContext n)))
 
 (defmacro with-context [[context# value#] form#]
   `[:> (.-Provider ~context#) {:value ~value#} ~form#])

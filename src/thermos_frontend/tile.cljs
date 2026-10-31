@@ -3,7 +3,7 @@
 
 (ns thermos-frontend.tile
   (:require [reagent.core :as reagent]
-            [leaflet :as leaflet]
+            ["leaflet" :as L]
             [thermos-frontend.operations :as operations]
             [thermos-frontend.editor-state :as state]
 
@@ -31,7 +31,7 @@
         map-control (o/get layer "_map")]
     (fn [x y]
       (let [pt (.project map-control
-                         (js/L.latLng x y)
+                         (L/latLng x y)
                          zoom)
             pt (.unscaleBy pt size)
             pt (.subtract pt coords)

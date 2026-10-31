@@ -3,12 +3,15 @@
 
 (ns build.dev
   "The development environment: `clojure -M:dev:server:client [--emacs]`.
-  Starts an nREPL, the backend, figwheel for the editor and a LESS watcher."
+  Starts an nREPL, the backend, shadow-cljs for the editor and a LESS watcher."
   (:require [mount.core :as mount]
             [clojure.java.io :as io]
             [clojure.tools.cli :refer [parse-opts]]
             [nrepl.server :as nrepl]
-            [figwheel.main.api :as figwheel]
+            [shadow.cljs.devtools.server :as shadow-server]
+            [cider.piggieback]
+            [shadow.cljs.devtools.server.nrepl :as shadow-nrepl]
+            [shadow.cljs.devtools.api :as shadow]
             [build.less :as less]
             [build.vendor :as vendor]))
 
@@ -33,6 +36,12 @@
     (delete-tree f))
   (run! delete-tree (.listFiles generated)))
 
+(defn- start-shadow!
+  "Start shadow-cljs's server, and have it watch and hot-reload the editor"
+  []
+  (shadow-server/start!)
+  (shadow/watch :editor))
+
 (defn start-dev [{:keys [emacs]}]
   (when-not (.isDirectory generated)
     (.mkdirs generated)
@@ -40,13 +49,19 @@
     (println "*** will not be able to serve css and js. It exists now; please restart.\n"))
 
   (clean-target)
+
+  (when-not (.isDirectory (io/file "node_modules"))
+    (println "Installing npm packages")
+    (-> (ProcessBuilder. ["npm" "ci"]) (.inheritIO) (.start) (.waitFor)))
   (vendor/copy-vendor-js "target/resources")
 
   (reset! repl-server
           (if emacs
             (do (require 'build.emacs)
                 (nrepl/start-server :handler @(resolve 'build.emacs/emacs-middleware)))
-            (nrepl/start-server)))
+            (nrepl/start-server
+             :handler (nrepl/default-handler #'cider.piggieback/wrap-cljs-repl
+                                             #'shadow-nrepl/middleware))))
 
   (let [port (:port @repl-server)
         port-file (io/file ".nrepl-port")]
@@ -63,13 +78,11 @@
       (println "Continuing with rest of build")
       (.printStackTrace e)))
 
-  ;; before figwheel, which wants the css directory to exist
-  (vendor/copy-less-imports)
   (less/watch "resources" "target/resources" [vendor/less-include-dir])
 
-  ;; cljs hot reloader, configured in dev.cljs.edn. For a cljs REPL, call
-  ;; (figwheel.main.api/cljs-repl "dev") from the nREPL.
-  (figwheel/start {:mode :serve} "dev"))
+  ;; cljs hot reloader, configured in shadow-cljs.edn. For a cljs REPL,
+  ;; call (shadow.cljs.devtools.api/repl :editor) in the nREPL.
+  (start-shadow!))
 
 (defn -main [& args]
   (let [{:keys [options errors summary]} (parse-opts args cli-options)]

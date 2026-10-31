@@ -4,8 +4,7 @@
 (ns thermos-frontend.virtual-table
   (:require [reagent.core :as reagent :refer-macros [with-let]]
             [clojure.string :as s]
-            [cljsjs.react]
-            [cljsjs.react-virtualized]
+            ["react-virtualized" :refer [AutoSizer Table Column]]
             [goog.object :as o]
             [thermos-frontend.format :refer [si-number]]
             ))
@@ -44,10 +43,10 @@
     (let [[sort-col sort-dir] @sort-order
           items (vec (sort! items))]
 
-      [:> js/ReactVirtualized.AutoSizer
+      [:> AutoSizer
        (fn [dims]
          (reagent/as-element
-          [:> js/ReactVirtualized.Table
+          [:> Table
            (merge
             {:rowCount (count items)
              :rowGetter #(nth items (.-index %))
@@ -63,7 +62,7 @@
              ^{:key key} ;; this is to make reagent shut up about :key
                          ;; props, I am not sure how it works but it
                          ;; does.
-             [:> js/ReactVirtualized.Column
+             [:> Column
               (merge
                {:key (str key) ;; this is needed to so that the sort
                 ;; column has the fully qualified name

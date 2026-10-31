@@ -43,44 +43,42 @@
   (step "clean")
   (b/delete {:path "target"}))
 
-(defn- with-client-loader
-  "Call `f` with a class loader for the client classpath, where the cljsjs
-  jars are"
-  [{:keys [aliases]} f]
-  (let [roots (:classpath-roots (b/create-basis {:aliases (into [:client] aliases)}))]
-    (with-open [loader (java.net.URLClassLoader.
-                        (into-array java.net.URL (map #(.toURL (java.io.File. %)) roots))
-                        nil)]
-      (f loader))))
+(defn- npm-ci
+  "Install exactly the npm packages in package-lock.json"
+  []
+  (step "npm ci")
+  (let [{:keys [exit]} (b/process {:command-args ["npm" "ci"]})]
+    (when-not (zero? exit)
+      (throw (ex-info "npm ci failed" {})))))
 
-(defn css [opts]
+(defn- ensure-node-modules []
+  (when-not (.isDirectory (java.io.File. "node_modules"))
+    (npm-ci)))
+
+(defn css [_]
+  (ensure-node-modules)
   (step "compile less to css")
-  (with-client-loader opts vendor/copy-less-imports)
   (less/build "resources" generated [vendor/less-include-dir]))
 
-(defn cljs [{:keys [debug aliases]}]
+(defn cljs
+  "Release build of the editor with shadow-cljs (see shadow-cljs.edn), in a
+  JVM with the :server and :client classpath"
+  [{:keys [debug aliases]}]
+  (ensure-node-modules)
   (step "compile clojurescript")
-  (let [opts (cond-> {:main 'thermos-frontend.editor
-                      :output-to (str generated "/public/js/editor.js")
-                      :output-dir (str generated "/public/js/editor.out")
-                      :asset-path "/js/editor.out"
-                      :externs ["externs/leaflet-extra.js"]
-                      :optimizations :advanced
-                      :infer-externs true
-                      :parallel-build true}
-               debug (assoc :pretty-print true :pseudo-names true))
-        {:keys [exit]}
+  (let [{:keys [exit]}
         (b/process
          (b/java-command
           {:basis (b/create-basis {:aliases (into [:server :client] aliases)})
            :main 'clojure.main
-           :main-args ["-m" "cljs.main" "-co" (pr-str opts) "-c"]}))]
+           :main-args (cond-> ["-m" "shadow.cljs.devtools.cli" "release" "editor"]
+                        debug (conj "--debug"))}))]
     (when-not (zero? exit)
       (throw (ex-info "ClojureScript compilation failed" {})))))
 
-(defn- vendor-js [opts]
+(defn- vendor-js []
   (step "copy vendor js")
-  (with-client-loader opts #(vendor/copy-vendor-js generated %)))
+  (vendor/copy-vendor-js generated))
 
 (defn- git-rev []
   (let [rev (b/git-process {:git-args "rev-parse HEAD"})]
@@ -107,9 +105,10 @@
 
 (defn uber [opts]
   (clean nil)
+  (npm-ci)
   (css opts)
   (cljs opts)
-  (vendor-js opts)
+  (vendor-js)
   (git-rev)
   (uberjar {:aliases [:server]
             :main 'thermos-backend.core
