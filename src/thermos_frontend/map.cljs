@@ -610,7 +610,7 @@
                           :on-select #(set-inclusion! paths :forbidden)}]}
              {:value "Edit cost (e)"
               :key "road-cost"
-              :on-select #(candidate-editor/show-editor! document paths)}))
+              :on-select #(candidate-editor/show-editor! paths)}))
 
         ~(when (and (not-empty paths) (not-empty buildings))
            {:value [:div.popover-menu__divider] :key "divider"})
@@ -633,7 +633,7 @@
                           :on-select #(set-inclusion! buildings :forbidden)}]}
              {:value "Edit buildings (e)"
               :key "edit-demands"
-              :on-select #(candidate-editor/show-editor! document buildings)}
+              :on-select #(candidate-editor/show-editor! buildings)}
              {:value "Edit groups"
               :key "grouping"
               :sub-menu
@@ -664,7 +664,7 @@
                        "Edit supply parameters (s)"
                        "Make supply point (s)")
               :key "allow-supplies"
-              :on-select #(supply-parameters/show-editor! document buildings)}))
+              :on-select #(supply-parameters/show-editor! buildings)}))
 
         ~@(when (or (not-empty paths) (not-empty buildings))
             (list {:value [:div.popover-menu__divider] :key "divider-3"}

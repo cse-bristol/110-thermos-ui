@@ -9,7 +9,7 @@
             [thermos-util :refer [assoc-by assoc-id]]
             [reagent.core :as reagent]
             [thermos-frontend.inputs :as inputs]
-            [thermos-frontend.editor-state :as state]
+            [re-frame.core :as rf]
             [thermos-specs.document :as document]
             [thermos-specs.candidate :as candidate]
             [com.rpl.specter :as S]
@@ -414,11 +414,7 @@
            "Cancel"]
           [:button.button
            {:on-click
-            #(do (swap!
-                  state/state
-                  merge-categories
-                  result
-                  @*state)
+            #(do (rf/dispatch [:doc/edit merge-categories result @*state])
                  (popover/close!))}
            "Apply"]]]))))
 

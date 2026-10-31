@@ -8,9 +8,11 @@
   (:require [re-frame.core :as rf]))
 
 (defn value
-  "The value at `path` in the document. Use while rendering."
-  [path]
-  @(rf/subscribe [:doc/get path]))
+  "The value at `path` in the document, or `not-found` if there is none.
+  Use while rendering."
+  ([path] @(rf/subscribe [:doc/get path]))
+  ([path not-found]
+   (let [v (value path)] (if (nil? v) not-found v))))
 
 (defn set-value!
   "Set the value at `path` in the document"

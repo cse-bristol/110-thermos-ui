@@ -33,13 +33,13 @@
        (operations/selected-candidates)
        (filter candidate/is-building?)
        (map ::candidate/id)
-       (supply-parameters/show-editor! state/state)))
+       (supply-parameters/show-editor!)))
 
 (defn edit-demand-or-path! []
   (->> @state/state
        (operations/selected-candidates)
        (map ::candidate/id)
-       (candidate-editor/show-editor! state/state)))
+       (candidate-editor/show-editor!)))
 
 (defn- zoom-to-fit! []
   (state/edit!

@@ -12,7 +12,8 @@
             [thermos-specs.supply :as supply]
             [thermos-specs.document :as document]
             [thermos-frontend.popover :as popover]
-            [thermos-frontend.editor-state :as state]
+            [re-frame.core :as rf]
+            [thermos-frontend.doc :as doc]
             [thermos-frontend.inputs :as inputs]
             [thermos-frontend.format :as format]
             [thermos-frontend.util :refer [target-value]]
@@ -765,10 +766,10 @@
    (->> (map (fn [k] [#(-> % ::candidate/user-fields (get k)) k])) (into {}))
    (assoc ::candidate/type "Nothing")))
 
-(defn- candidate-editor [document candidate-ids]
-  (reagent/with-let [mode (document/mode @document)
+(defn- candidate-editor [candidate-ids]
+  (reagent/with-let [mode @(rf/subscribe [:doc/mode])
 
-                     candidates (map (::document/candidates @document) candidate-ids)
+                     candidates (map (doc/value [::document/candidates]) candidate-ids)
                      {buildings :building paths :path}
                      (group-by ::candidate/type candidates)
 
@@ -782,19 +783,19 @@
                      technology-state (reagent/atom bstate)
                      
                      path-state   (reagent/atom (initial-path-state path-groups paths))
-                     tariffs (sort-by first (::document/tariffs @document))
+                     tariffs (sort-by first (doc/value [::document/tariffs]))
 
                      profiles
                      (for [[id {n :name}]
-                           (sort-by first (::supply/heat-profiles @document))]
+                           (sort-by first (doc/value [::supply/heat-profiles]))]
                        [id n])
                      
-                     connection-costs (sort-by first (::document/connection-costs @document))
-                     civils (sort-by first (:civils (::document/pipe-costs @document)))
-                     insulation (sort-by first (::document/insulation @document))
-                     alternatives (sort-by first (::document/alternatives @document))
+                     connection-costs (sort-by first (doc/value [::document/connection-costs]))
+                     civils (sort-by first (:civils (doc/value [::document/pipe-costs])))
+                     insulation (sort-by first (doc/value [::document/insulation]))
+                     alternatives (sort-by first (doc/value [::document/alternatives]))
                      min-pipe-diameter (* 1000
-                                          (::document/minimum-pipe-diameter document 0.02))
+                                          (doc/value [::document/minimum-pipe-diameter] 0.02))
 
                      category-state (reagent/atom (initial-category-state all-groups
                                                                           candidates))
@@ -869,8 +870,7 @@
        "Cancel"]
       [:button.button
        {:on-click (fn []
-                    (state/edit! document
-                                 #(-> %
+                    (rf/dispatch [:doc/edit #(-> %
                                       (apply-path-state       @path-state       (map ::candidate/id paths))
                                       (apply-demand-state     @demand-state     (map ::candidate/id buildings))
                                       (apply-tariff-state     @tariff-state     (map ::candidate/id buildings))
@@ -880,14 +880,14 @@
                                       
                                       
                                       
-                                      ))
+                                      )])
                     (popover/close!))}
        "OK"]]]
     ))
 
 
 
-(defn show-editor! [document candidate-ids]
+(defn show-editor! [candidate-ids]
   (when (seq candidate-ids)
-    (popover/open! [candidate-editor document candidate-ids]
+    (popover/open! [candidate-editor candidate-ids]
                    :middle)))

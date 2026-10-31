@@ -7,7 +7,8 @@
             [thermos-specs.document :as document]
             [thermos-frontend.popover :as popover]
             [thermos-frontend.inputs :as inputs]
-            [thermos-frontend.editor-state :as state]
+            [re-frame.core :as rf]
+            [thermos-frontend.doc :as doc]
             [reagent.core :as reagent]))
 
 (defn- just-number-values [m] (into {} (filter (comp number? second) m)))
@@ -23,9 +24,9 @@
           (merge parameters))
      candidate-ids)))
 
-(defn- supply-parameters-form [document candidate-ids]
+(defn- supply-parameters-form [candidate-ids]
   ;; take existing values from document
-  (reagent/with-let [candidates (map (::document/candidates @document) candidate-ids)
+  (reagent/with-let [candidates (map (doc/value [::document/candidates]) candidate-ids)
 
                      supply-keys [::supply/capacity-kwp
                                   ::supply/cost-per-kwh
@@ -75,14 +76,14 @@
       [:button.button.button--danger {:on-click #(popover/close!)}
        "Cancel"]
       [:button.button {:on-click (fn []
-                                   (state/edit! document merge-supply-parameters candidate-ids @local-state)
+                                   (rf/dispatch [:doc/edit merge-supply-parameters candidate-ids @local-state])
                                    (popover/close!)
                                    )}
        "OK"]]
     ])
   )
 
-(defn show-editor! [document candidate-ids]
+(defn show-editor! [candidate-ids]
   (when (seq candidate-ids)
-    (popover/open! [supply-parameters-form document candidate-ids]
+    (popover/open! [supply-parameters-form candidate-ids]
                    :middle)))

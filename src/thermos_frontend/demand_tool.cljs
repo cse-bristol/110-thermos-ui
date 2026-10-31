@@ -7,7 +7,7 @@
             [thermos-frontend.tile :as tile]
             [thermos-frontend.spatial :as spatial]
 
-            [thermos-frontend.editor-state :as editor-state]
+            [re-frame.core :as rf]
 
             [thermos-specs.document :as document]
             [thermos-specs.candidate :as candidate]
@@ -91,10 +91,10 @@
              ::cooling/kwp 0
              }
             ]
-        (editor-state/edit-geometry!
-         editor-state/state
-         (fn [doc]
-           (document/add-candidate doc candidate)))))
+        (rf/dispatch
+         [:doc/edit-geometry
+          (fn [doc]
+            (document/add-candidate doc candidate))])))
     
     (reset! state start-state)))
 
