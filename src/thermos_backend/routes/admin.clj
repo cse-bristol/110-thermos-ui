@@ -9,7 +9,8 @@
             [thermos-backend.pages.cache-control :as cache-control]
             [ring.util.response :as response]
             [thermos-backend.auth :as auth]
-            [thermos-backend.db.maps :as maps]))
+            [thermos-backend.db.maps :as maps]
+            [clojure.string :as string]))
 
 (defn- admin-page [_]
   (auth/verify :sysadmin
@@ -26,13 +27,15 @@
         (html)
         (cache-control/no-store))))
 
-(defn- act-on-job! [{{:keys [action job-id]} :params}]
+(defn- act-on-job! [{{:keys [action job-id]} :params :as request}]
   {:pre [(int job-id) (#{"restart" "cancel"} action)]}
   (auth/verify [(keyword action) :job job-id]
     (case action
       "restart" (queue/restart job-id)
       "cancel"  (queue/cancel job-id))
-    (response/redirect (str job-id))))
+    (if (htmx-request? request)
+      {:status 204}
+      (response/redirect (str job-id)))))
 
 (defn- send-email-page [_]
   (auth/verify :sysadmin
@@ -56,12 +59,21 @@
   (auth/verify :sysadmin
     (json (maps/get-map-bounds-as-geojson))))
 
-(defn- update-users! [{updates :params}]
+(defn- update-users!
+  "Takes form params auth:<user-id> for each user's authority and
+  delete:<user-id> for users to delete."
+  [{params :params}]
   (auth/verify :sysadmin
-    (doseq [[user-id ops] updates]
-      (when (:auth ops) (users/set-user-auth! (name user-id) (keyword (:auth ops))))
-      (when (:delete ops) (users/delete-user! (name user-id))))
-    (response/response "")))
+    (let [current-auth (into {} (for [u (users/users)] [(:id u) (keyword (:auth u))]))]
+      (doseq [[k v] params
+              :let [[op user-id] (string/split (name k) #":" 2)]
+              :when (contains? current-auth user-id)]
+        (case op
+          "auth"   (when (not= (keyword v) (current-auth user-id))
+                     (users/set-user-auth! user-id (keyword v)))
+          "delete" (users/delete-user! user-id)
+          nil)))
+    (response/redirect "/admin" :see-other)))
 
 (def admin-routes
   ["/admin"

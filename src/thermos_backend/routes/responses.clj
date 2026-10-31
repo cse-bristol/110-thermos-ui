@@ -4,7 +4,8 @@
 (ns thermos-backend.routes.responses
   (:require [ring.util.response :as response]
             [cognitect.transit :as transit]
-            [cheshire.core :as json])
+            [cheshire.core :as json]
+            [hiccup2.core :as hiccup])
   (:import [java.io ByteArrayInputStream]))
 
 (defn html [content]
@@ -26,3 +27,23 @@
         (response/content-type "application/transit+json; charset=utf-8"))))
 
 (def deleted {:status 204})
+
+(defn fragment
+  "A response containing some hiccup rendered without the page around it,
+  for htmx to swap in."
+  [& content]
+  (-> (str (hiccup/html (seq content)))
+      (html)
+      (response/charset "UTF-8")))
+
+(defn htmx-request? [request]
+  (= "true" (get-in request [:headers "hx-request"])))
+
+(defn htmx-redirect
+  "Redirect to url; for a htmx request this is done by htmx, so the whole page
+  changes rather than the redirected-to page being swapped in."
+  [request url]
+  (if (htmx-request? request)
+    (-> (response/response "")
+        (response/header "HX-Redirect" url))
+    (response/redirect url :see-other)))

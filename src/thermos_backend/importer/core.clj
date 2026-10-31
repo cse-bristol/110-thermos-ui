@@ -39,10 +39,10 @@
             PrecisionModel]))
 
 (defn queue-import
-  "Put an import job into the queue - at the moment :map-id is the only
-  argument, as the map itself contains the import details."
-  [{map-id :map-id}]
-  (let [job-id (queue/enqueue :imports {:map-id map-id})]
+  "Put an import job into the queue. The map itself contains the import
+  details; :user-id is who to tell when it is done."
+  [{map-id :map-id user-id :user-id}]
+  (let [job-id (queue/enqueue :imports {:map-id map-id :user-id user-id})]
     (db/set-job-id! map-id job-id)))
 
 (defn add-to-database [state job]

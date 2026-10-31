@@ -93,6 +93,10 @@
 (defn needs-save? [] (:needs-save @save-state))
 (defn queue-position [] (:queue-position @save-state))
 (defn run-message [] (:run-message @save-state))
+(defn run-timing
+  "Estimated timing for the current run, as seconds
+  {:elapsed :expected-runtime :starts-in :finishes-in}"
+  [] (:run-timing @save-state))
 
 (defonce watch-state-for-save
   (add-watch
@@ -267,12 +271,13 @@
 (defn poll! []
   (GET (str js/window.location.pathname "/status")
       {:handler
-       (fn [{:keys [state queue-position message]}]
+       (fn [{:keys [state queue-position message timing]}]
          (let [last-run-state (:run-state @save-state)]
            (swap! save-state assoc
                   :run-state state
                   :queue-position queue-position
-                  :run-message message)
+                  :run-message message
+                  :run-timing timing)
            (case state
              :completed
              (case last-run-state

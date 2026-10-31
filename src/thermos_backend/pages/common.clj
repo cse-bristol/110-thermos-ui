@@ -11,8 +11,7 @@
             [thermos-pages.common :refer [style style*]]
             [thermos-frontend.theme :as theme]
             [clojure.data.json :as json]
-            [clojure.string :as string]
-            [rum.core :as rum]))
+            [clojure.string :as string]))
 
 (def source-sans-pro
   "https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,400i,600,600i,700,700i")
@@ -48,8 +47,13 @@
       
       (include-css "/css/common.css" source-sans-pro
                    ~@css)
+      [:script {:src "/js/vendor/htmx.min.js" :defer true}]
+      [:script {:src "/js/pages.js" :defer true}]
       ]
      [:body.flex-rows
+      (when-let [aft# (and (bound? #'*anti-forgery-token*)
+                           (force *anti-forgery-token*))]
+        {:hx-headers (json/write-str {"X-CSRF-Token" aft#})})
       [:header.flex-cols
        {:style (style :flex-shrink 0 :flex-grow 0
                       :align-items :center
@@ -62,7 +66,6 @@
         [:a {:style (style :margin-left :1em)
              :href "/settings"} "Settings"]
         [:a {:style (style :margin-left :1em) :href "/help"} "Help"]
-        [:a {:target :_forum :style (style :margin-left :1em) :href "https://forum.thermos-project.eu/"} "Forum"]
         [:a {:style (style :margin-left :1em)
              :href "/logout"} "Logout"]
         ]]
@@ -73,6 +76,9 @@
       ;; [:footer
       ;;  "Some footer stuff"]
 
+      ;; dialog fragments loaded with hx-target="#modal" go in here
+      [:dialog#modal.card]
+
       ~@(for [js-file js] `(include-js ~js-file))
       ])))
 
@@ -80,6 +86,3 @@
   "`ring.util.anti-forgery` but compatible with hiccup2"
   []
   (raw-string (anti-forgery/anti-forgery-field)))
-
-(defn prerender-rum [component]
-  (raw-string (rum/render-html component)))

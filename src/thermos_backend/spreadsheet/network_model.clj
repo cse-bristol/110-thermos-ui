@@ -11,7 +11,9 @@
             [thermos-specs.solution :as solution]
             [thermos-specs.path :as path]
             [thermos-specs.supply :as supply]
-            [thermos-util.pipes :as pipes]
+            [thermos.opt.net.pipes :as pipes]
+            [thermos-backend.solver.interop :as interop]
+            [thermos-util :refer [kw->annual-kwh]]
             [thermos-specs.measure :as measure]
             [clojure.set :as set]
             [thermos-backend.spreadsheet.common :as common]
@@ -157,7 +159,7 @@
 (defn output-pipe-costs [ss doc]
   (let [pipe-costs (::document/pipe-costs doc)
         civils     (:civils pipe-costs)
-        curve-rows (pipes/curve-rows (pipes/curves doc))
+        curve-rows (pipes/curve-rows (interop/doc->pipe-curves doc))
         ]
     (sheet/add-tab
      ss
@@ -165,7 +167,7 @@
      (into
       [{:name "NB (mm)" :key (comp (partial * 1000.0) :diameter)}
        {:name "Capacity (kW)" :key :capacity-kw}
-       {:name "Losses (kWh/m.yr)" :key :losses-kwh}
+       {:name "Losses (kWh/m.yr)" :key #(kw->annual-kwh (/ (:losses-w %) 1000.0))}
        {:name "Pipe cost (¤/m)" :key :pipe}]
       
       (for [[id n] civils]
@@ -250,14 +252,9 @@
        [{:name "Parameter" :key first}
         {:name "Value" :key second}]
 
-       `[~["Medium" (name (document/medium doc))]
-
-         ~@(if (= :hot-water (document/medium doc))
-             [["Flow temperature"   (::document/flow-temperature doc)]
-              ["Return temperature"   (::document/return-temperature doc)]
-              ["Ground temperature"   (::document/ground-temperature doc)]]
-             [["Steam pressure (MPa)" (document/steam-pressure doc)]
-              ["Steam velocity (m/s)" (document/steam-velocity doc)]])
+       `[~["Flow temperature"   (::document/flow-temperature doc)]
+         ~["Return temperature"   (::document/return-temperature doc)]
+         ~["Ground temperature"   (::document/ground-temperature doc)]
 
          ~["Pumping overhead" (*100 (::document/pumping-overhead doc 0))]
          ~["Pumping cost/kWh" (::document/pumping-cost-per-kwh doc 0)]
@@ -302,6 +299,7 @@
          ~["MIP Gap" (::document/mip-gap doc)]
          ~["Param Gap" (::document/param-gap doc)]
          ~["Max runtime" (::document/maximum-runtime doc)]
+         ~["Solution method" (name (::document/solution-method doc :exact))]
 
          ~["Objective scale" (::document/objective-scale doc)]
          ~["Objective precision" (::document/objective-precision doc)]
@@ -407,13 +405,9 @@
         ]
 
     (merge
-     (copy-parameter :medium ::document/medium :type #{"hot-water" "saturated-steam"}
-                     :convert keyword)
      (copy-parameter :flow-temperature ::document/flow-temperature)
      (copy-parameter :return-temperature ::document/return-temperature)
      (copy-parameter :ground-temperature ::document/ground-temperature)
-     (copy-parameter :steam-pressure ::document/steam-pressure)
-     (copy-parameter :steam-velocity ::document/steam-velocity)
      (copy-parameter :pumping-overhead ::document/pumping-overhead
                      :type number?
                      :convert #(/ % 100.0))
@@ -442,6 +436,9 @@
      (copy-parameter :mip-gap ::document/mip-gap)
      (copy-parameter :param-gap ::document/param-gap)
      (copy-parameter :max-runtime ::document/maximum-runtime)
+     (copy-parameter :solution-method ::document/solution-method
+                     :type #{"exact" "automatic"}
+                     :convert keyword)
 
      (copy-parameter :objective-scale ::document/objective-scale)
      (copy-parameter :objective-precision ::document/objective-precision)

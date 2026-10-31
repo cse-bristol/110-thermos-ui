@@ -9,9 +9,6 @@
 
 (def emacs-middleware
   (apply default-handler
-         (cons #'cider.piggieback/wrap-cljs-repl
-               (cons #'refactor-nrepl.middleware/wrap-refactor
-                     (map resolve cider-middleware))
-               )
-         
-))
+         #'cider.piggieback/wrap-cljs-repl
+         #'refactor-nrepl.middleware/wrap-refactor
+         (map resolve cider-middleware)))

@@ -377,6 +377,15 @@
       (db/fetch-one!)
       (:public)))
 
+(defn rename-project! [project-id project-name description]
+  {:pre [(int? project-id)
+         (string? project-name)
+         (not (string/blank? project-name))]}
+  (-> (h/update :projects)
+      (h/sset {:name project-name :description (or description "")})
+      (h/where [:= :id project-id])
+      (db/execute!)))
+
 (defn make-public! [project-id public]
   (-> (h/update :projects)
       (h/sset {:public public})

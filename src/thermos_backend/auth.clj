@@ -55,6 +55,7 @@ If it does exist, you don't have privileges to see it.")
                 :read    (or am-sysadmin am-member (projects/is-public-project? project-id))
                 :share   (or am-sysadmin am-project-admin)
                 :delete  (or am-sysadmin am-project-admin)
+                :rename  (or am-sysadmin am-project-admin)
                 :modify  (or am-sysadmin am-member)
                 :leave   am-member
                 

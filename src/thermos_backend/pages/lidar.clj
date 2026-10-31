@@ -2,13 +2,14 @@
 ;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
 
 (ns thermos-backend.pages.lidar  
-  (:require [thermos-backend.pages.common :refer [page]]))
+  (:require [thermos-backend.pages.common :refer [page]]
+            [clojure.data.json :as json]))
 
 
 (defn manage-lidar [project-name lidar-info]
   (page
    {:title "Manage LIDAR"
-    :js ["/js/manage-lidar.js"]
+    :js ["/js/vendor/leaflet.js" "/js/map-box.js"]
     :css ["/css/manage-lidar.css"]}
    [:div
     [:div.card {:style {:margin-bottom "2em"}}
@@ -20,7 +21,8 @@
           improve the quality of any demand estimates produced from the built-in regression model.
           This can be from a field on the building polygons, or from OpenStreetMap if that
           is the source of buildings. OpenStreetMap does not always contain height data."]
-     [:div#manage-lidar-map {:style {:width "100%" :height "500px" :margin-bottom "2em"}}]
+     [:div.map-box {:data-config (json/write-str {:coverageUrl "coverage.json"})
+                   :style {:width "100%" :height "500px" :margin-bottom "2em"}}]
      [:table {:style {:width "100%" :margin-bottom "2em"}}
       [:thead
        [:tr (map (fn [header] [:th header]) ["File name" "Bounds" "CRS" "Download" "Delete"])]]

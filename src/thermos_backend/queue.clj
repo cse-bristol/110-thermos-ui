@@ -45,6 +45,23 @@
 
 (def running-jobs (atom {})) ;; {queue {job-id thread}}
 
+(defonce finish-listeners
+  (atom {})) ;; {queue {key fn}}
+
+(defn on-finish
+  "Call `f` when a job on `queue-name` finishes, with a map having
+  :job-id, :args, :state (:completed :failed or :cancelled) and :message.
+  It is called on the job's thread, so should be quick. `key` identifies
+  the listener so it can be replaced."
+  [queue-name key f]
+  (swap! finish-listeners assoc-in [queue-name key] f))
+
+(defn- notify-finished [queue-name job]
+  (doseq [[key f] (get @finish-listeners queue-name)]
+    (try (f job)
+         (catch Exception e
+           (log/error e "Job finish listener" key "failed for" queue-name job)))))
+
 (defn- get-spare-slots
   "
   Returns a map which says for each queue name how many jobs we could run right now
@@ -85,7 +102,7 @@
                                 [:= :users.auth (sql/call :user_auth (name :unlimited))] (queue-priority :unlimited)
                                 [:= :users.auth (sql/call :user_auth (name :admin))] (queue-priority :admin)
                                 :else 0) :asc]
-                     [:jobs.queued :desc])
+                     [:jobs.queued :asc])
            (limit n))
        :stuff]))
     (->
@@ -99,6 +116,78 @@
            (lock :mode :skip-locked)
            (limit n))
        :stuff]))))
+
+(def ^:private default-expected-runtime
+  "Seconds to assume a job will take, if it was queued without saying"
+  3600.0)
+
+(defn estimate-timing
+  "Estimate when job `job-id` will start and finish, given `capacity`
+  slots and `jobs`, the waiting and running jobs on its queue, as maps
+  with :id, :state, :expected-runtime, and in seconds :elapsed since
+  they started and :waited since they were queued, and :priority.
+
+  Every job is supposed to run for its whole expected runtime, so these
+  are more like upper bounds than estimates. Running jobs hold their
+  slot until they run out of time, and queued jobs are taken in order
+  of :priority and then the longest waiting, as `get-queue-query`
+  takes them.
+
+  Returns nil if the job is not in `jobs`, or else a map of seconds
+  {:elapsed :expected-runtime :starts-in :finishes-in}, and for a
+  queued job its :position in the queue, counting from 1."
+  [capacity jobs job-id]
+  (let [runtime  #(double (or (:expected-runtime %) default-expected-runtime))
+        elapsed  #(double (or (:elapsed %) 0.0))
+        running? #(not= "ready" (str (:state %)))
+        {running true queued false} (group-by running? jobs)
+        this-job (first (filter #(= job-id (:id %)) jobs))]
+    (when this-job
+      (if (running? this-job)
+        {:elapsed (elapsed this-job)
+         :expected-runtime (runtime this-job)
+         :starts-in 0.0
+         :finishes-in (max 0.0 (- (runtime this-job) (elapsed this-job)))}
+
+        ;; each slot is free from some number of seconds from now
+        (loop [position 1
+               slots (sort (take (max 1 capacity)
+                                 (concat (sort (for [j running]
+                                                 (max 0.0 (- (runtime j) (elapsed j)))))
+                                         (repeat 0.0))))
+               [job & more] (sort-by (juxt #(:priority % 0)
+                                           #(- (double (or (:waited %) 0.0))))
+                                     queued)]
+          (let [start  (first slots)
+                finish (+ start (runtime job))]
+            (if (= job-id (:id job))
+              {:elapsed 0.0
+               :expected-runtime (runtime job)
+               :starts-in start
+               :finishes-in finish
+               :position position}
+              (recur (inc position) (sort (cons finish (rest slots))) more))))))))
+
+(defn job-timing
+  "`estimate-timing` for job `job-id` on the problems queue"
+  [job-id]
+  {:pre [(int? job-id)]}
+  (estimate-timing
+   (get-in @consumers [:problems :capacity] (config :solver-count))
+   (for [job (-> (select :jobs.id :jobs.state :jobs.expected-runtime :users.auth
+                         [(sql/raw "extract(epoch from (now() at time zone 'utc') - jobs.started)")
+                          :elapsed]
+                         [(sql/raw "extract(epoch from (now() at time zone 'utc') - jobs.queued)")
+                          :waited])
+                 (from :jobs)
+                 (left-join :networks [:= :networks.job-id :jobs.id]
+                            :users [:= :networks.user-id :users.id])
+                 (where [:and
+                         [:= :queue-name "problems"]
+                         [:in :state BLOCKING_STATES]])
+                 (db/fetch!))]
+     (assoc job :priority (queue-priority (keyword (str (or (:auth job) "basic"))))))
+   job-id))
 
 (defn claim-jobs
   "Given a map from queue name to a number of jobs we are happy to run,
@@ -115,7 +204,8 @@
            ;; while we have the read lock let's update them to be in
            (when (seq jobs-to-claim)
              (-> (update :jobs)
-                 (sset {:state RUNNING_STATE})
+                 (sset {:state RUNNING_STATE
+                        :started (sql/raw "now() at time zone 'utc'")})
                  (where [:in :id (map :id jobs-to-claim)])
                  (db/execute! conn)))
            (for [job jobs-to-claim]
@@ -164,20 +254,23 @@
                                  (try
                                    (let [result (consumer job-args state-callback)]
                                      (cond
-                                       (= :cancelled result) [CANCELLED_STATE]
-                                       (= :error result) [FAILED_STATE]
-                                       :else [COMPLETE_STATE]))
+                                       (= :cancelled result) [:cancelled]
+                                       (= :error result) [:failed]
+                                       :else [:completed]))
                                    (catch Throwable e
                                      (if (:cancelled (ex-data e))
-                                       [CANCELLED_STATE]
+                                       [:cancelled]
                                        (do (log/error e "Running" queue-name job-id job-args)
-                                           [FAILED_STATE (or (.getMessage e) "Unknown cause")]))))]
+                                           [:failed (or (.getMessage e) "Unknown cause")]))))]
 
                              (-> (update :jobs)
-                                 (sset (cond-> {:state new-state}
+                                 (sset (cond-> {:state (sql/call :job_state (name new-state))}
                                          message (assoc :message message)))
                                  (where [:= :id job-id])
-                                 (db/execute!)))
+                                 (db/execute!))
+                             (notify-finished queue-name
+                                              {:job-id job-id :args job-args
+                                               :state new-state :message message}))
                            (finally 
                              (swap! running-jobs clojure.core/update queue-name dissoc job-id)))
                      (format "Execution of %s job %d" queue-name job-id))
@@ -253,9 +346,13 @@
    (when-not (zero? capacity)
      (swap! consumers assoc queue-name {:consumer consumer :capacity capacity}))))
 
-(defn enqueue [queue-name args]
+(defn enqueue
+  "Put a job on `queue-name`. `expected-runtime` is how long in seconds it
+  might take at most, which is used to estimate when queued jobs will run."
+  [queue-name args & {:keys [expected-runtime]}]
   (-> (insert-into :jobs)
-      (values [{:queue-name (name queue-name) :args (pr-str args)}])
+      (values [(cond-> {:queue-name (name queue-name) :args (pr-str args)}
+                 expected-runtime (assoc :expected-runtime expected-runtime))])
       (returning :id)
       (db/fetch!)
       (first)

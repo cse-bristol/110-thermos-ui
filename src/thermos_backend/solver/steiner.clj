@@ -1,7 +1,8 @@
 (ns thermos-backend.solver.steiner
   (:require [thermos-backend.solver.interop :as interop]
-            [thermos-specs.document :as doc]
-            [thermos-util.pipes :as pipes]
+            [thermos.opt.net.pipes :as pipes]
+            [thermos.opt.net.heuristic.steiner :as steiner]
+            [thermos.opt.net.heuristic.refine :as refine]
             [loom.graph :as graph]
             [loom.alg :as alg]
             [loom.attr :as attr]
@@ -13,98 +14,98 @@
             [thermos-specs.candidate :as candidate]
             [thermos-specs.document :as document]))
 
-(def ^:private thread-pool (java.util.concurrent.Executors/newFixedThreadPool 3))
+(defn tree-
+  "Select an approximate Steiner tree joining up the buildings in
+  `problem` (or the selected part of it), using the shortest path
+  heuristic from thermos.opt.net.heuristic.steiner.
 
-(defn upper-triangle [coll]
-  (when-let [s (next coll)]
-    (lazy-cat (for [y s] [(first coll) y])
-              (upper-triangle s))))
-
-(defn tree- [problem]
-  (let [pipe-curves (pipes/curves problem)
+  The tree grows out from the supplies; a connected part of the
+  network with no supply grows from one of its buildings instead."
+  [problem]
+  (let [pipe-curves (interop/doc->pipe-curves problem)
 
         cost (memoize (fn [civil-id] (pipes/solved-principal pipe-curves civil-id 100.0)))
 
         problem (cond-> problem
                   (seq (selected-candidates problem))
                   (subset-document-to-selected-candidates))
-        
+
         graph   (interop/simplified-graph problem)
-        termini (set (filter #(attr/attr graph % :real-vertex) (graph/nodes graph)))
-
         candidates (::document/candidates problem)
-        
-        _ (log/info "Constructing weighted graph" )
-        
-        wg    (reduce
-               (fn add-edge [g [i j]]
-                 (let [lbc (attr/attr graph [i j] :civil-costs)
-                       c (reduce + (for [[id len] lbc] (* len (cost id))))
-                       existing-terminal-edge (or (and (contains? termini i)
-                                                       (contains? (.vertexSet g) i)
-                                                       (pos? (.outDegreeOf g i))
-                                                       (not (candidate/has-supply? (candidates i))))
-                                                  
-                                                  (and (contains? termini j)
-                                                       (contains? (.vertexSet g) j)
-                                                       (pos? (.outDegreeOf g j))
-                                                       (not (candidate/has-supply? (candidates j)))))
-                       ]
-                   (when existing-terminal-edge
-                     (log/warnf "Edge %s->%s might make the steiner tree bad - skipping it" i j))
-                   
-                   (cond-> g
-                     (and (not existing-terminal-edge)
-                          (not= i j))
-                     (doto
-                       (.addVertex i)
-                       (.addVertex j)
-                       ;; don't really need anything to go in the slot?
-                       (.addEdge i j [i j])
-                       (.setEdgeWeight i j c)))))
-               (reduce
-                (fn add-vertex [g i] (doto g (.addVertex i)))
-                (org.jgrapht.graph.SimpleWeightedGraph. Object)
-                (graph/nodes graph))
-               (graph/edges graph))
 
-        _ (log/info "Finding shortest paths")
+        nodes   (vec (graph/nodes graph))
+        index   (into {} (map-indexed (fn [i v] [v i])) nodes)
+        termini (set (filter #(attr/attr graph % :real-vertex) nodes))
 
-        spa (org.jgrapht.alg.shortestpath.CHManyToManyShortestPaths.
-             wg thread-pool)
+        owners  (let [supplies (set (filter #(candidate/has-supply? (candidates %)) termini))]
+                  (into supplies
+                        (for [component (alg/connected-components graph)
+                              :let [component-termini (filter termini component)]
+                              :when (and (seq component-termini)
+                                         (not-any? supplies component-termini))]
+                          (first component-termini))))
 
-        mmsp (.getManyToManyPaths spa (set termini) (set termini))
+        real-edges (->> (graph/edges graph)
+                        (map (comp vec sort))
+                        (remove (fn [[i j]] (= i j)))
+                        (distinct)
+                        (vec))
+        n-real     (count real-edges)
+        root       (count nodes)
 
-        _ (log/info "Making pairwise terminal graph")
-        
-        mmgraph (reduce
-                 (fn [g [i j]]
-                   (let [path (.getPath mmsp i j)]
-                     (cond-> g
-                       path
-                       (doto 
-                           (.addVertex i)
-                         (.addVertex j)
-                         (.addEdge i j path)
-                         (.setEdgeWeight i j (.getWeight path))))))
-                 (org.jgrapht.graph.SimpleWeightedGraph. org.jgrapht.GraphPath)
-                 (upper-triangle termini))
-        
-        _ (log/info "Find MST on pairwise terminal graph")
-        msta (org.jgrapht.alg.spanning.KruskalMinimumSpanningTree.
-              mmgraph)
+        _ (log/info "Constructing weighted graph:"
+                    (count nodes) "vertices,"
+                    n-real "edges,"
+                    (count termini) "buildings,"
+                    (count owners) "roots")
 
-        mst (.getSpanningTree msta)
-        ]
+        us (int-array (concat (map (comp index first) real-edges)
+                              (repeat (count owners) root)))
+        vs (int-array (concat (map (comp index second) real-edges)
+                              (map index owners)))
+        ws (double-array (concat (for [e real-edges]
+                                   (reduce + (for [[id len] (attr/attr graph e :civil-costs)]
+                                               (* len (cost id)))))
+                                 (repeat (count owners) 0.0)))
+
+        owner?    (let [a (boolean-array (inc root))]
+                    (doseq [o owners] (aset a (int (index o)) true))
+                    a)
+        terminal? (let [a (boolean-array (inc root))]
+                    (doseq [t termini] (aset a (int (index t)) true))
+                    a)
+
+        steiner-graph
+        {:n (inc root) :us us :vs vs :ws ws
+         :adj (steiner/adjacency (inc root) us vs)
+         ;; buildings are only at the ends of paths; a root building is
+         ;; only passed through on the way out from the virtual root
+         :open? (fn [v pred-edge]
+                  (cond
+                    (== v root)      true
+                    (aget owner? v)  (>= pred-edge n-real)
+                    (aget terminal? v) false
+                    :else true))
+         :demand? (fn [v] (and (< v root) (aget terminal? v) (not (aget owner? v))))}
+
+        terminals (map index termini)
+
+        _ (log/info "Finding shortest path tree")
+        tree (steiner/shortest-path-tree steiner-graph root terminals)
+
+        {:keys [tree before after moves]}
+        (refine/improve-tree steiner-graph root terminals tree)
+
+        _ (log/infof "Refined tree: %d moves, cost %.0f -> %.0f" moves before after)]
+
     (reduce
      (fn [problem edge]
-       (let [ids (attr/attr graph edge :ids)]
-         (select-candidates problem ids :union)))
+       (select-candidates problem (attr/attr graph edge :ids) :union))
      (select-candidates problem #{} :replace)
-     (for [path mst edge (.getEdgeList path)] edge))))
+     (for [e tree :when (< e n-real)] (real-edges e)))))
 
 
-(defn tree [problem progress]  
+(defn tree [problem progress]
   (let [log-writer (java.io.StringWriter.)]
     (try
       (progress :message "Find Steiner tree")
@@ -124,4 +125,3 @@
                     (println "---")
                     (clojure.stacktrace/print-cause-trace ex)))
         problem))))
-

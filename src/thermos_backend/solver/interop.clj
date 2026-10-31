@@ -20,7 +20,7 @@
     shrink the problem before the network model sees it
 
   - Pipe costs are understood in the UI to be taken from a table.
-    Power / diameter relationship is understood in terms of the medium
+    Power / diameter relationship is worked out by thermos.opt.net.pipes
 
     The network model doesn't know this, it knows fixed cost and cost/kw
 
@@ -54,10 +54,11 @@
    [thermos-specs.tariff :as tariff]
    [thermos-util :refer [annual-kwh->kw safe-div]]
    [thermos-util.finance :as finance]
-   [thermos-util.pipes :as pipes]
+   [thermos.opt.net.pipes :as pipes]
    [thermos.opt.net.bounds :as net-model-bounds]
    [thermos.opt.net.core :as net-model]
    [thermos.opt.net.diversity :as net-diversity]
+   [taoensso.telemere :as tel]
    [thermos-backend.config :refer [config]]
    ))
 
@@ -559,28 +560,48 @@
                      (get-in candidate [::supply/emissions e] 0)
                      (get pumping-emissions e 0)))]))
         ]
-    
-    {:capacity-kw (float (::supply/capacity-kwp  candidate 0))
-     :cost        (float fixed-cost)
-     :cost%kwh    (float heat-cost-per-kwh)
-     :cost%kwp    (float (+ capex-per-kwp opex-per-kwp))
 
-     :exclusive-groups (::supply/exclusive-groups candidate)
-     
-     :emissions   emissions-factors}))
+    (cond->
+      {:capacity-kw (float (::supply/capacity-kwp  candidate 0))
+       :cost        (float fixed-cost)
+       :cost%kwh    (float heat-cost-per-kwh)
+       :cost%kwp    (float (+ capex-per-kwp opex-per-kwp))
+
+       :emissions   emissions-factors}
+
+      (seq (::supply/exclusive-groups candidate))
+      (assoc :exclusive-groups (set (::supply/exclusive-groups candidate))))))
+
+(defn doc->pipe-curves
+  "Pipe curves (see `thermos.opt.net.pipes/curves`) for the document's
+  temperatures and pipe cost table."
+  [doc]
+  ;; pipes/curves wants flow above return and the pipe above the
+  ;; ground; for cooling we flip these so the differences come out
+  ;; positive, as they did with the old thermos-util.pipes.
+  (let [flow   (double (::document/flow-temperature doc 90.0))
+        return (double (::document/return-temperature doc 60.0))
+        t-bar  (/ (+ flow return) 2.0)
+        ground (double (::document/ground-temperature doc 8.0))]
+    (pipes/curves (max flow return)
+                  (min flow return)
+                  (- t-bar (Math/abs (- t-bar ground)))
+                  (::document/pipe-costs doc))))
 
 (defn- edge-terms
   "Output for the network model the parameters for this edge.
 
   This function is responsible for linear-approximating the civil +
   pipe costs for this edge based on the upper & lower heat flow bounds
-  in bounds.
+  in bounds, and for giving the stepwise costs which the heuristic
+  solver uses.
   "
   [instance
    bounds
    pipe-curves
    net-graph edge]
   (let [length (or (attr/attr net-graph edge :length) 0)
+        civil-costs (attr/attr net-graph edge :civil-costs)
 
         [fixed-cost variable-cost]
         (if (zero? length) [0 0] ;; zero length path has no cost, and is probably a virtual connecty thing
@@ -596,21 +617,28 @@
               (pipes/linear-cost
                pipe-curves
 
-               (attr/attr net-graph edge :civil-costs)
+               civil-costs
                length ;; don't worry, this length is normalized out
                       ;; inside call to linear-cost - the result is
                       ;; per meter
-               
+
                (if (zero? (min lf lb))
                  (max lf lb)
                  (min lf lb))
-               
+
                (max uf ub)
                )))
 
         cost-type (if (attr/attr net-graph edge :exists)
                     :existing-pipe-capex
-                    :pipe-capex)]
+                    :pipe-capex)
+
+        cost-steps
+        (when-not (zero? length)
+          (vec
+           (for [[kw cost%m] (pipes/step-cost pipe-curves civil-costs length)]
+             [(double kw)
+              (double (finance/objective-value instance cost-type cost%m))])))]
 
     (when (and (seq (attr/attr net-graph edge :ids))
                (not (attr/attr net-graph edge :length)))
@@ -618,17 +646,22 @@
                  (attr/attr net-graph edge :ids)
                  "has no recorded length"))
 
-    {:i        (first edge) :j (second edge)
-     :length   length
-     :max-capacity%kwp (float
-                        (if-let [max-dia (attr/attr net-graph edge :max-dia)]
-                          (let [max-dia (* 1000 max-dia)]
-                            (pipes/dia->kw pipe-curves max-dia))
-                          (pipes/max-kw pipe-curves)))
-     
-     :cost%m   (float (finance/objective-value instance cost-type fixed-cost))
-     :cost%kwm (float (finance/objective-value instance cost-type variable-cost))
-     :required (boolean (attr/attr net-graph edge :required))}))
+    (cond->
+      {:i        (first edge) :j (second edge)
+       :length   length
+       :max-capacity%kwp (float
+                          (if-let [max-dia (attr/attr net-graph edge :max-dia)]
+                            (let [max-dia (* 1000 max-dia)]
+                              (pipes/dia->kw pipe-curves max-dia))
+                            (pipes/max-kw pipe-curves)))
+
+       :cost%m   (float (finance/objective-value instance cost-type fixed-cost))
+       :cost%kwm (float (finance/objective-value instance cost-type variable-cost))
+       :required (boolean (attr/attr net-graph edge :required))}
+
+      ;; no :cost-steps means the heuristic uses the linear terms;
+      ;; an empty vector would make the edge unusable
+      cost-steps (assoc :cost-steps cost-steps))))
 
 (defn- instance->model-input
   "Convert a problem instance into input for the network optimisation model."
@@ -642,7 +675,6 @@
          :mip-gap         (float (::document/mip-gap instance 0.05))
          :param-gap       (float (::document/param-gap instance 0.0))
          :iteration-limit (int   (::document/maximum-iterations instance 1000))
-         :supply-limit    (when-let [l (::document/maximum-supply-sites instance)] (int l))
          :should-be-feasible (boolean (::document/should-be-feasible instance false))
          :infill-connection-targets (::document/infill-targets instance)
          :objective-scale     (::document/objective-scale instance)
@@ -654,8 +686,8 @@
          
          :pipe-losses
          (let [losses (pipes/heat-loss-curve pipe-curves)]
-           {:kwp  (map (comp float first) losses)
-            :w%m  (map (comp float second) losses)})
+           {:kwp  (mapv (comp double first) losses)
+            :w%m  (mapv (comp double second) losses)})
 
          ;; global emissions costs and limits
          :emissions
@@ -667,30 +699,37 @@
                                        :emissions-cost
                                        (get-in instance [::document/emissions-cost e] 0)))}
                            (when     (get-in instance [::document/emissions-limit :enabled e])
-                             {:limit (float (get-in instance [::document/emissions-limit :value e] 0))}))]))
+                             {:maximum (float (get-in instance [::document/emissions-limit :value e] 0))}))]))
 
          :vertices
-         (for [vertex (graph/nodes net-graph)
-               :let [candidate (candidates vertex)]
-               :when (or (candidate/has-demand? candidate mode)
-                         (candidate/has-supply? candidate))]
-           (let [unreachable (attr/attr net-graph vertex :unreachable)]
-             (cond-> {:id vertex}
-               (candidate/has-demand? candidate mode)
-               (assoc :demand (demand-terms instance candidate market))
+         (vec
+          (for [vertex (graph/nodes net-graph)
+                :let [candidate (candidates vertex)]
+                :when (or (candidate/has-demand? candidate mode)
+                          (candidate/has-supply? candidate))]
+            (let [unreachable (attr/attr net-graph vertex :unreachable)]
+              (cond-> {:id vertex}
+                (candidate/has-demand? candidate mode)
+                (assoc :demand (demand-terms instance candidate market))
 
-               unreachable
-               (assoc-in [:demand :required] false)
+                unreachable
+                (assoc-in [:demand :required] false)
 
-               (candidate/has-supply? candidate)
-               (assoc :supply (supply-terms instance candidate)))))
-         
+                (candidate/has-supply? candidate)
+                (assoc :supply (supply-terms instance candidate))))))
+
          :edges
-         (for [edge (->> (graph/edges net-graph)
-                         (map (comp vec sort))
-                         (set))]
-           {:i (first edge) :j (second edge)})
+         (vec
+          (for [edge (->> (graph/edges net-graph)
+                          (map (comp vec sort))
+                          (set))]
+            {:i (first edge) :j (second edge)}))
          }
+
+        first-stage
+        (cond-> first-stage
+          (::document/maximum-supply-sites instance)
+          (assoc :supply-limit (int (::document/maximum-supply-sites instance))))
 
         bounds
         (net-model-bounds/compute-bounds first-stage)
@@ -699,10 +738,11 @@
     (log/info "Linearising costs")
     (assoc first-stage
            :edges
-           (for [edge (->> (graph/edges net-graph)
-                           (map (comp vec sort))
-                           (set))]
-             (edge-terms instance bounds pipe-curves net-graph edge))
+           (vec
+            (for [edge (->> (graph/edges net-graph)
+                            (map (comp vec sort))
+                            (set))]
+              (edge-terms instance bounds pipe-curves net-graph edge)))
            :bounds bounds)
     ))
 
@@ -1023,6 +1063,8 @@
                  (-> result-json :solver :gap)
                  ::solution/objectives
                  (-> result-json :solver :objectives)
+                 ::solution/stages
+                 (-> result-json :solver :controls :stages)
                  )))))
 
 (defn- mark-unreachable [instance net-graph included-candidates disconnected-candidate-ids]
@@ -1148,6 +1190,31 @@
          ::solution/message "Empty problem"
          ::solution/runtime 0))
 
+(defn- run-model
+  "Run the network model on `model-input`, using the document's solution
+  method: :exact is the MIP alone, as THERMOS always used to do, and
+  :automatic leaves the model to choose its stages (heuristic, patch
+  search, MIP) from the problem's size and time limit."
+  [instance model-input]
+  (let [solver (or (and (:has-gurobi config) (::document/solver instance))
+                   :scip)
+        method (::document/solution-method instance :exact)]
+    (log/info "Solution method:" (name method))
+    (tel/with-min-level :event "thermos.opt.net.core" :debug
+      (tel/with-handler+ ::stage-end
+        (fn ([{:keys [id data]}]
+             (when (= id :thermos.opt.net.core/stage-end)
+               (log/infof "Stage %s finished in %.0fs, objective %s"
+                          (name (:stage data))
+                          (double (:seconds data 0))
+                          (:objective data))))
+            ([]))
+        {:async nil}
+        (apply net-model/run-model model-input
+               :solver solver
+               (when (= method :exact)
+                 [:controls {:stages [:mip]}]))))))
+
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
   details in it. Probably needs running off the main thread."
@@ -1213,7 +1280,7 @@
           (mark-unreachable net-graph included-candidates disconnected-cand-ids))
       
       :else
-      (let [pipe-curves (pipes/curves instance)
+      (let [pipe-curves (doc->pipe-curves instance)
             
             market (make-market-decisions instance)
 
@@ -1230,13 +1297,7 @@
         
         (let [start-time (System/currentTimeMillis)
               result (if (seq (:vertices model-input))
-                       (net-model/run-model model-input
-                                            :solver
-                                            (or
-                                             (and
-                                              (:has-gurobi config)
-                                              (::document/solver instance))
-                                             :scip))
+                       (run-model instance model-input)
                        ::empty)
               
               end-time (System/currentTimeMillis)

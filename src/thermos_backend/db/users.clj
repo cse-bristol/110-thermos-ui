@@ -276,7 +276,7 @@
 
 (defn update-user!
   "Set a user's name and password. If name or password are nil or blank, they are unchanged."
-  [user-id new-name new-password system-messages]
+  [user-id new-name new-password system-messages job-emails]
   (-> (h/update :users)
       (h/sset (cond-> {}
                 (not (string/blank? new-name))
@@ -286,7 +286,9 @@
                        (hash/derive new-password)
                        :reset-token nil)
                 (not (nil? system-messages))
-                (assoc :system-messages system-messages)))
+                (assoc :system-messages system-messages)
+                (not (nil? job-emails))
+                (assoc :job-emails job-emails)))
       
       (h/where [:= :id user-id])
       (db/execute!)))

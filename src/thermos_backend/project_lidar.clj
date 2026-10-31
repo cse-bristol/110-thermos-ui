@@ -95,8 +95,10 @@
                       (do (when (.isDirectory file)
                             (doseq [child (.listFiles file)]
                               (delete-dir child)))
-                          (io/delete-file file)))]
-    (delete-dir (project-lidar-dir project-id))))
+                          ;; silently, as the project may have no lidar
+                          (io/delete-file file true)))]
+    (when-let [dir (project-lidar-dir project-id)]
+      (delete-dir dir))))
 
 (defn lidar-coverage-geojson [project-id & {:keys [include-system-lidar]}]
   (let [properties (project-lidar-properties project-id 

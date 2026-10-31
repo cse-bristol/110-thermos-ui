@@ -24,15 +24,6 @@
    (.write w " ")
    (print-method (:value this) w))
 
-(defn queue-problem [network-id problem-type]
-  {:pre [(#{:network :supply :both
-            :tidy :tree}
-          problem-type)]}
-  (let [job-id (queue/enqueue :problems
-                              {:id network-id
-                               :solve problem-type})]
-    (projects/associate-job! network-id job-id)))
-
 (defn- with-restricted-runtime
   "Restrict the maximum runtime for problems that are part of restricted projects."
   [document map-id]
@@ -53,6 +44,33 @@
             (assoc-in [::supply/objective :time-limit] max-supply-runtime)))
 
       document)))
+
+(defn- expected-runtime
+  "How many seconds a job of `problem-type` on `document` could take,
+  given its time limits"
+  [document problem-type]
+  (let [network (* 3600.0 (or (::document/maximum-runtime document) 1.0))
+        supply  (* 3600.0 (or (get-in document [::supply/objective :time-limit]) 1.0))]
+    (case problem-type
+      :network network
+      :supply  supply
+      :both    (+ network supply)
+      ;; tree and tidy are quick
+      60.0)))
+
+(defn queue-problem [network-id problem-type]
+  {:pre [(#{:network :supply :both
+            :tidy :tree}
+          problem-type)]}
+  (let [network (projects/get-network network-id :include-content true)
+        document (with-restricted-runtime
+                   (edn/read-string {:default ->TaggedValue} (:content network))
+                   (:map-id network))
+        job-id (queue/enqueue :problems
+                              {:id network-id
+                               :solve problem-type}
+                              :expected-runtime (expected-runtime document problem-type))]
+    (projects/associate-job! network-id job-id)))
 
 (defn consume-problem [{network-id :id problem-type :solve}
                        progress]
@@ -81,9 +99,14 @@
 
     (catch InterruptedException ex
       (log/info "Solver interrupted (probably user cancel) for" network-id)
-      (projects/forget-run! network-id))
+      (projects/forget-run! network-id)
+      :cancelled)
     (catch Exception ex
-      (log/error "Error caught in problem consumer" ex))))
+      (if (:cancelled (ex-data ex))
+        (do (log/info "Solver cancelled for" network-id)
+            (projects/forget-run! network-id)
+            :cancelled)
+        (log/error "Error caught in problem consumer" ex)))))
 
 
 (defstate queue-consumer

@@ -93,6 +93,15 @@
        invited-by " has invited you to a THERMOS project called " project-name "."
        ))}))
 
+(defn send-job-message
+  "Tell `user` that a job they started has finished"
+  [user subject body url]
+  (queue-message
+   {:to user
+    :subject (str "THERMOS: " subject)
+    :body (format "%s\n\n%s\n\n----\nYou can stop these emails at %s/settings"
+                  body url (config :base-url))}))
+
 (defn- valid-email [email]
   (and (string? email)
        (re-matches #".+\@.+\..+" email)))

@@ -19,44 +19,55 @@ THERMOS as a whole is split into a few parts, which see:
 
 The THERMOS web interface.
 
-Builds using scripts in build-src.
+Builds with tools.build ([[./build.clj]]) and a small dev launcher in [[./build-src]].
 
 * How to build
 
+The tools (clojure, a JDK, lessc, postgres + postgis, scip) come from [[./flake.nix]]:
+
+#+BEGIN_EXAMPLE sh
+nix develop
+#+END_EXAMPLE
+
 - For development
-  
-  1. You need a postgis server to run against.
-     There is a nix expression to set one up in [[./dev/pg-server.nix]]
-  2. You need a JDK
-  3. You need clojure command line tools
 
-  Then you can run
+  1. You need a postgis server to run against. In the dev shell,
+     =start-postgres=, =stop-postgres= and =reset-postgres= manage a
+     throwaway one in =.test-pg/= (see [[./dev/test-env.sh]], which can
+     also start the database and app together). The shell sets
+     =PG_HOST= to point at it.
+  2. Then run
 
-  #+BEGIN_EXAMPLE sh
-  clojure -Adev:server:client dev
-  #+END_EXAMPLE
+     #+BEGIN_EXAMPLE sh
+     clojure -M:dev:server:client
+     #+END_EXAMPLE
 
-  or
-  
-  #+BEGIN_EXAMPLE sh
-  clojure -Adev:server:client dev --emacs
-  #+END_EXAMPLE
-
-  if you want to develop in emacs with cider.
+     which starts an nREPL, the backend, figwheel-main for the editor
+     ([[./dev.cljs.edn]]) and a LESS watcher. Add =--emacs= for the cider
+     middleware. For a cljs REPL, call =(figwheel.main.api/cljs-repl "dev")=
+     from the nREPL.
 
   If you want to hack on the dependencies locally as well, you can check them out into ../, and do
 
   #+BEGIN_EXAMPLE sh
-  clojure -Adev:server:client:local-deps dev
+  clojure -M:dev:server:client:local-deps
+  #+END_EXAMPLE
+
+- Tests
+
+  #+BEGIN_EXAMPLE sh
+  clojure -X:server:test
   #+END_EXAMPLE
 
 - For production
-  
+
   #+BEGIN_EXAMPLE sh
-  clojure -Adev:server:client pkg
+  ./do-build   # or, in the dev shell: clojure -T:build uber
   #+END_EXAMPLE
 
-  Should spit out a jar in target/
+  Should spit out target/thermos.jar. =clojure -T:build heat-uber= and
+  =noder-uber= build the command line tools. Every build task takes
+  =:aliases '[:local-deps]'= to build against local checkouts.
 
 * Production deployment on buzz
 

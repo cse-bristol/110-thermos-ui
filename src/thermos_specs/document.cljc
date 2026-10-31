@@ -53,7 +53,6 @@
 
 
                 ::pipe-costs
-                ::medium
                 ]
           :opt [::solution/summary
                 ::deletions]))
@@ -70,9 +69,7 @@
   (s/every (fn [[id val]] (and (map? val)
                                (= id (key val)))) :kind map? :into {}))
 
-(s/def ::medium #{:hot-water :saturated-steam})
-
-(defn medium [doc] (::medium doc :hot-water)) ;; to give default value
+(s/def ::solution-method #{:exact :automatic})
 
 (comment
   "example pipe costs"
@@ -448,8 +445,6 @@
    (- (mean-temperature doc)
       (::ground-temperature doc))))
 
-(defn steam-pressure [doc] (::steam-pressure doc))
-(defn steam-velocity [doc] (::steam-velocity doc))
 
 (defn ungroup-candidates
   "Clear the ::demand/group on all these candidates"

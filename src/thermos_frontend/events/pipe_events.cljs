@@ -96,18 +96,6 @@
   [state [_ t]]
   (assoc state ::document/ground-temperature t))
 
-(defmethod handle :pipe/change-medium
-  [state [_ m]]
-  (assoc state ::document/medium m))
-
-(defmethod handle :pipe/change-steam-pressure
-  [state [_ p]]
-  (assoc state ::document/steam-pressure p))
-
-(defmethod handle :pipe/change-steam-velocity
-  [state [_ v]]
-  (assoc state ::document/steam-velocity v))
-
 (defmethod handle :pipe/set-default-civils
   [state [_ d]]
   (assoc-in state [::document/pipe-costs :default-civils] d))

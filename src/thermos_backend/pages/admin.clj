@@ -9,33 +9,32 @@
 
 (defn admin-page [users queues]
   (page
-   {:title "THERMOS admin"
-    :js ["/js/admin.js"]}
+   {:title "THERMOS admin"}
    [:div.card
     [:details
      [:summary [:h1 {:style {:cursor "pointer"}} "System users"]]
-     [:table {:style {:width "100%" :margin-bottom "2em"}}
-      [:thead
-       [:tr
-        [:th "ID"]
-        [:th "Name"]
-        [:th "Authority"]
-        [:th "Has logged in"]
-        [:th "Change authority"]
-        [:th "Delete"]]]
-      [:tbody
-       (for [u users]
-         [:tr
-          [:td (:id u)]
-          [:td (:name u)]
-          [:td (:auth u)]
-          [:td (not (nil? (:password u)))]
-          [:td [:select {:onchange (str "thermos_frontend.pages.admin.set_user_auth('" (:id u) "', this.value)")}
+     [:form {:method :POST :action "/admin/update-users"}
+      [:table {:style {:width "100%" :margin-bottom "2em"}}
+       [:thead
+        [:tr
+         [:th "ID"]
+         [:th "Name"]
+         [:th "Authority"]
+         [:th "Has logged in"]
+         [:th "Change authority"]
+         [:th "Delete"]]]
+       [:tbody
+        (for [u users]
+          [:tr
+           [:td (:id u)]
+           [:td (:name u)]
+           [:td (:auth u)]
+           [:td (not (nil? (:password u)))]
+           [:td [:select {:name (str "auth:" (:id u))}
                  (select-options (vec user-auth-types) (keyword (:auth u)))]]
-          [:td [:input {:type :checkbox
-                        :onchange (str "thermos_frontend.pages.admin.mark_for_deletion('" (:id u) "', this.checked)")}]]])]]
+           [:td [:input {:type :checkbox :name (str "delete:" (:id u))}]]])]]
 
-     [:button.button {:onclick "thermos_frontend.pages.admin.submit_updates()"} "Apply changes"]]]
+      [:button.button {:type :submit} "Apply changes"]]]]
 
    (for [[q tasks] (group-by :queue-name queues)]
      [:div.card

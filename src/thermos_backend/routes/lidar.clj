@@ -13,11 +13,6 @@
             [thermos-backend.project-lidar :as project-lidar]))
 
 
-(defn- upload-lidar-no-redirect! [{{:keys [file project-id]} :params}]
-  (auth/verify [:modify :project project-id]
-               (project-lidar/upload-lidar! file project-id)
-               (response/response (project-lidar/lidar-coverage-geojson project-id :include-system-lidar true))))
-
 (defn- upload-lidar! [{{:keys [file project-id]} :params}]
   (auth/verify [:modify :project project-id]
                (project-lidar/upload-lidar! file project-id)
@@ -62,7 +57,6 @@
 (def lidar-routes 
   {""  {:get  manage-lidar-page 
         :post upload-lidar!}
-   "/from-wizard" {:post upload-lidar-no-redirect!}
    "/list" {:get list-lidar}
    "/coverage.json" {:get lidar-coverage-geojson}
    ["/delete/" [#".+" :filename]] {:get delete-lidar-page

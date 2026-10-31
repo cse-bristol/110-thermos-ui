@@ -17,7 +17,7 @@ node_modules
 package.json
 solver-work/
 import-work/
-.cpcache/*
+.cpcache/
 /TODO.org_archive
 /.nrepl-history
 /.lsp/
@@ -30,3 +30,6 @@ import-work/
 *~
 .calva/
 .clj-kondo/
+/.test-pg/
+figwheel-main.log
+

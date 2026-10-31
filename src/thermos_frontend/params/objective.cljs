@@ -64,6 +64,7 @@
      param-gap (reagent/cursor document [::document/param-gap])
      iteration-limit (reagent/cursor document [::document/maximum-iterations])
      runtime (reagent/cursor document [::document/maximum-runtime])
+     solution-method (reagent/cursor document [::document/solution-method])
 
      solver (reagent/cursor document [::document/solver])
 
@@ -231,6 +232,30 @@
       [:div.card {:style {:flex-grow 1}}
        [:h1 "Computing resources"]
 
+       (let [method (or @solution-method :exact)]
+         [:div
+          [:p
+           [:label [:input {:type :radio
+                            :checked (= :exact method)
+                            :on-change #(reset! solution-method :exact)
+                            :value "solution-method-group"}]
+            [:span.has-tt
+             {:title "Solve the whole problem as a mixed integer program. This finds the best solution, or one within the gap below, but can be slow for large problems."}
+             "Exact"]]
+           " "
+           [:label [:input {:type :radio
+                            :checked (= :automatic method)
+                            :on-change #(reset! solution-method :automatic)
+                            :value "solution-method-group"}]
+            [:span.has-tt
+             {:title "Let the optimiser choose how to solve the problem, based on its size and the maximum runtime. Small problems are solved exactly; larger ones use a heuristic and then improve it piece by piece, finishing with an exact solve if there is time."}
+             "Automatic"]]]
+          (when (and (= :automatic method)
+                     (= :system @objective)
+                     @consider-insulation)
+            [:p {:style {:color :darkorange}}
+             "Insulation is only optimised if the model finishes with an exact solve, which it may not do for large problems."])])
+
        [:p
         "Stop if solution is known to be at least this close to the optimum "
         [inputs/number {:value-atom mip-gap :step 0.1 :min 0 :max 100 :scale 100}] "%"]
@@ -238,7 +263,7 @@
         "Stop if parameter fixing affects the objective by less than or equal to "
         [inputs/number {:value-atom param-gap :step 0.01 :min 0 :max 100 :scale 100}] "%"]
        [:p
-        "Stop after this many iterations "
+        "Stop after this many exact solve iterations "
         [inputs/number {:value-atom iteration-limit :step 1 :min 1 :max 1000
                         :empty-value [nil "1000"]}]]
        [:p

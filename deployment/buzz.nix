@@ -19,6 +19,8 @@
 
       services.thermos.model.scip = pkgs.scipopt-scip;
       services.thermos.postgresql = pkgs.postgresql_17.withPackages(p:[p.postgis]);
+      # the jar is built on this JDK (see flake.nix)
+      services.thermos.jre = pkgs.jdk21_headless;
 
       # required because we deployed a long time ago
       system.stateVersion = "21.11";

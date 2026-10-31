@@ -53,8 +53,10 @@
    ^double t-avg]
   (let [density   (water-density t-avg)
         area      (* Math/PI (Math/pow (* diameter 0.5) 2.0))
-        velocity  (- (* 4.7617 (Math/pow diameter 0.3701))
-                    0.4834)
+        ;; capped at 3m/s as in thermos.opt.net.pipes, which the model uses
+        velocity  (min 3.0
+                       (- (* 4.7617 (Math/pow diameter 0.3701))
+                          0.4834))
         flow-rate (* area velocity)
         mass-rate (* flow-rate density)]
     (* mass-rate heat-capacity delta-t)))

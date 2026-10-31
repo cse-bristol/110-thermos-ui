@@ -43,5 +43,5 @@
                      )}
       (spinner/spinner {:size 128})]
      ]
-    (include-js "/js/editor.js")])))
+    (include-js "/js/push.js" "/js/editor.js")])))
 

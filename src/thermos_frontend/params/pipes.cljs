@@ -13,7 +13,6 @@
             [thermos-frontend.flow :as f]
             [thermos-util.pipes :as pipe-calcs]
             [thermos-util :refer [kw->annual-kwh]]
-            [thermos-util.steam :as steam-calcs]
             [clojure.set :as set]
             [thermos-frontend.format :as format]))
 
@@ -249,145 +248,52 @@
        ]))
   )
 
-(defn- bar-g->MPa [bar-g]
-  ;; 1 bar = 100kpa, so 0.1bar = 1MPa
-  ;; 1 bar-g = 2 bar (in atmosphere)
-  (* (+ bar-g 1.0) 0.1))
-
-(defn- MPa->bar-g [MPa]
-  (- (* 10 MPa) 1.0))
-
 (defn cost-model [flow]
-  (let [medium         @(f/view* flow ::document/medium :hot-water)]
-    [:div.card {:key :a}
-     [:h1.card-header "Capacity & loss model"]
-     [:div.flex-cols {:key :b}
-      [:div
-       [:div
-        [:label {:style {:font-size :1.5em}}
-         [:input {:type      :radio :checked (= :hot-water medium)
-                  :on-change #(f/fire! flow [:pipe/change-medium :hot-water])
-                  :value     "cost-model"
-                  }]
-         "Hot water"]
-        
-        ]
-       
-       
-       [:div {:key :sat-steam}
-        [:label {:style {:font-size :1.5em}}
-         [:input {:type      :radio
-                  :value     "cost-model"
-                  :checked   (= :saturated-steam medium)
-                  :on-change #(f/fire! flow [:pipe/change-medium :saturated-steam])
-                  }]
-         "Saturated steam"]
-
-        (case medium
-          :hot-water
-          [:div {:key :hot-water-controls
-                 :style {:margin-left           :2em
-                         :margin-top            :1em
-                         :display               :grid
-                         :grid-template-columns "10em 5em auto"
-                         :gap                   :0.2em
-                         }}
-           [:label "Flow temperature: "]
-           [inputs/number2
-            {:key :flow-temperature
-             :value @(f/view* flow ::document/flow-temperature)
-             :on-change #(f/fire! flow [:pipe/change-flow-temperature %])}
-            ]
-           [:label "℃"]
-           
-           [:label "Return temperature:"]
-           [inputs/number2
-            {:value     @(f/view* flow ::document/return-temperature)
-             :on-change #(f/fire! flow [:pipe/change-return-temperature %])
-             }]
-           [:label "℃"]
-
-           [:label "Ground temperature:"]
-           [inputs/number2
-            {:value @(f/view* flow ::document/ground-temperature)
-             :on-change #(f/fire! flow [:pipe/change-ground-temperature %])}]
-           [:label "℃"]
-           ]
-
-          :saturated-steam
-          [:div {:key :steam-controls
-                 :style {:margin-left           :2em
-                         :margin-top            :1em
-                         :display               :grid
-                         :grid-template-columns "10em 5em auto"
-                         :gap                   :0.2em
-                         }}
-           [:label "Steam pressure: "]
-           [inputs/number2 {:value (MPa->bar-g @(f/view* flow ::document/steam-pressure))
-                            :on-change #(f/fire! flow [:pipe/change-steam-pressure (bar-g->MPa %)])}]
-           [:label
-            {:style {:white-space :nowrap}}
-            "bar g"]
-           
-           [:label "Velocity: "]
-           [inputs/number2 {:value @(f/view* flow ::document/steam-velocity)
-                            :on-change #(f/fire! flow [:pipe/change-steam-velocity %])
-                            }
-            ]
-           [:label "m/s"]
-
-           [:label "Ground temperature:"]
-           [inputs/number2 {:value @(f/view* flow ::document/ground-temperature)
-                            :on-change #(f/fire! flow [:pipe/change-ground-temperature %])}
-            ]
-           [:label "℃"]
-
-           ]
-
-          [:div "Unknown medium!"]
-          )
-        
-        ]]
-
-      [:div {:key :docs :style {:margin-left :2em :font-size :1.1em}}
-       (case medium
-         :hot-water
-         [:<>
-          [:p
-           "Pipe capacity is calculated from diameter using "
-           [:a {:target "help"
-                :href "/help/network/technical-description.html#pipe-diameter-calc"}
-            "recommended flow rates for the diameter"]
-           ", the specific heat of water, and the flow/return difference."
-           ]
-          [:p
-           "Heat losses are calculated from diameter using "
-           [:a {:target "help"
-                :href "/help/network/technical-description.html#pipe-heat-losses"} "this model"] "."
-           ]]
-         :saturated-steam
-         [:<>
-          [:p
-           "Pipe capacity is calculated from diameter and velocity using the "
-           "specific enthalpy of vaporisation & density for saturated steam "
-           "at the given pressure."]
-          [:p
-           "Heat losses are calculated by interpolating from a table for unlagged pipes, "
-           "and then applying an insulation factor for 50mm insulation. "
-           "These tables only cover diameters from 15-150mm diameter; you will have to manually "
-           "enter losses for diameters outside this range, or they will be ignored by the model."
-           ]
-          [:p
-           "Note that the default pipe costs are for hot water pipes, not steam pipes."
-           ]
-          ]
-
-         [:p "Unexpected medium: " medium]
-         
-         )
-       ]
+  [:div.card {:key :a}
+   [:h1.card-header "Capacity & loss model"]
+   [:div.flex-cols {:key :b}
+    [:div {:key :hot-water-controls
+           :style {:display               :grid
+                   :grid-template-columns "10em 5em auto"
+                   :gap                   :0.2em
+                   }}
+     [:label "Flow temperature: "]
+     [inputs/number2
+      {:key :flow-temperature
+       :value @(f/view* flow ::document/flow-temperature)
+       :on-change #(f/fire! flow [:pipe/change-flow-temperature %])}
       ]
-     ]))
+     [:label "℃"]
+
+     [:label "Return temperature:"]
+     [inputs/number2
+      {:value     @(f/view* flow ::document/return-temperature)
+       :on-change #(f/fire! flow [:pipe/change-return-temperature %])
+       }]
+     [:label "℃"]
+
+     [:label "Ground temperature:"]
+     [inputs/number2
+      {:value @(f/view* flow ::document/ground-temperature)
+       :on-change #(f/fire! flow [:pipe/change-ground-temperature %])}]
+     [:label "℃"]
+     ]
+
+    [:div {:key :docs :style {:margin-left :2em :font-size :1.1em}}
+     [:p
+      "Pipe capacity is calculated from diameter using "
+      [:a {:target "help"
+           :href "/help/network/technical-description.html#pipe-diameter-calc"}
+       "recommended flow rates for the diameter"]
+      ", the specific heat of water, and the flow/return difference."
+      ]
+     [:p
+      "Heat losses are calculated from diameter using "
+      [:a {:target "help"
+           :href "/help/network/technical-description.html#pipe-heat-losses"} "this model"] "."
+      ]]
+    ]
+   ])
 
 (def conn-fixed-unit "¤")
 (def conn-var-unit "¤/kWp")

@@ -34,12 +34,9 @@
    :supply])
 
 (def category-keys
-  {:objective [::document/medium
-               ::document/flow-temperature
+  {:objective [::document/flow-temperature
                ::document/return-temperature
                ::document/ground-temperature
-               ::document/steam-pressure
-               ::document/steam-velocity
                ::document/objective
                ::document/consider-alternatives
                ::document/consider-insulation
@@ -50,6 +47,7 @@
                ::document/mip-gap
                ::document/param-gap
                ::document/maximum-runtime
+               ::document/solution-method
                ::document/capital-costs
                ::document/maximum-supply-sites
                ]

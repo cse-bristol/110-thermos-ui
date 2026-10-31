@@ -1,44 +1,60 @@
 ;; This file is part of THERMOS, copyright © Centre for Sustainable Energy, 2017-2021
 ;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
 
-(require 'nrepl.server)
-(require 'refactor-nrepl.middleware)
-(require 'cider.nrepl)
-
 (ns build.dev
+  "The development environment: `clojure -M:dev:server:client [--emacs]`.
+  Starts an nREPL, the backend, figwheel for the editor and a LESS watcher."
   (:require [mount.core :as mount]
-            [clojure.tools.namespace :as tns]
             [clojure.java.io :as io]
+            [clojure.tools.cli :refer [parse-opts]]
             [nrepl.server :as nrepl]
-            [figwheel-sidecar.repl-api
-              :as repl-api :refer [cljs-repl]]
-            [less4clj.api :as less]
-            [clojure.edn :as edn]
-            [badigeon.clean :as clean]
-            ))
+            [figwheel.main.api :as figwheel]
+            [build.less :as less]
+            [build.vendor :as vendor]))
 
-;; start an nrepl to connect to
+(def cli-options
+  [["-e" "--emacs" "Use cider middleware for emacs"]])
 
 (defonce repl-server (atom nil))
-(defn- require-and-resolve [sym]
-  (require (symbol (namespace sym)))
-  (resolve sym))
 
-(defn start-dev [{nrepl-handler :nrepl-handler
-                  debug-optimizations :debug-optimizations}]
+(defn- delete-tree [f]
+  (when (.isDirectory f)
+    (run! delete-tree (.listFiles f)))
+  (io/delete-file f true))
 
-  (clean/clean "target")
-  
+(def ^:private generated (io/file "target/resources"))
+
+(defn- clean-target
+  "Empty target/, but keep target/resources itself. It is on the classpath,
+  and the JVM only treats it as a directory if it existed at startup."
+  []
+  (doseq [f (.listFiles (io/file "target"))
+          :when (not= f generated)]
+    (delete-tree f))
+  (run! delete-tree (.listFiles generated)))
+
+(defn start-dev [{:keys [emacs]}]
+  (when-not (.isDirectory generated)
+    (.mkdirs generated)
+    (println "\n*** target/resources did not exist when the JVM started, so the backend")
+    (println "*** will not be able to serve css and js. It exists now; please restart.\n"))
+
+  (clean-target)
+  (vendor/copy-vendor-js "target/resources")
+
   (reset! repl-server
-          (nrepl/start-server :handler (require-and-resolve nrepl-handler)))
-  
+          (if emacs
+            (do (require 'build.emacs)
+                (nrepl/start-server :handler @(resolve 'build.emacs/emacs-middleware)))
+            (nrepl/start-server)))
+
   (let [port (:port @repl-server)
         port-file (io/file ".nrepl-port")]
     (println "Server-side nREPL port" port)
     (.deleteOnExit port-file)
     (spit port-file port))
 
-  (try 
+  (try
     (require 'thermos-backend.core)
     ;; run webserver
     (mount/start)
@@ -47,29 +63,22 @@
       (println "Continuing with rest of build")
       (.printStackTrace e)))
 
-  ;; start cljs hot reloader
-  (let [cljs-builds (edn/read-string (slurp "cljs-builds.edn"))]
-    (repl-api/start-figwheel!
-     {
-      :figwheel-options {:server-logfile false}
-      :build-ids (for [b cljs-builds] (str (:main b)))
-      :all-builds
-      (for [b cljs-builds]
-        {:id (str (:main b))
-         :figwheel true
-         :source-paths ["src"]
-         :compiler (cond-> b
-                     debug-optimizations
-                     (assoc :pretty-print true
-                            :pseudo-names true)
-                     )})
-      }))
+  ;; before figwheel, which wants the css directory to exist
+  (vendor/copy-less-imports)
+  (less/watch "resources" "target/resources" [vendor/less-include-dir])
 
-  ;; start less autobuilder
-  (less/build
-   {:source-paths ["resources"]
-    :target-path "target/resources/"
-    :auto true}))
+  ;; cljs hot reloader, configured in dev.cljs.edn. For a cljs REPL, call
+  ;; (figwheel.main.api/cljs-repl "dev") from the nREPL.
+  (figwheel/start {:mode :serve} "dev"))
+
+(defn -main [& args]
+  (let [{:keys [options errors summary]} (parse-opts args cli-options)]
+    (if errors
+      (do (run! println errors)
+          (println summary)
+          (System/exit 1))
+      (do (start-dev options)
+          @(promise)))))
 
 (in-ns 'user)
 
@@ -78,7 +87,7 @@
 ;; this below is required because otherwise tools.namespace scans the
 ;; whole classpath, which unfortunately includes some clojure files that
 ;; refer to things which we do not have, making the refresh blow up.
-(tns/set-refresh-dirs "src" "build-src" "libs/thermos-importer/src")
+(tns/set-refresh-dirs "src" "build-src")
 (require '[mount.core :as mount])
 
 (defn restart-backend
@@ -89,4 +98,3 @@
   (require 'thermos-backend.core)
   (tns/refresh)
   (mount.core/start))
-

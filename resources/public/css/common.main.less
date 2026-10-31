@@ -111,3 +111,24 @@ th {
 @import (less) "ui_components/inputs.less";
 @import (less) "ui_components/animations.less";
 @import (less) "ui_components/flex.less";
+
+// The dialog that server-rendered pages load things into with htmx
+dialog#modal {
+    max-width: 80%;
+    max-height: 90vh;
+    overflow-y: auto;
+    border: none;
+    margin: auto;
+
+    &::backdrop {
+        background: rgba(0, 0, 0, 0.5);
+    }
+}
+
+// Shown while a form is uploading files, see pages.js
+.upload-progress {
+    border-radius: 8px;
+    padding: 0.1em 0.5em;
+    margin: 0.5em;
+    font-size: 1.2em;
+}

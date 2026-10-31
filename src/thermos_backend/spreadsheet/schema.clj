@@ -12,8 +12,7 @@
             [thermos-backend.spreadsheet.common :as sheet]))
 
 (def required-parameters
-  #{:medium
-    :flow-temperature
+  #{:flow-temperature
     :return-temperature
     :ground-temperature
     :pumping-overhead
@@ -321,7 +320,11 @@
                  [:value string?]]]
        [:rows [:sequential
                [:multi {:dispatch (comp sheet/to-keyword :parameter) :error/message "unknown parameter"}
-                [:medium [:map [:value [:enum "hot-water" "saturated-steam"]]]]
+                ;; medium and steam parameters are no longer used, but
+                ;; may be in older spreadsheets
+                [:medium [:map [:value {:optional true} any?]]]
+                [:steam-pressure [:map [:value {:optional true} any?]]]
+                [:steam-velocity [:map [:value {:optional true} any?]]]
                 [:flow-temperature [:map [:value number?]]]
                 [:return-temperature [:map [:value number?]]]
                 [:ground-temperature [:map [:value number?]]]
@@ -352,6 +355,7 @@
                 [:edge-cost-precision [:map [:value number?]]]
                 [:param-gap [:map [:value {:optional true} [:or number? nil?]]]]
                 [:max-runtime [:map [:value number?]]]
+                [:solution-method [:map [:value [:enum "exact" "automatic"]]]]
                 [:max-supplies [:map [:value [:or number? [:enum "unlimited"]]]]]]]]]
       [:fn
        {:error/fn (has-required-values? :parameter required-parameters)

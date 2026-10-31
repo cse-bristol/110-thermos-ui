@@ -43,6 +43,7 @@
             [goog.events :refer [listen]]
             [goog.math :refer [Size]]
             [goog.functions :refer [debounce]]
+            [goog.object :as gobj]
             [thermos-frontend.util :refer [target-value]]
 
             [thermos-frontend.flow]
@@ -144,6 +145,151 @@
 
     :name (preload/get-value :name)
     :unsaved? (state/needs-save?)}])
+
+(defn- rough-duration
+  "A duration in seconds, to the nearest minute or so"
+  [s]
+  (let [m (js/Math.round (/ s 60))]
+    (cond
+      (< s 60)  "less than a minute"
+      (< m 60)  (str m " min")
+      :else     (let [h (js/Math.floor (/ m 60))
+                      m (mod m 60)]
+                  (str h " h" (when (pos? m) (str " " m " min")))))))
+
+(defn- clock-time
+  "The time `s` seconds from now, with the day if it is not today"
+  [s]
+  (let [then (js/Date. (+ (js/Date.now) (* 1000 s)))]
+    (if (= (.toDateString then) (.toDateString (js/Date.)))
+      (.toLocaleTimeString then js/undefined #js {:hour "2-digit" :minute "2-digit"})
+      (.toLocaleString then js/undefined #js {:weekday "short" :hour "2-digit" :minute "2-digit"}))))
+
+(defn- last-line
+  "The last line of `message` with something on it"
+  [message]
+  (->> (s/split-lines (str message))
+       (remove s/blank?)
+       (last)))
+
+(defn- run-log
+  "The model's log, as a summary showing its latest line, which opens to
+  the whole log in a box which scrolls, following new lines unless the
+  user has scrolled up to look at something"
+  [_]
+  (let [*element (clojure.core/atom nil)
+        *follow  (clojure.core/atom true)
+        follow!  (fn [] (when-let [e @*element]
+                          (when @*follow (set! (.-scrollTop e) (.-scrollHeight e)))))]
+    (r/create-class
+     {:component-did-mount follow!
+      :component-did-update follow!
+      :reagent-render
+      (fn [message]
+        [:details {:style {:margin "0.5em 0" :min-height 0}
+                   ;; the log can't be scrolled while it is closed, so
+                   ;; catch up when it is opened
+                   :on-toggle follow!}
+         [:summary {:style {:cursor :pointer
+                            :white-space :nowrap
+                            :overflow :hidden
+                            :text-overflow :ellipsis
+                            :font-family :monospace
+                            :font-size :0.85em}}
+          (or (last-line message) "Starting...")]
+         [:pre
+          {:ref #(reset! *element %)
+           :on-scroll (fn [e]
+                        (let [e (.-target e)]
+                          (reset! *follow (< (- (.-scrollHeight e)
+                                                (.-scrollTop e)
+                                                (.-clientHeight e))
+                                             20))))
+           :style {:font-size :0.75em
+                   :overflow :auto
+                   :max-height :50vh
+                   :margin "0.5em 0 0 0"
+                   :padding :0.5em
+                   :background "#f4f4f4"}}
+          message]])})))
+
+(defn- run-progress [{:keys [elapsed expected-runtime finishes-in]}]
+  (when (and elapsed expected-runtime (pos? expected-runtime))
+    [:div {:style {:margin "0.5em 0"}}
+     [:progress {:style {:width :100%}
+                 :max expected-runtime
+                 :value (min elapsed expected-runtime)}]
+     [:div {:style {:display :flex :justify-content :space-between :font-size :0.9em}}
+      [:span (rough-duration elapsed) " of up to " (rough-duration expected-runtime)]
+      (if (pos? finishes-in)
+        [:span "Should finish by " (clock-time finishes-in)]
+        [:span "Time limit reached, finishing up"])]]))
+
+(defn- run-estimate [position {:keys [starts-in finishes-in]}]
+  [:div
+   [:b "Number " position " in queue"]
+   (when (and starts-in finishes-in)
+     [:p (if (< starts-in 60)
+           "Should start shortly"
+           (str "Should start within " (rough-duration starts-in)))
+      ", and finish by " (clock-time finishes-in) "."
+      [:br]
+      [:small "This assumes every job ahead uses its whole time limit, so it may well be sooner."]])])
+
+(def ^:private push-offer-seconds
+  "Offer push notifications for runs that may take longer than this"
+  (* 20 60))
+
+(def ^:private push-offered-key "thermos-push-offered")
+
+;; nil until there's a long run, then :checking, :show, :enabled or :hide
+(defonce ^:private *push-offer (r/atom nil))
+
+(defn- push-api [] (gobj/get js/window "thermosPush"))
+
+(defn- consider-push-offer!
+  "The first time a run may take a while, offer to send a notification when
+  it's done, unless this browser has them already or can't have them."
+  [{:keys [finishes-in]}]
+  (when (and (nil? @*push-offer)
+             (number? finishes-in)
+             (> finishes-in push-offer-seconds))
+    (let [api (push-api)
+          offered (try (.getItem js/localStorage push-offered-key)
+                       (catch :default _ "unknown"))]
+      (if (or (not api) offered)
+        (reset! *push-offer :hide)
+        (do (reset! *push-offer :checking)
+            (-> (js-invoke api "state")
+                (.then (fn [s]
+                         (if (= s "off")
+                           (do (try (.setItem js/localStorage push-offered-key "yes")
+                                    (catch :default _))
+                               (reset! *push-offer :show))
+                           (reset! *push-offer :hide))))
+                (.catch #(reset! *push-offer :hide))))))))
+
+(defn- push-offer [timing]
+  (consider-push-offer! timing)
+  (case @*push-offer
+    :show
+    [:div {:style {:margin "0.5em 0" :padding "0.5em" :background "#eef6fb"
+                   :display :flex :align-items :center :gap "0.5em"}}
+     [:span {:style {:flex-grow 1}}
+      "This could take a while. Would you like a notification in this browser when it's done?"]
+     [:button.button
+      {:on-click (fn []
+                   (-> (js-invoke (push-api) "enable")
+                       (.then #(reset! *push-offer (if (= % "on") :enabled :hide)))
+                       (.catch #(reset! *push-offer :hide))))}
+      "Notify me"]
+     [:button.button {:on-click #(reset! *push-offer :hide)} "No thanks"]]
+
+    :enabled
+    [:div {:style {:margin "0.5em 0"}}
+     "We'll let you know when it's done. You can change this in your account settings."]
+
+    nil))
 
 (defn main-page []
   (r/with-let [*selected-tab (r/cursor state/state [::view/view-state ::view/selected-tab])
@@ -370,24 +516,27 @@
                         :display :flex
                         :background "rgba(0,0,0,0.75)"}}
           (let [position (state/queue-position)
-                run-state (state/run-state)]
+                run-state (state/run-state)
+                timing (state/run-timing)]
             [:div.popover-menu
              {:style {:background :white
                       :padding :1em
-                      :margin :auto :width :75vw}}
-             
+                      :margin :auto :width :75vw
+                      :max-height :85vh
+                      :display :flex
+                      :flex-direction :column}}
+
              (case run-state
                (:cancel :cancelling)  [:b "Cancelling"]
                :running
                [:<>
                 [:b "Model is running"]
-                [:pre
-                 {:style {:font-size :0.75em :overflow :auto}}
-                 
-                 (state/run-message)]
-                ]
+                [run-progress timing]
+                [run-log (state/run-message)]]
 
-               [:span "Number " position " in queue"])
+               [run-estimate (:position timing position) timing])
+             (when-not (#{:cancel :cancelling} run-state)
+               [push-offer timing])
              [:a {:href "../../../"} "Back to project"]])])
 
        [:div {:style {:key :main-body

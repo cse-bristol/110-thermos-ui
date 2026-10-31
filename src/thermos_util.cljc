@@ -2,6 +2,7 @@
 ;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
 
 (ns thermos-util
+  (:refer-clojure :exclude [parse-double])
   (:require [clojure.string :as string]
             [clojure.test :as test]))
 

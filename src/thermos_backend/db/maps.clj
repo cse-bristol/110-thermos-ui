@@ -35,6 +35,15 @@
    :maps {:project-id project-id :name map-name
           :parameters (pr-str parameters)}))
 
+(defn rename-map! [map-id map-name]
+  {:pre [(int? map-id)
+         (string? map-name)
+         (not (string/blank? map-name))]}
+  (-> (h/update :maps)
+      (h/sset {:name map-name})
+      (h/where [:= :id map-id])
+      (db/execute!)))
+
 (defn set-job-id! [map-id job-id]
   {:pre [(int? map-id)
          (int? job-id)]}

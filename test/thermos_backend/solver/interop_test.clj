@@ -9,6 +9,10 @@
             [thermos-specs.supply :as supply]
             [thermos-specs.candidate :as candidate]
             [thermos-specs.demand :as demand]
+            [thermos-specs.path :as path]
+            [thermos-specs.defaults :as defaults]
+            [thermos.opt.net.specs :as specs]
+            [thermos.opt.net.pipes :as pipes]
             ))
 
 (defn- dp4 [n] (/ (Math/round (* n 1000.0)) 1000.0))
@@ -75,3 +79,53 @@
     (t/is (== (dp4 cost%kwh-notank) (dp4 (+ 0.2 (/ 2.0 8760.0)))))
     ))
 
+
+(defn- street-document
+  "A street of `n` buildings, each joined to the next by a 30m path,
+  with a supply at the end."
+  [n]
+  (let [junction #(str "j" %)
+        building (fn [i]
+                   #::candidate{:id (str "b" i) :type :building :inclusion :optional
+                                :selected false :connections [(junction i)]
+                                ::demand/kwh 20000.0 ::demand/kwp 15.0
+                                ::demand/connection-count 1})
+        street   (fn [i]
+                   #::candidate{:id (str "p" i) :type :path :inclusion :optional :selected false
+                                ::path/start (junction i) ::path/end (junction (inc i))
+                                ::path/length 30.0 ::path/civil-cost-id (inc (mod i 2))})
+        supply   (assoc (building n)
+                        ::supply/capacity-kwp 5000.0 ::supply/cost-per-kwh 0.02
+                        ::supply/capex-per-kwp 100.0 ::supply/fixed-cost 1000.0)]
+    (assoc defaults/default-document
+           ::document/candidates
+           (into {} (map (juxt ::candidate/id identity))
+                 (concat (map building (range n)) [supply] (map street (range n)))))))
+
+(defn- model-input [doc]
+  (#'sut/instance->model-input doc
+                               (sut/simplified-graph doc)
+                               (sut/doc->pipe-curves doc)
+                               (#'sut/make-market-decisions doc)))
+
+(t/deftest model-input-is-valid
+  (let [doc (-> (street-document 5)
+                (assoc-in [::document/emissions-limit :enabled :co2] true)
+                (assoc-in [::document/emissions-limit :value :co2] 1000.0))
+        input (model-input doc)]
+    (t/is (specs/ensure-valid-problem input))
+    (t/is (not (contains? input :supply-limit)))
+    (t/is (vector? (:kwp (:pipe-losses input))))
+    (t/is (= 1000.0 (get-in input [:emissions :co2 :maximum])))
+    (t/is (= 5 (count (filter :cost-steps (:edges input))))
+          "every street has cost steps, and connectors (zero length) don't")
+    (t/is (= 3 (:supply-limit
+                (model-input (assoc doc ::document/maximum-supply-sites 3)))))))
+
+(t/deftest pipe-losses-are-watts
+  (let [doc (street-document 1)
+        curves (sut/doc->pipe-curves
+                (assoc-in doc [::document/pipe-costs :rows 100 :losses-kwh] 87.66))
+        row (first (filter #(== 0.1 (:diameter %)) (pipes/curve-rows curves)))]
+    ;; 87.66 kWh/m.yr is 10 W/m
+    (t/is (< (Math/abs (- 10.0 (:losses-w row))) 1e-6))))

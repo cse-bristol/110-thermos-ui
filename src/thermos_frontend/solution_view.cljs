@@ -553,35 +553,47 @@
       [:th "Runtime:"]
       [:td.numeric (format/seconds (::solution/runtime @parameters))]]
 
-     [:tr
-      [:th.has-tt
-       {:title "Fixing parameters sometimes changes the solution. This is how many solutions were evaluated because of this."}
-       "Iterations:"]
-      [:td.numeric (::solution/iterations @parameters)]]
+     (when-let [stages (seq (::solution/stages @parameters))]
+       [:tr
+        [:th.has-tt
+         {:title "The methods the optimiser used, in order."}
+         "Method:"]
+        [:td (s/join ", " (map name stages))]])
 
-     [:tr
-      [:th.has-tt
-       {:title "This is the range of objective value change caused by fixing parameters."}
-       "Iteration range:"]
-      [:td.numeric
-       (format/si-number
-        (Math/abs
-         (- (reduce min (::solution/objectives @parameters))
-            (reduce max (::solution/objectives @parameters)))))]]
+     ;; a solution that didn't finish with an exact solve has no gap,
+     ;; bounds or parameter-fixing iterations
+     (when (::solution/gap @parameters)
+       [:<>
+        [:tr
+         [:th.has-tt
+          {:title "Fixing parameters sometimes changes the solution. This is how many solutions were evaluated because of this."}
+          "Iterations:"]
+         [:td.numeric (::solution/iterations @parameters)]]
 
-     [:tr
-      [:th "Gap:"]
-      [:td.numeric (::solution/gap @parameters)]]
+        (when-let [objectives (seq (::solution/objectives @parameters))]
+          [:tr
+           [:th.has-tt
+            {:title "This is the range of objective value change caused by fixing parameters."}
+            "Iteration range:"]
+           [:td.numeric
+            (format/si-number
+             (Math/abs
+              (- (reduce min objectives)
+                 (reduce max objectives))))]])
 
-     [:tr
-      [:th.has-tt {:title "These are the optimiser's bounds on the optimal objective value for the best solution found, without accounting for subsequent parameter fixing."}
-       "Bounds:"]
-      [:td.numeric (format/si-number
-                    (first (::solution/bounds @parameters)))
-       " — "
-       (format/si-number
-        (second (::solution/bounds @parameters)))
-       ]]]]])
+        [:tr
+         [:th "Gap:"]
+         [:td.numeric (::solution/gap @parameters)]]
+
+        [:tr
+         [:th.has-tt {:title "These are the optimiser's bounds on the optimal objective value for the best solution found, without accounting for subsequent parameter fixing."}
+          "Bounds:"]
+         [:td.numeric (format/si-number
+                       (first (::solution/bounds @parameters)))
+          " — "
+          (format/si-number
+           (second (::solution/bounds @parameters)))
+          ]]])]]])
 
 (defn- solution-summary* [document]
   (reagent/with-let
@@ -607,6 +619,7 @@
                          ::solution/bounds
                          ::solution/objectives
                          ::solution/gap
+                         ::solution/stages
 
                          ::document/mode
 
