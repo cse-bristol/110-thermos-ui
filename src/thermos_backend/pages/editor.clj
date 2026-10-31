@@ -10,6 +10,8 @@
             [thermos-pages.spinner :as spinner]
             [thermos-pages.common :refer [style]]
             [thermos-backend.config :refer [config]]
+            [thermos-backend.network-transit :as network-transit]
+            [clojure.string :as string]
             [thermos-backend.pages.common :refer [source-sans-pro preloaded-values]]))
 
 (defn editor-page [name
@@ -21,9 +23,16 @@
   (str
    (html
     [:head
+     (when initial-content
+       ;; the network document, as transit json for the editor to read.
+       ;; < only appears in json strings, so escaping it there keeps the
+       ;; html parser from seeing </script> or <!-- in a value.
+       [:script {:type "application/transit+json" :id "thermos-network"}
+        (raw-string
+         (string/replace (network-transit/edn->transit initial-content)
+                         "<" "\\u003c"))])
      (preloaded-values
-      {:initial-state initial-content
-       :name name
+      {:name name
        :map-bounds map-bounds
        :mode initial-mode
        :read-only read-only

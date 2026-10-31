@@ -39,10 +39,11 @@
           min-y (.getMinY envelope)
           max-y (.getMaxY envelope)
           
-          bbox {:minX min-x
-                :maxX max-x
-                :minY min-y
-                :maxY max-y}
+          ;; a js object, as that's what goes into the spatial index
+          bbox #js {:minX min-x
+                    :maxX max-x
+                    :minY min-y
+                    :maxY max-y}
 
           ;; how many degrees is the biggest extent
           ;; max-extent
@@ -75,27 +76,26 @@
          candidates-bboxes (::candidates-bboxes document)
          spatial-index (or (::spatial-index document) (RBush.))
          indexed-candidates
-         (-> (::indexed-candidates document)
+         (-> (or (::indexed-candidates document) #{})
              (set/union added)
-             (set/difference removed)
-             (set))
+             (set/difference removed))
 
          candidates (::document/candidates document)
 
-         ;; more horrible performance hackery
+         ;; the bboxes are js objects, which go in the index with their ids
          added-candidates-bboxes
-         (reduce
-          (fn [a id]
-            (let [bb (clj->js (::bbox (candidates id)))]
-              (o/set bb "id" id)
-              (assoc a id bb)))
-          {}
-          added)
+         (persistent!
+          (reduce
+           (fn [a id]
+             (let [bb (::bbox (candidates id))]
+               (o/set bb "id" id)
+               (assoc! a id bb)))
+           (transient {})
+           added))
          ]
 
      ;; put new items into the index based on their bounding boxes
-     ;; they go in as JS objects, so we clj->js them
-     (.load spatial-index (clj->js (vals added-candidates-bboxes)))
+     (.load spatial-index (into-array (vals added-candidates-bboxes)))
 
      ;; deindex things we can no longer see
      ;; these are JS objects rather than immutable maps, because
@@ -116,13 +116,22 @@
             ::indexed-candidates indexed-candidates)))
 
   ([document]
-   (let [all-candidates (set (keys (::document/candidates document)))
-         indexed-candidates (::indexed-candidates document)]
-     (if (= all-candidates indexed-candidates)
+   ;; this happens after every event which may change geometry, so avoids
+   ;; making sets of all the candidates
+   (let [candidates (::document/candidates document)
+         indexed    (or (::indexed-candidates document) #{})
+         added      (persistent!
+                     (reduce-kv (fn [s id _] (if (contains? indexed id) s (conj! s id)))
+                                (transient #{}) candidates))
+         ;; every candidate is either indexed or added, so this many
+         ;; indexed ones are gone
+         n-removed  (- (+ (count indexed) (count added)) (count candidates))
+         removed    (if (pos? n-removed)
+                      (into #{} (remove #(contains? candidates %)) indexed)
+                      #{})]
+     (if (and (empty? added) (empty? removed))
        document
-       (update-index document
-                     (set/difference all-candidates indexed-candidates)
-                     (set/difference indexed-candidates all-candidates))))))
+       (update-index document added removed)))))
 
 (defn find-candidates-ids-in-bbox
   [doc bbox]
@@ -195,10 +204,11 @@ the selection `mode` (passed on to operations/select) and maybe the index"
                               selected-candidates)]
     (if (empty? selected-candidates)
       doc
-      (let [minX (apply min (map #(:minX (::bbox %)) selected-candidates))
-            maxX (apply max (map #(:maxX (::bbox %)) selected-candidates))
-            minY (apply min (map #(:minY (::bbox %)) selected-candidates))
-            maxY (apply max (map #(:maxY (::bbox %)) selected-candidates))
+      (let [edge #(o/get (::bbox %2) %1)
+            minX (apply min (map #(edge "minX" %) selected-candidates))
+            maxX (apply max (map #(edge "maxX" %) selected-candidates))
+            minY (apply min (map #(edge "minY" %) selected-candidates))
+            maxY (apply max (map #(edge "maxY" %) selected-candidates))
             new-bbox {:north maxY
                       :south minY
                       :east maxX

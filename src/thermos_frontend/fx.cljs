@@ -7,8 +7,7 @@
   event to dispatch with it as :on-response, and conj the response onto it."
   (:require [re-frame.core :as rf]
             [goog.net.XhrIo :as xhr]
-            [cognitect.transit :as transit]
-            [cljs.reader :as reader]))
+            [thermos-frontend.transit :as transit]))
 
 (defn- response-headers
   "What the server says about the network and its run, in the headers of
@@ -33,9 +32,9 @@
                       :location (.getResponseHeader target "Location"))))))
     "POST"
     (let [data (js/FormData.)
-          blob (js/Blob. #js [content] #js {"type" "application/edn"})]
+          blob (js/Blob. #js [content] #js {"type" transit/content-type})]
       (.append data "name" title)
-      (.append data "content" blob "content.edn")
+      (.append data "content" blob "content.json")
       data))))
 
 (rf/reg-fx
@@ -49,10 +48,10 @@
           (rf/dispatch
            (conj on-response
                  (assoc (response-headers target)
-                        :document (reader/read-string (.getResponseText target))))))))
+                        :document (transit/read (.getResponseText target))))))))
     "GET"
     nil
-    #js {"Accept" "application/edn"})))
+    #js {"Accept" transit/content-type})))
 
 ;; the server sends the run status as transit
 (rf/reg-fx
@@ -65,7 +64,7 @@
         (when (.isSuccess target)
           (rf/dispatch
            (conj on-response
-                 (transit/read (transit/reader :json) (.getResponseText target)))))))
+                 (transit/read (.getResponseText target)))))))
     "GET")))
 
 (defonce ^:private poll-timer (atom nil))

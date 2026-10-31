@@ -41,9 +41,12 @@
   (is (= 5 (::document/npv-term (after [:doc/set [::document/npv-term] 5]))))
   (is (= 3 (get-in (after [:doc/update [::document/pipe-costs :rows 100 :pipe] + 2])
                    [::document/pipe-costs :rows 100 :pipe])))
-  (testing "geometry events update the spatial index"
-    (is (some? (::spatial/spatial-index
-                (after [:doc/edit-geometry dissoc ::document/candidates]))))))
+  (testing "geometry events"
+    ;; the test candidates have no geometry to index, so drop them; the
+    ;; index itself is tested in spatial-test
+    (is (= 31 (::document/npv-term
+               (after [:doc/edit dissoc ::document/candidates]
+                      [:doc/edit-geometry assoc ::document/npv-term 31]))))))
 
 (deftest selection
   (is (= #{"a"} (set (operations/selected-candidates-ids (after [:select-ids ["a"]])))))

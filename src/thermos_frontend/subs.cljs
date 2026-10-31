@@ -73,18 +73,20 @@
  ;; the ids of all candidates in the same group as any selected candidate
  :<- [:doc/candidates]
  (fn [candidates _]
-   (let [groups (->> (for [[id {g ::demand/group}] candidates
-                           :when g] [g id])
-                     (group-by first)
-                     (S/multi-transform
-                      [S/MAP-VALS (S/multi-path
-                                   [S/ALL (S/terminal second)]
-                                   (S/terminal set))]))]
-     (set
-      (for [[_ {g ::demand/group s ::candidate/selected}] candidates
-            :when (and s g)
-            adj (groups g)]
-        adj)))))
+   ;; the groups of the selected candidates first, as usually there are
+   ;; none, and then there's no need to look at the others
+   (let [selected-groups (persistent!
+                          (reduce-kv
+                           (fn [gs _ {g ::demand/group s ::candidate/selected}]
+                             (if (and s g) (conj! gs g) gs))
+                           (transient #{}) candidates))]
+     (if (empty? selected-groups)
+       #{}
+       (persistent!
+        (reduce-kv
+         (fn [ids id {g ::demand/group}]
+           (if (and g (contains? selected-groups g)) (conj! ids id) ids))
+         (transient #{}) candidates))))))
 
 (rf/reg-sub
  :candidates/selected-user-fields

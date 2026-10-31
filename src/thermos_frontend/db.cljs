@@ -11,7 +11,7 @@
 
   ::server  where the document lives on the server and the state of any
             run, see `initial-server`"
-  (:require [cljs.reader :as reader]
+  (:require [thermos-frontend.transit :as transit]
             [thermos-specs.defaults :refer [default-document default-cooling-document]]
             [thermos-specs.document :as document]
             [thermos-frontend.operations :as operations]
@@ -45,8 +45,8 @@
 (defn initial-document
   "The document the page was served with, or a new one covering the map"
   []
-  (if-let [initial-state (preload/get-value :initial-state :clear true)]
-    (spatial/update-index (reader/read-string initial-state))
+  (if-let [initial-state (js/document.getElementById "thermos-network")]
+    (spatial/update-index (transit/read (.-textContent initial-state)))
     (operations/move-map
      (case (preload/get-value :mode)
        :cooling default-cooling-document

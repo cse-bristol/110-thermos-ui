@@ -11,6 +11,7 @@
             [thermos-specs.document :as document]
             [thermos-frontend.db :as db]
             [thermos-frontend.fx :as fx]
+            [thermos-frontend.transit :as transit]
             [thermos-frontend.operations :as operations]
             [thermos-frontend.spatial :as spatial]))
 
@@ -222,7 +223,7 @@
 (defn save [{db :db} [_ title run callback]]
   {::fx/save {:title title
               :run run
-              :content (pr-str (document/keep-interesting db))
+              :content (transit/write (document/keep-interesting db))
               :on-response [:server/saved run callback]}})
 
 (defn saved [{db :db} [_ run callback {:keys [status location run-state queue-position]}]]

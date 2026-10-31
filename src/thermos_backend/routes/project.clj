@@ -9,6 +9,7 @@
             [ring.util.response :as response]
             [ring.util.codec :refer [url-decode]]
             [thermos-backend.db.projects :as projects]
+            [thermos-backend.network-transit :as network-transit]
             [thermos-backend.pages.cache-control :as cache-control]
             [thermos-backend.pages.maps :as map-pages]
             [thermos-backend.pages.editor :as editor]
@@ -318,6 +319,11 @@
                         net-id
                         (:id auth/*current-user*))]
       (-> (cond
+            (accept "application/transit+json")
+            (-> (response/response (network-transit/edn->transit (:content info)))
+                (response/status 200)
+                (response/content-type "application/transit+json; charset=utf-8"))
+
             (accept "application/edn")
             (-> (response/response (:content info))
                 (response/status 200)
@@ -362,8 +368,15 @@
          (string? name)
          (not (string/blank? name))]}
   (auth/verify [:write :map map-id]
-    (let [content (if (:tempfile content)
+    (let [content (cond
+                    ;; the editor sends transit; networks are stored as EDN
+                    (= "application/transit+json" (:content-type content))
+                    (network-transit/transit->edn (slurp (:tempfile content)))
+
+                    (:tempfile content)
                     (slurp (:tempfile content))
+
+                    :else
                     (str content))
           new-id (projects/save-network!
                   (:id auth/*current-user*)
