@@ -325,6 +325,7 @@
     (when (document/has-solution? doc)
       (concat
        [{:name "In solution" :key ::solution/included}
+        {:name "Upgraded" :key (comp boolean ::solution/upgraded)}
         {:name "Diameter (mm)" :key ::solution/diameter-mm}
         {:name "Capacity (kW)" :key ::solution/capacity-kw}
         {:name "Losses (kWh/yr)" :key ::solution/losses-kwh}

@@ -15,6 +15,8 @@
             [clojure.tools.logging :as log]
             [thermos-backend.db.users :as users]
             [thermos-backend.db.projects :as projects]
+            [thermos-backend.login-throttle :as throttle]
+            [thermos-backend.passwords :as passwords]
             [thermos-backend.pages.cache-control :as cache-control]))
 
 (def ^:dynamic *current-user* nil)
@@ -104,6 +106,10 @@ If it does exist, you don't have privileges to see it.")
          resp#)
        (do ~@body))))
 
+(def ^:private allowed-before-password-change
+  "Where someone who must change their password can go"
+  #{"/settings" "/logout"})
+
 (defn wrap-auth
   "Ring middleware that gets the ::user-id out of the session
   and uses it to set `*current-user*` for the rest of the request.
@@ -111,13 +117,21 @@ If it does exist, you don't have privileges to see it.")
   This done, you can use `restrict` to control access within handlers
   or `with-restrict` to restrict routes (the middleware version of
   restrict)
+
+  Someone who logged in with a password which is no longer good enough
+  is kept on the settings page until they change it.
   "
   [h]
   (fn [r]
     (let [user-id (::user-id (:session r))
           user (and user-id (users/user-rights user-id))]
       (binding [*current-user* user]
-        (h r)))))
+        (if (and user
+                 (::must-change-password (:session r))
+                 (not (allowed-before-password-change (:uri r))))
+          (-> (response/redirect "/settings")
+              (cache-control/no-store))
+          (h r))))))
 
 ;; (defn restricted* [handler requirement]
 ;;   (fn [request]
@@ -135,14 +149,38 @@ If it does exist, you don't have privileges to see it.")
 
 
 (defn handle-login [email password redirect-to]
-  (let [email (string/lower-case email)]
-    (if (users/correct-password? email password)
+  (let [email (string/lower-case email)
+        wait  (throttle/seconds-to-wait email)]
+    (cond
+      (pos? wait)
+      (do (log/info email "login refused for" wait "seconds")
+          (response/redirect (str "/login?flash=wait&seconds=" wait)))
+
+      (users/correct-password? email password)
       (do (log/info email "logged in")
+          (throttle/succeeded! email)
           (users/logged-in! email)
-          (-> (response/redirect (or redirect-to "/"))
-              (update :session assoc ::user-id email)))
+          (if (passwords/password-problem password)
+            (-> (response/redirect "/settings")
+                (assoc :session {::user-id email
+                                 ::must-change-password (or redirect-to "/")}))
+            (-> (response/redirect (or redirect-to "/"))
+                (assoc :session {::user-id email}))))
+
+      :else
       (do (log/info email "login failed!")
+          (throttle/failed! email)
           (response/redirect "/login?flash=failed")))))
+
+(defn password-changed
+  "Update `response` to a request from someone who has just changed their
+  password. If they were made to, they can now go where they were going."
+  [request response]
+  (if-let [target (::must-change-password (:session request))]
+    (-> response
+        (assoc-in [:headers "Location"] target)
+        (assoc :session (dissoc (:session request) ::must-change-password)))
+    response))
 
 (defn handle-logout []
   (log/info (:id *current-user*) "logged out")
@@ -150,10 +188,10 @@ If it does exist, you don't have privileges to see it.")
       (update :session dissoc ::user-id)))
 
 (defroutes auth-routes
-  (GET "/login" [target flash]
+  (GET "/login" [target flash seconds]
     (if *current-user*
       (response/redirect target)
-      (login-form target flash)))
+      (login-form target flash seconds)))
 
   (GET "/token/:token" [token]
     ;; since the token is sent by email, knowing it is as good as a password.
@@ -166,8 +204,14 @@ If it does exist, you don't have privileges to see it.")
                   create login forgot]
     (cond
       create
-      (if (users/create-user! username username password)
+      (cond
+        (passwords/password-problem password)
+        (response/redirect "/login?flash=weak")
+
+        (users/create-user! username username password)
         (handle-login username password "/")
+
+        :else
         (response/redirect "/login?flash=exists"))
 
       login

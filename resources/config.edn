@@ -40,4 +40,13 @@
  :contact-email "info@thermos-project.eu"
 
  :has-gurobi false
+
+ ;; passwords shorter than this are refused, and someone who logs in
+ ;; with one has to change it
+ :min-password-length 12
+
+ ;; seconds a username must wait before trying to log in again after its
+ ;; 1st, 2nd, 3rd, ... consecutive failure; the last entry repeats.
+ ;; Failures are forgotten after a day without any, or on success.
+ :login-delay-schedule [0 0 0 10 30 60 300]
  }

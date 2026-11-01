@@ -357,6 +357,9 @@
             :summary :max :unit "W" :scale 1000]
            [number-row selection "Diameter" ::solution/diameter-mm
             :summary :max :unit "m" :scale 0.001]
+           [chips-row selection "Existing pipe"
+            (fn [x] (when (and (::path/exists x) (::solution/included x))
+                      (if (::solution/upgraded x) "upgraded" "kept")))]
 
            [cost-row selection]
            

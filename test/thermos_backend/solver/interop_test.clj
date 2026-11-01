@@ -129,3 +129,98 @@
         row (first (filter #(== 0.1 (:diameter %)) (pipes/curve-rows curves)))]
     ;; 87.66 kWh/m.yr is 10 W/m
     (t/is (< (Math/abs (- 10.0 (:losses-w row))) 1e-6))))
+
+(defn- existing [doc path-id dia]
+  (update-in doc [::document/candidates path-id]
+             #(cond-> (assoc % ::path/exists true)
+                dia (assoc ::path/maximum-diameter dia))))
+
+(defn- model-edge [input a b]
+  (first (filter #(= #{a b} #{(:i %) (:j %)}) (:edges input))))
+
+(def ^:private recurring-pipework
+  ;; so that replacing an existing pipe costs something
+  {:pipework {:recur true :period 20}})
+
+(t/deftest existing-pipes-can-be-upgraded
+  (let [doc (-> (street-document 5)
+                (assoc ::document/capital-costs recurring-pipework)
+                (existing "p1" 0.02)
+                (assoc-in [::document/candidates "p2" ::path/maximum-diameter] 0.02))
+        curves (sut/doc->pipe-curves doc)
+        input  (model-input doc)
+        kept   (model-edge input "j1" "j2")
+        capped (model-edge input "j2" "j3")
+        new    (model-edge input "j3" "j4")]
+    (t/is (specs/ensure-valid-problem input))
+
+    (t/is (== (float (pipes/dia->kw curves 20.0)) (:existing-capacity%kwp kept)))
+    (t/is (== (float (pipes/max-kw curves)) (:max-capacity%kwp kept))
+          "the existing diameter is no limit")
+    (t/is (pos? (:cost%m kept)))
+    (t/is (zero? (:cost%kwm kept)))
+    (let [[[kw cost] & more] (:cost-steps kept)]
+      (t/is (== (pipes/max-kw curves) kw))
+      (t/is (< (Math/abs (- cost (:cost%m kept))) 1e-3))
+      (t/is (nil? more)))
+    (t/is (not (neg? (:upgrade-cost%m kept))))
+    (t/is (pos? (:upgrade-cost%kwm kept)))
+
+    (t/is (== (float (pipes/dia->kw curves 20.0)) (:max-capacity%kwp capped))
+          "a new path's maximum diameter is still a limit")
+    (t/is (not (contains? capped :existing-capacity%kwp)))
+    (t/is (not (contains? new :existing-capacity%kwp)))))
+
+(t/deftest existing-pipes-of-unknown-size
+  (let [doc   (-> (street-document 3)
+                  (assoc ::document/capital-costs recurring-pipework))
+        new   (model-edge (model-input doc) "j1" "j2")
+        old   (model-edge (model-input (existing doc "p1" nil)) "j1" "j2")]
+    (t/is (not (contains? old :existing-capacity%kwp)))
+    (t/is (< (:cost%m old) (:cost%m new))
+          "an existing pipe only costs its replacement")))
+
+(defn- split-street
+  "A building joined to a supply by two 30m paths which meet at a junction"
+  []
+  (let [doc (street-document 1)]
+    (-> doc
+        (update ::document/candidates dissoc "p0")
+        (update ::document/candidates assoc
+                "pa" #::candidate{:id "pa" :type :path :inclusion :optional :selected false
+                                  ::path/start "j0" ::path/end "jm"
+                                  ::path/length 30.0 ::path/civil-cost-id 1}
+                "pb" #::candidate{:id "pb" :type :path :inclusion :optional :selected false
+                                  ::path/start "jm" ::path/end "j1"
+                                  ::path/length 30.0 ::path/civil-cost-id 1}))))
+
+(t/deftest existing-and-new-paths-are-not-joined
+  (let [edges #(count (filter (comp pos? :length) (:edges (model-input %))))]
+    (t/is (= 1 (edges (split-street))))
+    (t/is (= 1 (edges (-> (split-street) (existing "pa" 0.05) (existing "pb" 0.05)))))
+    (t/is (= 2 (edges (-> (split-street) (existing "pa" 0.05)))))
+    (t/is (= 2 (edges (-> (split-street) (existing "pa" 0.05) (existing "pb" 0.1)))))))
+
+(t/deftest upgraded-pipes-in-the-solution
+  (let [doc    (-> (street-document 1)
+                   (assoc ::document/capital-costs recurring-pipework)
+                   (existing "p0" 0.05))
+        graph  (sut/simplified-graph doc)
+        curves (sut/doc->pipe-curves doc)
+        exist-kw (pipes/dia->kw curves 50.0)
+        solve  (fn [kw]
+                 (-> (#'sut/merge-solution
+                      doc graph curves {}
+                      {:state :valid
+                       :edges [{:i "j0" :j "j1" :capacity-kw kw :losses-kw 0.0 :diversity 1.0}]})
+                     (get-in [::document/candidates "p0"])))
+        kept     (solve (* 0.5 exist-kw))
+        upgraded (solve (* 2.0 exist-kw))]
+    (t/is (not (:thermos-specs.solution/upgraded kept)))
+    (t/is (== 50.0 (:thermos-specs.solution/diameter-mm kept)))
+    (t/is (== exist-kw (:thermos-specs.solution/max-capacity-kw kept)))
+    (t/is (= :existing-pipe-capex (:type (:thermos-specs.solution/pipe-capex kept))))
+
+    (t/is (:thermos-specs.solution/upgraded upgraded))
+    (t/is (< 50.0 (:thermos-specs.solution/diameter-mm upgraded)))
+    (t/is (= :pipe-capex (:type (:thermos-specs.solution/pipe-capex upgraded))))))

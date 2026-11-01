@@ -11,6 +11,7 @@
             [thermos-backend.pages.user-settings :as user-settings]
             [compojure.coercions :refer [as-int]]
             [thermos-backend.db.users :as users]
+            [thermos-backend.passwords :as passwords]
             [thermos-backend.notifications :as notifications]
             [thermos-backend.db.projects :as projects]))
 
@@ -27,9 +28,12 @@
           (html)
           (cache-control/no-store)))))
 
-(defn- settings-page [_]
+(defn- settings-page [{{problem :problem} :params session :session}]
   (auth/verify :logged-in
-    (-> (user-settings/settings-page auth/*current-user*)
+    (-> (user-settings/settings-page
+         auth/*current-user*
+         {:must-change-password (boolean (::auth/must-change-password session))
+          :problem (#{"mismatch" "weak"} problem)})
         (html)
         (cache-control/no-store))))
 
@@ -38,15 +42,27 @@
                            password-2 :password-2
                            system-messages :system-messages
                            job-emails :job-emails}
-                          :params}]
+                          :params
+                          :as request}]
   (auth/verify :logged-in
-    (users/update-user!
-     (:id auth/*current-user*)
-     new-name
-     (and (= password-1 password-2) password-1)
-     (boolean system-messages)
-     (boolean job-emails))
-    (response/redirect ".")))
+    (let [new-password (not (and (string/blank? password-1)
+                                 (string/blank? password-2)))
+          must-change  (::auth/must-change-password (:session request))
+          problem      (cond
+                         (not= password-1 password-2)              "mismatch"
+                         (and must-change (not new-password))      "weak"
+                         (and new-password
+                              (passwords/password-problem password-1)) "weak")]
+      (if problem
+        (response/redirect (str "/settings?problem=" problem))
+        (do (users/update-user!
+             (:id auth/*current-user*)
+             new-name
+             (when new-password password-1)
+             (boolean system-messages)
+             (boolean job-emails))
+            (cond->> (response/redirect ".")
+              new-password (auth/password-changed request)))))))
 
 (defn- push-key [_]
   (auth/verify :logged-in

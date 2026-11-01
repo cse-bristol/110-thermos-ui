@@ -3,9 +3,10 @@
 
 (ns thermos-backend.pages.login-form
   (:require [thermos-backend.pages.common :refer [page]]
+            [thermos-backend.passwords :as passwords]
             [thermos-pages.common :refer [style]]))
 
-(defn login-form [redirect-target flash]
+(defn login-form [redirect-target flash seconds]
   (page
    {:title "Login"
     :body-style {:display :flex :flex-direction :column}}
@@ -37,8 +38,9 @@
           :required :required
           :style (style :width :100%)
           :width :100%
-          :title "A password, which you should remember. At least 6 characters."
-          :minlength 6}]]]]
+          :title (str "A password, which you should remember. At least "
+                      (passwords/min-length) " characters.")
+          :minlength (passwords/min-length)}]]]]
 
      (case (keyword flash)
        :check-mail
@@ -47,6 +49,13 @@
        [:div.card "That user already exists. If it is your email address, and you have forgotten your password, click recover."]
        :failed
        [:div.card "Login failed - your password or username are not correct."]
+       :wait
+       [:div.card "There have been too many failed attempts to log in as this user. "
+        "Try again in " (let [s (parse-long (str seconds))]
+                          (if (and s (> s 1)) (str s " seconds") "a second"))
+        "."]
+       :weak
+       [:div.card (passwords/password-problem "")]
        nil)
 
      [:div.flex-cols

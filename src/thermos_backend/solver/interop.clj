@@ -64,6 +64,14 @@
 
 (def HOURS-PER-YEAR 8766)
 
+(defn- path-pipe-kind
+  "Paths are only joined into one edge of the model if their pipe kinds
+  are equal, so that an edge is either all new pipe or all existing
+  pipe of one diameter."
+  [path]
+  (when (::path/exists path)
+    [:existing (::path/maximum-diameter path)]))
+
 (defn create-graph [buildings paths]
   (let [graph (apply
                graph/graph
@@ -89,7 +97,10 @@
                graph
                buildings)
         graph (reduce
-               (fn [g p] (attr/add-attr g (::path/start p) (::path/end p) :ids #{(::candidate/id p)}))
+               (fn [g p]
+                 (-> g
+                     (attr/add-attr (::path/start p) (::path/end p) :ids #{(::candidate/id p)})
+                     (attr/add-attr (::path/start p) (::path/end p) :pipe-kind (path-pipe-kind p))))
                graph
                paths)
 
@@ -122,7 +133,9 @@
         ;; in the graph which isolate a subgraph containing no real-vertex
         collapsible? (fn [net-graph node]
                        (and (not (attr/attr net-graph node :real-vertex))
-                            (= 2 (graph/out-degree net-graph node))))
+                            (= 2 (graph/out-degree net-graph node))
+                            (apply = (for [e (graph/out-edges net-graph node)]
+                                       (attr/attr net-graph e :pipe-kind)))))
 
         collapse-junction
         ;; this is a function to take a graph and delete a node,
@@ -132,6 +145,7 @@
           (if (collapsible? graph node)
             (let [edges (graph/out-edges graph node)
                   all-ids (set (mapcat #(attr/attr graph % :ids) edges))
+                  pipe-kind (attr/attr graph (first edges) :pipe-kind)
                   ;; since an edge is just a tuple, apply concat edges gives me
                   ;; e.g. [a b] [b c] => [a b c]
                   ;; we only call this when there are exactly two edges
@@ -145,7 +159,9 @@
                   existing-ids (attr/attr graph new-edge :ids)
                   ]
               (if (empty? existing-ids)
-                (attr/add-attr graph new-edge :ids all-ids)
+                (-> graph
+                    (attr/add-attr new-edge :ids all-ids)
+                    (attr/add-attr new-edge :pipe-kind pipe-kind))
                 graph))
 
             ;; if we in the reduce phase below made the node not collapsible any more,
@@ -299,10 +315,22 @@
                          true false)]
             result))
 
+        ;; on an existing path the maximum diameter is the diameter of
+        ;; the existing pipe, which can be upgraded, so it is no limit
         total-max-dia
         (fn [path-ids]
-          (let [max-dias (keep (comp ::path/maximum-diameter paths) path-ids)]
+          (let [max-dias (keep (comp ::path/maximum-diameter paths)
+                               (remove (comp ::path/exists paths) path-ids))]
             (when (not-empty max-dias) (reduce min max-dias))))
+
+        all-exist
+        (fn [path-ids] (every? (comp boolean ::path/exists paths) path-ids))
+
+        existing-dia
+        (fn [path-ids]
+          (let [dias (keep (comp ::path/maximum-diameter paths) path-ids)]
+            (when (and (not-empty dias) (= (count dias) (count path-ids)))
+              (reduce min dias))))
         ]
 
     (reduce (fn [g e]
@@ -313,6 +341,9 @@
                       (attr/add-attr e :required (total-requirement path-ids))
                       (attr/add-attr e :max-dia (total-max-dia path-ids))
                       (attr/add-attr e :civil-costs (length-by-civils path-ids))
+                      (cond-> (all-exist path-ids)
+                        (-> (attr/add-attr e :exists true)
+                            (attr/add-attr e :existing-dia (existing-dia path-ids))))
                       ))))
             
             net-graph (graph/edges net-graph))))
@@ -595,6 +626,12 @@
   pipe costs for this edge based on the upper & lower heat flow bounds
   in bounds, and for giving the stepwise costs which the heuristic
   solver uses.
+
+  An existing pipe of known diameter costs its replacement
+  (`:existing-pipe-capex`) for that diameter whatever it carries. If
+  it has to carry more than that diameter can, it is upgraded, and the
+  model also pays the difference between a new pipe and the
+  replacement (`:upgrade-cost%m` and `:upgrade-cost%kwm`).
   "
   [instance
    bounds
@@ -602,43 +639,48 @@
    net-graph edge]
   (let [length (or (attr/attr net-graph edge :length) 0)
         civil-costs (attr/attr net-graph edge :civil-costs)
+        exists (attr/attr net-graph edge :exists)
+        existing-kw (when-let [dia (and exists (attr/attr net-graph edge :existing-dia))]
+                      (double (pipes/dia->kw pipe-curves (* 1000.0 dia))))
 
-        [fixed-cost variable-cost]
-        (if (zero? length) [0 0] ;; zero length path has no cost, and is probably a virtual connecty thing
-            (let [forward-bounds (get bounds edge)
-                  reverse-bounds (get bounds [(second edge) (first edge)])
+        forward-bounds (get bounds edge)
+        reverse-bounds (get bounds [(second edge) (first edge)])
 
-                  lf (:diverse-peak-min forward-bounds)
-                  uf (:diverse-peak-max forward-bounds)
+        lf (:diverse-peak-min forward-bounds)
+        uf (:diverse-peak-max forward-bounds)
+        lb (:diverse-peak-min reverse-bounds)
+        ub (:diverse-peak-max reverse-bounds)
 
-                  lb (:diverse-peak-min reverse-bounds)
-                  ub (:diverse-peak-max reverse-bounds)
-                  ]
-              (pipes/linear-cost
-               pipe-curves
+        linear-cost
+        (fn [kw-min kw-max]
+          (if (zero? length)
+            [0 0] ;; zero length path has no cost, and is probably a virtual connecty thing
+            (pipes/linear-cost
+             pipe-curves
+             civil-costs
+             length ;; don't worry, this length is normalized out
+                    ;; inside call to linear-cost - the result is
+                    ;; per meter
+             kw-min
+             kw-max)))
 
-               civil-costs
-               length ;; don't worry, this length is normalized out
-                      ;; inside call to linear-cost - the result is
-                      ;; per meter
+        kw-min (when-not (zero? length)
+                 (if (zero? (min lf lb)) (max lf lb) (min lf lb)))
+        kw-max (when-not (zero? length) (max uf ub))
 
-               (if (zero? (min lf lb))
-                 (max lf lb)
-                 (min lf lb))
+        steps (when-not (zero? length)
+                (pipes/step-cost pipe-curves civil-costs length))
 
-               (max uf ub)
-               )))
+        max-capacity
+        (if-let [max-dia (attr/attr net-graph edge :max-dia)]
+          (pipes/dia->kw pipe-curves (* 1000 max-dia))
+          (pipes/max-kw pipe-curves))
 
-        cost-type (if (attr/attr net-graph edge :exists)
-                    :existing-pipe-capex
-                    :pipe-capex)
-
-        cost-steps
-        (when-not (zero? length)
-          (vec
-           (for [[kw cost%m] (pipes/step-cost pipe-curves civil-costs length)]
-             [(double kw)
-              (double (finance/objective-value instance cost-type cost%m))])))]
+        common
+        {:i        (first edge) :j (second edge)
+         :length   length
+         :max-capacity%kwp (float max-capacity)
+         :required (boolean (attr/attr net-graph edge :required))}]
 
     (when (and (seq (attr/attr net-graph edge :ids))
                (not (attr/attr net-graph edge :length)))
@@ -646,22 +688,46 @@
                  (attr/attr net-graph edge :ids)
                  "has no recorded length"))
 
-    (cond->
-      {:i        (first edge) :j (second edge)
-       :length   length
-       :max-capacity%kwp (float
-                          (if-let [max-dia (attr/attr net-graph edge :max-dia)]
-                            (let [max-dia (* 1000 max-dia)]
-                              (pipes/dia->kw pipe-curves max-dia))
-                            (pipes/max-kw pipe-curves)))
+    (if (and existing-kw (seq steps))
+      (let [repex%m
+            (finance/objective-value
+             instance :existing-pipe-capex
+             (or (some (fn [[kw cost%m]] (when (>= kw existing-kw) cost%m)) steps)
+                 (second (last steps))))
 
-       :cost%m   (float (finance/objective-value instance cost-type fixed-cost))
-       :cost%kwm (float (finance/objective-value instance cost-type variable-cost))
-       :required (boolean (attr/attr net-graph edge :required))}
+            ;; the upgrade costs only matter above the existing capacity
+            [fixed-cost variable-cost] (linear-cost (max kw-min existing-kw)
+                                                    (max kw-max existing-kw))]
+        (assoc common
+               :cost%m   (float repex%m)
+               :cost%kwm (float 0)
+               ;; the heuristic adds the upgrade costs to this step,
+               ;; as the MIP does to the linear terms
+               :cost-steps [[(double max-capacity) (double repex%m)]]
+               :existing-capacity%kwp (float existing-kw)
+               ;; an upgrade is never cheaper than keeping the pipe
+               :upgrade-cost%m
+               (float (max 0 (- (finance/objective-value instance :pipe-capex fixed-cost)
+                                repex%m)))
+               :upgrade-cost%kwm
+               (float (finance/objective-value instance :pipe-capex variable-cost))))
 
-      ;; no :cost-steps means the heuristic uses the linear terms;
-      ;; an empty vector would make the edge unusable
-      cost-steps (assoc :cost-steps cost-steps))))
+      (let [cost-type (if exists :existing-pipe-capex :pipe-capex)
+            [fixed-cost variable-cost] (linear-cost kw-min kw-max)
+            cost-steps
+            (when steps
+              (vec
+               (for [[kw cost%m] steps]
+                 [(double kw)
+                  (double (finance/objective-value instance cost-type cost%m))])))]
+        (cond->
+          (assoc common
+                 :cost%m   (float (finance/objective-value instance cost-type fixed-cost))
+                 :cost%kwm (float (finance/objective-value instance cost-type variable-cost)))
+
+          ;; no :cost-steps means the heuristic uses the linear terms;
+          ;; an empty vector would make the edge unusable
+          cost-steps (assoc :cost-steps cost-steps))))))
 
 (defn- instance->model-input
   "Convert a problem instance into input for the network optimisation model."
@@ -1004,16 +1070,26 @@
         update-edge
         (fn [e]
           (let [solution-edge (solution-edges (::candidate/id e))
+                capacity-kw   (:capacity-kw solution-edge)
                 candidate-length (::path/length e)
                 input-length (or
                               (attr/attr net-graph [(:i solution-edge) (:j solution-edge)] :length)
                               candidate-length)
                 length-factor (safe-div candidate-length input-length)
-                diameter-mm   (if (and (::path/exists e)
-                                       (::path/maximum-diameter e))
-                                (* 1000.0 (::path/maximum-diameter e))
-                                (pipes/solved-diameter pipe-curves
-                                                       (:capacity-kw solution-edge)))
+
+                existing-dia  (when (::path/exists e) (::path/maximum-diameter e))
+                existing-kw   (when existing-dia
+                                (pipes/dia->kw pipe-curves (* 1000.0 existing-dia)))
+                ;; an existing pipe which has to carry more than it can
+                ;; is replaced by a new one
+                upgraded      (boolean
+                               (and existing-kw
+                                    (> capacity-kw (* existing-kw 1.000001))))
+                keep-existing (and existing-kw (not upgraded))
+
+                diameter-mm   (if keep-existing
+                                (* 1000.0 existing-dia)
+                                (pipes/solved-diameter pipe-curves capacity-kw))
 
                 max-capacity  (pipes/dia->kw pipe-curves diameter-mm)
                 
@@ -1023,10 +1099,10 @@
                                  (pipes/solved-principal
                                   pipe-curves
                                   civil-cost-id
-                                  (:capacity-kw solution-edge)))
+                                  (if keep-existing existing-kw capacity-kw)))
 
                 capex-type
-                (if (::path/exists e)
+                (if (and (::path/exists e) (not upgraded))
                   :existing-pipe-capex
                   :pipe-capex)
                 
@@ -1034,17 +1110,19 @@
 
             ;; the path cost we're working out here is the 'truth'
             ;; as opposed to the linearised truth, so there will be a little error
-            (assoc e
-                   ::solution/length-factor length-factor
-                   ::solution/included      true
-                   ::solution/diameter-mm   diameter-mm
-                   ::solution/capacity-kw   (:capacity-kw solution-edge)
-                   ::solution/max-capacity-kw max-capacity
-                   ::solution/diversity     (:diversity solution-edge)
-                   ::solution/pipe-capex    (finance/adjusted-value
-                                             instance capex-type principal)     
-                   
-                   ::solution/losses-kwh    (* HOURS-PER-YEAR length-factor (:losses-kw solution-edge)))
+            (cond->
+              (assoc e
+                     ::solution/length-factor length-factor
+                     ::solution/included      true
+                     ::solution/diameter-mm   diameter-mm
+                     ::solution/capacity-kw   capacity-kw
+                     ::solution/max-capacity-kw max-capacity
+                     ::solution/diversity     (:diversity solution-edge)
+                     ::solution/pipe-capex    (finance/adjusted-value
+                                               instance capex-type principal)     
+                     
+                     ::solution/losses-kwh    (* HOURS-PER-YEAR length-factor (:losses-kw solution-edge)))
+              upgraded (assoc ::solution/upgraded true))
             ))
         ]
     (if (= state :error)

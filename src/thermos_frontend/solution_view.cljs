@@ -217,8 +217,10 @@
                   (sort-by first
                            (group-by
                             (fn [path]
-                              [(if (::path/exists path) "Existing pipe"
-                                   (document/civil-cost-name @parameters (::path/civil-cost-id path)))
+                              [(cond
+                                 (::solution/upgraded path) "Upgraded existing pipe"
+                                 (::path/exists path)       "Existing pipe"
+                                 :else (document/civil-cost-name @parameters (::path/civil-cost-id path)))
                                (::solution/diameter-mm path)])
                             paths))]
               (list

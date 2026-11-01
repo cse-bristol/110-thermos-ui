@@ -3,20 +3,40 @@
 
 (ns thermos-backend.pages.user-settings
   (:require [thermos-backend.pages.common :refer [page]]
+            [thermos-backend.passwords :as passwords]
             [thermos-pages.common :refer [style]]))
 
-(defn settings-page [user]
-  (page {:title "Account settings" :js ["/js/push.js"]}
+(defn- password-input [name required]
+  [:input.text-input
+   (cond-> {:type :password :name name
+            :minlength (passwords/min-length)
+            :autocomplete "new-password"
+            :title (str "At least " (passwords/min-length) " characters.")}
+     required (assoc :required :required))])
+
+(defn- password-fields [required problem]
+  (list
+   [:div [:b "New password: "] (password-input :password-1 required)]
+   [:div [:b "Repeat password: "] (password-input :password-2 required)]
+   (case problem
+     "mismatch" [:div.card "The passwords you typed were not the same, so nothing was changed."]
+     "weak"     [:div.card (passwords/password-problem "") " Nothing was changed."]
+     nil)))
+
+(defn- password-notice []
+  [:div.card
+   "THERMOS now requires passwords of at least " (passwords/min-length)
+   " characters, and yours is shorter. Please choose a new password below before you carry on."])
+
+(defn- settings-form [user {:keys [must-change-password problem]}]
         [:form {:method :POST}
          [:div
+          (when must-change-password (password-notice))
           [:div [:b "Email address: "] [:span (:id user)]]
           [:div [:b "User type: "] [:span (:auth user)]]
           [:div [:b "Name: "]
            [:input.text-input {:type :text :value (:name user) :name :new-name}]]
-          [:div [:b "New password: "]
-           [:input.text-input {:type :password :name :password-1}]]
-          [:div [:b "Repeat password: "]
-           [:input.text-input {:type :password :name :password-2}]]
+          (password-fields must-change-password problem)
           [:div
            [:label [:b "System messages by email: "]
             [:input (cond->
@@ -58,6 +78,10 @@
 
           [:div "We won't send you any emails that are not about THERMOS, and we won't tell anyone else anything about you."]
           
-          [:div [:input.button {:type :submit :value "Save"}]]]]))
+          [:div [:input.button {:type :submit :value "Save"}]]]])
 
-
+(defn settings-page [user options]
+  ;; the form is built by a function, as compiling it into the page
+  ;; makes a method bigger than the JVM allows
+  (page {:title "Account settings" :js ["/js/push.js"]}
+        (settings-form user options)))
