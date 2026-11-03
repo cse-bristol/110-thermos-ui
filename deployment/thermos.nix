@@ -41,6 +41,15 @@ with lib;
           type = types.package;
           default = (pkgs.callPackage ./scip.nix {});
         };
+        # the model runs gpmetis from PATH
+        metis = mkOption {
+          type = types.package;
+          default = pkgs.metis.overrideAttrs (old: {
+            cmakeFlags = (old.cmakeFlags or [ ]) ++ [
+              (lib.cmakeFeature "CMAKE_INSTALL_RPATH" "${placeholder "out"}/lib")
+            ];
+          });
+        };
         solverCount = mkOption {
           type = types.int;
           default = 16;
@@ -204,7 +213,7 @@ with lib;
         after = [ "enable-postgis.service" ];
         requires = ["enable-postgis.service"];
 
-        path = [cfg.model.scip];
+        path = [cfg.model.scip cfg.model.metis];
 
         script = ''
           export PG_HOST=127.0.0.1
