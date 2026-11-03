@@ -1,0 +1,156 @@
+#!/usr/bin/env nix-shell
+#!nix-shell -i bb -p babashka git
+
+;; Checks that every git dependency in deps.edn (including transitive git
+;; deps, and those in aliases) names a commit that can be fetched from its
+;; remote, i.e. that nothing still needs pushing.
+;;
+;; For each repo it fetches into a bare mirror under ~/.cache/check-git-deps,
+;; the same way tools.deps does. If a commit is missing there but present in
+;; a sibling checkout in ../, it says which one to push from.
+;;
+;; Usage: ./check-git-deps [path/to/deps.edn]
+
+(require '[babashka.process :refer [shell]]
+         '[babashka.fs :as fs]
+         '[clojure.edn :as edn]
+         '[clojure.string :as str])
+
+(def cache-dir (fs/path (fs/xdg-cache-home) "check-git-deps"))
+
+(defn git [& args]
+  (apply shell {:out :string :err :string :continue true} "git" args))
+
+(defn normalise-url
+  "Reduce a git url to host/owner/repo so ssh and https forms compare equal."
+  [url]
+  (-> url
+      (str/replace #"^[a-z+]+://" "")
+      (str/replace #"^[^@/]+@" "")
+      (str/replace #":(?!\d)" "/")
+      (str/replace #"\.git/?$" "")
+      (str/replace #"/$" "")))
+
+(defn infer-url [lib]
+  (let [g (namespace lib) n (name lib)]
+    (cond
+      (str/starts-with? g "io.github.") (str "https://github.com/" (subs g 10) "/" n ".git")
+      (str/starts-with? g "com.github.") (str "https://github.com/" (subs g 11) "/" n ".git")
+      (str/starts-with? g "io.gitlab.") (str "https://gitlab.com/" (subs g 10) "/" n ".git")
+      :else nil)))
+
+(defn git-coord [lib coord]
+  (let [sha (or (:git/sha coord) (:sha coord))]
+    (when sha
+      {:lib lib
+       :url (or (:git/url coord) (infer-url lib))
+       :sha sha
+       :root (:deps/root coord)})))
+
+(defn git-coords [deps]
+  (keep (fn [[lib coord]] (git-coord lib coord)) deps))
+
+(defn all-root-coords
+  "Git deps from :deps and every alias of the top-level deps.edn."
+  [deps-edn]
+  (concat (git-coords (:deps deps-edn))
+          (mapcat (fn [[_ alias]]
+                    (when (map? alias)
+                      (mapcat #(git-coords (get alias %))
+                              [:extra-deps :replace-deps :deps :override-deps])))
+                  (:aliases deps-edn))))
+
+(def fetched (atom {}))
+
+(defn mirror
+  "A bare mirror of url, fetched at most once per run."
+  [url]
+  (or (@fetched url)
+      (let [dir (str (fs/path cache-dir (str/replace (normalise-url url) "/" "_")))]
+        (when-not (fs/exists? dir)
+          (fs/create-dirs dir)
+          (git "init" "--bare" "--quiet" dir)
+          (git "-C" dir "remote" "add" "origin" url))
+        (let [r (git "-C" dir "fetch" "--quiet" "--tags" "--force" "origin"
+                     "+refs/heads/*:refs/heads/*")
+              result {:dir dir :ok (zero? (:exit r)) :err (:err r)}]
+          (swap! fetched assoc url result)
+          result))))
+
+(defn has-commit? [dir sha]
+  (zero? (:exit (git "-C" dir "rev-parse" "--verify" "--quiet" (str sha "^{commit}")))))
+
+(defn full-sha [dir sha]
+  (str/trim (:out (git "-C" dir "rev-parse" (str sha "^{commit}")))))
+
+(defn sibling-checkouts
+  "Git checkouts next to this project, by normalised origin url."
+  []
+  (into {}
+        (for [d (fs/list-dir "..")
+              :when (fs/directory? d)
+              :let [r (git "-C" (str d) "remote" "get-url" "origin")]
+              :when (zero? (:exit r))]
+          [(normalise-url (str/trim (:out r))) (str (fs/normalize d))])))
+
+(defn branches-containing [dir sha]
+  (->> (str/split-lines (:out (git "-C" dir "branch" "--format=%(refname:short)"
+                                   "--contains" sha)))
+       (remove str/blank?)))
+
+(defn transitive-coords
+  "Git deps from the deps.edn of a resolved dependency."
+  [dir {:keys [sha root]}]
+  (let [path (str (when root (str (str/replace root #"/$" "") "/")) "deps.edn")
+        r (git "-C" dir "show" (str (full-sha dir sha) ":" path))]
+    (when (zero? (:exit r))
+      (git-coords (:deps (edn/read-string (:out r)))))))
+
+(defn check [deps-file]
+  (let [siblings (sibling-checkouts)
+        problems (atom 0)]
+    (loop [queue (vec (all-root-coords (edn/read-string (slurp deps-file))))
+           seen #{}]
+      (if-let [{:keys [lib url sha] :as coord} (first queue)]
+        (if (seen [url sha])
+          (recur (subvec queue 1) seen)
+          (let [label (str lib " " url " " sha)]
+            (if-not url
+              (do (println "??" lib sha "- can't work out url") (swap! problems inc)
+                  (recur (subvec queue 1) (conj seen [url sha])))
+              (let [{:keys [dir ok err]} (mirror url)]
+                (cond
+                  (not ok)
+                  (do (println "!! fetch failed:" label)
+                      (println "  " (str/trim err))
+                      (swap! problems inc)
+                      (recur (subvec queue 1) (conj seen [url sha])))
+
+                  (has-commit? dir sha)
+                  (do (println "ok" label)
+                      (recur (into (subvec queue 1) (transitive-coords dir coord))
+                             (conj seen [url sha])))
+
+                  :else
+                  (let [local (siblings (normalise-url url))]
+                    (swap! problems inc)
+                    (println "!! NOT ON REMOTE:" label)
+                    (if (and local (has-commit? local sha))
+                      (let [bs (branches-containing local sha)]
+                        (println "   exists in" local
+                                 (if (seq bs)
+                                   (str "on branch(es): " (str/join ", " bs))
+                                   "(not on any local branch)"))
+                        ;; we can still follow its deps from the local copy
+                        (recur (into (subvec queue 1) (transitive-coords local coord))
+                               (conj seen [url sha])))
+                      (do (println "   not found in any sibling checkout either")
+                          (recur (subvec queue 1) (conj seen [url sha]))))))))))))
+    (when (pos? @problems)
+      (println)
+      (println @problems "git dependenc(ies) need attention")
+      (System/exit 1))
+    (println)
+    (println "All git dependencies are resolvable.")))
+
+(check (or (first *command-line-args*) "deps.edn"))
