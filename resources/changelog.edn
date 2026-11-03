@@ -1,4 +1,16 @@
-[{:title "22 Jul 2025"
+[{:title "3rd November 2026"
+  :changes
+  [{:title "Model updates"
+    :summary
+    [:p "A faster heuristic optimisation model has been added."]}
+   {:title "Steam removed"
+    :summary
+    [:p "The model no longer represents saturated steam networks"]}
+   {:title "Parameter sets added"
+    :summary
+    [:p "The application now supports predefined parameter sets"]}]}
+ 
+ {:title "22 Jul 2025"
   :changes [{:title "Bug fix"
              :summary [:p "Fixed a bug where users were unable to upload xlsx files with fields added during an earlier update"]}
             {:title "Bug fix"
@@ -7,7 +19,7 @@
  {:title "2 Jul 2025"
   :changes [{:title "Geopackage outputs"
              :summary [:p "CLI users can now output a solution as a geopackage."]}
-            {:title "Gurobi compatability"
+            {:title "Gurobi compatibility"
              :summary [:p "CLI users can opt to use gurobi for problem sovler (Default is scip)."]}
             {:title "Adjust number of supply points"
              :summary [:p "CLI users can adjust the number of supply points to use."]}]}
@@ -16,13 +28,13 @@
   :changes [{:title "Bugs fixed"
              :summary [:p "The candidate editor would erroneously adjust buildings' peak demand when editing multiple buildings in some circumstances."]}
             {:title "Adjustable diversity"
-             :summary [:p "The diversity parameters can now be adjusted (under pipe / network paramteers)"]}
+             :summary [:p "The diversity parameters can now be adjusted (under pipe / network parameters)"]}
             {:title "Adjustable objective precision and scale"
              :summary [:p "Some details of how the objective is formulated can be controlled, potentially improving solve time."]}]}
 
  {:title "22 March 2024"
   :changes [{:title "Bugs fixed"
-             :summary [:p "Calculation of the tank factor effect for individual systems incorrectly apportioned the kWp part of present cost, causing the optimiser to overestimate the cost ofusing these kinds of individual system. This bug has been removed."]}]}
+             :summary [:p "Calculation of the tank factor effect for individual systems incorrectly apportioned the kWp part of present cost, causing the optimiser to overestimate the cost of using these kinds of individual system. This bug has been removed."]}]}
 
  {:title "1st Feb 2024"
   :changes [{:title "Bugs fixed"

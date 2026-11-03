@@ -1313,6 +1313,8 @@
   
   (let [instance (document/remove-solution instance)
 
+        solution-method (::document/solution-method instance)
+
         included-candidates (->> (::document/candidates instance)
                                  (vals)
                                  (filter candidate/is-included?))
@@ -1347,9 +1349,11 @@
     (let [{:keys [max-node-count max-edge-count]
            :or {max-node-count 10000 max-edge-count 20000}}
           config]
-      (when (or (> (count (graph/nodes net-graph)) max-node-count)
-                (> (count (graph/edges net-graph)) max-edge-count))
-        (throw (ex-info "This problem is probably too large for THERMOS to solve"
+      (when (and
+             (not= :automatic solution-method)
+             (or (> (count (graph/nodes net-graph)) max-node-count)
+                 (> (count (graph/edges net-graph)) max-edge-count)))
+        (throw (ex-info "This problem is probably too large for THERMOS to solve with the optimiser - use the heuristic mode instead (change solution method to \"automatic\")."
                         {:nodes (graph/nodes net-graph)
                          :max-nodes max-node-count
                          :edges (graph/edges net-graph)
