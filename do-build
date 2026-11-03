@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-
-exec nix develop "$(dirname "$0")" -c clojure -T:build uber "$@"
