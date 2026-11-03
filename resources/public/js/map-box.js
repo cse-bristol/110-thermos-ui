@@ -63,9 +63,6 @@
                 className: "leaflet-basemap",
                 attribution: "Map tiles &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors."
             }));
-        map.addLayer(L.tileLayer(
-            "https://cartodb-basemaps-{s}.global.ssl.fastly.net/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png",
-            { subdomains: "abcd", minZoom: 0, maxZoom: 20 }));
 
         const boundary = L.geoJSON(config.boundary || null).addTo(map);
 

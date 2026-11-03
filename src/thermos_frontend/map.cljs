@@ -118,10 +118,11 @@
 
 (def labels-layer
   (L/tileLayer
-   "https://cartodb-basemaps-{s}.global.ssl.fastly.net/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png"
-   (clj->js {:subdomains "abcd"
-             :minZoom 14
-             :maxZoom 20})))
+   "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}"
+   (clj->js {:minZoom 14
+             :maxZoom 21
+             :attribution
+             "Road names by <a target=_blank href=\"https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer\">Esri, HERE, Garmin, &copy; OpenStreetMap contributors</a>"})))
 
 (defn mount
   "Make a leaflet control when this component is being put on screen"
