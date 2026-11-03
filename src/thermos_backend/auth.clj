@@ -15,6 +15,7 @@
             [clojure.tools.logging :as log]
             [thermos-backend.db.users :as users]
             [thermos-backend.db.projects :as projects]
+            [thermos-backend.db.parameter-sets :as parameter-sets]
             [thermos-backend.login-throttle :as throttle]
             [thermos-backend.passwords :as passwords]
             [thermos-backend.pages.cache-control :as cache-control]))
@@ -32,7 +33,7 @@ If it does exist, you don't have privileges to see it.")
                    (response/status 401)
                    (cache-control/no-store)))
 
-(defn- current-sysadmin? []
+(defn current-sysadmin? []
   (= :admin (:auth *current-user*)))
 
 (defn forbidden-or-login []
@@ -83,6 +84,39 @@ If it does exist, you don't have privileges to see it.")
                 :read    (or am-sysadmin am-member (projects/is-public-network? net-id))
                 (log/warn "Unknown network operation" operation))
       (forbidden-or-login))))
+
+(defn can-edit-parameter-set?
+  "Whether the current user may change or delete parameter set `ps`, a
+  row from `parameter-sets/get-set`."
+  [{:keys [scope user-id project-id]}]
+  (or (current-sysadmin?)
+      (case scope
+        :system  false
+        :user    (= user-id (:id *current-user*))
+        :project (contains? (:projects *current-user*) project-id)
+        false)))
+
+(defn can-read-parameter-set? [{:keys [scope user-id project-id] :as ps}]
+  (or (= :system scope) (can-edit-parameter-set? ps)))
+
+(defmethod verify* :parameter-set [[operation _ set-id]]
+  (let [ps (and *current-user* (parameter-sets/get-set set-id false))]
+    (when-not (and ps
+                   (case operation
+                     :read             (can-read-parameter-set? ps)
+                     (:write :delete)  (can-edit-parameter-set? ps)
+                     (log/warn "Unknown parameter set operation" operation)))
+      (forbidden-or-login))))
+
+(defn can-create-parameter-set?
+  "Whether the current user may make a set in `scope` (and `project-id`)"
+  [scope project-id]
+  (case scope
+    :system  (current-sysadmin?)
+    :user    (some? *current-user*)
+    :project (or (current-sysadmin?)
+                 (contains? (:projects *current-user*) project-id))
+    false))
 
 (defmethod verify* :job [[operation _ job-id]]
   (let [am-sysadmin (current-sysadmin?)]

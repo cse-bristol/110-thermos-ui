@@ -237,7 +237,7 @@
           (when callback [::fx/call [callback status]])]}))
 
 (defn load [{db :db} _]
-  (when (not= :new (:network-id (db/server db)))
+  (when (number? (:network-id (db/server db)))
     {::fx/load {:on-response [:server/loaded]}}))
 
 (defn loaded [db [_ {:keys [document run-state queue-position]}]]
@@ -251,8 +251,9 @@
                  :queue-position queue-position})))
 
 (defn poll [{db :db} _]
-  ;; a network which has never been saved has no run status to ask for
-  (when (not= :new (:network-id (db/server db)))
+  ;; a network which has never been saved, or a parameter set, has no
+  ;; run status to ask for
+  (when (number? (:network-id (db/server db)))
     {::fx/run-status {:on-response [:server/run-status]}}))
 
 (defn run-status [{db :db} [_ {:keys [state queue-position message timing]}]]

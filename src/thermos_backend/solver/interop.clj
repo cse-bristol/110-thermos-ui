@@ -544,20 +544,33 @@
 (defn- supply-terms
   "Output for the network model all the supply-related facts about this candidate"
   [instance candidate]
-  (let [fixed-cost
-        (-> candidate
-            (::supply/fixed-cost 0)
-            (->> (finance/objective-value instance :supply-capex)))
+  (let [candidate (supply/effective-supply instance candidate)
 
-        capex-per-kwp
-        (-> candidate
-            (::supply/capex-per-kwp 0)
-            (->> (finance/objective-value instance :supply-capex)))
+        capacity-kw (double (::supply/capacity-kwp candidate 0))
 
-        opex-per-kwp
-        (-> candidate
-            (::supply/opex-per-kwp 0)
-            (->> (finance/objective-value instance :supply-opex)))
+        opex-per-kwp (::supply/opex-per-kwp candidate 0)
+
+        ;; the model takes the capital cost as a curve of total cost
+        ;; against capacity; opex/kWp is linear, so we can add it on at
+        ;; each point.
+        cost-curve
+        (vec
+         (for [[kw capex] (supply/capex-curve candidate)]
+           [(double kw)
+            (double
+             (+ (finance/objective-value instance :supply-capex capex)
+                (finance/objective-value instance :supply-opex (* kw opex-per-kwp))))]))
+
+        ;; if the curve stops short of the capacity, extend it at the
+        ;; same slope (or flat, if there is no slope)
+        cost-curve
+        (let [[xn yn] (peek cost-curve)]
+          (if (< xn capacity-kw)
+            (let [[xm ym] (when (> (count cost-curve) 1)
+                            (nth cost-curve (- (count cost-curve) 2)))
+                  slope (if (and xm (> xn xm)) (/ (- yn ym) (- xn xm)) 0.0)]
+              (conj cost-curve [capacity-kw (+ yn (* slope (- capacity-kw xn)))]))
+            cost-curve))
 
         pumping-overhead
         (::document/pumping-overhead instance 0.0)
@@ -593,10 +606,9 @@
         ]
 
     (cond->
-      {:capacity-kw (float (::supply/capacity-kwp  candidate 0))
-       :cost        (float fixed-cost)
+      {:capacity-kw capacity-kw
        :cost%kwh    (float heat-cost-per-kwh)
-       :cost%kwp    (float (+ capex-per-kwp opex-per-kwp))
+       :cost%kwp    cost-curve
 
        :emissions   emissions-factors}
 
@@ -1003,7 +1015,8 @@
                   ;; supply facts
                   (:capacity-kw solution-vertex)
                   (as-> out
-                      (let [output-kwh  (:output-kwh solution-vertex)
+                      (let [effective   (supply/effective-supply instance out)
+                            output-kwh  (:output-kwh solution-vertex)
                             capacity-kw (:capacity-kw solution-vertex)
                             diversity   (:diversity solution-vertex)
 
@@ -1026,18 +1039,18 @@
                                ::solution/supply-capex
                                (finance/adjusted-value
                                 instance :supply-capex
-                                (supply/principal out capacity-kw output-kwh 1))
+                                (supply/capex-at effective capacity-kw))
 
                                ::solution/supply-opex
                                (finance/adjusted-value
                                 instance :supply-opex
-                                (supply/opex out capacity-kw 1))
+                                (supply/opex effective capacity-kw 1))
 
                                ::solution/heat-cost
                                (finance/adjusted-value
                                 instance
                                 :supply-heat
-                                (supply/heat-cost out output-kwh))
+                                (supply/heat-cost effective output-kwh))
 
                                ::solution/pumping-cost
                                (finance/adjusted-value
@@ -1051,7 +1064,7 @@
                                ::solution/supply-emissions
                                (into {}
                                      (for [e candidate/emissions-types]
-                                       (let [supply-factor (get (::supply/emissions v) e 0) ;; kg/kwh
+                                       (let [supply-factor (get (::supply/emissions effective) e 0) ;; kg/kwh
                                              emissions     (* supply-factor output-kwh)]
                                          [e (finance/emissions-value instance e emissions)])))
 

@@ -24,7 +24,8 @@
       (-> (landing-page/landing-page
            (cond-> auth/*current-user*
              changes (assoc :changelog-seen changes))
-           (projects/user-projects (:id auth/*current-user*)))
+           (projects/user-project-summaries (:id auth/*current-user*))
+           (projects/recent-runs (:id auth/*current-user*) 8))
           (html)
           (cache-control/no-store)))))
 

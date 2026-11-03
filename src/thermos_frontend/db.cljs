@@ -30,6 +30,12 @@
      :map-id     (js/parseInt map-id)
      :network-id (if (= "new" network-id) :new (js/parseInt network-id))}))
 
+(defn parameter-set
+  "In the parameter set editor, {:id :scope :project-name :categories} for
+  the set being edited; otherwise nil"
+  []
+  (preload/get-value :parameter-set))
+
 (defn initial-server
   "The ::server part of app-db for the editor at `path`"
   [path]
@@ -37,7 +43,7 @@
     (assoc ids
            ;; a network which has never been saved is unsaved
            :needs-save (= :new network-id)
-           :needs-load (not= :new network-id)
+           :needs-load (number? network-id)
            :queue-position 0
            :run-state nil
            :revision 0)))
@@ -45,13 +51,18 @@
 (defn initial-document
   "The document the page was served with, or a new one covering the map"
   []
-  (if-let [initial-state (js/document.getElementById "thermos-network")]
-    (spatial/update-index (transit/read (.-textContent initial-state)))
-    (operations/move-map
-     (case (preload/get-value :mode)
-       :cooling default-cooling-document
-       default-document)
-     (let [bounds (preload/get-value :map-bounds)]
+  (let [initial-state (js/document.getElementById "thermos-network")
+        ;; only a new network is given the bounds of its map
+        bounds (preload/get-value :map-bounds)]
+    (cond-> (if initial-state
+              ;; a saved network, a parameter set, or a new network
+              ;; with the user's default parameters
+              (spatial/update-index (transit/read (.-textContent initial-state)))
+              (case (preload/get-value :mode)
+                :cooling default-cooling-document
+                default-document))
+      bounds
+      (operations/move-map
        {:north (:y-max bounds)
         :south (:y-min bounds)
         :east  (:x-max bounds)

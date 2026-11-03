@@ -84,6 +84,40 @@
         }
     });
 
+    // Sortable tables: clicking a th with data-sort-type in a
+    // table.sortable sorts its tbody by that column, using the cells'
+    // data-sort attribute if they have one, or else their text. Type
+    // "number" sorts numerically, anything else as text (so give dates a
+    // data-sort like yyyy-mm-dd hh:mm). Clicking again reverses the order.
+    document.addEventListener("click", function (e) {
+        const th = e.target.closest("table.sortable th[data-sort-type]");
+        if (!th) return;
+        const table = th.closest("table");
+        const tbody = table.tBodies[0];
+        const column = Array.prototype.indexOf.call(th.parentNode.children, th);
+        const numeric = th.dataset.sortType === "number";
+        const ascending = !th.classList.contains("sorted-asc");
+
+        table.querySelectorAll("th.sorted-asc, th.sorted-desc").forEach(function (h) {
+            h.classList.remove("sorted-asc", "sorted-desc");
+        });
+        th.classList.add(ascending ? "sorted-asc" : "sorted-desc");
+
+        function key(row) {
+            const cell = row.children[column];
+            const v = cell.dataset.sort !== undefined ? cell.dataset.sort : cell.textContent.trim();
+            return numeric ? (parseFloat(v) || 0) : v.toLowerCase();
+        }
+
+        Array.from(tbody.rows)
+            .sort(function (a, b) {
+                const ka = key(a), kb = key(b);
+                const c = numeric ? ka - kb : ka.localeCompare(kb);
+                return ascending ? c : -c;
+            })
+            .forEach(function (row) { tbody.appendChild(row); });
+    });
+
     function init(root) {
         root.querySelectorAll(".drop-target").forEach(bindDropTarget);
     }

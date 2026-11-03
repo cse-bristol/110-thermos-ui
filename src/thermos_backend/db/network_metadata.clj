@@ -20,7 +20,8 @@
         (document/candidates-by-type problem)
         mode (document/mode problem)
 
-        supplies (filter candidate/has-supply? buildings)
+        supplies (->> (filter candidate/has-supply? buildings)
+                      (map #(supply/effective-supply problem %)))
         ]
     {:mode (name mode)
      :objective (name (::document/objective problem :network))

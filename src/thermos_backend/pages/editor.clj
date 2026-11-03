@@ -19,7 +19,8 @@
                    initial-mode
                    map-bounds
                    read-only
-                   restriction-info]
+                   restriction-info
+                   & {:keys [preloads title]}]
   (str
    (html
     [:head
@@ -32,13 +33,15 @@
          (string/replace (network-transit/edn->transit initial-content)
                          "<" "\\u003c"))])
      (preloaded-values
-      {:name name
-       :map-bounds map-bounds
-       :mode initial-mode
-       :read-only read-only
-       :has-gurobi (:has-gurobi config)
-       :restriction-info restriction-info})
-     [:title (str "THERMOS - " (or name "New network"))]
+      (merge
+       {:name name
+        :map-bounds map-bounds
+        :mode initial-mode
+        :read-only read-only
+        :has-gurobi (:has-gurobi config)
+        :restriction-info restriction-info}
+       preloads))
+     [:title (str "THERMOS - " (or title name "New network"))]
      [:meta {:charset "UTF-8"}]
      [:meta {:name :viewport :content "width=device-width, initial-scale=1"}]
      (include-css "/css/editor.css" source-sans-pro)]

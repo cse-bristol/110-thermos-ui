@@ -176,6 +176,70 @@
       (h/where [:= :users-projects.user-id user-id])
       (db/fetch!)))
 
+(defn user-project-summaries
+  "The projects for `user-id`, with the user's :auth on each and some
+  counts for the list of projects: :map-count, :network-count (distinct
+  network names), :user-count, :running (jobs queued or running) and
+  :last-saved (when a network was last saved)."
+  [user-id]
+  {:pre [(string? user-id)]}
+  (let [in-project (fn [q] (h/merge-where q [:= :maps.project-id :projects.id]))]
+    (->> (-> (h/select :projects.id :projects.name :projects.description
+                       :projects.public :users-projects.auth
+                       [(-> (h/select :%count.*) (h/from :maps) (in-project))
+                        :map-count]
+                       [(-> (h/select (sql/raw "count(distinct (networks.map_id, networks.name))"))
+                            (h/from :networks)
+                            (h/join :maps [:= :maps.id :networks.map-id])
+                            (in-project))
+                        :network-count]
+                       [(-> (h/select :%max.networks.created)
+                            (h/from :networks)
+                            (h/join :maps [:= :maps.id :networks.map-id])
+                            (in-project))
+                        :last-saved]
+                       [(-> (h/select :%count.*)
+                            (h/from [:users-projects :up])
+                            (h/where [:= :up.project-id :projects.id]))
+                        :user-count]
+                       [(-> (h/select :%count.*)
+                            (h/from :networks)
+                            (h/join :maps [:= :maps.id :networks.map-id]
+                                    :jobs [:= :jobs.id :networks.job-id])
+                            (in-project)
+                            (h/merge-where [:in :jobs.state
+                                            (map #(sql/call :job_state %)
+                                                 ["ready" "running"])]))
+                        :running])
+             (h/from :projects)
+             (h/join :users-projects [:= :projects.id :users-projects.project-id])
+             (h/where [:= :users-projects.user-id user-id])
+             (db/fetch!))
+         (map #(update % :auth keyword)))))
+
+(defn recent-runs
+  "The `n` model runs which finished most recently in the projects of
+  `user-id`, with the network's :meta, the job's :state and :finished time."
+  [user-id n]
+  {:pre [(string? user-id) (int? n)]}
+  (->> (-> (h/select :networks.id :networks.name :networks.meta
+                     [:maps.id :map-id] [:maps.name :map-name]
+                     [:projects.id :project-id] [:projects.name :project-name]
+                     :jobs.state [:jobs.updated :finished])
+           (h/from :networks)
+           (h/join :jobs [:= :jobs.id :networks.job-id]
+                   :maps [:= :maps.id :networks.map-id]
+                   :projects [:= :projects.id :maps.project-id]
+                   :users-projects [:= :users-projects.project-id :projects.id])
+           (h/where [:and
+                     [:= :users-projects.user-id user-id]
+                     [:in :jobs.state
+                      (map #(sql/call :job_state %) ["completed" "failed" "cancelled"])]])
+           (h/order-by [:jobs.updated :desc])
+           (h/limit n)
+           (db/fetch!))
+       (map #(update % :state keyword))))
+
 (defn get-network
   "Get a network problem for `network-id`"
   [network-id & {:keys [include-content]}]

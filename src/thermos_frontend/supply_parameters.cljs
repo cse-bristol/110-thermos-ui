@@ -7,81 +7,123 @@
             [thermos-specs.document :as document]
             [thermos-frontend.popover :as popover]
             [thermos-frontend.inputs :as inputs]
+            [thermos-frontend.params.supply-types :refer [capex-editor]]
             [re-frame.core :as rf]
             [thermos-frontend.doc :as doc]
             [reagent.core :as reagent]))
 
 (defn- just-number-values [m] (into {} (filter (comp number? second) m)))
 
-(defn- merge-supply-parameters [document candidate-ids parameters]
-  (let [emissions (just-number-values (::supply/emissions parameters))
-        parmeters (just-number-values parameters)]
-    (document/map-candidates
-     document
-     #(-> %
-          (assoc ::candidate/modified true)
-          (update ::supply/emissions merge emissions)
-          (merge parameters))
-     candidate-ids)))
+(defn- supply-values
+  "The supply parameters a supply point has of its own"
+  [candidate]
+  (let [{emissions ::supply/emissions curve ::supply/capex-curve :as vals}
+        (select-keys candidate (cons ::supply/technology-id supply/supply-keys))]
+    (cond-> (just-number-values vals)
+      (seq emissions) (assoc ::supply/emissions (just-number-values emissions))
+      (seq curve)     (assoc ::supply/capex-curve curve))))
+
+(defn- merge-supply-parameters
+  "Give the candidates `candidate-ids` exactly the supply parameters in
+  `parameters`; the ones it lacks they get from their supply
+  technology, if they have one."
+  [document candidate-ids parameters]
+  (document/map-candidates
+   document
+   #(-> (apply dissoc % ::supply/technology-id supply/supply-keys)
+        (assoc ::candidate/modified true)
+        (merge parameters))
+   candidate-ids))
+
+(defn- number-row
+  "A row to edit `k` in `*state`, an atom; blank means to use the value
+  `inherited` from the supply type"
+  [label k *state inherited & {:keys [scale step unit]}]
+  [:tr
+   [:td label]
+   [:td [inputs/number2 {:style {:max-width :6em}
+                         :min 0 :scale (or scale 1) :step step
+                         :value (get @*state k)
+                         :empty-value [nil (if-let [v (get inherited k)]
+                                             (str (* (or scale 1) v))
+                                             "")]
+                         :on-change #(swap! *state (fn [s] (if (nil? %) (dissoc s k) (assoc s k %))))}]]
+   [:td unit]])
 
 (defn- supply-parameters-form [candidate-ids]
-  ;; take existing values from document
   (reagent/with-let [candidates (map (doc/value [::document/candidates]) candidate-ids)
-
-                     supply-keys [::supply/capacity-kwp
-                                  ::supply/cost-per-kwh
-                                  ::supply/capex-per-kwp
-                                  ::supply/opex-per-kwp
-                                  ::supply/fixed-cost
-                                  ::supply/emissions]
-
-                     initial-values
-                     (into {} (for [k supply-keys] [k (first (map k candidates))]))
-
-                     initial-values (assoc (just-number-values initial-values)
-                                           ::supply/emissions (just-number-values (::supply/emissions initial-values)))
-
-                     local-state (reagent/atom initial-values)
-
-                     capacity-kwp (reagent/cursor local-state [::supply/capacity-kwp])
-                     cost-per-kwh (reagent/cursor local-state [::supply/cost-per-kwh])
-                     capex-per-kwp (reagent/cursor local-state [::supply/capex-per-kwp])
-                     opex-per-kwp (reagent/cursor local-state [::supply/opex-per-kwp])
-                     fixed-cost (reagent/cursor local-state [::supply/fixed-cost])
-                     emissions-atoms (into {}
-                                           (for [e candidate/emissions-types]
-                                             [e (reagent/cursor local-state [::supply/emissions e])]))
-                     ]
-    [:div.popover-dialog
-     [:div
-      [:table
-       [:tbody
-        [:tr [:td {:col-span 3} [:b "Cost and capacity"]] ]
-        ;; TODO check these thresholds are sane
-        [:tr [:td "Maximum capacity"] [:td [inputs/number {:value-atom capacity-kwp  :min 1 :max 1000  :scale (/ 1.0 1000)  :step 0.1}]] [:td "MW"]]
-        [:tr [:td "Fixed cost"]       [:td [inputs/number {:value-atom fixed-cost    :min 0 :max 10000 :scale (/ 1.0 1000)  :step 0.1}]] [:td "k¤"]]
-        [:tr [:td "Capacity cost"]    [:td [inputs/number {:value-atom capex-per-kwp :min 0 :max 10000  :step 0.1}]] [:td "¤/kW"]]
-        [:tr [:td "Annual cost"]      [:td [inputs/number {:value-atom opex-per-kwp  :min 0 :max 1000                       :step 0.1}]] [:td "¤/kW"]]
-        [:tr [:td "Supply cost"]      [:td [inputs/number {:value-atom cost-per-kwh  :min 0 :max 500   :scale 100           :step 0.1}]] [:td "c/kWh"]]
-        [:tr [:td {:col-span 3} [:b "Emissions factors"]] ]
-        (for [e candidate/emissions-types]
-          [:tr {:key e}
-           [:td (name e)]
-           [:td [inputs/number {:value-atom (emissions-atoms e) :min 0 :max 1000 :step 1
-                                :scale (candidate/emissions-factor-scales e)}]]
-           [:td (candidate/emissions-factor-units e)]])]
-       ]
-      ]
-     [:div
-      [:button.button.button--danger {:on-click #(popover/close!)}
-       "Cancel"]
-      [:button.button {:on-click (fn []
-                                   (rf/dispatch [:doc/edit merge-supply-parameters candidate-ids @local-state])
-                                   (popover/close!)
-                                   )}
-       "OK"]]
-    ])
-  )
+                     ;; the values of the first candidate are what we start from
+                     local-state (reagent/atom (supply-values (first candidates)))]
+    (let [technologies (doc/value [::document/supply-technologies])
+          state        @local-state
+          tech         (get technologies (::supply/technology-id state))
+          inherited    (if tech (select-keys tech supply/supply-keys) {})
+          own-capex?   (some #(contains? state %) supply/capex-keys)
+          put-capex    (fn [k v] (swap! local-state #(if (nil? v) (dissoc % k) (assoc % k v))))
+          ]
+      [:div.popover-dialog
+       [:div
+        [:table
+         [:tbody
+          [:tr
+           [:td [:b "Supply type"]]
+           [:td {:col-span 2}
+            [inputs/select
+             {:values (cons [nil "None"]
+                            (for [[id t] (sort-by first technologies)] [id (::supply/name t)]))
+              :value (::supply/technology-id state)
+              :on-change #(swap! local-state
+                                 (fn [s] (if (nil? %)
+                                           (dissoc s ::supply/technology-id)
+                                           (assoc s ::supply/technology-id %))))}]]]
+          (when tech
+            [:tr [:td {:col-span 3}
+                  [:small "Leave a value blank to use the supply type's value, shown greyed out."]]])
+          [:tr [:td {:col-span 3} [:b "Capacity and running costs"]]]
+          [number-row "Maximum capacity" ::supply/capacity-kwp local-state inherited
+           :scale (/ 1.0 1000) :step 0.1 :unit "MW"]
+          [number-row "Supply cost" ::supply/cost-per-kwh local-state inherited
+           :scale 100 :step 0.1 :unit "c/kWh"]
+          [number-row "Annual cost" ::supply/opex-per-kwp local-state inherited
+           :step 0.1 :unit "¤/kW"]
+          [:tr [:td {:col-span 3} [:b "Emissions factors"]]]
+          (for [e candidate/emissions-types]
+            [:tr {:key e}
+             [:td (name e)]
+             [:td [inputs/number2
+                   {:style {:max-width :6em} :min 0
+                    :scale (candidate/emissions-factor-scales e)
+                    :value (get-in state [::supply/emissions e])
+                    :empty-value [nil (if-let [v (get-in inherited [::supply/emissions e])]
+                                        (str (* (candidate/emissions-factor-scales e) v))
+                                        "")]
+                    :on-change #(swap! local-state
+                                       (fn [s] (if (nil? %)
+                                                 (update s ::supply/emissions dissoc e)
+                                                 (assoc-in s [::supply/emissions e] %))))}]]
+             [:td (candidate/emissions-factor-units e)]])]]
+        [:b "Capital cost"]
+        (when tech
+          [inputs/check {:label "Use the supply type's capital cost"
+                         :value (not own-capex?)
+                         :on-change
+                         (fn [use-type]
+                           (if use-type
+                             (swap! local-state #(apply dissoc % supply/capex-keys))
+                             (swap! local-state merge
+                                    (select-keys tech supply/capex-keys)
+                                    (when-not (some #(contains? tech %) supply/capex-keys)
+                                      {::supply/fixed-cost 0 ::supply/capex-per-kwp 0}))))}])
+        (when (or own-capex? (not tech))
+          [capex-editor (merge {::supply/capacity-kwp (::supply/capacity-kwp inherited)} state)
+           put-capex])]
+       [:div
+        [:button.button.button--danger {:on-click #(popover/close!)}
+         "Cancel"]
+        [:button.button {:on-click (fn []
+                                     (rf/dispatch [:doc/edit merge-supply-parameters candidate-ids @local-state])
+                                     (popover/close!))}
+         "OK"]]])))
 
 (defn show-editor! [candidate-ids]
   (when (seq candidate-ids)

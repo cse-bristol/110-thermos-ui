@@ -33,8 +33,10 @@
             [thermos-frontend.params.profiles :as profiles]
             [thermos-frontend.params.supply-technologies :as supply-technologies]
             [thermos-frontend.params.supply-objective :as supply-objective]
+            [thermos-frontend.params.supply-types :as supply-types]
             [thermos-frontend.supply-solution-view :as supply-solution-view]
             [thermos-frontend.merge-upload :as merge-upload]
+            [thermos-frontend.parameter-sets :as parameter-sets]
             
             [thermos-frontend.solution-view :as solution-view]
             [thermos-frontend.toaster :as toaster]
@@ -153,6 +155,7 @@
   [main-nav/component
    {:key :main-nav
     :read-only (preload/get-value :read-only)
+    :parameter-set (some? (db/parameter-set))
     :on-save #(do-save % nil)
     :on-run  do-save
 
@@ -292,8 +295,14 @@
           (fn [e]
             (rf/dispatch [:table/close-filter]))
 
+          set-mode (some? (db/parameter-set))
+
           selected-tab (doc/value selected-tab-path :candidates)
 
+          ;; a parameter set has no map or solution
+          selected-tab (if (and set-mode (#{:candidates :solution :run-log :supply-solution} selected-tab))
+                         :parameters
+                         selected-tab)
           ]
 
       [:div {:style {:height :100% :width :100%
@@ -326,15 +335,16 @@
            }
 
           [:div.menu-block
-           [:h1 "Network problem"]
+           [:h1 (if set-mode "Network parameters" "Network problem")]
            [:ul
-            [tab-switcher :candidates "Map view"]
+            (when-not set-mode [tab-switcher :candidates "Map view"])
             [tab-switcher :parameters "Objective"]
             
             [tab-switcher :tariffs "Tariffs"]
             [tab-switcher :pipe-costs "Pipe & connection costs"]
             [tab-switcher :insulation "Insulation"]
             [tab-switcher :alternatives "Individual systems"]
+            [tab-switcher :supply-types "Supply types"]
             ]]
 
           (when @has-solution?
@@ -381,6 +391,19 @@
                   "Keyboard shortcuts"]]]
            ]
 
+          (when-not set-mode
+            [:div.menu-block
+             [:h1 "Parameter sets"]
+             [:ul
+              [:li [:button.button--link-style
+                    {:on-click parameter-sets/show-apply-dialog!}
+                    "Apply a parameter set..."]]
+              (when-not (preload/get-value :read-only)
+                [:li [:button.button--link-style
+                      {:on-click parameter-sets/show-save-dialog!}
+                      "Save parameters as a set..."]])
+              [:li [:a {:href "/parameters" :target "_blank"} "All parameter sets"]]]])
+
           [:div.menu-block
            [:h1 "Import / Export Data"]
            [:ul
@@ -391,45 +414,48 @@
             [:li [:button.button--link-style
                   {:on-click merge-upload/do-upload}
                   symbols/upload " Excel Spreadsheet"]]
-            
-            [:li [:button.button--link-style
-                  {:on-click #(rf/dispatch [::export "/convert/json" ".json"])}
-                  symbols/download "Geojson"]]
+            (when-not set-mode
+             [:<>
+              [:li [:button.button--link-style
+                    {:on-click #(rf/dispatch [::export "/convert/json" ".json"])}
+                    symbols/download "Geojson"]]
 
-            [:li [:button.button--link-style
-                  {:on-click #(rf/dispatch [::export "/convert/json-2" ".json"])}
-                  symbols/download "Geojson v2"]]
+              [:li [:button.button--link-style
+                    {:on-click #(rf/dispatch [::export "/convert/json-2" ".json"])}
+                    symbols/download "Geojson v2"]]
 
-            [:li [:button.button--link-style
-                  {:on-click
-                   (fn [_]
-                     (let [f (js/document.createElement "input")]
-                       (set! (.-type f) "file")
-                       (.addEventListener
-                        f "change"
-                        (fn [e]
-                          (let [r (js/FileReader.)]
-                            (set!
-                             (.-onload r)
-                             (fn [e]
-                               (->> e
-                                   (.-target)
-                                   (.-result)
-                                   (js/JSON.parse)
-                                   (js->clj)
-                                   (vector :doc/edit converter/update-from-geojson-2)
-                                   (rf/dispatch))))
-                            (.readAsText r (-> e (.-target) (.-files) (aget 0))))))
-                       (.dispatchEvent f (js/MouseEvent. "click"))))
-                   
-                   }
-                  symbols/upload " Geojson v2"]]
+              [:li [:button.button--link-style
+                    {:on-click
+                     (fn [_]
+                       (let [f (js/document.createElement "input")]
+                         (set! (.-type f) "file")
+                         (.addEventListener
+                          f "change"
+                          (fn [e]
+                            (let [r (js/FileReader.)]
+                              (set!
+                               (.-onload r)
+                               (fn [e]
+                                 (->> e
+                                     (.-target)
+                                     (.-result)
+                                     (js/JSON.parse)
+                                     (js->clj)
+                                     (vector :doc/edit converter/update-from-geojson-2)
+                                     (rf/dispatch))))
+                              (.readAsText r (-> e (.-target) (.-files) (aget 0))))))
+                         (.dispatchEvent f (js/MouseEvent. "click"))))
+                     
+                     }
+                    symbols/upload " Geojson v2"]]])
             ]]
           
           [:div.menu-block
-           [:h1 "Project"]
+           [:h1 (if set-mode "Parameter sets" "Project")]
            [:ul
-            [:li [:a {:href "../../../"} "Back to project"]]
+            (if set-mode
+              [:li [:a {:href "/parameters"} "Back to parameter sets"]]
+              [:li [:a {:href "../../../"} "Back to project"]])
             [:li [:a {:href "/"} "THERMOS home page"]]
             ]]])
 
@@ -468,6 +494,10 @@
                [push-offer/component])
              [:a {:href "../../../"} "Back to project"]])])
 
+       (if set-mode
+         ^{:key :set-editor-bar} [parameter-sets/set-editor-bar]
+         ^{:key :changed-banner} [parameter-sets/changed-banner])
+
        [:div {:style {:key :main-body
                       :height 1 :flex-grow 1
                       :overflow :auto
@@ -492,6 +522,9 @@
 
           (= selected-tab :alternatives)
           [alternatives/alternatives-parameters]
+
+          (= selected-tab :supply-types)
+          [supply-types/supply-types-parameters]
 
           (= selected-tab :profiles)
           [profiles/profiles-parameters]

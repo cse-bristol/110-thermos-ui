@@ -38,3 +38,113 @@
         border-left: 1px grey solid;
     }
 }
+
+// the library of parameter sets
+.parameter-table {
+    width: 100%;
+    border-collapse: collapse;
+
+    th, td {
+        padding: 0.2em 0.5em;
+        text-align: left;
+        vertical-align: top;
+    }
+
+    thead th {
+        border-bottom: 1px solid #aaa;
+        white-space: nowrap;
+    }
+
+    tr.section th {
+        padding-top: 1em;
+        font-size: 1.1em;
+        border-bottom: 1px solid #ddd;
+    }
+
+    tbody tr:not(.section):hover {
+        background: #f4f8ff;
+    }
+
+    td.empty, td.categories, td.defaults, .description {
+        color: #666;
+        font-size: 0.85em;
+    }
+
+    td.actions, td.date {
+        white-space: nowrap;
+        text-align: right;
+    }
+}
+
+// the list of projects on the front page; also used for recent runs
+.project-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.5em;
+
+    th, td {
+        padding: 0.3em 0.5em;
+        text-align: left;
+        vertical-align: top;
+    }
+
+    thead th {
+        border-bottom: 1px solid #aaa;
+        white-space: nowrap;
+    }
+
+    tbody tr:hover {
+        background: #f4f8ff;
+    }
+
+    tbody tr + tr td {
+        border-top: 1px solid #eee;
+    }
+
+    .description, .empty {
+        color: #666;
+        font-size: 0.85em;
+    }
+
+    .tag {
+        font-size: 0.75em;
+        margin-left: 0.5em;
+        padding: 0 0.4em;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        color: #555;
+    }
+
+    .tag.running {
+        background: #eef6ff;
+    }
+
+    .failed {
+        color: #c00;
+    }
+
+    td.number {
+        text-align: right;
+    }
+
+    td.date, td.actions {
+        white-space: nowrap;
+        text-align: right;
+    }
+
+    td.actions .button {
+        margin-left: 0.25em;
+        padding: 0.1em 0.4em;
+    }
+}
+
+// tables whose headers sort them (pages.js)
+table.sortable th[data-sort-type] {
+    cursor: pointer;
+    user-select: none;
+
+    &[data-sort-type=number], &[data-sort-type=date] { text-align: right; }
+
+    &.sorted-asc::after { content: " ▲"; }
+    &.sorted-desc::after { content: " ▼"; }
+}

@@ -15,6 +15,8 @@
     unsaved :unsaved?
     hamburger :hamburger
     read-only :read-only
+    ;; a parameter set can be saved, but not optimised
+    parameter-set :parameter-set
     }]
   (reagent/with-let [name-text (reagent/atom name)
                      optimise-clicked (reagent/atom false)
@@ -115,14 +117,16 @@
               :on-click #(with-name on-save)}
              "Save"
              ])
-          [:button.button.button--outline
-           {:style {:background "none" :border "none"}
-            :on-click #(with-name click-tools)}
-           "⚙"]
-          [:button.button.button--outline
-           {:style {:background "none" :border "none"}
-            :on-click #(with-name click-optimise)}
-           "Optimise ▸"]]
+          (when-not parameter-set
+            [:button.button.button--outline
+             {:style {:background "none" :border "none"}
+              :on-click #(with-name click-tools)}
+             "⚙"])
+          (when-not parameter-set
+            [:button.button.button--outline
+             {:style {:background "none" :border "none"}
+              :on-click #(with-name click-optimise)}
+             "Optimise ▸"])]
 
          
          ))

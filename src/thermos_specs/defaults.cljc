@@ -138,10 +138,27 @@
   {1 #::supply {:id 1 :name "Gas CH"
                 :cost-per-kwh 0.05
                 :fixed-cost 2000
-                :cost-per-kwp 100
+                :capex-per-kwp 100
                 :opex-per-kwp 0
                 :emissions
                 {:co2 0.215}}})
+
+(def default-supply-technologies
+  {0 #::supply {:id 0 :name "Gas boiler"
+                :capacity-kwp 10000.0
+                :cost-per-kwh 0.05
+                :fixed-cost 50000
+                :capex-per-kwp 60
+                :opex-per-kwp 0
+                :emissions {:co2 0.215}}
+   1 #::supply {:id 1 :name "Air source heat pump"
+                :capacity-kwp 5000.0
+                :cost-per-kwh 0.08
+                ;; total capital cost at each capacity; bigger plant is
+                ;; cheaper per kW
+                :capex-curve [[0 150000] [500 550000] [2000 1600000] [5000 3400000]]
+                :opex-per-kwp 10
+                :emissions {:co2 0.06}}})
 
 (def default-supply-model-params
   (let [flat (fn [x]
@@ -302,6 +319,7 @@
     ::document/pipe-costs default-pipe-costs
     ::document/insulation default-insulation
     ::document/alternatives default-alternatives
+    ::document/supply-technologies default-supply-technologies
 
     ::tariff/market-term 10
     ::tariff/market-discount-rate 0.035

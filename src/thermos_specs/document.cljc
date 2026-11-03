@@ -375,7 +375,7 @@
   [document]
   (and (not (empty? (::candidates document)))
        (some (comp #{:building} ::candidate/type) (vals (::candidates document)))
-       (some ::supply/capacity-kwp (vals (::candidates document)))))
+       (some candidate/has-supply? (vals (::candidates document)))))
 
 (defn tariff-for-id [doc tariff-id]
   (if (= :market tariff-id)
@@ -469,6 +469,33 @@
               [::demand/counterfactual (sr/pred= alt-id)]
               [::demand/alternatives (sr/set-elem alt-id)])]
             sr/NONE))))
+
+(s/def ::supply-technologies
+  (s/and
+   (redundant-key ::supply/id)
+   (s/map-of ::supply/id ::supply/technology)))
+
+(defn remove-supply-technology
+  "Remove a supply technology. Supply points which used it keep the
+  values they got from it."
+  {:test #(test/is
+           (= {::supply-technologies {}
+               ::candidates {1 {::supply/capacity-kwp 10 ::supply/cost-per-kwh 1}
+                             2 {::supply/technology-id 3}}}
+              (remove-supply-technology
+               {::supply-technologies {2 {::supply/id 2 ::supply/name "x"
+                                          ::supply/capacity-kwp 5
+                                          ::supply/cost-per-kwh 1}}
+                ::candidates {1 {::supply/technology-id 2 ::supply/capacity-kwp 10}
+                              2 {::supply/technology-id 3}}}
+               2)))}
+  [doc tech-id]
+  (-> doc
+      (->> (sr/transform
+            [::candidates sr/MAP-VALS
+             (sr/selected? ::supply/technology-id (sr/pred= tech-id))]
+            #(dissoc (supply/effective-supply doc %) ::supply/technology-id)))
+      (update ::supply-technologies dissoc tech-id)))
 
 (defn remove-insulation [doc ins-id]
   (-> doc

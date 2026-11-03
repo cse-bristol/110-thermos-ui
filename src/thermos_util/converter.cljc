@@ -127,7 +127,11 @@
    [::supply/opex-per-kwp      "supply_opex_per_kw"       ]
    [::supply/cost-per-kwh      "supply_cost_per_kwh"      ]
    [::supply/capex-per-kwp     "supply_capex_per_kwp"     ]
-   [::supply/emissions-factors "supply_emissions_factors" ]])
+   [::supply/emissions-factors "supply_emissions_factors" ]
+   [::supply/technology-id     "supply_type"
+    (fn [id d] (::supply/name (get (::document/supply-technologies d) id)))
+    (fn [nm d] (some (fn [[id t]] (when (= nm (::supply/name t)) id))
+                     (::document/supply-technologies d)))]])
 
 (defn properties-> [properties document candidate output]
   (reduce

@@ -90,8 +90,9 @@
 (defn has-supply?
   "True if a building could be a supply location. To see whether it was used, see `supply-in-solution?`"
   [candidate]
-  (when-let [^double cap (::supply/capacity-kwp candidate)]
-    (pos? cap)))
+  (or (some? (::supply/technology-id candidate))
+      (when-let [^double cap (::supply/capacity-kwp candidate)]
+        (pos? cap))))
 
 (defn required? [candidate]
   (= (::inclusion candidate) :required))
@@ -138,7 +139,7 @@
 (defn peripheral? [candidate] (= :peripheral (::solution/unreachable candidate)))
 
 (defn forbid-supply! [candidate]
-  (dissoc candidate ::supply/capacity-kwp))
+  (dissoc candidate ::supply/capacity-kwp ::supply/technology-id))
 
 (defn got-alternative? [candidate]
   (and (::solution/alternative candidate)

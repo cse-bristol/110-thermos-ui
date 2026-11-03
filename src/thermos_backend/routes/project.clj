@@ -27,7 +27,10 @@
             [thermos-backend.queue :as queue]
             [thermos-backend.routes.lidar :as lidar-routes]
             [thermos-backend.routes.map-wizard :as map-wizard]
-            [thermos-backend.project-lidar :as project-lidar])
+            [thermos-backend.project-lidar :as project-lidar]
+            [thermos-backend.db.parameter-sets :as parameter-sets]
+            [thermos-specs.parameters :as parameters]
+            [thermos-specs.defaults :as defaults])
   (:import [javax.mail.internet InternetAddress]
            [java.io ByteArrayInputStream]))
 
@@ -132,17 +135,19 @@
             (html (project-pages/delete-project-page project wrong-name)))
           (cache-control/no-store)))))
 
-(defn- rename-project-dialog [{{:keys [project-id]} :params}]
+(defn- rename-project-dialog [{{:keys [project-id return]} :params}]
   (auth/verify [:rename :project project-id]
-    (-> (project-pages/rename-project-form (projects/get-project project-id))
+    (-> (project-pages/rename-project-form (projects/get-project project-id)
+                                           (= "/" return))
         (fragment)
         (cache-control/no-store))))
 
-(defn- rename-project! [{{:keys [project-id name description]} :params}]
+(defn- rename-project! [{{:keys [project-id name description return]} :params}]
   (auth/verify [:rename :project project-id]
     (when-not (string/blank? name)
       (projects/rename-project! project-id (string/trim name) (some-> description string/trim)))
-    (response/redirect (str "/project/" project-id) :see-other)))
+    ;; the list of projects can rename them too, and wants to go back there
+    (response/redirect (if (= "/" return) "/" (str "/project/" project-id)) :see-other)))
 
 (defn- users-from-form
   "The form for project users has fields id:<i>, name:<i>, auth:<i> and new:<i>
@@ -295,10 +300,24 @@
       (response/response)
       (response/content-type "image/png")))
 
+(defn- initial-network
+  "The document a new network starts as, if it starts with the parameters
+  from the user's default parameter set; or nil, for the editor to use
+  the built-in defaults."
+  [project-id mode]
+  (when-let [set-id (and auth/*current-user*
+                         (parameter-sets/default-set-id (:id auth/*current-user*) project-id))]
+    (let [{:keys [content] :as ps} (parameter-sets/get-set set-id)]
+      (pr-str
+       (parameters/new-document
+        (if (= mode :cooling) defaults/default-cooling-document defaults/default-document)
+        content
+        (select-keys ps [:id :name :revision]))))))
+
 (defn- new-network-page [{{:keys [mode map-id project-id]} :params}]
   (auth/verify [:read :map map-id]
     (-> (editor/editor-page nil
-                            nil
+                            (initial-network project-id (if (= mode "cooling") :cooling :heating))
                             (if (= mode "cooling")
                               :cooling
                               :heating)

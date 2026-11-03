@@ -175,3 +175,21 @@
    "/home/hinton/dl/cddp-thermos-parameters-2021-01-25.xlsx"
    )
   )
+(defn supply-curve->string
+  "A supply type's capital cost curve as it is in a spreadsheet cell, like
+  \"0:1000 500:20000\" (kWp:¤ pairs)"
+  [curve]
+  (when (seq curve)
+    (string/join " " (for [[kw cost] curve] (str kw ":" cost)))))
+
+(defn string->supply-curve
+  "The inverse of `supply-curve->string`; nil if `s` is blank or invalid"
+  [s]
+  (when (and (string? s) (not (string/blank? s)))
+    (let [points (for [pair (string/split (string/trim s) #"[\s,;]+")
+                       :let [[kw cost] (string/split pair #":")]]
+                   (try [(Double/parseDouble kw) (Double/parseDouble cost)]
+                        (catch Exception _ nil)))]
+      (when (and (seq points) (every? some? points))
+        (vec (sort-by first points))))))
+

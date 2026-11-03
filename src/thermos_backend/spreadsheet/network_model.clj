@@ -80,7 +80,8 @@
     (if (document/has-solution? doc)
       (let [networked-buildings (filter candidate/is-connected? buildings)
             non-networked-buildings (remove candidate/is-connected? buildings)
-            supply-buildings (filter candidate/has-supply? buildings)
+            supply-buildings (->> (filter candidate/has-supply? buildings)
+                                  (map #(supply/effective-supply doc %)))
             ]
         (-> ss
             (sheet/add-tab
@@ -115,7 +116,8 @@
              "Supply points"
              (concat
               base-cols
-              [{:name "Maximum capacity (kW)" :key ::supply/capacity-kwp}
+              [{:name "Supply type" :key #(::supply/name (supply/technology doc %))}
+               {:name "Maximum capacity (kW)" :key ::supply/capacity-kwp}
                {:name "Heat price (c/kWh)" :key (comp *100 ::supply/cost-per-kwh)}
 
                {:name "Fixed capital cost (¤)" :key ::supply/fixed-cost}
@@ -222,6 +224,25 @@
           ))
        
        (vals (::document/alternatives doc)))
+
+      (sheet/add-tab
+       "Supply types"
+       (into
+        [{:name "Name" :key ::supply/name}
+         {:name "Maximum capacity (kWp)" :key ::supply/capacity-kwp}
+         {:name "Heat price (c/kWh)" :key (comp *100 (or-zero ::supply/cost-per-kwh))}
+         {:name "Fixed cost (¤)" :key #(when-not (seq (::supply/capex-curve %)) (::supply/fixed-cost % 0))}
+         {:name "Capacity cost (¤/kWp)" :key #(when-not (seq (::supply/capex-curve %)) (::supply/capex-per-kwp % 0))}
+         {:name "Cost curve (kWp:¤)" :key (comp common/supply-curve->string ::supply/capex-curve)}
+         {:name "Operating cost (¤/kWp.yr)" :key (or-zero ::supply/opex-per-kwp)}]
+        (for [e candidate/emissions-types]
+          {:name (str (candidate/text-emissions-labels e)
+                      " ("
+                      (candidate/emissions-factor-units e)
+                      ")")
+           :key (comp (partial * (candidate/emissions-factor-scales e))
+                      #(e % 0) ::supply/emissions)}))
+       (vals (::document/supply-technologies doc)))
 
       (sheet/add-tab
        "Insulation"
@@ -381,6 +402,7 @@
   (let [{:keys [tariffs
                 connection-costs
                 individual-systems
+                supply-types
                 pipe-costs
                 insulation
                 other-parameters
@@ -486,6 +508,27 @@
          [e (if (number? c) {:enabled true :value c} {:enabled false :value nil})])
        (into {}))
       }
+
+     ;; older spreadsheets have no supply types, and shouldn't remove any
+     (when supply-types
+       {::document/supply-technologies
+        (-> (for [{:keys [name maximum-capacity-kwp heat-price fixed-cost capacity-cost
+                          cost-curve operating-cost co2 pm25 nox]}
+                  (:rows supply-types)
+                  :let [curve (common/string->supply-curve cost-curve)]]
+              (cond-> #::supply
+                {:name name
+                 :capacity-kwp (or maximum-capacity-kwp 0.0)
+                 :cost-per-kwh (/ (or heat-price 0.0) 100.0)
+                 :opex-per-kwp (or operating-cost 0.0)
+                 :emissions
+                 {:co2  (/ (or co2 0.0) (candidate/emissions-factor-scales :co2))
+                  :pm25 (/ (or pm25 0.0) (candidate/emissions-factor-scales :pm25))
+                  :nox  (/ (or nox 0.0) (candidate/emissions-factor-scales :nox))}}
+                curve       (assoc ::supply/capex-curve curve)
+                (not curve) (assoc ::supply/fixed-cost (or fixed-cost 0.0)
+                                   ::supply/capex-per-kwp (or capacity-cost 0.0))))
+            (common/index ::supply/id))})
      
      {::document/tariffs
       (-> (for [{:keys [tariff-name unit-rate capacity-charge standing-charge]}

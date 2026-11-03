@@ -86,7 +86,7 @@
     ring/ring-defaults {:mvn/version "0.3.2"},
     digest/digest {:mvn/version "1.4.6"},
     thermos/models
-    {:git/url "ssh://git@github.com/cse-bristol/110-thermos-models.git",
+    {:git/url "ssh://git@github.com/cse-bristol/thermos-models-internal.git",
      :sha "f3d0a7cae7d39acdaa3a8654d3101517cf2e679f"},
     clucie/clucie {:mvn/version "0.4.2"},
     honeysql/honeysql {:mvn/version "0.9.4"},

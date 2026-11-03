@@ -11,6 +11,7 @@
             [thermos-specs.demand :as demand]
             [thermos-specs.path :as path]
             [thermos-specs.defaults :as defaults]
+            [thermos-util.finance :as finance]
             [thermos.opt.net.specs :as specs]
             [thermos.opt.net.pipes :as pipes]
             ))
@@ -121,6 +122,53 @@
           "every street has cost steps, and connectors (zero length) don't")
     (t/is (= 3 (:supply-limit
                 (model-input (assoc doc ::document/maximum-supply-sites 3)))))))
+
+(defn- supply-input [doc]
+  (->> (model-input doc) :vertices (keep :supply) first))
+
+(defn- set-supply [doc f & args]
+  (apply update-in doc [::document/candidates "b2"] f args))
+
+(t/deftest supply-costs-are-a-curve
+  (let [doc (-> (street-document 2)
+                (assoc ::document/npv-rate 0.0 ::document/npv-term 2)
+                (set-supply assoc ::supply/opex-per-kwp 3.0))
+        capex #(finance/objective-value doc :supply-capex %)
+        opex  #(finance/objective-value doc :supply-opex %)
+        s (supply-input doc)]
+    (t/testing "fixed and per-kWp costs make the curve the model used to make from them"
+      (t/is (not (contains? s :cost)))
+      (t/is (= [[0.0 (capex 1000.0)]
+                [5000.0 (+ (capex (+ 1000.0 (* 5000.0 100.0))) (opex (* 5000.0 3.0)))]]
+               (:cost%kwp s)))
+      (t/is (specs/ensure-valid-problem (model-input doc))))
+
+    (t/testing "a curve is used instead, with opex added, and extended to the capacity"
+      (let [s (supply-input (set-supply doc assoc ::supply/capex-curve [[0 500] [1000 2000] [2000 2500]]))]
+        (t/is (= [[0.0 (dp4 (capex 500.0))]
+                  [1000.0 (dp4 (+ (capex 2000.0) (opex 3000.0)))]
+                  [2000.0 (dp4 (+ (capex 2500.0) (opex 6000.0)))]
+                  [5000.0 (dp4 (+ (capex 4000.0) (opex 15000.0)))]]
+                 (mapv (fn [[x y]] [x (dp4 y)]) (:cost%kwp s))))))
+
+    (t/testing "a supply technology provides what the supply point doesn't"
+      (let [doc (-> doc
+                    (assoc ::document/supply-technologies
+                           {7 {::supply/id 7 ::supply/name "Heat pump"
+                               ::supply/capacity-kwp 2000.0
+                               ::supply/cost-per-kwh 0.1
+                               ::supply/capex-curve [[0 100] [2000 900]]
+                               ::supply/emissions {:co2 0.1}}})
+                    (set-supply #(-> %
+                                     (dissoc ::supply/capacity-kwp ::supply/fixed-cost
+                                             ::supply/capex-per-kwp ::supply/opex-per-kwp)
+                                     (assoc ::supply/technology-id 7
+                                            ::supply/cost-per-kwh 0.05))))
+            s (supply-input doc)]
+        (t/is (== 2000.0 (:capacity-kw s)))
+        (t/is (= [[0.0 (capex 100.0)] [2000.0 (capex 900.0)]] (:cost%kwp s)))
+        (t/is (== (float (finance/objective-value doc :supply-heat 0.05)) (:cost%kwh s)))
+        (t/is (== (float 0.1) (get-in s [:emissions :co2])))))))
 
 (t/deftest pipe-losses-are-watts
   (let [doc (street-document 1)

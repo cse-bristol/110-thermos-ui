@@ -277,6 +277,35 @@
                [:tank-factor {:optional true} [:or double? nil?]]
                [:heat-price double?]]]]]]
 
+    ;; optional, as spreadsheets from before supply types don't have it
+    [:supply-types {:optional true}
+     [:map
+      [:header [:map
+                {:error/message "column missing"}
+                [:name string?]
+                [:maximum-capacity-kwp string?]
+                [:heat-price string?]
+                [:fixed-cost string?]
+                [:capacity-cost string?]
+                [:cost-curve string?]
+                [:operating-cost string?]]]
+      [:rows [:sequential
+              [:map
+               [:spreadsheet/row int?]
+               [:name string?]
+               [:maximum-capacity-kwp {:optional true} [:or double? nil?]]
+               [:heat-price {:optional true} [:or double? nil?]]
+               [:fixed-cost {:optional true} [:or double? nil?]]
+               [:capacity-cost {:optional true} [:or double? nil?]]
+               [:cost-curve {:optional true}
+                [:or nil? [:and string? [:fn {:error/message "should be like 0:1000 500:20000 (kWp:cost pairs)"}
+                                         #(or (string/blank? %)
+                                              (some? (sheet/string->supply-curve %)))]]]]
+               [:operating-cost {:optional true} [:or double? nil?]]
+               [:co2 {:optional true} [:or double? nil?]]
+               [:pm25 {:optional true} [:or double? nil?]]
+               [:nox {:optional true} [:or double? nil?]]]]]]]
+
     [:pipe-costs
      [:map
       [:header [:map

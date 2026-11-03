@@ -5,6 +5,7 @@
   (:require [clojure.spec.alpha :as s]
             [spec-tools.data-spec :as ds]
             [thermos-util :as util]
+            [clojure.test :as test]
             [com.rpl.specter :as sr]))
 
 ;; These are the "network" supply parameters which control the cost /
@@ -56,6 +57,110 @@
 
 (defn heat-cost [candidate consumption-kwh]
   (* (or consumption-kwh 0) (::cost-per-kwh candidate 0)))
+
+;; A supply point's parameters can come from a supply technology, in
+;; the document's :thermos-specs.document/supply-technologies table,
+;; which the candidate names with ::technology-id. The candidate's own
+;; values override the technology's.
+
+(s/def ::capex-curve
+  ;; total capital cost at a capacity, [[kW cost] ...] in increasing
+  ;; kW; if present this is used instead of ::fixed-cost and
+  ;; ::capex-per-kwp
+  (s/coll-of (s/tuple number? number?) :kind vector?))
+
+(s/def ::technology
+  (s/keys :req [::id ::name]
+          :opt [::capacity-kwp ::cost-per-kwh ::capex-per-kwp ::opex-per-kwp
+                ::fixed-cost ::capex-curve ::emissions]))
+
+(def supply-keys
+  "The keys which define a supply point, which a supply technology can provide."
+  [::capacity-kwp ::cost-per-kwh ::fixed-cost ::capex-per-kwp ::capex-curve
+   ::opex-per-kwp ::emissions])
+
+(def capex-keys
+  "These go together: if a candidate has any of them, it gets none
+  from its technology, so a linear capital cost on a candidate is not
+  confused by a curve on its technology or vice-versa."
+  [::fixed-cost ::capex-per-kwp ::capex-curve])
+
+(defn technology [doc candidate]
+  (when-let [t (::technology-id candidate)]
+    (get (:thermos-specs.document/supply-technologies doc) t)))
+
+(defn effective-supply
+  "`candidate` with the supply parameters it gets from its supply
+  technology, if any, filled in."
+  {:test #(let [doc {:thermos-specs.document/supply-technologies
+                     {1 {::id 1 ::name "T" ::capacity-kwp 100 ::cost-per-kwh 0.1
+                         ::capex-curve [[0 10] [100 20]]
+                         ::emissions {:co2 0.2 :nox 0.1}}}}]
+            (test/is (= {::capacity-kwp 5} (effective-supply doc {::capacity-kwp 5})))
+            (test/is (= {::technology-id 1 ::capacity-kwp 50 ::cost-per-kwh 0.1
+                         ::capex-curve [[0 10] [100 20]]
+                         ::emissions {:co2 0.3 :nox 0.1}}
+                        (effective-supply doc {::technology-id 1 ::capacity-kwp 50
+                                               ::emissions {:co2 0.3}})))
+            (test/is (= {::technology-id 1 ::capacity-kwp 100 ::cost-per-kwh 0.1
+                         ::fixed-cost 5
+                         ::emissions {:co2 0.2 :nox 0.1}}
+                        (effective-supply doc {::technology-id 1 ::fixed-cost 5}))))}
+  [doc candidate]
+  (if-let [tech (technology doc candidate)]
+    (let [inherited (select-keys tech supply-keys)
+          inherited (if (some #(contains? candidate %) capex-keys)
+                      (apply dissoc inherited capex-keys)
+                      inherited)]
+      (cond-> (merge inherited candidate)
+        (or (::emissions inherited) (::emissions candidate))
+        (assoc ::emissions (merge (::emissions inherited) (::emissions candidate)))))
+    candidate))
+
+(defn capex-curve
+  "The capital cost curve for an (effective) supply, as [[kW cost] ...],
+  from its ::capex-curve or its fixed and per-kWp costs, up to its
+  capacity."
+  {:test #(do (test/is (= [[0 10] [100 210]]
+                          (capex-curve {::capacity-kwp 100 ::fixed-cost 10 ::capex-per-kwp 2})))
+              (test/is (= [[0 0] [50 0]] (capex-curve {::capacity-kwp 50})))
+              (test/is (= [[0 10] [10 20]]
+                          (capex-curve {::capacity-kwp 50 ::fixed-cost 1
+                                        ::capex-curve [[0 10] [10 20]]}))))}
+  [s]
+  (let [curve (::capex-curve s)]
+    (if (seq curve)
+      (vec (sort-by first curve))
+      (let [fixed (or (::fixed-cost s) 0)
+            cap   (or (::capacity-kwp s) 0)]
+        [[0 fixed] [cap (+ fixed (* cap (or (::capex-per-kwp s) 0)))]]))))
+
+(defn capex-at
+  "The capital cost of an (effective) supply built with capacity `kw`;
+  0 if `kw` is 0, as the supply is not built."
+  {:test #(let [s {::capacity-kwp 100 ::capex-curve [[0 10] [10 20] [100 200]]}]
+            (test/is (== 0 (capex-at s 0)))
+            (test/is (== 15 (capex-at s 5)))
+            (test/is (== 110 (capex-at s 55)))
+            (test/is (== 200 (capex-at s 150)))
+            (test/is (== 30 (capex-at {::fixed-cost 10 ::capex-per-kwp 2 ::capacity-kwp 100} 10))))}
+  [s kw]
+  (let [kw (or kw 0)]
+    (if (pos? kw)
+      (let [curve (capex-curve s)
+            [x0 y0] (first curve)
+            [xn yn] (peek curve)]
+        (cond
+          (<= kw x0) y0
+          (>= kw xn) yn
+          :else
+          (let [[[xa ya] [xb yb]]
+                (->> (partition 2 1 curve)
+                     (filter (fn [[[xa] [xb]]] (<= xa kw xb)))
+                     (first))]
+            (if (== xa xb) yb
+                (+ ya (* (- kw xa) (/ (- yb ya) (- xb xa))))))))
+      0)))
 
 ;; However, we also have supply parameters for the plant model
 ;; These live in the document at the top level

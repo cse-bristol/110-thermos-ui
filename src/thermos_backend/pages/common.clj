@@ -64,6 +64,8 @@
        [:h1 {:style (style :margin-left :1em)} ~title]
        [:span {:style (style :margin-left :auto)}
         [:a {:style (style :margin-left :1em)
+             :href "/parameters"} "Parameter sets"]
+        [:a {:style (style :margin-left :1em)
              :href "/settings"} "Settings"]
         [:a {:style (style :margin-left :1em) :href "/help"} "Help"]
         [:a {:style (style :margin-left :1em)

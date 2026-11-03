@@ -103,8 +103,10 @@
    (dialog-buttons
     [:button.button.button--danger {:type :submit} "DELETE"])])
 
-(defn rename-project-form [project]
+(defn rename-project-form [project & [return-home]]
   [:form {:method :POST :action (str "/project/" (:id project) "/rename")}
+   (when return-home
+     [:input {:type :hidden :name "return" :value "/"}])
    [:h1 "Rename " (:name project)]
    [:div.flex-rows {:style (style :margin-top :1em :margin-bottom :1em :gap :0.5em)}
     [:label {:for "rename-project-name"} "Project name:"]
@@ -574,6 +576,9 @@
                         (> (:num-gis-features restriction-info) (:max-gis-features restriction-info)))
                  [:button.button.button--disabled {:disabled true} "MAP " symbols/plus]
                  [:a.button {:href "map/new"} "MAP " symbols/plus]))
+
+             (when user-auth
+               [:a.button {:href (str "/parameters?project=" (:id project))} "PARAMETERS"])
 
              (when user-auth
                [:a.button {:href "lidar"} "LIDAR"]))]]

@@ -155,6 +155,12 @@
   (when (candidate/is-building? x)
     (document/profile-name doc (::supply/profile-id x))))
 
+(defn- supply-type-name [doc x]
+  (when (candidate/has-supply? x)
+    (if-let [t (supply/technology doc x)]
+      (::supply/name t)
+      "Own values")))
+
 (defn- path-civil-cost-name [doc x]
   (when (candidate/is-path? x)
     (document/civil-cost-name doc (::path/civil-cost-id x))))
@@ -308,6 +314,7 @@
         [chips-row selection "Tariff"    (partial building-tariff-name cost-factors)]
         [chips-row selection "Edited"    (comp {false "no" true "yes" nil "no"} ::candidate/modified)]
         [chips-row selection "Profile"   (partial building-profile-name cost-factors)]
+        [chips-row selection "Supply type" (partial supply-type-name cost-factors)]
         [number-row selection "Market rate" ::solution/market-rate
          :summary :mean :unit "c/kWh" :scale 100]
         [chips-row selection "Civils"    (partial path-civil-cost-name cost-factors)]

@@ -11,6 +11,7 @@
             [thermos-backend.config :refer [config]]
             [honeysql.helpers :as h]
             [honeysql-postgres.helpers :as p]
+            [honeysql-postgres.format]
             [clojure.string :as string]
             [clojure.data.json :as json]
             [thermos-backend.db.migration :as migration]
@@ -153,7 +154,7 @@
    (-> (h/insert-into table)
        (h/values [record])
        (p/returning :id)
-       (fetch!)
+       (fetch! conn)
        (first)
        (:id))))
 
