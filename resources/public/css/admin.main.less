@@ -1,0 +1,194 @@
+// The admin pages, see thermos-backend.pages.admin
+
+@import (less) "leaflet/dist/leaflet.css";
+@import (less) "ui_components/variables.less";
+@import (less) "ui_components/tabs.less";
+
+#admin-body {
+    max-width: 1400px;
+    margin: 0 auto;
+
+    .tabs__tabs {
+        margin: 0 1em;
+    }
+    a.tabs__tab {
+        text-decoration: none;
+    }
+}
+
+// cards side by side, as wide as they need to be, wrapping when there isn't room
+.admin-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    > .card {
+        flex: 1 1 auto;
+        overflow-x: auto;
+    }
+}
+
+.admin-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75em;
+    margin-bottom: 1em;
+
+    input[type=search], input[list] {
+        flex-grow: 1;
+        max-width: 30em;
+    }
+    button + button {
+        margin-left: 0;
+    }
+}
+
+.admin-table {
+    width: 100%;
+    margin-bottom: 1em;
+
+    th, td {
+        padding: 0.25em 0.5em;
+        text-align: left;
+        vertical-align: top;
+    }
+    th.num, td.num {
+        text-align: right;
+    }
+    tbody tr:nth-child(even) {
+        background: #f8f8f8;
+    }
+    tr.admin-orphan td {
+        background: #fff1d6;
+    }
+}
+
+.admin-details {
+    width: auto;
+    th {
+        background: none;
+        padding-right: 2em;
+    }
+}
+
+table.sortable th[data-sort-type] {
+    cursor: pointer;
+    user-select: none;
+    &.sorted-asc::after { content: " ▲"; }
+    &.sorted-desc::after { content: " ▼"; }
+}
+
+.admin-actions {
+    white-space: nowrap;
+    text-align: right;
+    button + button {
+        margin-left: 0.3em;
+    }
+}
+
+.admin-pager {
+    display: flex;
+    align-items: center;
+    gap: 1em;
+    button + button {
+        margin-left: 0;
+    }
+}
+
+.job-state {
+    display: inline-block;
+    padding: 0 0.6em;
+    border-radius: 1em;
+    font-size: 0.9em;
+    background: #e4e4e4;
+    color: #555;
+}
+.job-state--ready     { background: #d6ecff; color: #14507a; }
+.job-state--running   { background: #ffe8a3; color: #6b4e00; }
+.job-state--completed { background: #cdf0cd; color: #1d5e1d; }
+.job-state--failed    { background: #f7c4c4; color: #7a1414; }
+
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13em, 1fr));
+    gap: 1em;
+    margin: 1em 0;
+}
+.admin-stat__value {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #333;
+}
+.admin-stat__label {
+    font-weight: 600;
+}
+.admin-stat__detail {
+    font-size: 0.85em;
+    color: #888;
+}
+
+.admin-dialog {
+    min-width: 32em;
+
+    h1 {
+        display: block;
+        margin: 0.5em 0;
+    }
+    label {
+        display: block;
+        margin: 0.5em 0;
+    }
+    input[type=text], input[type=email], textarea {
+        display: block;
+        width: 100%;
+    }
+    pre {
+        white-space: pre-wrap;
+        max-height: 40vh;
+        overflow: auto;
+        background: #f6f6f6;
+        padding: 0.5em;
+    }
+}
+
+.admin-dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5em;
+    margin-top: 1em;
+    button + button {
+        margin-left: 0;
+    }
+}
+
+.admin-error {
+    color: #b00;
+    font-weight: 600;
+}
+
+.admin-hint {
+    color: #888;
+    font-size: 0.9em;
+}
+
+#admin-flash {
+    position: fixed;
+    top: 60px;
+    right: 1em;
+    z-index: 1000;
+}
+.admin-flash {
+    background: #2a7a4a;
+    color: white;
+    padding: 0.6em 1em;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    animation: admin-flash 6s forwards;
+}
+.admin-flash--error {
+    background: #b33;
+}
+@keyframes admin-flash {
+    0%, 85% { opacity: 1; }
+    100%    { opacity: 0; visibility: hidden; }
+}

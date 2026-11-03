@@ -5,6 +5,7 @@
 //
 // A map is a <div class="map-box" data-config="{...}">, where the config may have
 //  - boundary:  geojson to draw and zoom to
+//  - labels:    true to label boundary features with their name property
 //  - coverage:  LIDAR coverage geojson (features with source / filename)
 //  - coverageUrl: URL to get coverage geojson from instead
 //  - bounds:    [lat0, lat1, lon0, lon1] to zoom to (nominatim boundingbox order)
@@ -64,7 +65,12 @@
                 attribution: "Map tiles &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors."
             }));
 
-        const boundary = L.geoJSON(config.boundary || null).addTo(map);
+        const boundary = L.geoJSON(config.boundary || null, {
+            onEachFeature: function (feature, layer) {
+                const name = config.labels && feature.properties && feature.properties.name;
+                if (name) layer.bindTooltip(name);
+            }
+        }).addTo(map);
 
         const coverage = L.geoJSON(null, {
             style: featureStyle,

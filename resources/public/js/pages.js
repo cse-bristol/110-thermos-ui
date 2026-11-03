@@ -7,10 +7,11 @@
 (function () {
     // Dialogs: anything loaded into #modal is shown as a modal dialog.
     // Elements inside it with data-close (or a form with method=dialog)
-    // close it.
+    // close it. An empty response (e.g. with HX-Trigger: close-modal) leaves
+    // it shut.
     document.addEventListener("htmx:afterSwap", function (e) {
         const modal = document.getElementById("modal");
-        if (modal && e.detail.target === modal && !modal.open) {
+        if (modal && e.detail.target === modal && !modal.open && modal.childElementCount > 0) {
             modal.showModal();
         }
     });

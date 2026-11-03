@@ -23,6 +23,13 @@
          (json/write-str (pr-str values))
          ";\n"))])
 
+(defn sysadmin?
+  "Whether the current user is a sysadmin. `thermos-backend.auth` needs
+  this namespace, so it can't be required here."
+  []
+  (when-let [f (resolve 'thermos-backend.auth/current-sysadmin?)]
+    (f)))
+
 (defmacro page [{:keys [title body-style css js preload set-base]
                  :or {set-base true
                       body-style {:margin "1em"}}}
@@ -63,6 +70,9 @@
        [:a {:href "/"} theme/icon]
        [:h1 {:style (style :margin-left :1em)} ~title]
        [:span {:style (style :margin-left :auto)}
+        (when (sysadmin?)
+          [:a {:style (style :margin-left :1em)
+               :href "/admin"} "Admin"])
         [:a {:style (style :margin-left :1em)
              :href "/parameters"} "Parameter sets"]
         [:a {:style (style :margin-left :1em)
