@@ -8,6 +8,11 @@
 (s/def ::state keyword?)
 (s/def ::message string?)
 (s/def ::runtime integer?)
+;; what a solution doesn't quite do of what was asked, as [kind message]
+(s/def ::warnings (s/coll-of (s/tuple keyword? string?)))
+;; the ids of required paths left out of the solution, which is one of
+;; the things ::warnings can be about
+(s/def ::waived-paths (s/coll-of any?))
 
 (defn exists? [document]
   (number? (::objective document)))

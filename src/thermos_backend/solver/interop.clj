@@ -1162,7 +1162,17 @@
                  (-> result-json :solver :controls :stages)
                  ::solution/stopped-early
                  (boolean (-> result-json :solver :interrupted))
-                 )))))
+                 )
+          ;; a solution which doesn't quite do what was asked, e.g.
+          ;; leaving out required paths the heuristic couldn't use
+          (cond->
+            (seq (:warnings result-json))
+            (assoc ::solution/warnings (vec (:warnings result-json)))
+
+            (seq (:waived-edges result-json))
+            (assoc ::solution/waived-paths
+                   (vec (distinct (mapcat (fn [{:keys [i j]}] (attr/attr net-graph [i j] :ids))
+                                          (:waived-edges result-json))))))))))
 
 (defn- mark-unreachable [instance net-graph included-candidates disconnected-candidate-ids]
   (let [ids-in-net-graph

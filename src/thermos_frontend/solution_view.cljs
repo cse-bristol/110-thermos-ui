@@ -495,6 +495,20 @@
      :here  (optimisation-rows here)
      :there (some-> there optimisation-rows)}]])
 
+(defn- solution-warnings
+  "What the solution doesn't quite do of what was asked, if anything,
+  e.g. required paths the heuristic had to leave out"
+  []
+  (when-let [warnings (seq (doc/value [::solution/warnings]))]
+    (let [waived (doc/value [::solution/waived-paths])]
+      [message
+       [:p [:b "This solution doesn't meet every requirement."]]
+       (for [[i [_ text]] (map-indexed vector warnings)]
+         [:p {:key i} text])
+       (when (seq waived)
+         [:button.button {:on-click #(rf/dispatch [:select-ids waived])}
+          "Select the paths left out"])])))
+
 (defn- solution-summary* []
   (reagent/with-let
     [here (reagent/track
@@ -534,6 +548,8 @@
              :present [:span "¤" [:sub "PV"]])}]
       [:div.solution-component
        {:style {:flex-grow 1 :padding :1em}}
+
+       [solution-warnings]
 
        [:div.card
         [:h2.card-header "Solution Summary"]
