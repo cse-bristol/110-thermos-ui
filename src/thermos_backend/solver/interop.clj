@@ -792,8 +792,10 @@
                 (candidate/has-demand? candidate mode)
                 (assoc :demand (demand-terms instance candidate market))
 
+                ;; it can't be connected, so it can't be required, or
+                ;; be in a group, which is all connected or none
                 unreachable
-                (assoc-in [:demand :required] false)
+                (update :demand #(-> % (assoc :required false) (dissoc :group)))
 
                 (candidate/has-supply? candidate)
                 (assoc :supply (supply-terms instance candidate))))))
@@ -1469,6 +1471,9 @@
 
               end-time (System/currentTimeMillis)
 
+              ;; the model checks for these, before and after solving
+              infeasible-reasons (:reasons result)
+
               solved-instance
               (-> instance
                   (assoc
@@ -1484,6 +1489,9 @@
                    ::solution/message (:message result)
                    ::solution/runtime (safe-div (- end-time start-time) 1000.0))
                   (cond->
+                    (seq infeasible-reasons)
+                    (assoc ::solution/infeasible-reasons infeasible-reasons)
+
                     (not= ::empty result)
                     (merge-solution net-graph pipe-curves market result)
                     

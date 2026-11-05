@@ -36,7 +36,13 @@
   [message
    [:p "The problem is " [:b "infeasible"] "."]
    [:p "This means that no solution exists for this problem."]
-   [:p "Possible explanations for this are:"]
+   (when-let [reasons (seq (doc/value [::solution/infeasible-reasons]))]
+     [:<>
+      [:p "Checking the problem found:"]
+      [:ul
+       (for [[i [_ text]] (map-indexed vector reasons)]
+         [:li {:key i} [:p text]])]])
+   [:p "In general, possible explanations for this are:"]
    [:ol
     [:li
      [:p "There are required demands which are not reachable from any supply location."]]
@@ -85,7 +91,7 @@
   [:div.solution-component
    (case state
      :empty-problem [problem-empty]
-     :infeasible [solution-infeasible]
+     (:infeasible :infeasible-or-unbounded) [solution-infeasible]
      :time-limit [solution-not-found]
      [unknown-state])])
 
