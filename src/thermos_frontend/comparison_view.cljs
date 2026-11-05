@@ -18,7 +18,6 @@
             [thermos-frontend.doc :as doc]
             [thermos-frontend.format :as format]
             [thermos-frontend.popover :as popover]
-            [thermos-frontend.preload :as preload]
             [thermos-frontend.theme :as theme]))
 
 (defn- date [d]
@@ -50,8 +49,7 @@
 
 (defn- chooser []
   (let [networks   @(rf/subscribe [:compare/networks])
-        current-id (:network-id @(rf/subscribe [:server]))
-        name       (preload/get-value :name)
+        {current-id :network-id name :name} @(rf/subscribe [:server])
         {versions true others false}
         (when (sequential? networks) (group-by #(= name (:name %)) networks))
         table      (fn [title networks]

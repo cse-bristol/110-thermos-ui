@@ -249,13 +249,14 @@
   {::fx/save {:title title
               :run run
               :content (transit/write (document/keep-interesting db))
-              :on-response [:server/saved run callback]}})
+              :on-response [:server/saved title run callback]}})
 
-(defn saved [{db :db} [_ run callback {:keys [status location run-state queue-position]}]]
+(defn saved [{db :db} [_ title run callback {:keys [status location run-state queue-position]}]]
   (let [ok (<= 200 status 299)]
     {:db (cond-> db
            ok (db/saved (merge (db/parse-network-url location)
-                               {:run-state run-state
+                               {:name title
+                                :run-state run-state
                                 :queue-position queue-position})))
      :fx [(when ok [::fx/replace-url location])
           (when (and ok run) [:dispatch [:server/poll]])

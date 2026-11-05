@@ -96,9 +96,9 @@
   "Post `network` to `url`, which converts it into a file, and download
   the file, named for the network with `extension`"
   ;; not called `document`, which would hide js/document
-  [network url extension]
+  [network name url extension]
   (POST url
-      {:params {:state network :name (preload/get-value :name)}
+      {:params {:state network :name name}
        :response-format
        {:type :blob :read -body}
        :handler
@@ -106,13 +106,13 @@
          (let [a (js/document.createElement "a")]
            (set! (.-href a) (js/window.URL.createObjectURL blob))
            (set! (.-download a)
-                 (str (preload/get-value :name) extension))
+                 (str name extension))
            (.dispatchEvent a (js/MouseEvent. "click"))))}))
 
 (rf/reg-event-fx
  ::export
  (fn [{db :db} [_ url extension]]
-   {:fx [[::fx/call [download! (document/keep-interesting db) url extension]]]}))
+   {:fx [[::fx/call [download! (document/keep-interesting db) (:name (db/server db)) url extension]]]}))
 
 
 (defn map-page []

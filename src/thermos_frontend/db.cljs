@@ -71,6 +71,9 @@
            ;; a network which has never been saved is unsaved
            :needs-save (= :new network-id)
            :needs-load (number? network-id)
+           ;; the name it was last saved as (the nav bar has the name
+           ;; being edited)
+           :name (preload/get-value :name)
            :queue-position 0
            :run-state nil
            :revision 0)))

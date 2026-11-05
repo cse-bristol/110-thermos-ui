@@ -18,7 +18,7 @@
    :after  #((.-restore js/goog.global))})
 
 (def server
-  {:project-id 1 :map-id 2 :network-id 3
+  {:project-id 1 :map-id 2 :network-id 3 :name "a network"
    :needs-save false :needs-load false
    :queue-position 0 :run-state nil :revision 0})
 
@@ -91,18 +91,18 @@
     (let [{{:keys [run content on-response]} ::fx/save}
           (events/save {:db (assoc a-db ::spatial/update-counter 1)} [:server/save "name" :network nil])]
       (is (= :network run))
-      (is (= [:server/saved :network nil] on-response))
+      (is (= [:server/saved "name" :network nil] on-response))
       (is (not (re-find #"update-counter|server" content)) "transient keys are not saved")))
 
   (testing "a successful save"
     (let [callback identity
           {:keys [db fx]} (events/saved {:db (assoc-in a-db [::db/server :needs-save] true)}
-                                        [:server/saved :network callback
+                                        [:server/saved "new name" :network callback
                                          {:status 201
                                           :location "/project/1/map/2/net/7"
                                           :run-state :ready
                                           :queue-position 4}])]
-      (is (= (assoc server :network-id 7 :run-state :ready :queue-position 4 :revision 1)
+      (is (= (assoc server :network-id 7 :name "new name" :run-state :ready :queue-position 4 :revision 1)
              (db/server db)))
       (is (= #{[::fx/replace-url "/project/1/map/2/net/7"]
                [:dispatch [:server/poll]]
@@ -110,7 +110,7 @@
              (set (remove nil? fx))))))
 
   (testing "a failed save changes nothing but tells the callback"
-    (let [{:keys [db fx]} (events/saved {:db a-db} [:server/saved nil identity {:status 403}])]
+    (let [{:keys [db fx]} (events/saved {:db a-db} [:server/saved "new name" nil identity {:status 403}])]
       (is (= a-db db))
       (is (= [[::fx/call [identity 403]]] (remove nil? fx))))))
 
