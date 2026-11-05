@@ -1,0 +1,1002 @@
+{:unsolved
+ [["Buildings"
+   [["ID"
+     "Constraint"
+     "Address"
+     "Floors"
+     "Road"
+     "Annual demand (kWh)"
+     "Peak demand (kW)"
+     "Demand model"
+     "Tariff name"
+     "Connection cost name"]
+    ["b1"
+     "optional"
+     "b1 High Street"
+     2
+     nil
+     10000.0
+     5.0
+     "given"
+     "Standard"
+     "Standard connection"]
+    ["b2"
+     "optional"
+     "b2 High Street"
+     2
+     nil
+     10000.0
+     5.0
+     "given"
+     "Standard"
+     "Standard connection"]
+    ["b3"
+     "optional"
+     "3 Low Road"
+     nil
+     nil
+     10000.0
+     5.0
+     "given"
+     "Standard"
+     "Standard connection"]]]
+  ["Paths & pipes"
+   [["ID"
+     "Constraint"
+     "Address"
+     "Floors"
+     "Road"
+     "Length"
+     "Civils"
+     "Exists"]
+    ["p1" "optional" nil nil "High Street" 70.5 "Hard" nil]
+    ["p2" "optional" nil nil "High Street" 72.0 "Hard" true]]]
+  ["Tariffs"
+   [["Tariff name"
+     "Unit rate (c/¤)"
+     "Capacity charge (¤/kWp)"
+     "Standing charge (¤)"]
+    ["Standard" 5.0 0 50]]]
+  ["Connection costs"
+   [["Cost name" "Fixed cost (¤)" "Capacity cost (¤/kWp)"]
+    ["Standard connection" 1000.0 50.0]]]
+  ["Individual systems"
+   [["Name"
+     "Fixed cost (¤)"
+     "Capacity cost (¤/kWp)"
+     "Operating cost (¤/kWp.yr)"
+     "Heat price (c/kWh)"
+     "Tank factor"
+     "CO₂ (g/kWh)"
+     "PM₂₅ (mg/kWh)"
+     "NOₓ (mg/kWh)"]
+    ["Gas CH" 2000 100 0 5.0 nil 215.0 0.0 0.0]]]
+  ["Supply types"
+   [["Name"
+     "Maximum capacity (kWp)"
+     "Heat price (c/kWh)"
+     "Fixed cost (¤)"
+     "Capacity cost (¤/kWp)"
+     "Cost curve (kWp:¤)"
+     "Operating cost (¤/kWp.yr)"
+     "CO₂ (g/kWh)"
+     "PM₂₅ (mg/kWh)"
+     "NOₓ (mg/kWh)"]
+    ["Gas boiler" 10000.0 5.0 50000 60 nil 0 215.0 0.0 0.0]
+    ["Air source heat pump"
+     5000.0
+     8.0
+     nil
+     nil
+     "0:150000 500:550000 2000:1600000 5000:3400000"
+     10
+     60.0
+     0.0
+     0.0]]]
+  ["Insulation"
+   [["Name"
+     "Fixed cost"
+     "Cost / m2"
+     "Maximum reduction %"
+     "Maximum area %"
+     "Surface"]]]
+  ["Pipe costs"
+   [["NB (mm)"
+     "Capacity (kW)"
+     "Losses (kWh/m.yr)"
+     "Pipe cost (¤/m)"
+     "Soft (¤/m)"
+     "Hard (¤/m)"]
+    [20.0 24.42449145137493 117.0804637779048 81 206 534]
+    [25.0 43.94613154595754 139.10723340603795 91 208 545]
+    [32.0 83.43616479046435 163.47509003893745 107 211 562]
+    [40.0 147.98583586907193 185.5018596670706 126 215 583]
+    [50.0 261.1239415570131 207.52862929520373 152 220 611]
+    [65.0 506.295486315796 233.4269229184979 193 228 656]
+    [80.0 851.9200479572931 253.9232555562363 237 237 705]
+    [100.0 1485.6808858803397 275.95002518436957 300 249 774]
+    [125.0 2583.6603610611223 297.9767948125026 385 266 866]
+    [150.0 4053.0788484379937 315.9739760265282 474 283 964]
+    [200.0 8223.548985685893 344.3714210735354 667 321 1174]
+    [250.0 14205.243033783681 366.3981907016684 874 362 1401]
+    [300.0 22175.056343226803 384.3953719156939 1094 405 1642]
+    [400.0 44685.538093460345 412.79281696270107 1568 498 2161]
+    [450.0 58327.84768356168 424.4193227578526 1819 547 2435]
+    [500.0 72009.68849822429 434.81958659083415 2079 598 2719]
+    [600.0 103693.95143744299 452.81676780485975 2622 705 3313]
+    [700.0 141138.98945651957 468.033167707871 3192 817 3937]
+    [800.0 184344.8025554542 481.21421285186693 3788 933 4589]
+    [900.0 233311.39073424673 492.8407186470184 4407 1055 5265]
+    [1000.0 288038.75399289717 503.24098248000007 5046 1180 5965]]]
+  ["Capital costs"
+   [["Name" "Annualize" "Recur" "Period (years)" "Rate (%)"]]]
+  ["Other parameters"
+   [["Parameter" "Value"]
+    ["Flow temperature" 90.0]
+    ["Return temperature" 60.0]
+    ["Ground temperature" 8.0]
+    ["Pumping overhead" 0.0]
+    ["Pumping cost/kWh" 0]
+    ["Diversity rate" 1.0]
+    ["Diversity limit" 0.62]
+    ["Default civil cost" "Hard"]
+    ["CO₂ limit" "none"]
+    ["PM₂₅ limit" "none"]
+    ["NOₓ limit" "none"]
+    ["Objective" "network"]
+    ["Consider alternative systems" false]
+    ["Consider insulation" false]
+    ["NPV Term" 40]
+    ["NPV Rate" 3.0]
+    ["Loan Term" 25]
+    ["Loan Rate" 4.0]
+    ["MIP Gap" 0.1]
+    ["Param Gap" nil]
+    ["Max runtime" 0.5]
+    ["Solution method" "automatic"]
+    ["Objective scale" 1.0]
+    ["Objective precision" 0.0]
+    ["Edge cost precision" 0.0]
+    ["Max supplies" "unlimited"]]]
+  ["Supply Plant"
+   [["Name"
+     "Lifetime"
+     "Fuel"
+     "Capacity"
+     "CHP?"
+     "Heat Efficiency"
+     "Power Efficiency"
+     "Fixed Capex"
+     "Capex/kWp"
+     "Capex/kWh"
+     "Fixed Opex"
+     "Opex/kWp"
+     "Opex/kWh"
+     "Substation"]
+    ["Gas boiler"
+     50
+     "Natural gas"
+     15000
+     false
+     95.0
+     nil
+     2000
+     20
+     0
+     0
+     0
+     0
+     nil]
+    ["Gas CHP"
+     50
+     "Natural gas"
+     4000
+     true
+     30.0
+     60.0
+     5000
+     50
+     0
+     0
+     0
+     0.08
+     "A substation"]
+    ["Heat pump"
+     50
+     "Electricity"
+     15000
+     false
+     300.0
+     nil
+     10000
+     100
+     0
+     0
+     0
+     0
+     "A substation"]]]
+  ["Supply Storage"
+   [["Name"
+     "Lifetime"
+     "Capacity (kWh)"
+     "Capacity (kWp)"
+     "Efficiency"
+     "Fixed Capex"
+     "Capex/kWp"
+     "Capex/kWh"]
+    ["Storage" 50 40000 10000 90.0 1000 10 0]]]
+  ["Supply Substations"
+   [["Name" "Headroom (kWp)" "Alpha"] ["A substation" 40000 0.8]]]
+  ["Supply day types"
+   [["Name" "Divisions" "Frequency"]
+    ["Normal weekday" 24 197]
+    ["Normal weekend" 24 78]
+    ["Winter weekday" 24 62]
+    ["Winter weekend" 24 27]
+    ["Peak day" 24 1]]]
+  ["Supply profiles"
+   [["Day type"
+     "Interval"
+     "Grid offer"
+     "Fuel: Electricity price"
+     "Fuel: Electricity CO₂"
+     "Fuel: Electricity NOₓ"
+     "Fuel: Electricity PM₂₅"
+     "Fuel: Natural gas price"
+     "Fuel: Natural gas CO₂"
+     "Fuel: Natural gas NOₓ"
+     "Fuel: Natural gas PM₂₅"
+     "Profile: Residential"
+     "Profile: Commercial"
+     "Profile: Uniform"
+     "Substation: A substation"]
+    ["Normal weekday" 0 0.075 0.05 0 0 0 0.03 0 0 0 0.02 0.36 1.0 0]
+    ["Normal weekday" 1 0.075 0.05 0 0 0 0.03 0 0 0 0.02 0.29 1.0 0]
+    ["Normal weekday" 2 0.075 0.05 0 0 0 0.03 0 0 0 0.02 0.26 1.0 0]
+    ["Normal weekday" 3 0.075 0.05 0 0 0 0.03 0 0 0 0.03 0.25 1.0 0]
+    ["Normal weekday" 4 0.075 0.05 0 0 0 0.03 0 0 0 0.09 0.52 1.0 0]
+    ["Normal weekday" 5 0.075 0.05 0 0 0 0.03 0 0 0 0.24 0.74 1.0 0]
+    ["Normal weekday" 6 0.075 0.05 0 0 0 0.03 0 0 0 0.36 3.71 1.0 0]
+    ["Normal weekday" 7 0.075 0.05 0 0 0 0.03 0 0 0 0.28 4.73 1.0 0]
+    ["Normal weekday" 8 0.075 0.05 0 0 0 0.03 0 0 0 0.18 9.01 1.0 0]
+    ["Normal weekday" 9 0.075 0.05 0 0 0 0.03 0 0 0 0.11 10.41 1.0 0]
+    ["Normal weekday" 10 0.075 0.05 0 0 0 0.03 0 0 0 0.09 10.08 1.0 0]
+    ["Normal weekday" 11 0.075 0.05 0 0 0 0.03 0 0 0 0.09 9.35 1.0 0]
+    ["Normal weekday" 12 0.075 0.05 0 0 0 0.03 0 0 0 0.09 8.95 1.0 0]
+    ["Normal weekday" 13 0.075 0.05 0 0 0 0.03 0 0 0 0.09 9.57 1.0 0]
+    ["Normal weekday" 14 0.075 0.05 0 0 0 0.03 0 0 0 0.12 8.26 1.0 0]
+    ["Normal weekday" 15 0.075 0.05 0 0 0 0.03 0 0 0 0.21 7.39 1.0 0]
+    ["Normal weekday" 16 0.075 0.05 0 0 0 0.03 0 0 0 0.32 7.09 1.0 0]
+    ["Normal weekday" 17 0.075 0.05 0 0 0 0.03 0 0 0 0.36 5.63 1.0 0]
+    ["Normal weekday" 18 0.075 0.05 0 0 0 0.03 0 0 0 0.36 1.15 1.0 0]
+    ["Normal weekday" 19 0.075 0.05 0 0 0 0.03 0 0 0 0.33 1.04 1.0 0]
+    ["Normal weekday" 20 0.075 0.05 0 0 0 0.03 0 0 0 0.26 1.0 1.0 0]
+    ["Normal weekday" 21 0.075 0.05 0 0 0 0.03 0 0 0 0.16 0.88 1.0 0]
+    ["Normal weekday" 22 0.075 0.05 0 0 0 0.03 0 0 0 0.08 0.52 1.0 0]
+    ["Normal weekday" 23 0.075 0.05 0 0 0 0.03 0 0 0 0.04 0.39 1.0 0]
+    ["Normal weekend" 0 0.075 0.05 0 0 0 0.03 0 0 0 0.03 0.35 1.0 0]
+    ["Normal weekend" 1 0.075 0.05 0 0 0 0.03 0 0 0 0.03 0.27 1.0 0]
+    ["Normal weekend" 2 0.075 0.05 0 0 0 0.03 0 0 0 0.03 0.24 1.0 0]
+    ["Normal weekend" 3 0.075 0.05 0 0 0 0.03 0 0 0 0.03 0.22 1.0 0]
+    ["Normal weekend" 4 0.075 0.05 0 0 0 0.03 0 0 0 0.07 0.35 1.0 0]
+    ["Normal weekend" 5 0.075 0.05 0 0 0 0.03 0 0 0 0.2 0.49 1.0 0]
+    ["Normal weekend" 6 0.075 0.05 0 0 0 0.03 0 0 0 0.33 1.96 1.0 0]
+    ["Normal weekend" 7 0.075 0.05 0 0 0 0.03 0 0 0 0.31 2.54 1.0 0]
+    ["Normal weekend" 8 0.075 0.05 0 0 0 0.03 0 0 0 0.23 2.72 1.0 0]
+    ["Normal weekend" 9 0.075 0.05 0 0 0 0.03 0 0 0 0.16 3.36 1.0 0]
+    ["Normal weekend" 10 0.075 0.05 0 0 0 0.03 0 0 0 0.13 3.72 1.0 0]
+    ["Normal weekend" 11 0.075 0.05 0 0 0 0.03 0 0 0 0.13 3.49 1.0 0]
+    ["Normal weekend" 12 0.075 0.05 0 0 0 0.03 0 0 0 0.13 3.28 1.0 0]
+    ["Normal weekend" 13 0.075 0.05 0 0 0 0.03 0 0 0 0.14 3.3 1.0 0]
+    ["Normal weekend" 14 0.075 0.05 0 0 0 0.03 0 0 0 0.16 2.97 1.0 0]
+    ["Normal weekend" 15 0.075 0.05 0 0 0 0.03 0 0 0 0.25 2.71 1.0 0]
+    ["Normal weekend" 16 0.075 0.05 0 0 0 0.03 0 0 0 0.32 2.21 1.0 0]
+    ["Normal weekend" 17 0.075 0.05 0 0 0 0.03 0 0 0 0.36 1.73 1.0 0]
+    ["Normal weekend" 18 0.075 0.05 0 0 0 0.03 0 0 0 0.36 0.81 1.0 0]
+    ["Normal weekend" 19 0.075 0.05 0 0 0 0.03 0 0 0 0.32 0.74 1.0 0]
+    ["Normal weekend" 20 0.075 0.05 0 0 0 0.03 0 0 0 0.26 0.81 1.0 0]
+    ["Normal weekend" 21 0.075 0.05 0 0 0 0.03 0 0 0 0.17 0.7 1.0 0]
+    ["Normal weekend" 22 0.075 0.05 0 0 0 0.03 0 0 0 0.08 0.46 1.0 0]
+    ["Normal weekend" 23 0.075 0.05 0 0 0 0.03 0 0 0 0.04 0.37 1.0 0]
+    ["Winter weekday" 0 0.075 0.05 0 0 0 0.03 0 0 0 0.32 0.88 1.0 0]
+    ["Winter weekday" 1 0.075 0.05 0 0 0 0.03 0 0 0 0.27 0.77 1.0 0]
+    ["Winter weekday" 2 0.075 0.05 0 0 0 0.03 0 0 0 0.26 0.72 1.0 0]
+    ["Winter weekday" 3 0.075 0.05 0 0 0 0.03 0 0 0 0.27 0.72 1.0 0]
+    ["Winter weekday" 4 0.075 0.05 0 0 0 0.03 0 0 0 0.34 1.37 1.0 0]
+    ["Winter weekday" 5 0.075 0.05 0 0 0 0.03 0 0 0 0.68 2.3 1.0 0]
+    ["Winter weekday" 6 0.075 0.05 0 0 0 0.03 0 0 0 1.67 11.34 1.0 0]
+    ["Winter weekday" 7 0.075 0.05 0 0 0 0.03 0 0 0 2.33 15.74 1.0 0]
+    ["Winter weekday" 8 0.075 0.05 0 0 0 0.03 0 0 0 1.97 18.21 1.0 0]
+    ["Winter weekday" 9 0.075 0.05 0 0 0 0.03 0 0 0 1.45 18.57 1.0 0]
+    ["Winter weekday" 10 0.075 0.05 0 0 0 0.03 0 0 0 1.2 17.79 1.0 0]
+    ["Winter weekday" 11 0.075 0.05 0 0 0 0.03 0 0 0 1.11 17.0 1.0 0]
+    ["Winter weekday" 12 0.075 0.05 0 0 0 0.03 0 0 0 1.17 16.38 1.0 0]
+    ["Winter weekday" 13 0.075 0.05 0 0 0 0.03 0 0 0 1.22 15.88 1.0 0]
+    ["Winter weekday" 14 0.075 0.05 0 0 0 0.03 0 0 0 1.29 14.49 1.0 0]
+    ["Winter weekday" 15 0.075 0.05 0 0 0 0.03 0 0 0 1.58 13.07 1.0 0]
+    ["Winter weekday" 16 0.075 0.05 0 0 0 0.03 0 0 0 2.15 11.92 1.0 0]
+    ["Winter weekday" 17 0.075 0.05 0 0 0 0.03 0 0 0 2.48 8.75 1.0 0]
+    ["Winter weekday" 18 0.075 0.05 0 0 0 0.03 0 0 0 2.43 5.24 1.0 0]
+    ["Winter weekday" 19 0.075 0.05 0 0 0 0.03 0 0 0 2.29 3.34 1.0 0]
+    ["Winter weekday" 20 0.075 0.05 0 0 0 0.03 0 0 0 2.05 2.21 1.0 0]
+    ["Winter weekday" 21 0.075 0.05 0 0 0 0.03 0 0 0 1.67 2.08 1.0 0]
+    ["Winter weekday" 22 0.075 0.05 0 0 0 0.03 0 0 0 1.08 1.33 1.0 0]
+    ["Winter weekday" 23 0.075 0.05 0 0 0 0.03 0 0 0 0.54 0.96 1.0 0]
+    ["Winter weekend" 0 0.075 0.05 0 0 0 0.03 0 0 0 0.37 0.82 1.0 0]
+    ["Winter weekend" 1 0.075 0.05 0 0 0 0.03 0 0 0 0.29 0.7 1.0 0]
+    ["Winter weekend" 2 0.075 0.05 0 0 0 0.03 0 0 0 0.27 0.63 1.0 0]
+    ["Winter weekend" 3 0.075 0.05 0 0 0 0.03 0 0 0 0.27 0.6 1.0 0]
+    ["Winter weekend" 4 0.075 0.05 0 0 0 0.03 0 0 0 0.33 0.91 1.0 0]
+    ["Winter weekend" 5 0.075 0.05 0 0 0 0.03 0 0 0 0.57 1.14 1.0 0]
+    ["Winter weekend" 6 0.075 0.05 0 0 0 0.03 0 0 0 1.32 4.58 1.0 0]
+    ["Winter weekend" 7 0.075 0.05 0 0 0 0.03 0 0 0 2.1 5.39 1.0 0]
+    ["Winter weekend" 8 0.075 0.05 0 0 0 0.03 0 0 0 2.08 5.19 1.0 0]
+    ["Winter weekend" 9 0.075 0.05 0 0 0 0.03 0 0 0 1.73 6.01 1.0 0]
+    ["Winter weekend" 10 0.075 0.05 0 0 0 0.03 0 0 0 1.48 6.84 1.0 0]
+    ["Winter weekend" 11 0.075 0.05 0 0 0 0.03 0 0 0 1.35 6.67 1.0 0]
+    ["Winter weekend" 12 0.075 0.05 0 0 0 0.03 0 0 0 1.4 6.26 1.0 0]
+    ["Winter weekend" 13 0.075 0.05 0 0 0 0.03 0 0 0 1.41 5.81 1.0 0]
+    ["Winter weekend" 14 0.075 0.05 0 0 0 0.03 0 0 0 1.45 5.42 1.0 0]
+    ["Winter weekend" 15 0.075 0.05 0 0 0 0.03 0 0 0 1.66 4.94 1.0 0]
+    ["Winter weekend" 16 0.075 0.05 0 0 0 0.03 0 0 0 2.09 3.71 1.0 0]
+    ["Winter weekend" 17 0.075 0.05 0 0 0 0.03 0 0 0 2.33 2.42 1.0 0]
+    ["Winter weekend" 18 0.075 0.05 0 0 0 0.03 0 0 0 2.28 1.74 1.0 0]
+    ["Winter weekend" 19 0.075 0.05 0 0 0 0.03 0 0 0 2.14 1.66 1.0 0]
+    ["Winter weekend" 20 0.075 0.05 0 0 0 0.03 0 0 0 1.93 1.78 1.0 0]
+    ["Winter weekend" 21 0.075 0.05 0 0 0 0.03 0 0 0 1.58 1.67 1.0 0]
+    ["Winter weekend" 22 0.075 0.05 0 0 0 0.03 0 0 0 1.05 1.16 1.0 0]
+    ["Winter weekend" 23 0.075 0.05 0 0 0 0.03 0 0 0 0.55 0.89 1.0 0]
+    ["Peak day" 0 0.075 0.05 0 0 0 0.03 0 0 0 0.33 1.11 1.0 0]
+    ["Peak day" 1 0.075 0.05 0 0 0 0.03 0 0 0 0.25 0.96 1.0 0]
+    ["Peak day" 2 0.075 0.05 0 0 0 0.03 0 0 0 0.23 0.89 1.0 0]
+    ["Peak day" 3 0.075 0.05 0 0 0 0.03 0 0 0 0.24 0.88 1.0 0]
+    ["Peak day" 4 0.075 0.05 0 0 0 0.03 0 0 0 0.29 1.59 1.0 0]
+    ["Peak day" 5 0.075 0.05 0 0 0 0.03 0 0 0 0.56 2.52 1.0 0]
+    ["Peak day" 6 0.075 0.05 0 0 0 0.03 0 0 0 1.5 12.01 1.0 0]
+    ["Peak day" 7 0.075 0.05 0 0 0 0.03 0 0 0 2.41 16.31 1.0 0]
+    ["Peak day" 8 0.075 0.05 0 0 0 0.03 0 0 0 2.18 18.44 1.0 0]
+    ["Peak day" 9 0.075 0.05 0 0 0 0.03 0 0 0 1.56 19.03 1.0 0]
+    ["Peak day" 10 0.075 0.05 0 0 0 0.03 0 0 0 1.15 18.61 1.0 0]
+    ["Peak day" 11 0.075 0.05 0 0 0 0.03 0 0 0 0.95 17.84 1.0 0]
+    ["Peak day" 12 0.075 0.05 0 0 0 0.03 0 0 0 0.99 17.12 1.0 0]
+    ["Peak day" 13 0.075 0.05 0 0 0 0.03 0 0 0 0.96 16.47 1.0 0]
+    ["Peak day" 14 0.075 0.05 0 0 0 0.03 0 0 0 0.96 15.09 1.0 0]
+    ["Peak day" 15 0.075 0.05 0 0 0 0.03 0 0 0 1.14 13.62 1.0 0]
+    ["Peak day" 16 0.075 0.05 0 0 0 0.03 0 0 0 1.77 12.13 1.0 0]
+    ["Peak day" 17 0.075 0.05 0 0 0 0.03 0 0 0 2.24 8.79 1.0 0]
+    ["Peak day" 18 0.075 0.05 0 0 0 0.03 0 0 0 2.41 5.42 1.0 0]
+    ["Peak day" 19 0.075 0.05 0 0 0 0.03 0 0 0 2.31 3.65 1.0 0]
+    ["Peak day" 20 0.075 0.05 0 0 0 0.03 0 0 0 2.01 2.68 1.0 0]
+    ["Peak day" 21 0.075 0.05 0 0 0 0.03 0 0 0 1.54 2.52 1.0 0]
+    ["Peak day" 22 0.075 0.05 0 0 0 0.03 0 0 0 0.92 1.64 1.0 0]
+    ["Peak day" 23 0.075 0.05 0 0 0 0.03 0 0 0 0.42 1.21 1.0 0]]]
+  ["Supply parameters"
+   [["Parameter" "Value"]
+    ["Accounting Period (years)" 50]
+    ["Discount Rate" 0.035]
+    ["Curtailment Cost (¤/kWh)" 10000]
+    ["Can Dump Heat" false]
+    ["MIP Gap" 0.03]
+    ["Time Limit (hours)" 1]
+    ["Default profile" "Residential"]]]],
+ :solved
+ [["Networked buildings"
+   [["ID"
+     "Constraint"
+     "Address"
+     "Floors"
+     "Road"
+     "Annual demand (kWh)"
+     "Peak demand (kW)"
+     "Demand model"
+     "Tariff name"
+     "Connection cost name"
+     "Revenue (¤/yr)"
+     "Revenue (NPV, ¤)"
+     "Revenue (total, ¤)"
+     "Connection cost (principal, ¤)"
+     "Connection cost (NPV, ¤)"
+     "Connection cost (total, ¤)"]
+    ["b1"
+     "optional"
+     "b1 High Street"
+     2
+     nil
+     10000.0
+     5.0
+     "given"
+     "Standard"
+     "Standard connection"
+     800.0
+     7200.0
+     8000.0
+     1250.0
+     1125.0
+     1375.0]
+    ["b2"
+     "optional"
+     "b2 High Street"
+     2
+     nil
+     10000.0
+     5.0
+     "given"
+     "Standard"
+     "Standard connection"
+     800.0
+     7200.0
+     8000.0
+     1250.0
+     1125.0
+     1375.0]]]
+  ["Other buildings"
+   [["ID"
+     "Constraint"
+     "Address"
+     "Floors"
+     "Road"
+     "Annual demand (kWh)"
+     "Peak demand (kW)"
+     "Demand model"
+     "Tariff name"
+     "Connection cost name"
+     "Heating system"
+     "System capex (principal, ¤)"
+     "System capex (NPV, ¤)"
+     "System capex (total, ¤)"
+     "System opex (¤/yr)"
+     "System opex (NPV, ¤)"
+     "System opex (total, ¤)"
+     "System fuel (¤/yr)"
+     "System fuel (NPV, ¤)"
+     "System fuel (total, ¤)"
+     "CO₂ (kg/yr)"
+     "CO₂ (¤/yr)"
+     "CO₂ (NPV ¤)"
+     "CO₂ (total ¤)"
+     "PM₂₅ (kg/yr)"
+     "PM₂₅ (¤/yr)"
+     "PM₂₅ (NPV ¤)"
+     "PM₂₅ (total ¤)"
+     "NOₓ (kg/yr)"
+     "NOₓ (¤/yr)"
+     "NOₓ (NPV ¤)"
+     "NOₓ (total ¤)"]
+    ["b3"
+     "optional"
+     "3 Low Road"
+     nil
+     nil
+     10000.0
+     5.0
+     "given"
+     "Standard"
+     "Standard connection"
+     "Gas boiler"
+     2000.0
+     1800.0
+     2200.0
+     100.0
+     900.0
+     1000.0
+     400.0
+     3600.0
+     4000.0
+     2000.0
+     10.0
+     90.0
+     100.0
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil]]]
+  ["Supply points"
+   [["ID"
+     "Constraint"
+     "Address"
+     "Floors"
+     "Road"
+     "Annual demand (kWh)"
+     "Peak demand (kW)"
+     "Demand model"
+     "Tariff name"
+     "Connection cost name"
+     "Supply type"
+     "Maximum capacity (kW)"
+     "Heat price (c/kWh)"
+     "Fixed capital cost (¤)"
+     "Capital cost (¤/kWp)"
+     "Operating cost (¤/kWp)"
+     "Installed capacity (kW)"
+     "Coincidence"
+     "Annual output (kWh/yr)"
+     "Plant capex (principal, ¤)"
+     "Plant capex (NPV, ¤)"
+     "Plant capex (total, ¤)"
+     "Heat cost (¤/yr)"
+     "Heat cost (NPV, ¤)"
+     "Heat cost (total, ¤)"
+     "Plant CO₂ (kg/yr)"
+     "Plant CO₂ (¤/yr)"
+     "Plant CO₂ (NPV ¤)"
+     "Plant CO₂ (total ¤)"
+     "Plant PM₂₅ (kg/yr)"
+     "Plant PM₂₅ (¤/yr)"
+     "Plant PM₂₅ (NPV ¤)"
+     "Plant PM₂₅ (total ¤)"
+     "Plant NOₓ (kg/yr)"
+     "Plant NOₓ (¤/yr)"
+     "Plant NOₓ (NPV ¤)"
+     "Plant NOₓ (total ¤)"
+     "Pumping kWh"
+     "Pumping cost (¤/yr)"
+     "Pumping cost (NPV, ¤)"
+     "Pumping cost (total, ¤)"
+     "Pumping CO₂ (kg/yr)"
+     "Pumping CO₂ (¤/yr)"
+     "Pumping CO₂ (NPV ¤)"
+     "Pumping CO₂ (total ¤)"
+     "Pumping PM₂₅ (kg/yr)"
+     "Pumping PM₂₅ (¤/yr)"
+     "Pumping PM₂₅ (NPV ¤)"
+     "Pumping PM₂₅ (total ¤)"
+     "Pumping NOₓ (kg/yr)"
+     "Pumping NOₓ (¤/yr)"
+     "Pumping NOₓ (NPV ¤)"
+     "Pumping NOₓ (total ¤)"]
+    ["b1"
+     "optional"
+     "b1 High Street"
+     2
+     nil
+     10000.0
+     5.0
+     "given"
+     "Standard"
+     "Standard connection"
+     "Gas boiler"
+     1000.0
+     5.0
+     50000
+     60
+     0
+     8.0
+     0.9
+     21000.0
+     50000.0
+     45000.0
+     55000.00000000001
+     600.0
+     5400.0
+     6000.0
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil
+     20.0
+     2.0
+     18.0
+     20.0
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil]]]
+  ["Paths & pipes"
+   [["ID"
+     "Constraint"
+     "Address"
+     "Floors"
+     "Road"
+     "Length"
+     "Civils"
+     "Exists"
+     "In solution"
+     "Upgraded"
+     "Diameter (mm)"
+     "Capacity (kW)"
+     "Losses (kWh/yr)"
+     "Coincidence"
+     "Capital cost (principal, ¤)"
+     "Capital cost (NPV, ¤)"
+     "Capital cost (total, ¤)"]
+    ["p1"
+     "optional"
+     nil
+     nil
+     "High Street"
+     70.5
+     "Hard"
+     nil
+     true
+     false
+     40.0
+     12.0
+     300.0
+     0.9
+     30000.0
+     27000.0
+     33000.0]
+    ["p2"
+     "optional"
+     nil
+     nil
+     "High Street"
+     72.0
+     "Hard"
+     true
+     nil
+     false
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil
+     nil]]]
+  ["Tariffs"
+   [["Tariff name"
+     "Unit rate (c/¤)"
+     "Capacity charge (¤/kWp)"
+     "Standing charge (¤)"]
+    ["Standard" 5.0 0 50]]]
+  ["Connection costs"
+   [["Cost name" "Fixed cost (¤)" "Capacity cost (¤/kWp)"]
+    ["Standard connection" 1000.0 50.0]]]
+  ["Individual systems"
+   [["Name"
+     "Fixed cost (¤)"
+     "Capacity cost (¤/kWp)"
+     "Operating cost (¤/kWp.yr)"
+     "Heat price (c/kWh)"
+     "Tank factor"
+     "CO₂ (g/kWh)"
+     "PM₂₅ (mg/kWh)"
+     "NOₓ (mg/kWh)"]
+    ["Gas CH" 2000 100 0 5.0 nil 215.0 0.0 0.0]]]
+  ["Supply types"
+   [["Name"
+     "Maximum capacity (kWp)"
+     "Heat price (c/kWh)"
+     "Fixed cost (¤)"
+     "Capacity cost (¤/kWp)"
+     "Cost curve (kWp:¤)"
+     "Operating cost (¤/kWp.yr)"
+     "CO₂ (g/kWh)"
+     "PM₂₅ (mg/kWh)"
+     "NOₓ (mg/kWh)"]
+    ["Gas boiler" 10000.0 5.0 50000 60 nil 0 215.0 0.0 0.0]
+    ["Air source heat pump"
+     5000.0
+     8.0
+     nil
+     nil
+     "0:150000 500:550000 2000:1600000 5000:3400000"
+     10
+     60.0
+     0.0
+     0.0]]]
+  ["Insulation"
+   [["Name"
+     "Fixed cost"
+     "Cost / m2"
+     "Maximum reduction %"
+     "Maximum area %"
+     "Surface"]]]
+  ["Pipe costs"
+   [["NB (mm)"
+     "Capacity (kW)"
+     "Losses (kWh/m.yr)"
+     "Pipe cost (¤/m)"
+     "Soft (¤/m)"
+     "Hard (¤/m)"]
+    [20.0 24.42449145137493 117.0804637779048 81 206 534]
+    [25.0 43.94613154595754 139.10723340603795 91 208 545]
+    [32.0 83.43616479046435 163.47509003893745 107 211 562]
+    [40.0 147.98583586907193 185.5018596670706 126 215 583]
+    [50.0 261.1239415570131 207.52862929520373 152 220 611]
+    [65.0 506.295486315796 233.4269229184979 193 228 656]
+    [80.0 851.9200479572931 253.9232555562363 237 237 705]
+    [100.0 1485.6808858803397 275.95002518436957 300 249 774]
+    [125.0 2583.6603610611223 297.9767948125026 385 266 866]
+    [150.0 4053.0788484379937 315.9739760265282 474 283 964]
+    [200.0 8223.548985685893 344.3714210735354 667 321 1174]
+    [250.0 14205.243033783681 366.3981907016684 874 362 1401]
+    [300.0 22175.056343226803 384.3953719156939 1094 405 1642]
+    [400.0 44685.538093460345 412.79281696270107 1568 498 2161]
+    [450.0 58327.84768356168 424.4193227578526 1819 547 2435]
+    [500.0 72009.68849822429 434.81958659083415 2079 598 2719]
+    [600.0 103693.95143744299 452.81676780485975 2622 705 3313]
+    [700.0 141138.98945651957 468.033167707871 3192 817 3937]
+    [800.0 184344.8025554542 481.21421285186693 3788 933 4589]
+    [900.0 233311.39073424673 492.8407186470184 4407 1055 5265]
+    [1000.0 288038.75399289717 503.24098248000007 5046 1180 5965]]]
+  ["Capital costs"
+   [["Name" "Annualize" "Recur" "Period (years)" "Rate (%)"]]]
+  ["Other parameters"
+   [["Parameter" "Value"]
+    ["Flow temperature" 90.0]
+    ["Return temperature" 60.0]
+    ["Ground temperature" 8.0]
+    ["Pumping overhead" 0.0]
+    ["Pumping cost/kWh" 0]
+    ["Diversity rate" 1.0]
+    ["Diversity limit" 0.62]
+    ["Default civil cost" "Hard"]
+    ["CO₂ limit" "none"]
+    ["PM₂₅ limit" "none"]
+    ["NOₓ limit" "none"]
+    ["Objective" "network"]
+    ["Consider alternative systems" false]
+    ["Consider insulation" false]
+    ["NPV Term" 40]
+    ["NPV Rate" 3.0]
+    ["Loan Term" 25]
+    ["Loan Rate" 4.0]
+    ["MIP Gap" 0.1]
+    ["Param Gap" nil]
+    ["Max runtime" 0.5]
+    ["Solution method" "automatic"]
+    ["Objective scale" 1.0]
+    ["Objective precision" 0.0]
+    ["Edge cost precision" 0.0]
+    ["Max supplies" "unlimited"]]]
+  ["Network solution summary"
+   [["Item"
+     "Capital cost (¤)"
+     "Operating cost (¤)"
+     "Operating revenue (¤)"
+     "EC (c/kWh)"
+     "NPV (¤)"]
+    ["Pipework" 33000.0 nil nil nil -27000.0]
+    ["Heat supply" 55000.00000000001 6020.0 nil nil -50418.0]
+    ["Demands" 2750.0 nil 16000.0 nil 12150.0]
+    ["Emissions" nil 0 nil nil 0]
+    ["Network" 90750.0 6020.0 16000.0 16.73119962027863 -65268.0]
+    [nil nil nil nil nil nil]
+    ["Emissions" nil 0 nil nil 0]
+    ["Individual Systems" nil 0 nil nil 0]
+    [nil nil nil nil nil nil]
+    ["Insulation" nil nil nil nil nil]
+    [nil nil nil nil nil nil]
+    ["Whole system" 90750.0 6020.0 nil nil -79668.0]]]
+  ["Supply Plant"
+   [["Name"
+     "Lifetime"
+     "Fuel"
+     "Capacity"
+     "CHP?"
+     "Heat Efficiency"
+     "Power Efficiency"
+     "Fixed Capex"
+     "Capex/kWp"
+     "Capex/kWh"
+     "Fixed Opex"
+     "Opex/kWp"
+     "Opex/kWh"
+     "Substation"]
+    ["Gas boiler"
+     50
+     "Natural gas"
+     15000
+     false
+     95.0
+     nil
+     2000
+     20
+     0
+     0
+     0
+     0
+     nil]
+    ["Gas CHP"
+     50
+     "Natural gas"
+     4000
+     true
+     30.0
+     60.0
+     5000
+     50
+     0
+     0
+     0
+     0.08
+     "A substation"]
+    ["Heat pump"
+     50
+     "Electricity"
+     15000
+     false
+     300.0
+     nil
+     10000
+     100
+     0
+     0
+     0
+     0
+     "A substation"]]]
+  ["Supply Storage"
+   [["Name"
+     "Lifetime"
+     "Capacity (kWh)"
+     "Capacity (kWp)"
+     "Efficiency"
+     "Fixed Capex"
+     "Capex/kWp"
+     "Capex/kWh"]
+    ["Storage" 50 40000 10000 90.0 1000 10 0]]]
+  ["Supply Substations"
+   [["Name" "Headroom (kWp)" "Alpha"] ["A substation" 40000 0.8]]]
+  ["Supply day types"
+   [["Name" "Divisions" "Frequency"]
+    ["Normal weekday" 24 197]
+    ["Normal weekend" 24 78]
+    ["Winter weekday" 24 62]
+    ["Winter weekend" 24 27]
+    ["Peak day" 24 1]]]
+  ["Supply profiles"
+   [["Day type"
+     "Interval"
+     "Grid offer"
+     "Fuel: Electricity price"
+     "Fuel: Electricity CO₂"
+     "Fuel: Electricity NOₓ"
+     "Fuel: Electricity PM₂₅"
+     "Fuel: Natural gas price"
+     "Fuel: Natural gas CO₂"
+     "Fuel: Natural gas NOₓ"
+     "Fuel: Natural gas PM₂₅"
+     "Profile: Residential"
+     "Profile: Commercial"
+     "Profile: Uniform"
+     "Substation: A substation"]
+    ["Normal weekday" 0 0.075 0.05 0 0 0 0.03 0 0 0 0.02 0.36 1.0 0]
+    ["Normal weekday" 1 0.075 0.05 0 0 0 0.03 0 0 0 0.02 0.29 1.0 0]
+    ["Normal weekday" 2 0.075 0.05 0 0 0 0.03 0 0 0 0.02 0.26 1.0 0]
+    ["Normal weekday" 3 0.075 0.05 0 0 0 0.03 0 0 0 0.03 0.25 1.0 0]
+    ["Normal weekday" 4 0.075 0.05 0 0 0 0.03 0 0 0 0.09 0.52 1.0 0]
+    ["Normal weekday" 5 0.075 0.05 0 0 0 0.03 0 0 0 0.24 0.74 1.0 0]
+    ["Normal weekday" 6 0.075 0.05 0 0 0 0.03 0 0 0 0.36 3.71 1.0 0]
+    ["Normal weekday" 7 0.075 0.05 0 0 0 0.03 0 0 0 0.28 4.73 1.0 0]
+    ["Normal weekday" 8 0.075 0.05 0 0 0 0.03 0 0 0 0.18 9.01 1.0 0]
+    ["Normal weekday" 9 0.075 0.05 0 0 0 0.03 0 0 0 0.11 10.41 1.0 0]
+    ["Normal weekday" 10 0.075 0.05 0 0 0 0.03 0 0 0 0.09 10.08 1.0 0]
+    ["Normal weekday" 11 0.075 0.05 0 0 0 0.03 0 0 0 0.09 9.35 1.0 0]
+    ["Normal weekday" 12 0.075 0.05 0 0 0 0.03 0 0 0 0.09 8.95 1.0 0]
+    ["Normal weekday" 13 0.075 0.05 0 0 0 0.03 0 0 0 0.09 9.57 1.0 0]
+    ["Normal weekday" 14 0.075 0.05 0 0 0 0.03 0 0 0 0.12 8.26 1.0 0]
+    ["Normal weekday" 15 0.075 0.05 0 0 0 0.03 0 0 0 0.21 7.39 1.0 0]
+    ["Normal weekday" 16 0.075 0.05 0 0 0 0.03 0 0 0 0.32 7.09 1.0 0]
+    ["Normal weekday" 17 0.075 0.05 0 0 0 0.03 0 0 0 0.36 5.63 1.0 0]
+    ["Normal weekday" 18 0.075 0.05 0 0 0 0.03 0 0 0 0.36 1.15 1.0 0]
+    ["Normal weekday" 19 0.075 0.05 0 0 0 0.03 0 0 0 0.33 1.04 1.0 0]
+    ["Normal weekday" 20 0.075 0.05 0 0 0 0.03 0 0 0 0.26 1.0 1.0 0]
+    ["Normal weekday" 21 0.075 0.05 0 0 0 0.03 0 0 0 0.16 0.88 1.0 0]
+    ["Normal weekday" 22 0.075 0.05 0 0 0 0.03 0 0 0 0.08 0.52 1.0 0]
+    ["Normal weekday" 23 0.075 0.05 0 0 0 0.03 0 0 0 0.04 0.39 1.0 0]
+    ["Normal weekend" 0 0.075 0.05 0 0 0 0.03 0 0 0 0.03 0.35 1.0 0]
+    ["Normal weekend" 1 0.075 0.05 0 0 0 0.03 0 0 0 0.03 0.27 1.0 0]
+    ["Normal weekend" 2 0.075 0.05 0 0 0 0.03 0 0 0 0.03 0.24 1.0 0]
+    ["Normal weekend" 3 0.075 0.05 0 0 0 0.03 0 0 0 0.03 0.22 1.0 0]
+    ["Normal weekend" 4 0.075 0.05 0 0 0 0.03 0 0 0 0.07 0.35 1.0 0]
+    ["Normal weekend" 5 0.075 0.05 0 0 0 0.03 0 0 0 0.2 0.49 1.0 0]
+    ["Normal weekend" 6 0.075 0.05 0 0 0 0.03 0 0 0 0.33 1.96 1.0 0]
+    ["Normal weekend" 7 0.075 0.05 0 0 0 0.03 0 0 0 0.31 2.54 1.0 0]
+    ["Normal weekend" 8 0.075 0.05 0 0 0 0.03 0 0 0 0.23 2.72 1.0 0]
+    ["Normal weekend" 9 0.075 0.05 0 0 0 0.03 0 0 0 0.16 3.36 1.0 0]
+    ["Normal weekend" 10 0.075 0.05 0 0 0 0.03 0 0 0 0.13 3.72 1.0 0]
+    ["Normal weekend" 11 0.075 0.05 0 0 0 0.03 0 0 0 0.13 3.49 1.0 0]
+    ["Normal weekend" 12 0.075 0.05 0 0 0 0.03 0 0 0 0.13 3.28 1.0 0]
+    ["Normal weekend" 13 0.075 0.05 0 0 0 0.03 0 0 0 0.14 3.3 1.0 0]
+    ["Normal weekend" 14 0.075 0.05 0 0 0 0.03 0 0 0 0.16 2.97 1.0 0]
+    ["Normal weekend" 15 0.075 0.05 0 0 0 0.03 0 0 0 0.25 2.71 1.0 0]
+    ["Normal weekend" 16 0.075 0.05 0 0 0 0.03 0 0 0 0.32 2.21 1.0 0]
+    ["Normal weekend" 17 0.075 0.05 0 0 0 0.03 0 0 0 0.36 1.73 1.0 0]
+    ["Normal weekend" 18 0.075 0.05 0 0 0 0.03 0 0 0 0.36 0.81 1.0 0]
+    ["Normal weekend" 19 0.075 0.05 0 0 0 0.03 0 0 0 0.32 0.74 1.0 0]
+    ["Normal weekend" 20 0.075 0.05 0 0 0 0.03 0 0 0 0.26 0.81 1.0 0]
+    ["Normal weekend" 21 0.075 0.05 0 0 0 0.03 0 0 0 0.17 0.7 1.0 0]
+    ["Normal weekend" 22 0.075 0.05 0 0 0 0.03 0 0 0 0.08 0.46 1.0 0]
+    ["Normal weekend" 23 0.075 0.05 0 0 0 0.03 0 0 0 0.04 0.37 1.0 0]
+    ["Winter weekday" 0 0.075 0.05 0 0 0 0.03 0 0 0 0.32 0.88 1.0 0]
+    ["Winter weekday" 1 0.075 0.05 0 0 0 0.03 0 0 0 0.27 0.77 1.0 0]
+    ["Winter weekday" 2 0.075 0.05 0 0 0 0.03 0 0 0 0.26 0.72 1.0 0]
+    ["Winter weekday" 3 0.075 0.05 0 0 0 0.03 0 0 0 0.27 0.72 1.0 0]
+    ["Winter weekday" 4 0.075 0.05 0 0 0 0.03 0 0 0 0.34 1.37 1.0 0]
+    ["Winter weekday" 5 0.075 0.05 0 0 0 0.03 0 0 0 0.68 2.3 1.0 0]
+    ["Winter weekday" 6 0.075 0.05 0 0 0 0.03 0 0 0 1.67 11.34 1.0 0]
+    ["Winter weekday" 7 0.075 0.05 0 0 0 0.03 0 0 0 2.33 15.74 1.0 0]
+    ["Winter weekday" 8 0.075 0.05 0 0 0 0.03 0 0 0 1.97 18.21 1.0 0]
+    ["Winter weekday" 9 0.075 0.05 0 0 0 0.03 0 0 0 1.45 18.57 1.0 0]
+    ["Winter weekday" 10 0.075 0.05 0 0 0 0.03 0 0 0 1.2 17.79 1.0 0]
+    ["Winter weekday" 11 0.075 0.05 0 0 0 0.03 0 0 0 1.11 17.0 1.0 0]
+    ["Winter weekday" 12 0.075 0.05 0 0 0 0.03 0 0 0 1.17 16.38 1.0 0]
+    ["Winter weekday" 13 0.075 0.05 0 0 0 0.03 0 0 0 1.22 15.88 1.0 0]
+    ["Winter weekday" 14 0.075 0.05 0 0 0 0.03 0 0 0 1.29 14.49 1.0 0]
+    ["Winter weekday" 15 0.075 0.05 0 0 0 0.03 0 0 0 1.58 13.07 1.0 0]
+    ["Winter weekday" 16 0.075 0.05 0 0 0 0.03 0 0 0 2.15 11.92 1.0 0]
+    ["Winter weekday" 17 0.075 0.05 0 0 0 0.03 0 0 0 2.48 8.75 1.0 0]
+    ["Winter weekday" 18 0.075 0.05 0 0 0 0.03 0 0 0 2.43 5.24 1.0 0]
+    ["Winter weekday" 19 0.075 0.05 0 0 0 0.03 0 0 0 2.29 3.34 1.0 0]
+    ["Winter weekday" 20 0.075 0.05 0 0 0 0.03 0 0 0 2.05 2.21 1.0 0]
+    ["Winter weekday" 21 0.075 0.05 0 0 0 0.03 0 0 0 1.67 2.08 1.0 0]
+    ["Winter weekday" 22 0.075 0.05 0 0 0 0.03 0 0 0 1.08 1.33 1.0 0]
+    ["Winter weekday" 23 0.075 0.05 0 0 0 0.03 0 0 0 0.54 0.96 1.0 0]
+    ["Winter weekend" 0 0.075 0.05 0 0 0 0.03 0 0 0 0.37 0.82 1.0 0]
+    ["Winter weekend" 1 0.075 0.05 0 0 0 0.03 0 0 0 0.29 0.7 1.0 0]
+    ["Winter weekend" 2 0.075 0.05 0 0 0 0.03 0 0 0 0.27 0.63 1.0 0]
+    ["Winter weekend" 3 0.075 0.05 0 0 0 0.03 0 0 0 0.27 0.6 1.0 0]
+    ["Winter weekend" 4 0.075 0.05 0 0 0 0.03 0 0 0 0.33 0.91 1.0 0]
+    ["Winter weekend" 5 0.075 0.05 0 0 0 0.03 0 0 0 0.57 1.14 1.0 0]
+    ["Winter weekend" 6 0.075 0.05 0 0 0 0.03 0 0 0 1.32 4.58 1.0 0]
+    ["Winter weekend" 7 0.075 0.05 0 0 0 0.03 0 0 0 2.1 5.39 1.0 0]
+    ["Winter weekend" 8 0.075 0.05 0 0 0 0.03 0 0 0 2.08 5.19 1.0 0]
+    ["Winter weekend" 9 0.075 0.05 0 0 0 0.03 0 0 0 1.73 6.01 1.0 0]
+    ["Winter weekend" 10 0.075 0.05 0 0 0 0.03 0 0 0 1.48 6.84 1.0 0]
+    ["Winter weekend" 11 0.075 0.05 0 0 0 0.03 0 0 0 1.35 6.67 1.0 0]
+    ["Winter weekend" 12 0.075 0.05 0 0 0 0.03 0 0 0 1.4 6.26 1.0 0]
+    ["Winter weekend" 13 0.075 0.05 0 0 0 0.03 0 0 0 1.41 5.81 1.0 0]
+    ["Winter weekend" 14 0.075 0.05 0 0 0 0.03 0 0 0 1.45 5.42 1.0 0]
+    ["Winter weekend" 15 0.075 0.05 0 0 0 0.03 0 0 0 1.66 4.94 1.0 0]
+    ["Winter weekend" 16 0.075 0.05 0 0 0 0.03 0 0 0 2.09 3.71 1.0 0]
+    ["Winter weekend" 17 0.075 0.05 0 0 0 0.03 0 0 0 2.33 2.42 1.0 0]
+    ["Winter weekend" 18 0.075 0.05 0 0 0 0.03 0 0 0 2.28 1.74 1.0 0]
+    ["Winter weekend" 19 0.075 0.05 0 0 0 0.03 0 0 0 2.14 1.66 1.0 0]
+    ["Winter weekend" 20 0.075 0.05 0 0 0 0.03 0 0 0 1.93 1.78 1.0 0]
+    ["Winter weekend" 21 0.075 0.05 0 0 0 0.03 0 0 0 1.58 1.67 1.0 0]
+    ["Winter weekend" 22 0.075 0.05 0 0 0 0.03 0 0 0 1.05 1.16 1.0 0]
+    ["Winter weekend" 23 0.075 0.05 0 0 0 0.03 0 0 0 0.55 0.89 1.0 0]
+    ["Peak day" 0 0.075 0.05 0 0 0 0.03 0 0 0 0.33 1.11 1.0 0]
+    ["Peak day" 1 0.075 0.05 0 0 0 0.03 0 0 0 0.25 0.96 1.0 0]
+    ["Peak day" 2 0.075 0.05 0 0 0 0.03 0 0 0 0.23 0.89 1.0 0]
+    ["Peak day" 3 0.075 0.05 0 0 0 0.03 0 0 0 0.24 0.88 1.0 0]
+    ["Peak day" 4 0.075 0.05 0 0 0 0.03 0 0 0 0.29 1.59 1.0 0]
+    ["Peak day" 5 0.075 0.05 0 0 0 0.03 0 0 0 0.56 2.52 1.0 0]
+    ["Peak day" 6 0.075 0.05 0 0 0 0.03 0 0 0 1.5 12.01 1.0 0]
+    ["Peak day" 7 0.075 0.05 0 0 0 0.03 0 0 0 2.41 16.31 1.0 0]
+    ["Peak day" 8 0.075 0.05 0 0 0 0.03 0 0 0 2.18 18.44 1.0 0]
+    ["Peak day" 9 0.075 0.05 0 0 0 0.03 0 0 0 1.56 19.03 1.0 0]
+    ["Peak day" 10 0.075 0.05 0 0 0 0.03 0 0 0 1.15 18.61 1.0 0]
+    ["Peak day" 11 0.075 0.05 0 0 0 0.03 0 0 0 0.95 17.84 1.0 0]
+    ["Peak day" 12 0.075 0.05 0 0 0 0.03 0 0 0 0.99 17.12 1.0 0]
+    ["Peak day" 13 0.075 0.05 0 0 0 0.03 0 0 0 0.96 16.47 1.0 0]
+    ["Peak day" 14 0.075 0.05 0 0 0 0.03 0 0 0 0.96 15.09 1.0 0]
+    ["Peak day" 15 0.075 0.05 0 0 0 0.03 0 0 0 1.14 13.62 1.0 0]
+    ["Peak day" 16 0.075 0.05 0 0 0 0.03 0 0 0 1.77 12.13 1.0 0]
+    ["Peak day" 17 0.075 0.05 0 0 0 0.03 0 0 0 2.24 8.79 1.0 0]
+    ["Peak day" 18 0.075 0.05 0 0 0 0.03 0 0 0 2.41 5.42 1.0 0]
+    ["Peak day" 19 0.075 0.05 0 0 0 0.03 0 0 0 2.31 3.65 1.0 0]
+    ["Peak day" 20 0.075 0.05 0 0 0 0.03 0 0 0 2.01 2.68 1.0 0]
+    ["Peak day" 21 0.075 0.05 0 0 0 0.03 0 0 0 1.54 2.52 1.0 0]
+    ["Peak day" 22 0.075 0.05 0 0 0 0.03 0 0 0 0.92 1.64 1.0 0]
+    ["Peak day" 23 0.075 0.05 0 0 0 0.03 0 0 0 0.42 1.21 1.0 0]]]
+  ["Supply parameters"
+   [["Parameter" "Value"]
+    ["Accounting Period (years)" 50]
+    ["Discount Rate" 0.035]
+    ["Curtailment Cost (¤/kWh)" 10000]
+    ["Can Dump Heat" false]
+    ["MIP Gap" 0.03]
+    ["Time Limit (hours)" 1]
+    ["Default profile" "Residential"]]]]}

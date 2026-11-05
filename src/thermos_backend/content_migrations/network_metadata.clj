@@ -1,6 +1,6 @@
 (ns thermos-backend.content-migrations.network-metadata
   (:require [thermos-backend.db :as db]
-            [thermos-backend.db.network-metadata :refer [summarise]]
+            [thermos-util.network-summary :refer [summarise]]
             [honeysql.helpers :as h]
             [honeysql.types :as sql-types]
             [clojure.edn :as edn]

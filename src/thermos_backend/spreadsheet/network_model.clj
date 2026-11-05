@@ -19,29 +19,32 @@
             [thermos-backend.spreadsheet.common :as common]
             [thermos-util.solution-summary :as solution-summary]))
 
-(def *100 (partial * 100.0))
+(defn *100 [x] (and x (* 100.0 x)))
 (defn or-zero [f] (fn [x] (or (f x) 0.0)))
 
+;; A column's :format is a hint about its type for other outputs of
+;; these tables (the GeoPackage, see thermos-backend.gpkg), for when its
+;; values are all missing; the spreadsheet itself doesn't use it.
+
 (defn cost-columns [type prefix key]
-  (case type
-    :capex
-    [{:name (str prefix " (principal, ¤)") :key (comp :principal key)}
-     {:name (str prefix " (NPV, ¤)") :key (comp :present key)}
-     {:name (str prefix " (total, ¤)") :key (comp :total key)}]
-    
-    :opex
-    [{:name (str prefix " (¤/yr)") :key (comp :annual key)}
-     {:name (str prefix " (NPV, ¤)") :key (comp :present key)}
-     {:name (str prefix " (total, ¤)") :key (comp :total key)}]
-    
-    :emission
-    [{:name (str prefix " (kg/yr)") :key (comp :kg key)}
-     {:name (str prefix " (¤/yr)") :key (comp :annual key)}
-     {:name (str prefix " (NPV ¤)") :key (comp :present key)}
-     {:name (str prefix " (total ¤)") :key (comp :total key)}]
-    )
-  
-  )
+  (mapv
+   #(assoc % :format :double)
+   (case type
+     :capex
+     [{:name (str prefix " (principal, ¤)") :key (comp :principal key)}
+      {:name (str prefix " (NPV, ¤)") :key (comp :present key)}
+      {:name (str prefix " (total, ¤)") :key (comp :total key)}]
+
+     :opex
+     [{:name (str prefix " (¤/yr)") :key (comp :annual key)}
+      {:name (str prefix " (NPV, ¤)") :key (comp :present key)}
+      {:name (str prefix " (total, ¤)") :key (comp :total key)}]
+
+     :emission
+     [{:name (str prefix " (kg/yr)") :key (comp :kg key)}
+      {:name (str prefix " (¤/yr)") :key (comp :annual key)}
+      {:name (str prefix " (NPV ¤)") :key (comp :present key)}
+      {:name (str prefix " (total ¤)") :key (comp :total key)}])))
 
 (defn candidate-columns [doc]
   (into [{ :name "ID"                  :key ::candidate/id}
@@ -74,87 +77,104 @@
        :key #(document/connection-cost-name doc (::tariff/cc-id %))}
       ])))
 
+(defn networked-building-columns
+  "Columns for buildings on the network, in a solved `doc`"
+  [doc]
+  (concat
+   (building-columns doc)
+   (cost-columns :opex "Revenue" ::solution/heat-revenue)
+   (cost-columns :capex "Connection cost" ::solution/connection-capex)))
+
+(defn other-building-columns
+  "Columns for buildings which aren't on the network, in a solved `doc`"
+  [doc]
+  (concat
+   (building-columns doc)
+   [{:name "Heating system"  :key candidate/solution-description}]
+   (cost-columns :capex "System capex" (comp :capex ::solution/alternative))
+   (cost-columns :opex "System opex" (comp :opex ::solution/alternative))
+   (cost-columns :opex "System fuel" (comp :heat-cost ::solution/alternative))
+
+
+   (apply concat
+          (for [e candidate/emissions-types]
+            (cost-columns
+             :emission
+             (candidate/text-emissions-labels e)
+             (comp e :emissions ::solution/alternative))))))
+
+(defn supply-point-columns
+  "Columns for supply points; their rows are buildings with the effective
+  supply parameters (see `supply-points`)"
+  [doc]
+  (concat
+   (building-columns doc)
+   [{:name "Supply type" :key #(::supply/name (supply/technology doc %))}
+    {:name "Maximum capacity (kW)" :key ::supply/capacity-kwp :format :double}
+    {:name "Heat price (c/kWh)" :key (comp *100 ::supply/cost-per-kwh) :format :double}
+
+    {:name "Fixed capital cost (¤)" :key ::supply/fixed-cost :format :double}
+    {:name "Capital cost (¤/kWp)" :key ::supply/capex-per-kwp :format :double}
+    {:name "Operating cost (¤/kWp)" :key ::supply/opex-per-kwp :format :double}
+
+    {:name "Installed capacity (kW)" :key ::solution/capacity-kw :format :double}
+    {:name "Coincidence" :key ::solution/diversity :format :double}
+    {:name "Annual output (kWh/yr)" :key ::solution/output-kwh :format :double}
+    ]
+
+   (cost-columns :capex "Plant capex" ::solution/supply-capex)
+   (cost-columns :opex "Heat cost" ::solution/heat-cost)
+
+   (apply concat
+          (for [e candidate/emissions-types]
+            (cost-columns
+             :emission
+             (str "Plant " (candidate/text-emissions-labels e))
+             (comp e ::solution/supply-emissions))))
+
+   [{:name "Pumping kWh" :key ::solution/pumping-kwh :format :double}]
+   (cost-columns :opex "Pumping cost" ::solution/pumping-cost)
+
+   (apply concat
+          (for [e candidate/emissions-types]
+            (cost-columns
+             :emission
+             (str "Pumping " (candidate/text-emissions-labels e))
+             (comp e ::solution/pumping-emissions))))))
+
+(defn supply-points
+  "The buildings in `doc` which could be supplies, with their effective
+  supply parameters, for `supply-point-columns`"
+  [doc]
+  (->> (vals (::document/candidates doc))
+       (filter candidate/is-building?)
+       (filter candidate/has-supply?)
+       (map #(supply/effective-supply doc %))))
+
 (defn output-buildings [ss doc]
-  (let [buildings (filter candidate/is-building? (vals (::document/candidates doc)))
-        base-cols (building-columns doc)]
+  (let [buildings (filter candidate/is-building? (vals (::document/candidates doc)))]
     (if (document/has-solution? doc)
       (let [networked-buildings (filter candidate/is-connected? buildings)
-            non-networked-buildings (remove candidate/is-connected? buildings)
-            supply-buildings (->> (filter candidate/has-supply? buildings)
-                                  (map #(supply/effective-supply doc %)))
-            ]
+            non-networked-buildings (remove candidate/is-connected? buildings)]
         (-> ss
             (sheet/add-tab
              "Networked buildings"
-             (concat
-              base-cols
-              (cost-columns :opex "Revenue" ::solution/heat-revenue)
-              (cost-columns :capex "Connection cost" ::solution/connection-capex))
+             (networked-building-columns doc)
              networked-buildings)
-            
+
             (sheet/add-tab
              "Other buildings"
-             (concat
-              base-cols
-              [{:name "Heating system"  :key candidate/solution-description}]
-              (cost-columns :capex "System capex" (comp :capex ::solution/alternative))
-              (cost-columns :opex "System opex" (comp :opex ::solution/alternative))
-              (cost-columns :opex "System fuel" (comp :heat-cost ::solution/alternative))
-
-
-              (apply concat
-                     (for [e candidate/emissions-types]
-                       (cost-columns
-                        :emission
-                        (candidate/text-emissions-labels e)
-                        (comp e :emissions ::solution/alternative)))))
-             
-             non-networked-buildings
-             )
+             (other-building-columns doc)
+             non-networked-buildings)
 
             (sheet/add-tab
              "Supply points"
-             (concat
-              base-cols
-              [{:name "Supply type" :key #(::supply/name (supply/technology doc %))}
-               {:name "Maximum capacity (kW)" :key ::supply/capacity-kwp}
-               {:name "Heat price (c/kWh)" :key (comp *100 ::supply/cost-per-kwh)}
+             (supply-point-columns doc)
+             (supply-points doc))))
 
-               {:name "Fixed capital cost (¤)" :key ::supply/fixed-cost}
-               {:name "Capital cost (¤/kWp)" :key ::supply/capex-per-kwp}
-               {:name "Operating cost (¤/kWp)" :key ::supply/opex-per-kwp}
-
-               {:name "Installed capacity (kW)" :key ::solution/capacity-kw}
-               {:name "Coincidence" :key ::solution/diversity}
-               {:name "Annual output (kWh/yr)" :key ::solution/output-kwh}
-               ]
-
-              (cost-columns :capex "Plant capex" ::solution/supply-capex)
-              (cost-columns :opex "Heat cost" ::solution/heat-cost)
-
-              (apply concat
-                     (for [e candidate/emissions-types]
-                       (cost-columns
-                        :emission
-                        (str "Plant " (candidate/text-emissions-labels e))
-                        (comp e ::solution/supply-emissions))))
-
-              [{:name "Pumping kWh" :key ::solution/pumping-kwh}]
-              (cost-columns :opex "Pumping cost" ::solution/pumping-cost)
-              
-              (apply concat
-                     (for [e candidate/emissions-types]
-                       (cost-columns
-                        :emission
-                        (str "Pumping " (candidate/text-emissions-labels e))
-                        (comp e ::solution/pumping-emissions))))
-              )
-             supply-buildings)
-            ))
-      
       (sheet/add-tab
        ss "Buildings"
-       base-cols
+       (building-columns doc)
        buildings)
       )))
 
@@ -307,7 +327,7 @@
                [(str (candidate/text-emissions-labels e) " limit")
                 (if enabled value "none")]))
          
-         ~["Objective" (name (::document/objective doc))]
+         ~["Objective" (name (::document/objective doc :network))]
          ~["Consider alternative systems" (::document/consider-alternatives doc)]
          ~["Consider insulation" (::document/consider-insulation doc)]
          
@@ -335,26 +355,29 @@
       )
   )
 
+(defn path-columns [doc]
+  (concat
+   (candidate-columns doc)
+   [{ :name "Length"              :key ::path/length :format :double}
+    { :name "Civils"   :key #(document/civil-cost-name doc (::path/civil-cost-id %)) }
+    { :name "Exists"    :key ::path/exists :format :boolean}]
+   (when (document/has-solution? doc)
+     (concat
+      [{:name "In solution" :key ::solution/included :format :boolean}
+       {:name "Upgraded" :key (comp boolean ::solution/upgraded)}
+       {:name "Diameter (mm)" :key ::solution/diameter-mm :format :double}
+       {:name "Capacity (kW)" :key ::solution/capacity-kw :format :double}
+       {:name "Losses (kWh/yr)" :key ::solution/losses-kwh :format :double}
+       {:name "Coincidence" :key ::solution/diversity :format :double}
+
+       ]
+      (cost-columns :capex "Capital cost" ::solution/pipe-capex)
+      ))))
+
 (defn output-paths [ss doc]
   (sheet/add-tab
    ss "Paths & pipes"
-   (concat
-    (candidate-columns doc)
-    [{ :name "Length"              :key ::path/length}
-     { :name "Civils"   :key #(document/civil-cost-name doc (::path/civil-cost-id %)) }
-     { :name "Exists"    :key ::path/exists }]
-    (when (document/has-solution? doc)
-      (concat
-       [{:name "In solution" :key ::solution/included}
-        {:name "Upgraded" :key (comp boolean ::solution/upgraded)}
-        {:name "Diameter (mm)" :key ::solution/diameter-mm}
-        {:name "Capacity (kW)" :key ::solution/capacity-kw}
-        {:name "Losses (kWh/yr)" :key ::solution/losses-kwh}
-        {:name "Coincidence" :key ::solution/diversity}
-
-        ]
-       (cost-columns :capex "Capital cost" ::solution/pipe-capex)
-       )))
+   (path-columns doc)
    (filter candidate/is-path? (vals (::document/candidates doc)))))
              
 (defn output-solution-summary [ss doc]
@@ -384,13 +407,24 @@
            :present (:present grand-total)}]))))
     ss))
 
-(defn output-to-spreadsheet [ss doc]
+(defn output-candidates
+  "The tabs with a row per candidate"
+  [ss doc]
   (-> ss
       (output-buildings doc)
-      (output-paths doc)
+      (output-paths doc)))
+
+(defn output-tables
+  "The tabs other than `output-candidates`: parameters and the summary"
+  [ss doc]
+  (-> ss
       (output-network-parameters doc)
-      (output-solution-summary doc)
-      ))
+      (output-solution-summary doc)))
+
+(defn output-to-spreadsheet [ss doc]
+  (-> ss
+      (output-candidates doc)
+      (output-tables doc)))
 
 (defn input-from-spreadsheet
   "Inverse function - takes a spreadsheet, as loaded by `common/read-to-tables`.

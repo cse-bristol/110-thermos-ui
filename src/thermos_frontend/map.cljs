@@ -363,11 +363,10 @@
                  (reset! draw-state nil)
 
                  :else
-                 (edit! spatial/select-intersecting-candidates
-                        (latlng->jsts-shape
-                         (o/get e "latlng")
-                         (pixel-size))
-                        @method)))))
+                 (let [shape (latlng->jsts-shape (o/get e "latlng") (pixel-size))]
+                   (edit! spatial/select-intersecting-candidates shape @method)
+                   ;; and when comparing, what's there in the other network
+                   (rf/dispatch [:compare/pick shape @method]))))))
 
       (.on map "contextmenu" (fn [e] (on-right-click-on-map e pixel-size))))
 
@@ -455,6 +454,32 @@
                                                tile-candidates-ids))
 
                     any-adjacent? (not-empty adjacent-ids)
+
+                    ;; when comparing, this network's candidates and
+                    ;; those only the other one has, with how they differ
+                    diff (when @(rf/subscribe [:compare/comparing])
+                           @(rf/subscribe [:compare/diff]))
+                    tile-candidates
+                    (if diff
+                      (let [there @(rf/subscribe [:compare/candidates])
+                            ;; forbidden here, but not there
+                            here-extra
+                            (when-not showing-forbidden?
+                              (keep #(let [c (just-candidates %)]
+                                       (when (and c (not (candidate/is-included? c))
+                                                  (contains? diff %))
+                                         c))
+                                    tile-candidates-ids))
+                            ;; deleted or not loaded here; these can't be
+                            ;; selected, so aren't shown selected
+                            there-only
+                            (keep #(when-not (contains? just-candidates %)
+                                     (some-> (there %) (dissoc ::candidate/selected)))
+                                  @(rf/subscribe [:compare/tile-candidate-ids bbox]))]
+                        (map #(assoc % :compare-category
+                                     (:category (diff (::candidate/id %)) :unchanged))
+                             (concat tile-candidates here-extra there-only)))
+                      tile-candidates)
                     ]
 
                 (cond-> tile-candidates
@@ -483,7 +508,9 @@
                  @tile-contents
                  canvas
                  layer
-                 (or @(rf/subscribe [:view/map-view]) ::view/constraints)
+                 (if @(rf/subscribe [:compare/comparing])
+                   ::tile/comparison
+                   (or @(rf/subscribe [:view/map-view]) ::view/constraints))
                  (and @(rf/subscribe [:view/show-pipe-diameters])
                       @(rf/subscribe [:solution/diameter-range])))
                 )))

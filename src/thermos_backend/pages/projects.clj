@@ -145,6 +145,111 @@
    (dialog-buttons
     [:button.button {:type :submit} "RENAME"])])
 
+(defn- download-format
+  "Radio buttons for the format of a download, GeoPackage first and
+  chosen, then GeoJSON, which is `geojson-description`. Anything in the
+  form marked .gpkg-only is hidden while GeoJSON is chosen."
+  [geojson-description]
+  [:fieldset.download-formats
+   [:legend "Format"]
+   [:label
+    [:input {:type :radio :name "format" :value "gpkg" :checked true}]
+    [:span "GeoPackage "
+     [:small "A GIS file for QGIS or ArcGIS, with the results, and parameters "
+      "in tables like those in the spreadsheet"]]]
+   [:label
+    [:input {:type :radio :name "format" :value "geojson"}]
+    [:span "GeoJSON " [:small geojson-description]]]])
+
+(defn- download-form
+  "A form in the modal dialog which downloads from `action`"
+  [action & content]
+  (into [:form {:method :GET
+                :action action
+                ;; the download doesn't leave the page, so close the dialog
+                :onsubmit "this.closest('dialog').close()"}]
+        (concat content
+                [(dialog-buttons
+                  [:button.button {:type :submit} "DOWNLOAD"])])))
+
+(defn network-download-form
+  "The dialog for choosing the format to download `network` in"
+  [project-id map-id network]
+  (download-form
+   (str "/project/" project-id "/map/" map-id "/net/" (:id network) "/data")
+   [:h1 "Download " (:name network)]
+   (download-format "The network's buildings and paths, without results")))
+
+(defn map-download-form
+  "The dialog for downloading `map-info`. As a GeoPackage, this can have
+  any of its `networks` (every version, newest first, as from
+  projects/map-networks), and the map's own buildings and paths, whose
+  latest version of each network is chosen to begin with. As GeoJSON,
+  it's just the map's buildings and paths."
+  [project-id map-info networks]
+  (let [fmt (java.text.SimpleDateFormat. "yyyy-MM-dd HH:mm")
+        version (fn [{:keys [id author created has-run]} checked]
+                  [:label.flex-cols {:style (style :gap :0.5em :align-items :center)}
+                   [:input {:type :checkbox :name "net" :value id :checked checked}]
+                   [:span "v" id
+                    (when created (str ", " (.format fmt created)))
+                    (when author (str ", " author))
+                    (when has-run " ✓")]])]
+    (download-form
+     (str "/project/" project-id "/map/" (:id map-info) "/data")
+     [:h1 "Download " (:name map-info)]
+     (download-format "All the buildings and paths on the map (its GIS data), without networks")
+     [:div.gpkg-only
+      [:p {:style (style :max-width :40em)}
+       "The networks you choose share the GeoPackage's layers and tables, "
+       "which have a network column to tell them apart; its networks table "
+       "lists them."]
+      [:input {:type :hidden :name "networks" :value "chosen"}]
+      (if (seq networks)
+        [:div {:style (style :max-height :50vh :overflow-y :auto)}
+         (for [[network-name versions] (->> (group-by :name networks)
+                                            (sort-by (comp - :id first second)))
+               :let [[latest & older] versions]]
+           [:div {:style (style :margin-bottom :0.5em)}
+            [:b network-name]
+            (version latest true)
+            (when (seq older)
+              [:details
+               [:summary (count older) " older " (if (= 1 (count older)) "version" "versions")]
+               (for [v older] (version v false))])])]
+        [:p "This map has no networks yet."])
+      [:label.flex-cols {:style (style :gap :0.5em :align-items :center :margin-top :1em)}
+       [:input {:type :checkbox :name "map-data" :value "true"
+                :checked (empty? networks)}]
+       "All the buildings and paths on the map (its GIS data), which "
+      "it needs to be uploaded into THERMOS again"]])))
+
+(defn upload-map-form
+  "The dialog for uploading a GeoPackage downloaded from THERMOS as a new
+  map, with `message` about what went wrong last time, if anything"
+  [project-id & {:keys [message map-name]}]
+  [:form {:hx-post     (str "/project/" project-id "/map/upload")
+          :hx-encoding "multipart/form-data"
+          :hx-target   "#modal"}
+   [:h1 "Upload a map"]
+   [:p {:style (style :max-width :40em)}
+    "Upload a GeoPackage you downloaded from THERMOS, with \"All the "
+    "buildings and paths on the map\" ticked, to make a new map from it. "
+    "Its networks come too. Changes you make in QGIS to the map's "
+    "buildings and paths (map_buildings and map_paths) are kept, "
+    "but changes to the networks are not."]
+   (when message
+     [:p {:style (style :color :red :max-width :40em)} message])
+   [:div.flex-rows {:style (style :gap :0.5em)}
+    [:label "GeoPackage: "
+     [:input {:type :file :name "file" :accept ".gpkg" :required true}]]
+    [:label "Name: "
+     [:input.text-input {:type :text :name "name" :value map-name
+                         :placeholder "The name it had in THERMOS"}]]]
+   [:div.upload-progress {:hidden true}]
+   (dialog-buttons
+    [:button.button {:type :submit} "UPLOAD"])])
+
 (defn project-users-form
   "The form for changing who is in a project. The add / remove / promote
   buttons post the form to users/edit, which sends back the form with
@@ -317,10 +422,10 @@
                        [:span symbols/delete]])
                     " "
                     [:a
-                     {:title "Download this network as GIS data"
-                      :href  (str "map/" map-id
-                                  "/net/" (:id r)
-                                  "/data.json")}
+                     {:title     "Download this network"
+                      :href      (str "map/" map-id "/net/" (:id r) "/data.gpkg")
+                      :hx-get    (str "map/" map-id "/net/" (:id r) "/download")
+                      :hx-target "#modal"}
                      [:span symbols/download]]
                     " "
                     (when (and user-auth (:name r))
@@ -414,21 +519,27 @@
 (defn- map-component [m user-auth expanded]
   [:div.wide.card {:style (style :flex-grow 1)}
    [:div.flex-cols
-    [:h1 {:style (style :flex-grow 1)}
-     (case (keyword (:state m))
-       (:ready :running)
+    [:h1.map-title {:style (style :flex-grow 1)}
+     (cond
+       (#{:ready :running} (keyword (:state m)))
        [:div (spinner {:size 16})]
-       :completed
-       [:img {:width :32px :height :32px :src (str "map/" (:id m) "/icon.png")
-              :style (style :margin-right :1em :vertical-align :middle)
-              :alt (str "An image for the map " (:name m))}]
-       "")
+
+       (:import-completed m)
+       ;; the icon is twice this size, for high resolution screens
+       [:img.map-icon {:width 96 :height 96 :src (str "map/" (:id m) "/icon.png")
+                       :alt (str "A picture of the map " (:name m)
+                                 ", with its heat demand in red")}])
 
      [:span (:name m)]]
 
     (buttons
-     [:a.button
-      {:href (str "map/" (:id m) "/data.json")} "DOWNLOAD " symbols/download]
+     (when (:import-completed m)
+       [:a.button
+        {:href      (str "map/" (:id m) "/data.gpkg")
+         :hx-get    (str "map/" (:id m) "/download")
+         :hx-target "#modal"
+         :title     "Download the map's GIS data, or its networks with their results"}
+        "DOWNLOAD " symbols/download])
      (when user-auth
        [:a.button
         {:href      "#"
@@ -576,6 +687,14 @@
                         (> (:num-gis-features restriction-info) (:max-gis-features restriction-info)))
                  [:button.button.button--disabled {:disabled true} "MAP " symbols/plus]
                  [:a.button {:href "map/new"} "MAP " symbols/plus]))
+
+             (when (and user-auth
+                        (not (and (:max-gis-features restriction-info)
+                                  (> (:num-gis-features restriction-info)
+                                     (:max-gis-features restriction-info)))))
+               [:a.button {:href "#" :hx-get "map/upload" :hx-target "#modal"
+                           :title "Upload a map, and its networks, in a GeoPackage downloaded from THERMOS"}
+                "UPLOAD MAP " symbols/upload])
 
              (when user-auth
                [:a.button {:href (str "/parameters?project=" (:id project))} "PARAMETERS"])

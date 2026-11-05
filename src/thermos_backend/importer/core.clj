@@ -21,7 +21,8 @@
             [thermos-importer.util :refer [has-extension file-extension]]
 
             [thermos-backend.db.maps :as db]
-            
+            [thermos-backend.gpkg.upload :as upload]
+
             [clojure.data.json :as json]
             [clojure.string :as str]
             [clojure.data.csv :as csv]
@@ -118,12 +119,20 @@
   )
 
 (defn run-import-and-store
-  "Run an import job enqueued by `queue-import`"
-  [{map-id :map-id} progress]
-  
+  "Run an import job enqueued by `queue-import`. A map uploaded as a
+  GeoPackage from THERMOS has :thermos-upload in its parameters, and
+  is filled from that instead (see thermos-backend.gpkg.upload)."
+  [{map-id :map-id user-id :user-id} progress]
+
   (let [{map-name :name parameters :parameters project-id :project-id} (db/get-map map-id)]
-    (if (empty? parameters)
+    (cond
+      (empty? parameters)
       (log/error "Map" map-id "does not exist - probably been deleted before import")
+
+      (:thermos-upload parameters)
+      (upload/restore! map-id (-> parameters :thermos-upload :file) user-id progress)
+
+      :else
       (-> (run-import map-id project-id map-name parameters progress)
           (add-to-database (assoc parameters :map-id map-id))))))
 

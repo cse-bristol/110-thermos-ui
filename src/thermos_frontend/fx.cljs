@@ -67,6 +67,44 @@
                  (transit/read (.getResponseText target)))))))
     "GET")))
 
+;; stop the run of the network at `url`, keeping the best solution so far
+(rf/reg-fx
+ ::stop
+ (fn [{:keys [url]}]
+   (xhr/send url nil "POST")))
+
+;; the names of the networks on a map, from `url`, as transit, or nil if
+;; they can't be had
+(rf/reg-fx
+ ::network-names
+ (fn [{:keys [url on-response]}]
+   (xhr/send
+    url
+    (fn [e]
+      (let [^js target (.-target e)]
+        (rf/dispatch
+         (conj on-response
+               (when (.isSuccess target)
+                 (transit/read (.getResponseText target)))))))
+    "GET")))
+
+;; GET `url` as transit, such as another network's document or the list
+;; of networks on the map, giving nil if it can't be had
+(rf/reg-fx
+ ::get-transit
+ (fn [{:keys [url on-response]}]
+   (xhr/send
+    url
+    (fn [e]
+      (let [^js target (.-target e)]
+        (rf/dispatch
+         (conj on-response
+               (when (.isSuccess target)
+                 (transit/read (.getResponseText target)))))))
+    "GET"
+    nil
+    #js {"Accept" transit/content-type})))
+
 (defonce ^:private poll-timer (atom nil))
 
 ;; dispatch the given event every second, or stop if it is nil

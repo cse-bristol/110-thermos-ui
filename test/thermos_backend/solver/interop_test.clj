@@ -14,6 +14,7 @@
             [thermos-util.finance :as finance]
             [thermos.opt.net.specs :as specs]
             [thermos.opt.net.pipes :as pipes]
+            [thermos.opt.net.interrupt :as interrupt]
             ))
 
 (defn- dp4 [n] (/ (Math/round (* n 1000.0)) 1000.0))
@@ -272,3 +273,27 @@
     (t/is (:thermos-specs.solution/upgraded upgraded))
     (t/is (< 50.0 (:thermos-specs.solution/diameter-mm upgraded)))
     (t/is (= :pipe-capex (:type (:thermos-specs.solution/pipe-capex upgraded))))))
+
+(t/deftest objective-trace
+  (let [with-objective-trace #'sut/with-objective-trace
+        sent   (atom [])
+        result (with-objective-trace
+                 (fn [& {:keys [data]}] (swap! sent conj data))
+                 (fn []
+                   (binding [interrupt/*best* (atom nil)]
+                     (interrupt/update-best! -10.0 (constantly nil))
+                     (interrupt/update-best! -12.0 (constantly nil)) ; worse, so ignored
+                     (interrupt/update-best! -5.0 (constantly nil))
+                     ;; the trace goes at most once a second
+                     (Thread/sleep 1500)
+                     :done)))
+        objectives (:objectives (last @sent))]
+    (t/is (= :done result))
+    (t/is (= 1 (count @sent)))
+    (t/is (= [-10.0 -5.0] (map second objectives)))
+    (t/is (apply <= (map first objectives)))))
+
+(t/deftest thin-trace
+  (let [thin-trace #'sut/thin-trace
+        points (vec (for [i (range 11)] [i (- i)]))]
+    (t/is (= [[0 0] [2 -2] [4 -4] [6 -6] [8 -8] [10 -10]] (thin-trace points)))))

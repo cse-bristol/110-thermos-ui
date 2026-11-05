@@ -13,6 +13,16 @@
       (network-model/output-to-spreadsheet doc)
       (supply-model/output-to-spreadsheet doc)))
 
+(defn to-tables
+  "The tabs of `to-spreadsheet` which don't have a row per candidate:
+  the parameters, the solution summary, and the supply model. The
+  GeoPackage (thermos-backend.gpkg) has these as tables, and its own
+  layers for the candidates."
+  [doc]
+  (-> (common/empty-spreadsheet)
+      (network-model/output-tables doc)
+      (supply-model/output-to-spreadsheet doc)))
+
 (defn from-spreadsheet [file]
   (let [{errors :import/errors :as spreadsheet}
         (schema/validate-spreadsheet (common/read-to-tables file))]

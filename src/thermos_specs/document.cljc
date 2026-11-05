@@ -118,7 +118,10 @@
    (redundant-key ::candidate/id)
    (s/map-of ::candidate/id ::candidate/candidate)))
 
-(defn- is-interesting? [candidate]
+(defn is-interesting?
+  "Whether `candidate` is saved with the document: one the user has
+  changed, or which is in the problem"
+  [candidate]
   (or (::candidate/modified candidate)
       (#{:optional :required} (::candidate/inclusion candidate))))
 
@@ -147,7 +150,7 @@
            (comp #{:optional :required} ::candidate/inclusion)))]
         sr/NONE)))
 
-(defn- is-transient-key?
+(defn is-transient-key?
   "A key is transient if it's namespaced and not within thermos-specs."
   [x]
   {:test #(test/is (and (is-transient-key? :some.ns/kw)

@@ -18,6 +18,7 @@
             [thermos-frontend.supply-parameters :as supply-parameters]
             [thermos-frontend.candidate-editor :as candidate-editor]
             [thermos-frontend.connector-tool :as connector-tool]
+            [thermos-frontend.page-nav :as page-nav]
             
             [goog.object :as o]
             [clojure.string :as string]))
@@ -96,6 +97,9 @@
     [:tr [:th "G"] [:td "Put all selected candidates into a group"]]
     [:tr [:th "U"] [:td "Ungroup all selected candidates"]]
     [:tr [:th "i"] [:td "Show mystic information panel"]]
+    [:tr [:th "[ / ]"] [:td "Show the previous / next page"]]
+    [:tr [:th "Ctrl + z"] [:td "Undo"]]
+    [:tr [:th "Ctrl + y"] [:td "(or Ctrl + Shift + z) Redo"]]
     [:tr [:th "?"] [:td "Show this help"]]]]
   
   )
@@ -137,8 +141,38 @@
         "g" (rf/dispatch [:group-select-members])
         "G" (rf/dispatch [:group-selection])
         "U" (rf/dispatch [:ungroup-selection])
+        "[" (rf/dispatch [::page-nav/step -1])
+        "]" (rf/dispatch [::page-nav/step 1])
         "?" (show-help)
         :default))))
+
+(defn- editing-text?
+  "Whether `el` is somewhere the user can type, where the browser's own
+  undo should work"
+  [^js el]
+  (and el
+       (or (.-isContentEditable el)
+           (= "TEXTAREA" (.-nodeName el))
+           (and (= "INPUT" (.-nodeName el))
+                (not (#{"checkbox" "radio" "button" "submit" "reset" "range" "color" "file"}
+                      (.-type el)))))))
+
+(defn handle-keydown
+  "Undo and redo, with Ctrl (or Cmd) + z, and Ctrl + y or Ctrl (or Cmd) +
+  Shift + z. These are keydown, as keypress doesn't see Ctrl and Cmd
+  keys."
+  [^js e]
+  (when (and (or (.-ctrlKey e) (.-metaKey e))
+             (not (.-altKey e))
+             (not (editing-text? js/document.activeElement)))
+    (let [key (string/lower-case (.-key e))
+          event (cond
+                  (and (= "z" key) (.-shiftKey e)) [:doc/redo]
+                  (= "z" key)                      [:doc/undo]
+                  (and (= "y" key) (.-ctrlKey e))  [:doc/redo])]
+      (when event
+        (.preventDefault e)
+        (rf/dispatch event)))))
 
 
 

@@ -50,20 +50,19 @@ div.solution-component {
            color:black;
        }
    }
-   .emissions-table {
-      td:nth-child(odd) {
-         border-right: 1px solid #bbb;
-      }
-      td:first-child, td:last-child {
-         border-right: none;
-      }
-      thead {
-         th:nth-child(odd), th.border-right {
-            border-right: 1px solid #bbb;
-         }
-         th:first-child, th:last-child {
-            border-right: none;
-         }
+   // wide tables, as when comparing, scroll sideways in their tab
+   .card {
+      min-width: 0;
+   }
+   .tabs__page {
+      overflow-x: auto;
+   }
+
+   // a line before each figure's columns, when it has several (see
+   // solution-view/figures-table)
+   .figures-table {
+      td.group-start, th.group-start {
+         border-left: 1px solid #bbb;
       }
    }
 

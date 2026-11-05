@@ -10,7 +10,9 @@
     background:#fff;
     padding: 2em;
     box-shadow: 0 0 6px 4px rgba(0,0,0,0.2);
-    max-height: calc(~"100% - 80px");
+    // vh, as a dialog in the middle is in a box with no height of its
+    // own (see popover/component)
+    max-height: calc(~"100vh - 80px");
     overflow-y: auto;
 
     // So we can absolutely position the x button

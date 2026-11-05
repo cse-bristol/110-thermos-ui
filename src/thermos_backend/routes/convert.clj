@@ -8,6 +8,8 @@
             [ring.util.io :as rio]
             [thermos-backend.pages.cache-control :as cache-control]
             [thermos-util.converter :as geojson-converter]
+            [thermos-backend.gpkg :as gpkg]
+            [thermos-backend.routes.responses :refer [temporary-file]]
             [cheshire.core :as json]
             ))
 
@@ -53,6 +55,15 @@
       (response/content-type "application/json")
       (cache-control/no-store)))
 
+(defn problem-to-gpkg
+  "A GeoPackage of the network in the editor, which is called `name`"
+  [{{state :state network-name :name} :body-params}]
+  (let [file (java.io.File/createTempFile "thermos-" ".gpkg")]
+    (gpkg/write-file! file #(gpkg/add-network! % {:name network-name} state))
+    (-> (temporary-file file)
+        (response/content-type gpkg/content-type)
+        (cache-control/no-store))))
+
 (def converter-routes
   "Routes for converting a problem to other types.
 
@@ -64,5 +75,6 @@
   ["/convert"
    [["/excel" #'problem-to-excel]
     ["/json" problem-to-json]
-    ["/json-2" problem-to-json-2]]])
+    ["/json-2" problem-to-json-2]
+    ["/gpkg" problem-to-gpkg]]])
 

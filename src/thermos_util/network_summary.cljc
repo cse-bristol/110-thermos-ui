@@ -1,6 +1,11 @@
-(ns thermos-backend.db.network-metadata
+;; This file is part of THERMOS, copyright © Centre for Sustainable Energy, 2017-2021
+;; Licensed under the Reciprocal Public License v1.5. See LICENSE for licensing details.
+
+(ns thermos-util.network-summary
   "Function for summarising a thermos problem so we can quickly present
-  some facts about it into the UI"
+  some facts about it into the UI. The server stores this as each
+  network's metadata, for the project page, and the editor uses it to
+  compare two networks."
   (:require [thermos-specs.candidate :as candidate]
             [thermos-specs.document :as document]
             [thermos-specs.supply :as supply]
@@ -69,12 +74,11 @@
                              [system-name
                               (reduce + 0
                                       (keep #(candidate/solved-annual-demand % mode)
-                                            buildings-by-system))]))
+                                            buildings))]))
      :output-building-kwp (into
                            {}
                            (for [[system-name buildings] buildings-by-system]
                              [system-name
                               (reduce + 0
                                       (keep #(candidate/solved-peak-demand % mode)
-                                            buildings-by-system))]))}))
-
+                                            buildings))]))}))

@@ -6,7 +6,7 @@
             [thermos-backend.db.users :as users]
             [thermos-backend.db.json-functions :as json :refer [->json]]
             [thermos-backend.content-migrations.piecewise :as piecewise]
-            [thermos-backend.db.network-metadata :as network-metadata]
+            [thermos-util.network-summary :as network-summary]
             [honeysql.helpers :as h]
             [honeysql-postgres.helpers :as p]
             [clojure.tools.logging :as log]
@@ -276,7 +276,7 @@
 (defn- network-edn->metadata [content]
   (-> content
       (edn/read-string)
-      (network-metadata/summarise)
+      (network-summary/summarise)
       (->json)))
 
 (defn save-network! [user-id project-id map-id name content]
@@ -292,6 +292,24 @@
     :user-id user-id
     :content content
     :meta   (network-edn->metadata content)}))
+
+(defn restore-network!
+  "Add a network to map `map-id` which was saved elsewhere (uploaded in a
+  GeoPackage), keeping when it was `created` (a java.util.Date, or nil
+  for now) and whether it `has-run`. `content` must be EDN of the
+  current version."
+  [user-id map-id {:keys [name content created has-run]}]
+  {:pre [(int? map-id) (string? name) (string? content)]}
+  (db/insert-one!
+   :networks
+   (cond-> {:map-id  map-id
+            :name    name
+            :version piecewise/current-version
+            :user-id user-id
+            :content content
+            :has-run (boolean has-run)
+            :meta    (network-edn->metadata content)}
+     created (assoc :created (java.sql.Timestamp. (.getTime ^java.util.Date created))))))
 
 (defn add-solution! [network-id content]
   (-> (h/update :networks)
@@ -387,6 +405,30 @@
                   (h/sset {:auth (users/as-project-auth :admin)})
                   (h/where [:= :project-id project-id])
                   (db/execute! conn))))))))
+
+(defn network-names
+  "The names of the networks on map `map-id`"
+  [map-id]
+  (-> (h/select :name)
+      (h/modifiers :distinct)
+      (h/from :networks)
+      (h/where [:= :map-id map-id])
+      (db/fetch!)
+      (->> (mapv :name))))
+
+(defn map-networks
+  "Every network saved on map `map-id`, all versions, newest first, with
+  its :id, :name, :author, :created time, whether it :has-run, and its
+  :meta (see network-summary/summarise)"
+  [map-id]
+  (-> (h/select :networks.id :networks.name [:users.name :author]
+                :networks.created :networks.has-run :networks.meta)
+      (h/from :networks)
+      (h/left-join :users [:= :users.id :networks.user-id])
+      (h/where [:= :networks.map-id map-id])
+      (h/order-by [:networks.id :desc])
+      (db/fetch!)
+      (->> (mapv #(update % :created (fn [t] (when t (java.util.Date. (.getTime ^java.util.Date t)))))))))
 
 (defn delete-networks! [map-id network-name]
   (-> (h/delete-from :networks)

@@ -36,6 +36,28 @@
       (html)
       (response/charset "UTF-8")))
 
+(defonce ^:private file-deleter
+  (java.util.concurrent.Executors/newSingleThreadScheduledExecutor
+   (reify java.util.concurrent.ThreadFactory
+     (newThread [_ r]
+       (doto (Thread. ^Runnable r "Delete temporary files")
+         (.setDaemon true))))))
+
+(defn temporary-file
+  "A response whose body is `file`, a temporary file which is deleted
+  once it's been sent.
+
+  http-kit reads a file body when it starts the response, or memory-maps
+  it if it's 20MB or more, rather than holding it on the heap as it
+  would an InputStream's content. Since we can't tell when it's done,
+  the file is deleted ten minutes later; a mapped file can be deleted
+  while it is still being sent."
+  [^java.io.File file]
+  (.schedule ^java.util.concurrent.ScheduledExecutorService file-deleter
+             ^Runnable (fn [] (.delete file))
+             10 java.util.concurrent.TimeUnit/MINUTES)
+  (response/response file))
+
 (defn htmx-request? [request]
   (= "true" (get-in request [:headers "hx-request"])))
 

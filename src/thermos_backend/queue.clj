@@ -45,6 +45,17 @@
 
 (def running-jobs (atom {})) ;; {queue {job-id thread}}
 
+(defonce ^:private shutting-down
+  ;; true while poll-thread is stopping, when running jobs are interrupted
+  ;; to be put back on the queue, rather than to stop them
+  (atom false))
+
+(defn shutting-down?
+  "Whether the queue is stopping. A job which is interrupted because of
+  this will be run again, so should not keep anything it has done."
+  []
+  @shutting-down)
+
 (defonce finish-listeners
   (atom {})) ;; {queue {key fn}}
 
@@ -233,16 +244,18 @@
             ;; at this point we could check for too many jobs and return the job to queue
             ;; if we don't want it.
             state-callback
-            (fn [& {:keys [message percent can-cancel]}]
+            (fn [& {:keys [message percent data can-cancel]}]
               ;; can-cancel is a convenience for when there have been
               ;; no side-effects and it is safe to just die
 
-              ;; update the job with progress message and percent
-              (when (or message percent)
+              ;; update the job with progress message and percent, and
+              ;; data, which `progress-data` reads back
+              (when (or message percent data)
                 (-> (update :jobs)
                     (sset (cond-> {}
                             message (assoc :message message)
-                            percent (assoc :progress percent)))
+                            percent (assoc :progress percent)
+                            data    (assoc :progress-data (pr-str data))))
                     (where [:= :id job-id])
                     (db/execute!)))
               
@@ -263,14 +276,16 @@
                                        (do (log/error e "Running" queue-name job-id job-args)
                                            [:failed (or (.getMessage e) "Unknown cause")]))))]
 
-                             (-> (update :jobs)
-                                 (sset (cond-> {:state (sql/call :job_state (name new-state))}
-                                         message (assoc :message message)))
-                                 (where [:= :id job-id])
-                                 (db/execute!))
-                             (notify-finished queue-name
-                                              {:job-id job-id :args job-args
-                                               :state new-state :message message}))
+                             ;; when shutting down, poll-thread puts the job back on the queue
+                             (when-not (shutting-down?)
+                               (-> (update :jobs)
+                                   (sset (cond-> {:state (sql/call :job_state (name new-state))}
+                                           message (assoc :message message)))
+                                   (where [:= :id job-id])
+                                   (db/execute!))
+                               (notify-finished queue-name
+                                                {:job-id job-id :args job-args
+                                                 :state new-state :message message})))
                            (finally 
                              (swap! running-jobs clojure.core/update queue-name dissoc job-id)))
                      (format "Execution of %s job %d" queue-name job-id))
@@ -306,7 +321,8 @@
 
 (defstate poll-thread
   :start
-  (let [thread (Thread. #(try
+  (let [_ (reset! shutting-down false)
+        thread (Thread. #(try
                            (loop []
                              (process-jobs)
                              (Thread/sleep 1000)
@@ -320,6 +336,9 @@
     ;; terminate polling
     (.interrupt ^Thread poll-thread)
     (Thread/sleep 50)
+    ;; an interrupted job may stop early and finish normally (the network
+    ;; model does), but it is to be run again, not to keep its result
+    (reset! shutting-down true)
     (let [running-jobs @running-jobs
           restart-jobs (atom #{})]
       (doseq [[queue running-jobs] running-jobs]
@@ -358,13 +377,30 @@
       (first)
       (:id)))
 
-(defn cancel [job-id]
+(defn cancel
+  "Cancel job `job-id`. A job still on the queue is cancelled at once. A
+  running job's thread is interrupted soon after (see `process-jobs`);
+  what that does is up to the job, which may stop early and complete."
+  [job-id]
   (-> (update :jobs)
-      (sset {:state CANCEL_REQUESTED_STATE})
+      (sset {:state (sql/call :case
+                              [:= :state READY_STATE] CANCELLED_STATE
+                              :else CANCEL_REQUESTED_STATE)})
       (where [:and
               [:= :id job-id]
               [:in :state CANCELABLE_STATES]])
       (db/execute!)))
+
+(defn progress-data
+  "The latest data job `job-id` gave its progress callback, as :data"
+  [job-id]
+  {:pre [(int? job-id)]}
+  (some-> (select :progress-data)
+          (from :jobs)
+          (where [:= :id job-id])
+          (db/fetch-one!)
+          (:progress-data)
+          (edn/read-string)))
 
 (defn list-tasks
   "List tasks on all queues, or a given queue"

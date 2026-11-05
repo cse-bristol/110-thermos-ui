@@ -11,11 +11,12 @@
             [thermos-specs.document :as document]
             [thermos-specs.candidate :as candidate]
             [thermos-frontend.inputs :as inputs]
-            [thermos-util.finance :as finance]
+            [thermos-frontend.comparison :as comparison]
+            [thermos-frontend.theme :as theme]
+            [re-frame.core :as rf]
             [reagent.core :as reagent]
             [clojure.string :as s]
             [thermos-frontend.format :as format]
-            [thermos-frontend.virtual-table :as table]
             [goog.object :as o]
             [thermos-util.solution-summary :as solution-summary]
             ))
@@ -88,578 +89,432 @@
      :time-limit [solution-not-found]
      [unknown-state])])
 
-(defn- unit-header [& stuff]
-  [:thead.solution-table-unit-header
-   [:tr
-    (map-indexed (fn [i [l _]] [:th {:key i :class (when (> i 0) "numeric")} l]) stuff)]
+;; Tables of figures, which can compare this network with another (see
+;; comparison/table-rows). A table has `columns` of figures
+;; [{:label :unit :group :sum? :format :title}], after the columns which
+;; say what each row is, and its rows are [{:key :labels :values :class
+;; :title :format :summary?}], where a :summary? row, like a total, is
+;; left out if there's only one other row.
 
-   [:tr {:style {:font-size :small}}
-    (map-indexed (fn [i [_ l]] [:th {:key i :class (when (> i 0) "numeric")} l]) stuff)]])
+(def ^:private compare-columns
+  "The columns shown for each figure, by the way of comparing"
+  {nil           [:here]
+   :side-by-side [:here :there]
+   :with-delta   [:here :there :delta]
+   :delta-only   [:delta]})
 
-(defn- num-td [v] [:td.numeric (if v (format/si-number v) "--")])
+(def ^:private compare-headings {:here "This" :there "Other" :delta "Change"})
 
-(defn- summary-card [{opex-mode        :opex-mode
-                      capex-mode       :capex-mode
-                      opex-label       :opex-label
-                      capex-label      :capex-label}]
-  (let [summary (solution-summary/data-table (doc/value []) capex-mode opex-mode)]
-    [:section
-     [:table.table.table--hover {:style {:max-width :900px}}
-      [:thead
-       [:tr
-        [:th "Item"]
-        [:th.numeric "Capital cost (" capex-label ")"]
-        [:th.numeric "Operating cost (" opex-label ")"]
-        [:th.numeric "Operating revenue (" opex-label ")"]
-        [:th.numeric.has-tt {:title "Levelized cost of heat - this is the present cost (no revenues) divided by the (discounted) heat delivered."} "LCH (c/kWh)"]
-        [:th.numeric "NPV (¤)"]]]
+(defn- format-value [v fmt]
+  (cond
+    (nil? v)    "--"
+    (number? v) ((or fmt format/si-number) v)
+    :else       (str v)))
 
-      [:tbody
-       (for [{:keys [name subcategories total]} (:rows summary)]
-         [:<> {:key name}
-          (for [{sub-name :name values :value} subcategories]
-            [:tr {:key sub-name}
-             [:th sub-name]
-             [num-td (:capex values)]
-             [num-td (:opex values)]
-             [num-td (:revenue values)]
-             [num-td (:equivalized-cost values)]
-             [num-td (:present values)]])
+(defn- format-delta [d fmt]
+  (when (and (number? d) (not (zero? d)))
+    (str (if (pos? d) "+" "−") ((or fmt format/si-number) (Math/abs d)))))
 
-          [:tr.totals-row {:key name}
-           [:th name]
-           [num-td (:capex total)]
-           [num-td (:opex total)]
-           [num-td (:revenue total)]
-           [num-td (:equivalized-cost total)]
-           [num-td (:present total)]]])
+(defn- figures-table
+  "A table of the figures in rows `here`, and `there` if `compare`, which
+  is how to show them: :side-by-side, :with-delta or :delta-only"
+  [{:keys [label-headers columns here there compare]}]
+  (let [subcolumns (compare-columns compare)
+        span       (count subcolumns)
+        rows       (comparison/table-rows columns here (when compare there))
+        rows       (if (<= (count (remove :summary? rows)) 1) (remove :summary? rows) rows)
+        groups     (when (some :group columns)
+                     (partition-by (comp :group second) (map-indexed vector columns)))
+        ;; the columns after which there's a line
+        starts     (cond compare (set (range (count columns)))
+                         groups  (set (map ffirst groups))
+                         :else   #{})
+        start      (fn [i] (when (starts i) "group-start"))
+        blanks     (fn [] (for [i (range (count label-headers))] [:th {:key i}]))]
+    [:table.table.table--hover.figures-table
+     {:style (when-not compare {:max-width :900px})}
+     (some->>
+      [(when groups
+        [:tr
+         (blanks)
+         (for [g groups :let [[i {:keys [group]}] (first g)]]
+           [:th {:key i :class (start i) :col-span (* span (count g))
+                 :style {:text-align :center :background :#eef}}
+            group])])
+      (when (or (seq label-headers) (some :label columns))
+        [:tr
+         (for [[i h] (map-indexed vector label-headers)] [:th {:key i} h])
+         (for [[i {:keys [label title]}] (map-indexed vector columns)]
+           [:th.numeric {:key i :col-span span :title title
+                         :class [(start i) (when title "has-tt")]
+                         :style (when compare {:text-align :center})}
+            label])])
+      (when (some :unit columns)
+        [:tr {:style {:font-size :small}}
+         (blanks)
+         (for [[i {:keys [unit]}] (map-indexed vector columns)]
+           [:th.numeric {:key i :col-span span :class (start i)
+                         :style (when compare {:text-align :center})}
+            unit])])
+      (when compare
+        [:tr {:style {:font-size :small}}
+         (blanks)
+         (for [i (range (count columns))
+               [j s] (map-indexed vector subcolumns)]
+           [:th.numeric {:key [i j] :class (when (zero? j) (start i))}
+            (compare-headings s)])])]
+      (remove nil?)
+      (seq)
+      (into [:thead.solution-table-unit-header]))
+     [:tbody
+      (for [{:keys [key labels class title here there delta] row-format :format} rows]
+        [:tr {:key (pr-str key) :class class}
+         (for [[i l] (map-indexed vector labels)]
+           [(if class :th :td) {:key i :title title :class (when title "has-tt")} l])
+         (for [[i column] (map-indexed vector columns)
+               :let [fmt (or row-format (:format column))]
+               [j s] (map-indexed vector subcolumns)]
+           [:td.numeric {:key [i j]
+                         :class (when (zero? j) (start i))
+                         :style (when (= :delta s) {:color theme/dark-grey})}
+            (case s
+              :here  (format-value (get here i) fmt)
+              :there (format-value (get there i) fmt)
+              :delta (format-delta (get delta i) fmt))])])]]))
 
-       (let [grand-total (:grand-total summary)]
-         [:tr.grand-totals-row
-          [:th "Whole system"]
-          [num-td (:capex grand-total)]
-          [num-td (:opex grand-total)]
-          [:td.numeric "--"]
-          [:td.numeric "--"]
-          [:td.numeric.has-tt
-           {:title "This does not include network revenues"}
-           (format/si-number (:present grand-total))]])]]]))
+(defn- solution-data
+  "What the solution summary shows of document `doc`"
+  [doc]
+  (let [members (filter candidate/in-solution? (vals (::document/candidates doc)))
+        {paths :path buildings :building} (group-by ::candidate/type members)
+        alts (filter ::solution/alternative buildings)]
+    {:doc              doc
+     :mode             (document/mode doc)
+     :user-field-names (set (mapcat (comp keys ::candidate/user-fields) members))
+     :paths            paths
+     :buildings        buildings
+     :supplies         (filter candidate/supply-in-solution? buildings)
+     :alternatives     alts
+     :by-alternative   (sort-by first (group-by (comp ::supply/name ::solution/alternative) alts))
+     :demands          (filter candidate/is-connected? buildings)
+     :insulated        (filter (comp seq ::solution/insulation) buildings)}))
 
-(defn- network-card [{opex-mode :opex-mode
-                      capex-mode :capex-mode
-                      opex-label :opex-label
-                      capex-label :capex-label
-                      solution-members :solution-members
-                      paths :paths
-                      buildings :buildings
-                      supplies :supplies
-                      alts :alternatives
-                      by-alt :by-alternative
-                      demands :demands
-                      insulated :insulated
-                      by-insulation :by-insulation
-                      user-field-names :user-field-names}
-                     parameters]
+(defn- sum [f xs] (reduce + 0 (keep f xs)))
+
+;; The cards. Each takes `here`, `there` (nil if not comparing) as from
+;; solution-data, how to `compare` them, and how to show costs.
+
+(defn- cost-summary-rows [{:keys [doc]} capex-mode opex-mode]
+  (let [{:keys [rows grand-total]} (solution-summary/data-table doc capex-mode opex-mode)
+        values (juxt :capex :opex :revenue :equivalized-cost :present)]
+    (concat
+     (for [{:keys [name subcategories total]} rows
+           row (concat
+                (for [{sub-name :name :as sub} subcategories]
+                  {:key [name sub-name] :labels [sub-name]
+                   :values (values (assoc (:value sub) :equivalized-cost (:equivalized-cost sub)))})
+                [{:key name :labels [name] :values (values total) :class "totals-row"}])]
+       row)
+     [{:key :whole-system :labels ["Whole system"] :class "grand-totals-row"
+       :title "The NPV does not include network revenues"
+       :values [(:capex grand-total) (:opex grand-total) nil nil (:present grand-total)]}])))
+
+(defn- summary-card [{:keys [here there compare capex-mode opex-mode capex-label opex-label]}]
+  [:section
+   [figures-table
+    {:compare compare
+     :label-headers ["Item"]
+     :columns [{:label [:<> "Capital cost (" capex-label ")"]}
+               {:label [:<> "Operating cost (" opex-label ")"]}
+               {:label [:<> "Operating revenue (" opex-label ")"]}
+               {:label "LCH (c/kWh)" :sum? false
+                :title "Levelized cost of heat - this is the present cost (no revenues) divided by the (discounted) heat delivered."}
+               {:label "NPV (¤)"}]
+     :here  (cost-summary-rows here capex-mode opex-mode)
+     :there (some-> there (cost-summary-rows capex-mode opex-mode))}]])
+
+(defn- pipework-rows [{:keys [doc paths]} capex-mode]
+  (let [row (fn [k labels pipes]
+              (let [length (sum ::path/length pipes)
+                    cost   (sum (comp capex-mode ::solution/pipe-capex) pipes)]
+                {:key k :labels labels
+                 :values [length
+                          cost
+                          (when (pos? length) (/ cost length))
+                          (* 1000 (sum ::solution/losses-kwh pipes))
+                          (* 1000 (reduce max 0 (keep ::solution/capacity-kw pipes)))]}))
+        groups (sort-by first
+                        (group-by
+                         (fn [path]
+                           [(cond
+                              (::solution/upgraded path) "Upgraded existing pipe"
+                              (::path/exists path)       "Existing pipe"
+                              :else (document/civil-cost-name doc (::path/civil-cost-id path)))
+                            (::solution/diameter-mm path)])
+                         paths))]
+    (when (seq paths)
+      (concat
+       (for [[[civ dia :as k] pipes] groups] (row k [civ dia] pipes))
+       [(assoc (row :all [[:b "All"] ""] paths) :class "grand-totals-row" :summary? true)]))))
+
+(defn- pipework-table [{:keys [here there compare capex-mode capex-label]}]
+  [figures-table
+   {:compare compare
+    :label-headers ["Civils" "⌀ (mm)"]
+    :columns [{:label "Length" :unit "m"}
+              {:label "Cost" :unit capex-label}
+              {:label "Cost" :unit [:span capex-label "/m"] :sum? false}
+              {:label "Losses" :unit "Wh/yr"}
+              {:label "Capacity" :unit "W" :sum? false}]
+    :here  (pipework-rows here capex-mode)
+    :there (some-> there (pipework-rows capex-mode))}])
+
+(defn- user-field-names [here there]
+  (sort (into (:user-field-names here) (:user-field-names there))))
+
+(defn- demand-rows [{:keys [demands mode]} user-field capex-mode opex-mode]
+  (for [[class demands] (sort-by first (group-by #(get (::candidate/user-fields %) user-field)
+                                                 demands))
+        :let [class (or class "Unclassified")]]
+    {:key class :labels [class]
+     :values [(count demands)
+              (* 1000 (sum #(candidate/solved-peak-demand % mode) demands))
+              (* 1000 (sum ::solution/kwh demands))
+              (sum (comp capex-mode ::solution/connection-capex) demands)
+              (sum (comp opex-mode ::solution/heat-revenue) demands)]}))
+
+(defn- demands-table [{:keys [here there compare capex-mode opex-mode capex-label opex-label]}]
+  (reagent/with-let [user-field (reagent/atom (first (user-field-names here there)))]
+    [figures-table
+     {:compare compare
+      :label-headers [[inputs/select {:value-atom user-field
+                                      :values (for [n (user-field-names here there)] [n n])}]]
+      :columns [{:label "Count"}
+                {:label "Capacity" :unit "W"}
+                {:label "Demand" :unit "Wh/yr"}
+                {:label "Conn. cost" :unit capex-label}
+                {:label "Revenue" :unit opex-label}]
+      :here  (demand-rows here @user-field capex-mode opex-mode)
+      :there (some-> there (demand-rows @user-field capex-mode opex-mode))}]))
+
+(defn- supply-rows [{:keys [supplies]} user-field capex-mode opex-mode]
+  (let [user-field-of #(get (::candidate/user-fields %) user-field)]
+    (for [s (sort-by user-field-of supplies)]
+      {:key (::candidate/id s) :labels [(user-field-of s)]
+       :values [(some-> (::solution/capacity-kw s) (* 1000))
+                (some-> (::solution/output-kwh s) (* 1000))
+                (some-> (::solution/pumping-kwh s) (* 1000))
+                (capex-mode (::solution/supply-capex s))
+                (opex-mode (::solution/supply-opex s))
+                (opex-mode (::solution/heat-cost s))
+                (opex-mode (::solution/pumping-cost s))
+                (some-> (::solution/diversity s) (* 100))]})))
+
+(defn- supplies-table [{:keys [here there compare capex-mode opex-mode capex-label opex-label]}]
+  (reagent/with-let [user-field
+                     (reagent/atom
+                      (let [names (user-field-names here there)]
+                        (if (contains? (set names) "Name")
+                          "Name" ;; HACK
+                          (first names))))]
+    [figures-table
+     {:compare compare
+      :label-headers [[inputs/select {:value-atom user-field
+                                      :values (for [n (user-field-names here there)] [n n])}]]
+      :columns [{:label "Capacity" :unit "Wp"}
+                {:label "Output" :unit "Wh/yr"}
+                {:label "Pumping" :unit "Wh/yr"}
+                {:label "Capital" :unit capex-label}
+                {:label "Capacity" :unit opex-label}
+                {:label "Heat" :unit opex-label}
+                {:label "Pumping" :unit opex-label}
+                {:label "Coincidence" :unit "%" :sum? false}]
+      :here  (supply-rows here @user-field capex-mode opex-mode)
+      :there (some-> there (supply-rows @user-field capex-mode opex-mode))}]))
+
+(defn- network-card [{:keys [here there] :as arguments}]
   (reagent/with-let [active-tab (reagent/atom :pipework)]
-    [:section
-     (cond
-       (empty? supplies)
-       "No network was constructed."
+    (let [both (remove nil? [here there])]
+      [:section
+       (cond
+         (every? (comp empty? :supplies) both)
+         "No network was constructed."
 
-       (empty? paths)
-       "A network was constructed, but it contains only the supply."
+         (every? (comp empty? :paths) both)
+         "A network was constructed, but it contains only the supply."
 
-       :else
-       [:div
-        [:ul.tabs__tabs.tabs__tabs--pills
-         (doall (for [[key title] [[:pipework "Pipework"] [:demands "Demands"] [:supplies "Supplies"]]]
-                  [:li.tabs__tab {:key key
-                                  :class (when (= @active-tab key) "tabs__tab--active")
-                                  :on-click #(reset! active-tab key)}
-                   title]))]
-        [:br]
-        [:ul.tabs__pages
-         [:li.tabs__page {:key :pipework :class (when (= @active-tab :pipework) "tabs__page--active")}
-          [:table.table.table--hover {:style {:max-width :900px}}
-           [unit-header
-            ["Civils"]
-            ["⌀" "mm"]
-            ["Length" "m"]
-            ["Cost" capex-label]
-            ["Cost" [:span capex-label "/m"]]
-            ["Losses" "Wh/yr"]
-            ["Capacity" "W"]]
-
-           [:tbody
-            (let [pipework-row
-                  (fn [{key :key} civ dia pipes]
-                    (when (seq pipes)
-                      (let [length (reduce + (map ::path/length pipes))
-                            cost (reduce + (map (comp capex-mode
-                                                      ::solution/pipe-capex)
-                                                pipes))
-                            losses (* 1000
-                                      (reduce + (map ::solution/losses-kwh
-                                                     pipes)))
-                            capacity (* 1000
-                                        (reduce max (map ::solution/capacity-kw
-                                                         pipes)))]
-                        [:tr {:key key :class (when (= key :all) "grand-totals-row")}
-                         [:td civ]
-                         [:td.numeric dia]
-                         [:td.numeric (format/si-number length)]
-                         [:td.numeric (format/si-number cost)]
-                         [:td.numeric (format/si-number (/ cost length))]
-                         [:td.numeric (format/si-number losses)]
-                         [:td.numeric (format/si-number capacity)]
-                         ])))
-                  pipework-groups
-                  (sort-by first
-                           (group-by
-                            (fn [path]
-                              [(cond
-                                 (::solution/upgraded path) "Upgraded existing pipe"
-                                 (::path/exists path)       "Existing pipe"
-                                 :else (document/civil-cost-name @parameters (::path/civil-cost-id path)))
-                               (::solution/diameter-mm path)])
-                            paths))]
-              (list
-               (doall
-                (for [[[civ sz] paths] pipework-groups]
-                  [pipework-row {:key [civ sz]} civ sz paths]))
-               (when (> (count pipework-groups) 1)
-                 (pipework-row
-                  {:key :all}
-                  [:b "All"] "" paths))))]]]
-
-         (reagent/with-let [user-field (reagent/atom (first user-field-names))]
+         :else
+         [:div
+          [:ul.tabs__tabs.tabs__tabs--pills
+           (doall (for [[key title] [[:pipework "Pipework"] [:demands "Demands"] [:supplies "Supplies"]]]
+                    [:li.tabs__tab {:key key
+                                    :class (when (= @active-tab key) "tabs__tab--active")
+                                    :on-click #(reset! active-tab key)}
+                     title]))]
+          [:br]
+          [:ul.tabs__pages
+           [:li.tabs__page {:key :pipework :class (when (= @active-tab :pipework) "tabs__page--active")}
+            [pipework-table arguments]]
            [:li.tabs__page {:key :demands :class (when (= @active-tab :demands) "tabs__page--active")}
-            [:table.table.table--hover {:style {:max-width :900px}}
-             [unit-header
-              [[inputs/select {:value-atom user-field
-                               :values
-                               (for [n user-field-names] [n n])}]]
-              
-              ["Count"]
-              ["Capacity" "W"]
-              ["Demand" "Wh/yr"]
-              ["Conn. cost" capex-label]
-              ["Revenue" opex-label]]
-
-             (let [user-field @user-field]
-               [:tbody
-                (doall
-                 (for [[class demands] (sort-by first (group-by
-                                                       (fn [x]
-                                                         (get (::candidate/user-fields x)
-                                                              user-field))
-                                                       demands)
-                                                )
-                       :let [class (or class "Unclassified")]]
-                   [:tr {:key class}
-                    [:td class]
-                    [:td.numeric (count demands)]
-                    [:td.numeric (format/si-number
-                                  (let [mode (document/mode @parameters)]
-                                    (* 1000
-                                       (reduce + 0 (map
-                                                    #(candidate/solved-peak-demand
-                                                      % mode)
-                                                    demands)))))]
-                    [:td.numeric (format/si-number
-                                  (* 1000
-                                     (reduce + 0 (map ::solution/kwh demands))))]
-                    [:td.numeric (format/si-number
-                                  (reduce + 0 (map (comp capex-mode ::solution/connection-capex) demands)))]
-
-                    [:td.numeric (format/si-number
-                                  (reduce + 0 (map (comp opex-mode ::solution/heat-revenue) demands)))]]))])]])
-
-         (reagent/with-let [user-field
-                            (reagent/atom
-                             (if (contains? (set user-field-names) "Name")
-                               "Name" ;; HACK
-                               (first user-field-names)))]
+            [demands-table arguments]]
            [:li.tabs__page {:key :supplies :class (when (= @active-tab :supplies) "tabs__page--active")}
-            [:table.table.table--hover {:style {:max-width :900px}}
-             [unit-header
-              [[inputs/select {:value-atom user-field
-                               :values
-                               (for [n user-field-names] [n n])}] ]
-              ["Capacity" "Wp"]
-              ["Output" "Wh/yr"]
-              ["Pumping" "Wh/yr"]
-              ["Capital" capex-label]
-              ["Capacity" opex-label]
-              ["Heat" opex-label]
-              ["Pumping" opex-label]
-              ["Coincidence" "%"]]
+            [supplies-table arguments]]]])])))
 
-             [:tbody
-              (let [user-field @user-field
-                    get-user-field #(get (::candidate/user-fields %) user-field)]
-                (doall
-                 (for [s (sort-by get-user-field supplies)]
-                   [:tr {:key (::candidate/id s)}
-                    [:td (get-user-field s)]
-                    [:td.numeric (format/si-number (* 1000 (::solution/capacity-kw s)))]
-                    [:td.numeric (format/si-number (* 1000 (::solution/output-kwh s)))]
-                    [:td.numeric (format/si-number (* 1000 (::solution/pumping-kwh s)))]
-                    [:td.numeric (format/si-number (capex-mode (::solution/supply-capex s)))]
-                    [:td.numeric (format/si-number (opex-mode (::solution/supply-opex s)))]
-                    [:td.numeric (format/si-number (opex-mode (::solution/heat-cost s)))]
-                    [:td.numeric (format/si-number (opex-mode (::solution/pumping-cost s)))]
-                    [:td.numeric (* 100 (::solution/diversity s))]])))]]])
-         ]])]))
+(defn- alternative-rows [{:keys [by-alternative mode]} capex-mode opex-mode]
+  (for [[alt-name buildings] by-alternative
+        :let [alt-sum (fn [f] (sum (comp f ::solution/alternative) buildings))]]
+    {:key alt-name :labels [alt-name]
+     :values [(count buildings)
+              (* 1000 (sum #(candidate/solved-peak-demand % mode) buildings))
+              (* 1000 (sum ::solution/kwh buildings))
+              (alt-sum (comp capex-mode :capex))
+              (alt-sum (comp opex-mode :opex))
+              (alt-sum (comp opex-mode :heat-cost))]}))
 
-(defn- alternatives-card [{opex-mode :opex-mode
-                           capex-mode :capex-mode
-                           opex-label :opex-label
-                           capex-label :capex-label
-                           solution-members :solution-members
-                           paths :paths
-                           buildings :buildings
-                           supplies :supplies
-                           alts :alternatives
-                           by-alt :by-alternative
-                           demands :demands
-                           insulated :insulated
-                           by-insulation :by-insulation}
-                          parameters]
+(defn- alternatives-card [{:keys [here there compare capex-mode opex-mode capex-label opex-label]}]
   [:section
-   (if (empty? alts)
+   (if (every? (comp empty? :alternatives) (remove nil? [here there]))
      "No individual systems have been installed"
-     [:table.table.table--hover {:style {:max-width :900px}}
-      [unit-header
-       ["System"]
-       ["Count"]
-       ["Capacity" "Wp"]
-       ["Output" "Wh/yr"]
-       ["Capital cost" capex-label]
-       ["Capacity" opex-label]
-       ["Heat" opex-label]]
+     [figures-table
+      {:compare compare
+       :label-headers ["System"]
+       :columns [{:label "Count"}
+                 {:label "Capacity" :unit "Wp"}
+                 {:label "Output" :unit "Wh/yr"}
+                 {:label "Capital cost" :unit capex-label}
+                 {:label "Capacity" :unit opex-label}
+                 {:label "Heat" :unit opex-label}]
+       :here  (alternative-rows here capex-mode opex-mode)
+       :there (some-> there (alternative-rows capex-mode opex-mode))}])])
 
-      [:tbody
-       
-       (doall
-        (for [[alt-name buildings] (sort-by first by-alt)]
-          [:tr {:key alt-name}
-           [:td alt-name]
-           [:td.numeric (count buildings)]
-           [:td.numeric (format/si-number
-                         (* 1000
-                            (let [mode (document/mode @parameters)]
-                              (reduce + #(candidate/solved-peak-demand % mode)
-                                      buildings))))]
-           [:td.numeric (format/si-number (* 1000 (reduce + (map ::solution/kwh buildings))))]
-           [:td.numeric (format/si-number (reduce + (map (comp
-                                                          capex-mode
-                                                          :capex
-                                                          ::solution/alternative)
-                                                         buildings)))]
+(defn- insulation-rows [{:keys [insulated]} capex-mode]
+  (for [[measure-name is] (sort-by first (group-by ::measure/name (mapcat ::solution/insulation insulated)))]
+    {:key measure-name :labels [measure-name]
+     :values [(count is) (sum :area is) (* 1000 (sum :kwh is)) (sum capex-mode is)]}))
 
-           [:td.numeric (format/si-number (reduce + (map (comp
-                                                          #(opex-mode (:opex %))
-                                                          ::solution/alternative)
-                                                         buildings)))]
-           [:td.numeric (format/si-number (reduce + (map (comp
-                                                          #(opex-mode (:heat-cost %))
-                                                          ::solution/alternative)
-                                                         buildings)))]
-           ]))]])])
-
-(defn- insulation-card [{opex-mode :opex-mode
-                         capex-mode :capex-mode
-                         opex-label :opex-label
-                         capex-label :capex-label
-                         solution-members :solution-members
-                         paths :paths
-                         buildings :buildings
-                         supplies :supplies
-                         alts :alternatives
-                         by-alt :by-alternative
-                         demands :demands
-                         insulated :insulated
-                         by-insulation :by-insulation}]
+(defn- insulation-card [{:keys [here there compare capex-mode capex-label]}]
   [:section
-   (if (empty? insulated)
+   (if (every? (comp empty? :insulated) (remove nil? [here there]))
      "No buildings were insulated"
-     (let [all-insulations
-           (group-by ::measure/id
-                     (mapcat ::solution/insulation insulated))]
-       [:table.table.table--hover {:style {:max-width :900px}}
-        [unit-header
-         ["Insulation"]
-         ["Count"]
-         ["Area" [:span "m" [:sup "2"]]]
-         ["Effect" "Wh/yr"]
-         ["Capital cost" capex-label]]
-        [:tbody
-         (doall (for [[k is] all-insulations]
-                  [:tr {:key k}
-                   [:td (::measure/name (first is))]
-                   [:td.numeric (count is)]
-                   [:td.numeric (format/si-number (reduce + 0 (map :area is)))]
-                   [:td.numeric (format/si-number (* 1000 (reduce + 0 (map :kwh is))))]
-                   [:td.numeric (format/si-number (reduce + 0 (map capex-mode is)))]]))]]))])
+     [figures-table
+      {:compare compare
+       :label-headers ["Insulation"]
+       :columns [{:label "Count"}
+                 {:label "Area" :unit [:span "m" [:sup "2"]]}
+                 {:label "Effect" :unit "Wh/yr"}
+                 {:label "Capital cost" :unit capex-label}]
+       :here  (insulation-rows here capex-mode)
+       :there (some-> there (insulation-rows capex-mode))}])])
 
+(defn- emissions-rows [{:keys [supplies buildings by-alternative]} opex-mode]
+  (let [;; emissions of each type from a seq of maps of them, as {e {:t :cost}}
+        emissions (fn [ms]
+                    (into {} (for [e candidate/emissions-types]
+                               [e {:t    (/ (sum #(get-in % [e :kg]) ms) 1000)
+                                   :cost (sum #(get-in % [e opex-mode]) ms)}])))
+        values    (fn [em] (for [e candidate/emissions-types t [:t :cost]] (get-in em [e t])))
+        plus      (fn [& ems] (apply merge-with (partial merge-with +) ems))
+        heat      (emissions (map ::solution/supply-emissions supplies))
+        pumping   (emissions (map ::solution/pumping-emissions supplies))
+        alts      (for [[alt-name alts] by-alternative]
+                    [alt-name (emissions (map (comp :emissions ::solution/alternative) alts))])
+        total     (apply plus heat pumping (map second alts))
+        counter   (emissions (map (comp :emissions ::solution/counterfactual) buildings))]
+    (concat
+     [{:key :heat :labels ["Network (heat)"] :values (values heat)}
+      {:key :pumping :labels ["Network (pumping)"] :values (values pumping)}]
+     (for [[alt-name em] alts] {:key [:alternative alt-name] :labels [alt-name] :values (values em)})
+     [{:key :total :labels ["Total"] :class "totals-row" :values (values total)}
+      {:key :counterfactual :labels ["Counterfactual"] :class "totals-row" :values (values counter)}
+      {:key :net :labels ["Net"] :class "grand-totals-row"
+       :values (values (plus total (update-vals counter #(update-vals % -))))}])))
 
-(defn- emissions-card [{opex-mode :opex-mode
-                        capex-mode :capex-mode
-                        opex-label :opex-label
-                        capex-label :capex-label
-                        solution-members :solution-members
-                        paths :paths
-                        buildings :buildings
-                        supplies :supplies
-                        alts :alternatives
-                        by-alt :by-alternative
-                        demands :demands
-                        insulated :insulated
-                        by-insulation :by-insulation}]
+(defn- emissions-card [{:keys [here there compare opex-mode opex-label]}]
   [:section
-   (let [sum-alt
-         (fn [e alts what]
-           (reduce +
-                   0
-                   (map (fn [a]
-                          (get-in a [::solution/alternative :emissions e what] 0))
-                        alts)))
+   [figures-table
+    {:compare compare
+     :label-headers ["Cause"]
+     :columns (for [e candidate/emissions-types
+                    [label unit] [["Emitted" "t/yr"] ["Cost" opex-label]]]
+                {:group (name e) :label label :unit unit})
+     :here  (emissions-rows here opex-mode)
+     :there (some-> there (emissions-rows opex-mode))}]])
 
-         alt-emissions
-         (into {}
-               (for [[alt alts] by-alt]
-                 [alt
-                  (into {}
-                        (for [e candidate/emissions-types]
-                          [e
-                           {:t (/ (sum-alt e alts :kg) 1000)
-                            :cost (sum-alt e alts opex-mode)}]))]))
+(defn- tip [title label] [:span.has-tt {:title title} label])
 
-         
-         total-alt-emissions
-         (apply merge-with + (vals alt-emissions))
+(defn- optimisation-rows [{:keys [doc]}]
+  (let [objectives (seq (::solution/objectives doc))
+        [lower upper] (::solution/bounds doc)]
+    (cond->
+        [{:key :objective
+          :labels [(tip "This is the optimisation's objective, after fixing parameters which can only be decided after finding a solution."
+                        "Objective value")]
+          :values [(::solution/objective doc)]}
+         {:key :runtime :labels ["Runtime"] :values [(::solution/runtime doc)] :format format/seconds}
+         {:key :stopped-early
+          :labels [(tip "The run was stopped before its time limit, so this is the best solution the optimiser had found by then, and a better one may exist."
+                        "Stopped early")]
+          :values [(if (::solution/stopped-early doc) "Yes" "No")]}]
 
-         sum-counter
-         (fn [e what]
-           (reduce + 0
-                   (map #(get-in % [::solution/counterfactual :emissions e what] 0)
-                        buildings)))
+      (seq (::solution/stages doc))
+      (conj {:key :method :labels [(tip "The methods the optimiser used, in order." "Method")]
+             :values [(s/join ", " (map name (::solution/stages doc)))]})
 
-         counter-emissions
-         (into {}
-               (for [e candidate/emissions-types]
-                 [e
-                  {:t (/ (sum-counter e :kg)  1000)
-                   :cost (sum-counter e opex-mode)}]))
+      ;; a solution that didn't finish with an exact solve has no gap,
+      ;; bounds or parameter-fixing iterations
+      (::solution/gap doc)
+      (into
+       (remove
+        nil?
+        [{:key :iterations
+          :labels [(tip "Fixing parameters sometimes changes the solution. This is how many solutions were evaluated because of this."
+                        "Iterations")]
+          :values [(::solution/iterations doc)] :format str}
+         (when objectives
+           {:key :iteration-range
+            :labels [(tip "This is the range of objective value change caused by fixing parameters."
+                          "Iteration range")]
+            :values [(Math/abs (- (reduce min objectives) (reduce max objectives)))]})
+         {:key :gap :labels ["Gap"] :values [(::solution/gap doc)] :format str}
+         {:key :bounds
+          :labels [(tip "These are the optimiser's bounds on the optimal objective value for the best solution found, without accounting for subsequent parameter fixing."
+                        "Bounds")]
+          :values [(str (format/si-number lower) " — " (format/si-number upper))]}])))))
 
-         sum-supply
-         (fn [k e what]
-           (reduce + 0
-                   (map #(get-in % [k e what] 0)
-                        supplies)))
-
-         supply-emissions
-         (into {}
-               (for [e candidate/emissions-types]
-                 [e {:t (/ (sum-supply ::solution/supply-emissions e :kg) 1000)
-                     :cost (sum-supply ::solution/supply-emissions e opex-mode)}]))
-
-         pumping-emissions
-         (into {}
-               (for [e candidate/emissions-types]
-                 [e {:t (/ (sum-supply ::solution/pumping-emissions e :kg) 1000)
-                     :cost (sum-supply ::solution/pumping-emissions e opex-mode)}]))
-         ]
-
-
-     [:table.table.table--hover.emissions-table {:style {:max-width :900px}}
-      [:thead.solution-table-unit-header
-       [:tr
-        [:th]
-        (for [e candidate/emissions-types]
-          [:th.border-right {:key e
-                             :style {:text-align :center :background :#eef}
-                             :col-span 2} (name e)])]
-       [:tr
-        [:th "Cause"]
-        (for [e candidate/emissions-types]
-          (list
-           [:th.numeric {:key [e :t]}
-            "t/yr"]
-           [:th.numeric {:key [e :cost]} opex-label]))]]
-      [:tbody
-       [:tr
-        [:td "Network (heat)"]
-        (for [e candidate/emissions-types
-              t [:t :cost]]
-          [:td.numeric {:key [e t] :style {:width :100px}}
-           (format/si-number (get-in supply-emissions [e t]))])]
-
-       [:tr
-        [:td "Network (pumping)"]
-        (for [e candidate/emissions-types
-              t [:t :cost]]
-          [:td.numeric {:key [e t] :style {:width :100px}}
-           (format/si-number (get-in pumping-emissions [e t]))])]
-       
-       (for [[alt alt-emissions] alt-emissions]
-         [:tr {:key alt}
-          [:td alt]
-          (for [e candidate/emissions-types
-                t [:t :cost]]
-            [:td.numeric {:key [e t]}
-             (format/si-number (get-in alt-emissions [e t]))])])
-       
-       [:tr.totals-row
-        [:th "Total"]
-        (for [e candidate/emissions-types
-              t [:t :cost]]
-          [:td.numeric {:key [e t]}
-           (format/si-number (+ (get-in supply-emissions [e t])
-                                (get-in total-alt-emissions [e t])))])
-        ]
-       [:tr.totals-row
-        [:th "Counterfactual"]
-        (for [e candidate/emissions-types
-              t [:t :cost]]
-          [:td.numeric {:key [e t]}
-           (format/si-number (get-in counter-emissions [e t]))])]
-
-
-       [:tr.grand-totals-row
-        [:th "Net"]
-        (for [e candidate/emissions-types
-              t [:t :cost]]
-          [:td.numeric {:key [e t]}
-           (format/si-number (-
-                              (+ (get-in supply-emissions [e t])
-                                 (get-in total-alt-emissions [e t]))
-                              (get-in counter-emissions [e t])))])]]])])
-
-
-(defn- optimisation-card [parameters]
+(defn- optimisation-card [{:keys [here there compare]}]
   [:section
-   [:table.table.table--hover {:style {:max-width :350px}}
-    [:tbody
-     [:tr
-      [:th.has-tt
-       {:title
-        "This is the optimisation's objective, after fixing parameters which can only be decided after finding a solution."}
-
-       "Objective value:"]
-      [:td.numeric {:style {:white-space :nowrap}}
-       (format/si-number (::solution/objective @parameters))]
-      ]
-     [:tr
-      [:th "Runtime:"]
-      [:td.numeric (format/seconds (::solution/runtime @parameters))]]
-
-     (when-let [stages (seq (::solution/stages @parameters))]
-       [:tr
-        [:th.has-tt
-         {:title "The methods the optimiser used, in order."}
-         "Method:"]
-        [:td (s/join ", " (map name stages))]])
-
-     ;; a solution that didn't finish with an exact solve has no gap,
-     ;; bounds or parameter-fixing iterations
-     (when (::solution/gap @parameters)
-       [:<>
-        [:tr
-         [:th.has-tt
-          {:title "Fixing parameters sometimes changes the solution. This is how many solutions were evaluated because of this."}
-          "Iterations:"]
-         [:td.numeric (::solution/iterations @parameters)]]
-
-        (when-let [objectives (seq (::solution/objectives @parameters))]
-          [:tr
-           [:th.has-tt
-            {:title "This is the range of objective value change caused by fixing parameters."}
-            "Iteration range:"]
-           [:td.numeric
-            (format/si-number
-             (Math/abs
-              (- (reduce min objectives)
-                 (reduce max objectives))))]])
-
-        [:tr
-         [:th "Gap:"]
-         [:td.numeric (::solution/gap @parameters)]]
-
-        [:tr
-         [:th.has-tt {:title "These are the optimiser's bounds on the optimal objective value for the best solution found, without accounting for subsequent parameter fixing."}
-          "Bounds:"]
-         [:td.numeric (format/si-number
-                       (first (::solution/bounds @parameters)))
-          " — "
-          (format/si-number
-           (second (::solution/bounds @parameters)))
-          ]]])]]])
+   [figures-table
+    {:compare compare
+     :columns [{:sum? false}]
+     :here  (optimisation-rows here)
+     :there (some-> there optimisation-rows)}]])
 
 (defn- solution-summary* []
   (reagent/with-let
-    [solution-members (reagent/track
-                       #(->> (doc/value [::document/candidates])
-                             vals
-                             (filter candidate/in-solution?)))
+    [here (reagent/track
+           #(solution-data (assoc @(rf/subscribe [:doc/cost-factors])
+                                  ::document/candidates @(rf/subscribe [:doc/candidates]))))
+     ;; the network being compared with, if it has a solution
+     there (reagent/track
+            #(let [doc @(rf/subscribe [:compare/document])]
+               (when (and doc (solution/exists? doc)) (solution-data doc))))
 
-     parameters
-     (reagent/track
-      #(-> (doc/value [])
-           (select-keys [::document/pipe-costs
-                         ::document/flow-temperature
-                         ::document/return-temperature
-
-                         ::document/pumping-overhead
-                         ::document/pumping-cost-per-kwh
-                         
-                         ::solution/objective
-                         ::solution/runtime
-                         ::solution/iterations
-                         ::solution/bounds
-                         ::solution/objectives
-                         ::solution/gap
-                         ::solution/stages
-
-                         ::document/mode
-
-                         ;; urgh
-                         ::document/npv-term
-                         ::document/npv-rate
-                         ])))
-
-     *capex-mode (reagent/atom :total)
-     *opex-mode  (reagent/atom :total)
-     active-tab (reagent/atom :cost-summary)
-     ]
+     *capex-mode   (reagent/atom :total)
+     *opex-mode    (reagent/atom :total)
+     *compare-mode (reagent/atom :with-delta)
+     active-tab    (reagent/atom :cost-summary)]
 
     (let [capex-mode @*capex-mode
           opex-mode  @*opex-mode
-
-          solution-members @solution-members
-
-          user-field-names (sort (set (mapcat (comp keys ::candidate/user-fields) solution-members)))
-
-          {paths :path
-           buildings :building}
-          (group-by ::candidate/type solution-members)
-
-          alts    (filter ::solution/alternative buildings)
-          by-alt  (sort-by first
-                           (group-by (comp ::supply/name ::solution/alternative) alts))
-
-          insulated
-          (filter (comp seq ::solution/insulation) buildings)
-
-          insulations
-          (->> (mapcat ::solution/insulation insulated)
-               (group-by ::measure/name)
-               (sort-by first))
+          comparing  @(rf/subscribe [:compare/comparing])
+          other      @there
+          shown      (when (not= :none @*compare-mode) other)
 
           card-arguments
-          {:user-field-names user-field-names
-           :opex-mode opex-mode
+          {:here       @here
+           :there      shown
+           :compare    (when shown @*compare-mode)
+           :opex-mode  opex-mode
            :capex-mode capex-mode
            :opex-label
            (case opex-mode
@@ -670,17 +525,7 @@
            (case capex-mode
              :total "¤"
              :principal "¤₀"
-             :present [:span "¤" [:sub "PV"]])
-           :solution-members solution-members
-           :paths paths
-           :buildings buildings
-           :supplies (filter candidate/supply-in-solution? buildings)
-           :alternatives alts
-           :by-alternative by-alt
-           :demands (filter candidate/is-connected? buildings)
-           :insulated insulated
-           :by-insulation insulations}
-          ]
+             :present [:span "¤" [:sub "PV"]])}]
       [:div.solution-component
        {:style {:flex-grow 1 :padding :1em}}
 
@@ -697,14 +542,26 @@
                        {:label "Present value" :key :present}]
              :value capex-mode
              :on-change #(reset! *capex-mode %)}]]
-          [:div.flex-col {:style {:flex-grow 1}}
+          [:div.flex-col
            [:h4 "Other costs:"]
            [inputs/radio-group
             {:options [{:label "Total" :key :total}
                        {:label "Annual" :key :annual}
                        {:label "Present value" :key :present}]
              :value opex-mode
-             :on-change #(reset! *opex-mode %)}]]]]
+             :on-change #(reset! *opex-mode %)}]]
+          (when comparing
+            [:div.flex-col
+             [:h4 "Compare:"]
+             (if other
+               [inputs/radio-group
+                {:options [{:label "None" :key :none}
+                           {:label "Side by side" :key :side-by-side}
+                           {:label "With change" :key :with-delta}
+                           {:label "Change only" :key :delta-only}]
+                 :value @*compare-mode
+                 :on-change #(reset! *compare-mode %)}]
+               [:span "The network being compared with has no solution."])])]]
 
         [:ul.tabs__tabs
          (doall
@@ -715,25 +572,22 @@
              [:li.tabs__tab
               {:key key
                :class (when (= @active-tab key) "tabs__tab--active")
-               :on-click (fn []
-                           (println key)
-                           (reset! active-tab key))}
+               :on-click #(reset! active-tab key)}
               name]))]
         [:ul.tabs__pages
          [:li.tabs__page {:class (when (= @active-tab :cost-summary) "tabs__page--active")}
           [summary-card card-arguments]]
          [:li.tabs__page {:class (when (= @active-tab :network) "tabs__page--active")}
-          [network-card card-arguments parameters]]
+          [network-card card-arguments]]
          [:li.tabs__page {:class (when (= @active-tab :alternatives) "tabs__page--active")}
-          [alternatives-card card-arguments parameters]]
+          [alternatives-card card-arguments]]
          [:li.tabs__page {:class (when (= @active-tab :insulation) "tabs__page--active")}
           [insulation-card card-arguments]]
          [:li.tabs__page {:class (when (= @active-tab :emissions) "tabs__page--active")}
           [emissions-card card-arguments]]
          [:li.tabs__page {:class (when (= @active-tab :optimisation) "tabs__page--active")}
-          [optimisation-card parameters]]]
-        ]])
-    ))
+          [optimisation-card card-arguments]]]]])))
+
 
 (defn solution-summary []
   (if (solution/exists? (doc/value []))

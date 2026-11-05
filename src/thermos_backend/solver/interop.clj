@@ -486,10 +486,12 @@
                capex%kwh (annual-kwh->kw ;; this converts our cost/kw figures into cost/kwh
                           (::supply/capex-per-mean-kw alternative 0))
 
-               ;; zero cost%kwp if the measure changes the peak
-               ;; we care about this here so that the network model doesn't have to.
-               cost%kwp (if changes-peak 0 (+ opex%kwp capex%kwp))
-               
+               ;; zero cost%kwp if the measure changes the peak, as
+               ;; cost%kwh has it instead; we care about this here so
+               ;; that the network model doesn't have to. (This mustn't
+               ;; shadow cost%kwp, which cost%kwh needs.)
+               model-cost%kwp (if changes-peak 0 cost%kwp)
+
                cost%kwh
                (+
                 (* (or changes-peak 0) (annual-kwh->kw cost%kwp))
@@ -514,8 +516,8 @@
                                  (::demand/connection-count candidate 1)))))
 
             :cost%kwh cost%kwh
-            :cost%kwp cost%kwp
-            
+            :cost%kwp model-cost%kwp
+
             :emissions
             (into {}
                   (for [e candidate/emissions-types]
@@ -1156,6 +1158,8 @@
                  (-> result-json :solver :objectives)
                  ::solution/stages
                  (-> result-json :solver :controls :stages)
+                 ::solution/stopped-early
+                 (boolean (-> result-json :solver :interrupted))
                  )))))
 
 (defn- mark-unreachable [instance net-graph included-candidates disconnected-candidate-ids]
@@ -1281,12 +1285,68 @@
          ::solution/message "Empty problem"
          ::solution/runtime 0))
 
+(def ^:private max-trace-points
+  "How many points of the objective trace to keep (see `with-objective-trace`)"
+  1000)
+
+(defn- thin-trace
+  "Every other point of `points`, and the last, so a long trace stays small"
+  [points]
+  (conj (vec (take-nth 2 (pop points))) (peek points)))
+
+(defn- with-objective-trace
+  "Call `f`, telling `progress` (a job's progress callback) the objective
+  of the best solution so far each time the network model improves on it,
+  as :data {:objectives [[seconds objective] ...]}, with seconds since `f`
+  started. The trace is sent at most once a second, from another thread,
+  so the job isn't updated for every small improvement."
+  [progress f]
+  (if-not progress
+    (f)
+    (let [start  (System/nanoTime)
+          trace  (atom {:objectives [] :sent true})
+          send!  (fn []
+                   (let [[{:keys [objectives sent]}] (swap-vals! trace assoc :sent true)]
+                     (when-not sent (progress :data {:objectives objectives}))))
+          sender (future
+                   (try
+                     (loop []
+                       (Thread/sleep 1000)
+                       (try (send!)
+                            (catch Exception e (log/warn e "Sending objective trace")))
+                       (recur))
+                     (catch InterruptedException _)))]
+      (try
+        (tel/with-min-level :event "thermos.opt.net.interrupt" :debug
+          (tel/with-handler+ ::objective-trace
+            (fn ([{:keys [id data]}]
+                 (when (= id :thermos.opt.net.interrupt/best)
+                   (let [point [(/ (- (System/nanoTime) start) 1e9)
+                                (double (:objective data))]]
+                     (swap! trace
+                            (fn [t]
+                              (-> t
+                                  (update :objectives
+                                          #(cond-> (conj % point)
+                                             (>= (count %) max-trace-points) (thin-trace)))
+                                  (assoc :sent false)))))))
+                ([]))
+            {:async nil}
+            (f)))
+        (finally (future-cancel sender))))))
+
 (defn- run-model
   "Run the network model on `model-input`, using the document's solution
   method: :exact is the MIP alone, as THERMOS always used to do, and
   :automatic leaves the model to choose its stages (heuristic, patch
-  search, MIP) from the problem's size and time limit."
-  [instance model-input]
+  search, MIP) from the problem's size and time limit.
+
+  `progress` is the job's progress callback, if there is one, which is
+  sent the objective as it improves (see `with-objective-trace`).
+
+  If the thread is interrupted, the model stops early with the best
+  solution so far; see `thermos.opt.net.core/run-model`."
+  [instance model-input progress]
   (let [solver (or (and (:has-gurobi config) (::document/solver instance))
                    :scip)
         method (::document/solution-method instance :exact)]
@@ -1301,16 +1361,23 @@
                           (:objective data))))
             ([]))
         {:async nil}
-        (apply net-model/run-model model-input
-               :solver solver
-               (when (= method :exact)
-                 [:controls {:stages [:mip]}]))))))
+        (with-objective-trace progress
+          #(apply net-model/run-model model-input
+                  :solver solver
+                  (when (= method :exact)
+                    [:controls {:stages [:mip]}])))))))
 
 (defn solve
   "Solve the INSTANCE, returning an updated instance with solution
-  details in it. Probably needs running off the main thread."
-  [instance]
-  
+  details in it. Probably needs running off the main thread.
+
+  `progress` is the job's progress callback, if any (see `run-model`).
+
+  If the thread is interrupted while the model runs, the best solution
+  so far is used, with ::solution/stopped-early; if there is none yet,
+  this throws an InterruptedException."
+  [instance & {:keys [progress]}]
+
   (let [instance (document/remove-solution instance)
 
         solution-method (::document/solution-method instance)
@@ -1392,9 +1459,14 @@
         
         (let [start-time (System/currentTimeMillis)
               result (if (seq (:vertices model-input))
-                       (run-model instance model-input)
+                       (run-model instance model-input progress)
                        ::empty)
-              
+
+              _ (when (= :interrupted (:state result))
+                  (throw (InterruptedException. "Stopped before a solution was found")))
+              _ (when (-> result :solver :interrupted)
+                  (log/info "Stopped early, using the best solution found so far"))
+
               end-time (System/currentTimeMillis)
 
               solved-instance
@@ -1506,7 +1578,7 @@
                          (.write log-writer msg)
                          (.append log-writer \newline)
                          (progress :message (.toString log-writer)))
-                       (solve instance))]
+                       (solve instance :progress progress))]
         (assoc solution ::solution/log (.toString log-writer)))
 
       (catch InterruptedException ex (throw ex))

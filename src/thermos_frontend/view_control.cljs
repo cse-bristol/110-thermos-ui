@@ -5,9 +5,10 @@
   (:require [reagent.core :as reagent]
             [re-frame.core :as rf]
             [thermos-specs.view :as view]
-            [thermos-frontend.theme :as theme]))
+            [thermos-frontend.theme :as theme]
+            [thermos-frontend.comparison-view :as comparison-view]))
 
-(defn component []
+(defn- normal-view-control []
   (reagent/with-let [legend-visible? (reagent/atom false)]
     (let [view                 @(rf/subscribe [:view/map-view])
           show-pipe-diameters? @(rf/subscribe [:view/show-pipe-diameters])]
@@ -59,3 +60,9 @@
               [:div [:dt.key.alternative-key] [:dd "Has alternative"]]
               [:div [:dt.key.supply-key] [:dd "Network supply"]]])])]
        ])))
+
+(defn component []
+  (if @(rf/subscribe [:compare/comparing])
+    [comparison-view/view-control]
+    [normal-view-control]))
+

@@ -54,7 +54,9 @@
   `document` should be a document layer (not an atom containing a document layer),
   `tile` a canvas element,
   `layer` an instance of our layer component's layer class,
-  `map-view` is either ::view/constraints or ::view/solution,
+  `map-view` is ::view/constraints, ::view/solution, or ::comparison when
+  comparing with another network, which colours candidates by their
+  :compare-category (see thermos-frontend.comparison/category),
   `min-diameter` and max are the min and max, used for a linear scaling"
   (let [coords (.-coords tile)
         size (.getTileSize layer)
@@ -80,6 +82,11 @@
           paths
           (cond
             (> zoom 14) paths
+
+            ;; when comparing, the paths which differ or are on both
+            ;; networks
+            (= map-view ::comparison)
+            (remove #(= :unchanged (:compare-category %)) paths)
 
             has-solution?
             (filter candidate/in-solution? paths)
@@ -169,7 +176,9 @@
   `candidate` is a candidate map,
   `ctx` is a Canvas graphics context (2D),
   `project` is a function to project from real space into the canvas pixel space,
-  `map-view` is either ::view/constraints or ::view/solution,
+  `map-view` is ::view/constraints, ::view/solution, or ::comparison when
+  comparing with another network, which colours candidates by their
+  :compare-category (see thermos-frontend.comparison/category),
   `line-width` is an optionally specified line width for when you want to represent the pipe diameter."
   [line-width solution candidate ctx project map-view]
 
@@ -262,10 +271,27 @@
                 
                 :else
                 theme/light-grey
-                ))))
+                )))
+
+      ;; Colour by how it differs from the network being compared with
+      ::comparison
+      (let [selected (::candidate/selected candidate)]
+        (set! (.. ctx -lineWidth) line-width)
+        (set! (.. ctx -strokeStyle)
+              (theme/compare-colours (:compare-category candidate) theme/white))
+        (set! (.. ctx -fillStyle)
+              (cond
+                selected          theme/dark-grey
+                in-selected-group theme/white
+                :else             (theme/compare-colours-light
+                                   (:compare-category candidate) theme/light-grey)))))
 
     (set! (.. ctx -globalAlpha)
-          (if filtered 0.25 1)))
+          (cond
+            filtered 0.25
+            ;; what is the same in both is there, but in the background
+            (= :unchanged (:compare-category candidate)) 0.4
+            :else 1)))
 
   (render-geometry (::spatial/jsts-geometry candidate) ctx project
                    true false false))
@@ -332,7 +358,14 @@
               in-selected-group       "#000000"
 
               :else
-              theme/white))))
+              theme/white)))
+
+    ::comparison
+    (do (set! (.. ctx -lineWidth) line-width)
+        (set! (.. ctx -strokeStyle)
+              (if (:in-selected-group candidate)
+                "#000000"
+                (theme/compare-colours-light (:compare-category candidate) theme/white)))))
 
   (set! (.. ctx -globalAlpha) 1)
   (render-geometry (::spatial/jsts-geometry candidate) ctx project

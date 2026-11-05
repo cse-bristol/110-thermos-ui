@@ -149,5 +149,38 @@
     (is (= "log" (:run-message (db/server (:db (status nil :running))))))
     (is (= [[::fx/poll nil] [:dispatch [:server/load]]] (:fx (status :running :completed)))
         "loads the solution when a run finishes")
+    (is (= [[::fx/poll nil] [:dispatch [:server/load]]] (:fx (status :cancelling :completed)))
+        "or when it was stopped and finished early")
     (is (= [[::fx/poll nil]] (:fx (status nil :completed)))
         "but not when the page opens on a finished run")))
+
+(deftest stopping
+  (let [running (assoc-in a-db [::db/server :run-state] :running)
+        {db :db stop ::fx/stop} (events/stop {:db running} [:server/stop])]
+    (is (= {:url "/project/1/map/2/net/3/stop"} stop))
+    (is (= :cancel (:run-state (db/server db))) "shows it is stopping straight away"))
+  (is (nil? (events/stop {:db a-db} [:server/stop])) "nothing to stop"))
+
+(deftest continuing-to-edit
+  (let [running (update a-db ::db/server assoc :run-state :running :run-objectives [[1 2]])]
+    (is (= [[::fx/poll nil]
+            [::fx/network-names {:url "/project/1/map/2/net/names"
+                                 :on-response [:server/continue-editing-as]}]]
+           (:fx (events/continue-editing {:db running} [:server/continue-editing]))))
+    (let [{:keys [db fx]} (events/continue-editing-as {:db running}
+                                                      [:server/continue-editing-as ["x"]])
+          server (db/server db)]
+      (is (= :new (:network-id server)) "the next save makes a new network")
+      (is (:needs-save server))
+      (is (not (db/running-or-queued? db)))
+      (is (nil? (:run-objectives server)))
+      (is (= [[::fx/poll nil]
+              [::fx/replace-url "/project/1/map/2/net/new"]
+              [:thermos-frontend.main-nav/rename-as-copy ["x"]]]
+             fx)))))
+
+(deftest copy-names
+  (is (= ["Net (2)" 3 7] (db/copy-name "Net" [])))
+  (is (= ["Net (3)" 3 7] (db/copy-name "Net" ["Net" "Net (2)"])))
+  (is (= ["Net (5)" 3 7] (db/copy-name "Net (4)" ["Net (4)"])) "goes on from a number already there")
+  (is (= ["A (b) (2)" 5 9] (db/copy-name "A (b)" nil))))

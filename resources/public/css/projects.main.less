@@ -148,3 +148,37 @@ table.sortable th[data-sort-type] {
     &.sorted-asc::after { content: " ▲"; }
     &.sorted-desc::after { content: " ▼"; }
 }
+
+// The download dialogs' choice of format (see pages.projects/download-format)
+.download-formats {
+    border: none;
+    padding: 0;
+    margin: 0 0 1em 0;
+
+    label {
+        display: flex;
+        gap: 0.5em;
+        align-items: baseline;
+        margin-bottom: 0.25em;
+    }
+    small {
+        color: #666;
+    }
+}
+
+// what's only for a GeoPackage goes when another format is chosen
+form:has(.download-formats input[value="geojson"]:checked) .gpkg-only {
+    display: none;
+}
+
+// A map's name on its card, after its icon (see thermos-backend.maps.icon)
+.map-title {
+    display: flex;
+    align-items: center;
+    gap: 1em;
+}
+.map-icon {
+    flex-shrink: 0;
+    border-radius: 4px;
+    border: 1px solid #e2e2e2;
+}

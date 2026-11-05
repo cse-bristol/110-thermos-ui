@@ -13,7 +13,8 @@
             [thermos-frontend.fx :as fx]
             [thermos-frontend.transit :as transit]
             [thermos-frontend.operations :as operations]
-            [thermos-frontend.spatial :as spatial]))
+            [thermos-frontend.spatial :as spatial]
+            [thermos-frontend.undo :as undo]))
 
 (def mark-unsaved-changes
   "Notes in the ::db/server state when an event has changed the document in
@@ -31,6 +32,23 @@
 
 (rf/reg-global-interceptor mark-unsaved-changes)
 
+(def record-undo
+  "Keeps the undo history (see thermos-frontend.undo) up to date with each
+  event's change to the document, except for undoing and redoing
+  themselves. A global interceptor, so its :after sees the final db."
+  (rf/->interceptor
+   :id ::record-undo
+   :after
+   (fn [context]
+     (let [old-db (rf/get-coeffect context :db)
+           new-db (rf/get-effect context :db)
+           event  (rf/get-coeffect context :event)]
+       (cond-> context
+         (and new-db (not (#{:doc/undo :doc/redo} (first event))))
+         (rf/assoc-effect :db (undo/record old-db new-db event (js/Date.now))))))))
+
+(rf/reg-global-interceptor record-undo)
+
 (rf/reg-event-db
  :editor/initialise
  (fn [_ _] (db/initial-db)))
@@ -39,6 +57,13 @@
   "For events which change candidates' geometry, or which candidates there
   are: brings the spatial index up to date afterwards"
   (rf/enrich (fn [db _] (spatial/update-index db))))
+
+;; Undo and redo. They change the document like any other edit, so
+;; mark-unsaved-changes notes that it needs saving.
+
+(rf/reg-event-db :doc/undo [spatial-index] (fn [db _] (undo/undo db)))
+
+(rf/reg-event-db :doc/redo [spatial-index] (fn [db _] (undo/redo db)))
 
 ;; Changing the document generally
 
@@ -245,8 +270,9 @@
   ;; solution data last run but is not in the problem we sent to the server
   (-> (document/remove-solution db)
       (operations/load-document document)
-      ;; the loaded document has no ::db/server, so carry it over
-      (assoc ::db/server (db/server db))
+      ;; the loaded document has no ::db/server, so carry it over, and
+      ;; any comparison
+      (merge (select-keys db [::db/server ::db/compare]))
       (db/saved {:run-state run-state
                  :queue-position queue-position})))
 
@@ -256,13 +282,14 @@
   (when (number? (:network-id (db/server db)))
     {::fx/run-status {:on-response [:server/run-status]}}))
 
-(defn run-status [{db :db} [_ {:keys [state queue-position message timing]}]]
+(defn run-status [{db :db} [_ {:keys [state queue-position message timing objectives]}]]
   (let [last-run-state (:run-state (db/server db))]
     {:db (update db ::db/server assoc
                  :run-state state
                  :queue-position queue-position
                  :run-message message
-                 :run-timing timing)
+                 :run-timing timing
+                 :run-objectives objectives)
      :fx (cond
            (contains? db/running-states state)
            [[::fx/poll [:server/poll]]
@@ -270,12 +297,47 @@
             (when (#{:ready :running} state)
               [:dispatch [:push-offer/consider timing]])]
 
-           (and (= :completed state) (#{:ready :running} last-run-state))
+           ;; a stopped run completes too, with its best solution so far
+           (and (= :completed state) (contains? db/running-states last-run-state))
            [[::fx/poll nil]
             [:dispatch [:server/load]]]
 
            :else
            [[::fx/poll nil]])}))
+
+(defn stop [{db :db} _]
+  (when (db/running-or-queued? db)
+    {:db (update db ::db/server assoc :run-state :cancel)
+     ::fx/stop {:url (db/network-url (db/server db) "/stop")}}))
+
+(defn continue-editing [{db :db} _]
+  ;; stop polling now, so the run finishing can't load its result into
+  ;; the document while the names are fetched
+  {:fx [[::fx/poll nil]
+        [::fx/network-names {:url (db/network-url (assoc (db/server db) :network-id :names))
+                             :on-response [:server/continue-editing-as]}]]})
+
+(defn continue-editing-as
+  "Leave the run to finish by itself, and carry on editing the document as
+  a new network, named after it but not the same as any on the map"
+  [{db :db} [_ names]]
+  (let [server (assoc (db/server db)
+                      :network-id :new
+                      :needs-save true
+                      :needs-load false
+                      :run-state nil
+                      :queue-position 0
+                      :run-message nil
+                      :run-timing nil
+                      :run-objectives nil)]
+    {:db (assoc db ::db/server server)
+     :fx [[::fx/poll nil]
+          [::fx/replace-url (db/network-url server)]
+          [:thermos-frontend.main-nav/rename-as-copy names]]}))
+
+(rf/reg-event-fx :server/stop stop)
+(rf/reg-event-fx :server/continue-editing continue-editing)
+(rf/reg-event-fx :server/continue-editing-as continue-editing-as)
 
 (rf/reg-event-fx :server/save save)
 (rf/reg-event-fx :server/saved saved)
@@ -283,3 +345,66 @@
 (rf/reg-event-db :server/loaded [spatial-index] loaded)
 (rf/reg-event-fx :server/poll poll)
 (rf/reg-event-fx :server/run-status run-status)
+
+;; Comparing with another network (see db/comparison). None of these
+;; change the document, so they aren't edits, and don't need saving.
+
+(defn compare-fetch-networks
+  "Fetch the networks on the map, to choose one to compare with"
+  [{db :db} _]
+  {:db (update db ::db/compare assoc :networks nil)
+   ::fx/get-transit {:url (db/network-url (assoc (db/server db) :network-id :history))
+                     :on-response [:compare/got-networks]}})
+
+(defn compare-got-networks [db [_ networks]]
+  (assoc-in db [::db/compare :networks] (or networks :failed)))
+
+(defn compare-with
+  "Fetch the document of `network` (from the list of networks) to compare
+  with, carrying on with any comparison until it comes"
+  [{db :db} [_ {:keys [id] :as network}]]
+  {:db (update db ::db/compare #(-> % (assoc :loading network) (dissoc :failed)))
+   ::fx/get-transit {:url (db/network-url (assoc (db/server db) :network-id id))
+                     :on-response [:compare/loaded id]}})
+
+(defn compare-loaded
+  "Start comparing with the network whose `document` has come, unless the
+  user has since chosen another, or stopped comparing"
+  [db [_ id document]]
+  (let [{:keys [loading]} (db/comparison db)]
+    (cond
+      (not= id (:id loading))
+      db
+
+      document
+      (update db ::db/compare
+              #(-> %
+                   (dissoc :loading)
+                   (assoc :network loading
+                          :document (spatial/update-index document)
+                          :picked #{})))
+
+      :else
+      (update db ::db/compare #(-> % (dissoc :loading) (assoc :failed loading))))))
+
+(defn compare-pick
+  "Note the candidates in the other network under `shape`, which the user
+  has clicked on, so it can show those which aren't in this one. Like
+  the selection, `method` :replace replaces them, and otherwise adds to
+  them."
+  [db [_ shape method]]
+  (if (db/comparing? db)
+    (let [ids (set (spatial/find-intersecting-candidates-ids
+                    (:document (db/comparison db)) shape))]
+      (update db ::db/compare update :picked
+              #(if (= :replace method) ids (into (or % #{}) ids))))
+    db))
+
+(rf/reg-event-fx :compare/fetch-networks compare-fetch-networks)
+(rf/reg-event-db :compare/got-networks compare-got-networks)
+(rf/reg-event-fx :compare/with compare-with)
+(rf/reg-event-db :compare/loaded compare-loaded)
+(rf/reg-event-db :compare/pick compare-pick)
+(rf/reg-event-db :compare/stop (fn [db _] (dissoc db ::db/compare)))
+(rf/reg-event-db :compare/dismiss-failure
+                 (fn [db _] (update db ::db/compare dissoc :failed)))

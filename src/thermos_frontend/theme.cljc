@@ -65,6 +65,20 @@
 (def green-light "#ddffdd")
 (def beige-light "#ffddcc")
 
+;; the categories of thermos-frontend.comparison/category, from the
+;; Okabe-Ito palette, which colour-blind people can tell apart
+(def compare-colours
+  {:added   "#0072b2"
+   :removed "#d55e00"
+   :changed "#cc79a7"
+   :same    dark-grey})
+
+(def compare-colours-light
+  {:added   "#99c7e0"
+   :removed "#eebf99"
+   :changed "#ebc9dc"
+   :same    light-grey})
+
 #?(:cljs
    (def white-light-grey-stripes
      (create-stripes "#fff" light-grey 4 8)))

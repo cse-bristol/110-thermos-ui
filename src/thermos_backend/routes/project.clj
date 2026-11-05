@@ -30,7 +30,10 @@
             [thermos-backend.project-lidar :as project-lidar]
             [thermos-backend.db.parameter-sets :as parameter-sets]
             [thermos-specs.parameters :as parameters]
-            [thermos-specs.defaults :as defaults])
+            [thermos-specs.defaults :as defaults]
+            [thermos-backend.gpkg :as gpkg]
+            [thermos-backend.gpkg.upload :as gpkg-upload]
+            [thermos-backend.importer.core :as importer])
   (:import [javax.mail.internet InternetAddress]
            [java.io ByteArrayInputStream]))
 
@@ -372,13 +375,47 @@
           info (cond-> info
                  (and (:job-id info)
                       (#{:ready :running} (:state info)))
-                 (assoc :timing (queue/job-timing (:job-id info))))]
+                 (assoc :timing (queue/job-timing (:job-id info)))
+
+                 ;; how the network model's objective has improved (see
+                 ;; `interop/with-objective-trace`)
+                 (and (:job-id info)
+                      (#{:running :cancel :cancelling} (:state info)))
+                 (assoc :objectives (:objectives (queue/progress-data (:job-id info)))))]
       (-> (transit-json info)
           (response/status 200)
           (response/header "X-Name" (:name info))
           (response/header "X-Queue-Position" (:queue-position info))
           (response/header "X-Run-State" (:state info))
           (cache-control/no-store)))))
+
+(defn- network-stop!
+  "Stop the network's run: a queued run is cancelled, and a running one
+  is interrupted, so the network model finishes early with the best
+  solution it has found"
+  [{{:keys [net-id map-id]} :params}]
+  (auth/verify [:write :map map-id]
+    (let [{job-id :job-id net-map-id :map-id} (projects/get-network net-id)]
+      (when (and job-id (= map-id net-map-id))
+        (queue/cancel job-id))
+      (-> {:status 204}
+          (cache-control/no-store)))))
+
+(defn- network-names
+  "The names of the networks on a map, which the editor uses to name a
+  new network without clashing with them"
+  [{{:keys [map-id]} :params}]
+  (auth/verify [:read :map map-id]
+    (-> (transit-json (projects/network-names map-id))
+        (cache-control/no-store))))
+
+(defn- network-history
+  "Every network on a map, with its versions and their summaries, which
+  the editor offers to compare the network being edited with"
+  [{{:keys [map-id]} :params}]
+  (auth/verify [:read :map map-id]
+    (-> (transit-json (projects/map-networks map-id))
+        (cache-control/no-store))))
 
 (defn- network-save! [{{:keys [name run content map-id project-id]} :params}]
   {:pre [(contains? #{nil "network" "supply" "both" "tidy" "tree"} run)
@@ -423,6 +460,200 @@
           (attachment-disposition (str (:name network) ".json"))
           (cache-control/no-store)))))
 
+(defn- gpkg-download
+  "A response with a GeoPackage called `filename`, which `write!` writes
+  with a thermos-backend.gpkg writer. It goes in a temporary file, which
+  is sent and then deleted."
+  [filename write!]
+  (let [file (java.io.File/createTempFile "thermos-" ".gpkg")]
+    (gpkg/write-file! file write!)
+    (-> (temporary-file file)
+        (response/content-type gpkg/content-type)
+        (attachment-disposition (str (string/replace (str filename) "\"" "'") ".gpkg"))
+        (cache-control/no-store))))
+
+(defn- verify-all
+  "auth/verify each of `rules`, and if they're all OK call `f`"
+  [rules f]
+  (if-let [[rule & rules] (seq rules)]
+    (auth/verify rule (verify-all rules f))
+    (f)))
+
+(defn- gpkg-network-info
+  "What thermos-backend.gpkg/add-network! wants to know about each
+  network on map `map-id`, by id"
+  [map-id]
+  (let [map-name (:name (maps/get-map map-id))]
+    (into {}
+          (for [n (projects/map-networks map-id)]
+            [(:id n) (-> (select-keys n [:id :name :created :author])
+                         (assoc :map-id map-id :map-name map-name))]))))
+
+(defn- add-saved-network!
+  "Add the saved network described by `info` (from `gpkg-network-info`)
+  to the GeoPackage writer `w`, with how its objective improved while it
+  ran, if its job is still there"
+  [w {:keys [id] :as info}]
+  (let [{:keys [content job-id]} (projects/get-network id :include-content true)]
+    (gpkg/add-network! w info (edn/read-string content)
+                       :objective-trace (some-> job-id (queue/progress-data) (:objectives)))))
+
+(defn- add-map-data!
+  "Add all the buildings and paths on map `map-id` to the GeoPackage
+  writer `w`, reading them from the database as they're written"
+  [w map-id]
+  (let [{map-name :name parameters :parameters} (maps/get-map map-id)]
+    (gpkg/add-map-info! w map-name parameters))
+  (doseq [[kind usual] [[:buildings 2] [:paths 1]]
+          :let [user-fields (maps/user-field-types map-id kind)]
+          dim (sort (conj (maps/feature-dimensions map-id kind) usual))]
+    (maps/with-features map-id kind dim
+      (fn [rows] (gpkg/add-map-features! w kind dim rows user-fields)))))
+
+(defn- network-gpkg [{{:keys [net-id]} :params}]
+  (auth/verify [:read :network net-id]
+    (let [{map-id :map-id network-name :name} (projects/get-network net-id)]
+      (gpkg-download network-name #(add-saved-network! % (get (gpkg-network-info map-id) net-id))))))
+
+(defn- latest-versions
+  "The ids of the latest version of each network in `infos`"
+  [infos]
+  (for [[_ versions] (group-by :name (vals infos))]
+    (reduce max (map :id versions))))
+
+(defn- map-gpkg
+  "A GeoPackage of networks on a map: the latest version of each, or if
+  `networks` is \"chosen\" those whose ids are `net`; and the map's own
+  buildings and paths if `map-data`"
+  [{{:keys [map-id networks net map-data]} :params}]
+  (auth/verify [:read :map map-id]
+    (let [infos    (gpkg-network-info map-id)
+          chosen   (if (= "chosen" networks)
+                     (distinct (keep #(parse-long (str %)) (if (coll? net) net [net])))
+                     (latest-versions infos))
+          map-data (boolean (seq map-data))]
+      (cond
+        (not-every? infos chosen)
+        (-> (response/not-found "That network is not on this map")
+            (response/content-type "text/plain")
+            (cache-control/no-store))
+
+        (and (empty? chosen) (not map-data))
+        (-> (response/bad-request "Choose some networks or the map's data to download")
+            (response/content-type "text/plain")
+            (cache-control/no-store))
+
+        :else
+        (verify-all
+         (for [id chosen] [:read :network id])
+         #(gpkg-download
+           (:name (maps/get-map map-id))
+           (fn [w]
+             ;; one network which can't be exported (an old or broken
+             ;; document, say) shouldn't stop the rest
+             (let [failures
+                   (doall
+                    (for [id (sort-by (juxt (comp :name infos) identity) chosen)
+                          :let [e (try (add-saved-network! w (infos id)) nil
+                                       (catch Exception e e))]
+                          :when e]
+                      (do (log/warn e "Leaving network" id "out of GeoPackage of map" map-id)
+                          e)))]
+               (when (and (not map-data) (seq failures) (= (count failures) (count chosen)))
+                 (throw (first failures))))
+             (when map-data (add-map-data! w map-id)))))))))
+
+(defn- upload-map-dialog [{{:keys [project-id]} :params}]
+  (auth/verify [:modify :project project-id]
+    (-> (project-pages/upload-map-form project-id)
+        (fragment)
+        (cache-control/no-store))))
+
+(defn- too-many-features?
+  "Whether the current user would have more GIS features than they may,
+  with `n` more"
+  [n]
+  (let [{user-id :id user-auth :auth} auth/*current-user*]
+    (when-let [limit (get (config :max-gis-features) user-auth)]
+      (> (+ n (users/num-gis-features user-id)) limit))))
+
+(defn- upload-map!
+  "Make a new map from an uploaded GeoPackage downloaded from THERMOS. The
+  file is checked here, and then read by an import job (see
+  thermos-backend.gpkg.upload)."
+  [{{:keys [project-id file] map-name :name} :params :as request}]
+  (auth/verify [:modify :project project-id]
+    (let [dir       (io/file (config :import-directory) (str (java.util.UUID/randomUUID)))
+          target    (io/file dir (.getName (io/file (str (:filename file)))))
+          problem   (fn [message]
+                      (doseq [f [target dir]] (.delete ^java.io.File f))
+                      (-> (project-pages/upload-map-form project-id :message message
+                                                         :map-name map-name)
+                          (fragment)
+                          (cache-control/no-store)))]
+      (if-not (:tempfile file)
+        (problem "Choose a GeoPackage to upload.")
+        (do
+          (.mkdirs dir)
+          (java.nio.file.Files/move (.toPath ^java.io.File (:tempfile file)) (.toPath target)
+                                    (into-array java.nio.file.CopyOption []))
+          (let [contents (try (gpkg-upload/read-contents target)
+                              (catch Exception e
+                                (or (gpkg-upload/problem-message e)
+                                    (do (log/error e "Reading uploaded GeoPackage" (:filename file))
+                                        "Unable to read this GeoPackage."))))]
+            (cond
+              (string? contents)
+              (problem contents)
+
+              (too-many-features? (:feature-count contents))
+              (problem (str "This map has " (:feature-count contents) " buildings and roads, "
+                            "which is more than you can have in your projects."))
+
+              :else
+              (let [map-name (or (some-> map-name string/trim not-empty)
+                                 (:name contents)
+                                 (string/replace (:filename file) #"(?i)\.gpkg$" ""))
+                    map-id   (maps/create-map!
+                              project-id map-name ""
+                              (assoc (:parameters contents)
+                                     :thermos-upload {:file (str target)}))]
+                (importer/queue-import {:map-id map-id :user-id (:id auth/*current-user*)})
+                (htmx-redirect request (str "/project/" project-id))))))))))
+
+(defn- map-download-dialog
+  "The dialog for downloading a map: its format, and for a GeoPackage
+  what to put in it"
+  [{{:keys [map-id project-id]} :params}]
+  (auth/verify [:read :map map-id]
+    (-> (project-pages/map-download-form project-id (maps/get-map map-id)
+                                         (projects/map-networks map-id))
+        (fragment)
+        (cache-control/no-store))))
+
+(defn- map-download
+  "A map's data in the `format` from `map-download-dialog`"
+  [{{:keys [format]} :params :as request}]
+  (if (= "geojson" format)
+    (map-geojson-data request)
+    (map-gpkg request)))
+
+(defn- network-download-dialog
+  "The dialog for choosing the format to download a network in"
+  [{{:keys [map-id net-id project-id]} :params}]
+  (auth/verify [:read :network net-id]
+    (-> (project-pages/network-download-form project-id map-id
+                                             (assoc (projects/get-network net-id) :id net-id))
+        (fragment)
+        (cache-control/no-store))))
+
+(defn- network-download
+  "A network in the `format` from `network-download-dialog`"
+  [{{:keys [format]} :params :as request}]
+  (if (= "geojson" format)
+    (network-geojson request)
+    (network-gpkg request)))
+
 (defn- delete-networks! [{{:keys [network-name map-id project-id]} :params :as request}]
   (auth/verify [:write :map map-id] ;; yes/no?
     (projects/delete-networks! map-id (url-decode network-name))
@@ -448,11 +679,15 @@
 
 (def map-routes
   [["/new" map-wizard/wizard-routes]
+   ["/upload" {:get upload-map-dialog :post upload-map!}]
    [["/" [long :map-id]] {"" {:delete delete-map!}
                           "/delete" {:get delete-map-page :post delete-map!}
                           "/rename" {:get rename-map-dialog :post rename-map!}
                           "/icon.png" map-icon
                           "/data.json" map-geojson-data
+                          "/data.gpkg" map-gpkg
+                          "/data" map-download
+                          "/download" map-download-dialog
                           ["/t/" [long :z] "/" [long :x] "/" [long :y]] map-vector-tile
                           ["/d/" [long :z] "/" [long :x] "/" [long :y] ".png"] map-heat-density-tile
                           ["/cd/" [long :z] "/" [long :x] "/" [long :y] ".png"] map-cold-density-tile
@@ -460,13 +695,18 @@
                                            :post network-save!}]
                                   ["/rename" {:get rename-network-dialog
                                                :post rename-networks!}]
+                                  ["/names" {:get network-names}]
+                                  ["/history" {:get network-history}]
                                   [["/" [long :net-id]]
                                    {"" {:get  network-editor-page
                                         :head network-poll-status
                                         :post network-save!}
                                     "/status" network-poll-status
+                                    "/stop" {:post network-stop!}
                                     "/data.json" {:get network-geojson}
-                                    }]
+                                    "/data.gpkg" {:get network-gpkg}
+                                    "/data" {:get network-download}
+                                    "/download" {:get network-download-dialog}}]
                                   [["/" [#".+" :network-name]] {:delete delete-networks!}]]}]])
 
 (def project-routes

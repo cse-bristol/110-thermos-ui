@@ -12,6 +12,7 @@
             [mount.core :refer [defstate]]
             [clojure.tools.logging :as log]
             [thermos-specs.document :as document]
+            [thermos-specs.solution :as solution]
             [thermos-specs.supply :as supply]))
 
 ;; TODO change the storage format to prevent inclusion of unknown tags?
@@ -88,18 +89,40 @@
 
                      (= :tidy problem-type)
                      (interop/tidy progress)
-                     
+
                      (#{:network :both} problem-type)
-                     (interop/try-solve progress)
+                     (interop/try-solve progress))
 
-                     (#{:supply :both} problem-type)
-                     (supply-solver/try-solve))]
+          ;; Stopping (queue/cancel) interrupts this thread. The network
+          ;; model then stops early and keeps its best solution, so once
+          ;; it has one a stop means to keep that, without the supply.
+          solution (cond
+                     (= :supply problem-type)
+                     (supply-solver/try-solve solution)
 
+                     (not= :both problem-type)
+                     solution
+
+                     (or (::solution/stopped-early solution)
+                         (Thread/interrupted))
+                     solution
+
+                     :else
+                     (try (supply-solver/try-solve solution)
+                          (catch InterruptedException _ solution)))]
+
+      ;; a shutdown interrupts this too, but the job will be run again
+      (when (queue/shutting-down?)
+        (throw (InterruptedException. "Shutting down")))
+      ;; a stop which came too late to make any difference
+      (Thread/interrupted)
       (projects/add-solution! network-id (pr-str solution)))
 
     (catch InterruptedException ex
       (log/info "Solver interrupted (probably user cancel) for" network-id)
-      (projects/forget-run! network-id)
+      ;; on shutdown the job stays the network's, to be run again
+      (when-not (queue/shutting-down?)
+        (projects/forget-run! network-id))
       :cancelled)
     (catch Exception ex
       (if (:cancelled (ex-data ex))

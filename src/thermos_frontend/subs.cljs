@@ -20,7 +20,9 @@
             [thermos-util.pipes :as pipe-calcs]
             [thermos-frontend.db :as db]
             [thermos-frontend.operations :as operations]
-            [thermos-frontend.spatial :as spatial]))
+            [thermos-frontend.spatial :as spatial]
+            [thermos-frontend.undo :as undo]
+            [thermos-frontend.comparison :as comparison]))
 
 (rf/reg-sub
  :doc/get
@@ -219,4 +221,92 @@
  :server/run
  :<- [:server]
  (fn [server _]
-   (select-keys server [:run-state :queue-position :run-message :run-timing])))
+   (select-keys server [:run-state :queue-position :run-message :run-timing :run-objectives])))
+
+;; Undo and redo, which can't be done while a run is going
+
+(rf/reg-sub :undo/can-undo (fn [db _] (boolean (undo/can-undo? db))))
+
+(rf/reg-sub :undo/can-redo (fn [db _] (boolean (undo/can-redo? db))))
+
+;; Comparing with another network (see db/comparison)
+
+(rf/reg-sub :compare/state (fn [db _] (db/comparison db)))
+
+(rf/reg-sub
+ :compare/comparing
+ :<- [:compare/state]
+ (fn [c _] (some? (:document c))))
+
+(rf/reg-sub :compare/networks :<- [:compare/state] (fn [c _] (:networks c)))
+
+(rf/reg-sub :compare/network :<- [:compare/state] (fn [c _] (:network c)))
+
+(rf/reg-sub :compare/document :<- [:compare/state] (fn [c _] (:document c)))
+
+(rf/reg-sub :compare/picked :<- [:compare/state] (fn [c _] (:picked c)))
+
+(rf/reg-sub
+ :compare/candidates
+ :<- [:compare/document]
+ (fn [document _] (::document/candidates document)))
+
+(defn- diff-part
+  "The parts of a document which comparison/diff looks at"
+  [doc]
+  (select-keys doc [::document/candidates ::document/deletions ::solution/state]))
+
+(rf/reg-sub :compare/here (fn [db _] (diff-part db)))
+
+(rf/reg-sub :compare/there :<- [:compare/document] (fn [doc _] (diff-part doc)))
+
+(rf/reg-sub
+ :compare/diff
+ ;; a map from id to comparison/candidate-diff, or nil if not comparing
+ :<- [:compare/here]
+ :<- [:compare/there]
+ (fn [[here there] _]
+   (when (seq there) (comparison/diff here there))))
+
+(rf/reg-sub
+ :compare/category-counts
+ :<- [:compare/diff]
+ (fn [diff _] (comparison/category-counts diff)))
+
+(rf/reg-sub
+ :compare/here-summary
+ :<- [:doc/candidates]
+ :<- [:doc/cost-factors]
+ (fn [[candidates cost-factors] _]
+   (comparison/summary (assoc cost-factors ::document/candidates candidates))))
+
+(rf/reg-sub
+ :compare/there-summary
+ :<- [:compare/document]
+ (fn [there _] (when there (comparison/summary there))))
+
+(rf/reg-sub
+ :compare/summary-rows
+ :<- [:compare/here-summary]
+ :<- [:compare/there-summary]
+ :<- [:doc/mode]
+ (fn [[here there mode] _]
+   (when there (comparison/summary-rows here there mode))))
+
+(rf/reg-sub
+ :compare/parameters
+ :<- [:doc/cost-factors]
+ :<- [:compare/document]
+ (fn [[here there] _]
+   (when there (comparison/parameter-differences here there))))
+
+(rf/reg-sub
+ :compare/spatial-index
+ :<- [:compare/document]
+ (fn [doc _] (select-keys doc [::spatial/spatial-index ::spatial/update-counter])))
+
+(rf/reg-sub
+ :compare/tile-candidate-ids
+ ;; the ids of the other network's candidates in the bounding box [_ bbox]
+ :<- [:compare/spatial-index]
+ (fn [index [_ bbox]] (spatial/find-candidates-ids-in-bbox index bbox)))

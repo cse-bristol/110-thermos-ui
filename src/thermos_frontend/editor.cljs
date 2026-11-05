@@ -21,8 +21,10 @@
 
             [thermos-frontend.operations :as operations]
             [thermos-frontend.main-nav :as main-nav]
+            [thermos-frontend.page-nav :as page-nav]
             [thermos-frontend.network-candidates-panel :as network-candidates-panel]
             [thermos-frontend.selection-info-panel :as selection-info-panel]
+            [thermos-frontend.comparison-view :as comparison-view]
             [thermos-frontend.popover :as popover]
             [thermos-frontend.view-control :as view-control]
             [thermos-frontend.params.objective :as objective]
@@ -40,6 +42,7 @@
             
             [thermos-frontend.solution-view :as solution-view]
             [thermos-frontend.toaster :as toaster]
+            [thermos-frontend.format :as format]
             [thermos-frontend.editor-keys :as keys]
             [thermos-frontend.theme :as theme]
 
@@ -95,7 +98,7 @@
   ;; not called `document`, which would hide js/document
   [network url extension]
   (POST url
-      {:params {:state network}
+      {:params {:state network :name (preload/get-value :name)}
        :response-format
        {:type :blob :read -body}
        :handler
@@ -136,7 +139,9 @@
           [view-control/component]]
          
          :right
-         [selection-info-panel/component]
+         (if @(rf/subscribe [:compare/comparing])
+           [comparison-view/panel]
+           [selection-info-panel/component])
          }]
 
        :bottom
@@ -151,29 +156,126 @@
      ]
     ))
 
-(defn navbar [*show-menu *is-cooling]
-  [main-nav/component
-   {:key :main-nav
-    :read-only (preload/get-value :read-only)
-    :parameter-set (some? (db/parameter-set))
-    :on-save #(do-save % nil)
-    :on-run  do-save
+(defn- upload-geojson-2!
+  "Ask for a geojson v2 file, and update the document from it"
+  []
+  (let [f (js/document.createElement "input")]
+    (set! (.-type f) "file")
+    (.addEventListener
+     f "change"
+     (fn [e]
+       (let [r (js/FileReader.)]
+         (set!
+          (.-onload r)
+          (fn [e]
+            (->> e
+                 (.-target)
+                 (.-result)
+                 (js/JSON.parse)
+                 (js->clj)
+                 (vector :doc/edit converter/update-from-geojson-2)
+                 (rf/dispatch))))
+         (.readAsText r (-> e (.-target) (.-files) (aget 0))))))
+    (.dispatchEvent f (js/MouseEvent. "click"))))
 
-    :hamburger
-    [:button.hamburger
-     {:on-click #(swap! *show-menu not)
-      :class (when @(rf/subscribe [:server/running-or-queued]) "spin-around")
-      :style (merge
-              {:background :none
-               :border :none}
+(defn- file-menu [set-mode]
+  [main-nav/dropdown {:label "File"}
+   [:div.dropdown__heading "Export"]
+   [:button.dropdown__item
+    {:on-click #(rf/dispatch [::export "/convert/excel" ".xlsx"])}
+    symbols/download " Excel spreadsheet"]
+   (when-not set-mode
+     [:<>
+      [:button.dropdown__item
+       {:on-click #(rf/dispatch [::export "/convert/gpkg" ".gpkg"])
+        :title "The network and its results, as a GIS file for QGIS and the like"}
+       symbols/download " GeoPackage"]
+      [:button.dropdown__item
+       {:on-click #(rf/dispatch [::export "/convert/json" ".json"])}
+       symbols/download " Geojson"]
+      [:button.dropdown__item
+       {:on-click #(rf/dispatch [::export "/convert/json-2" ".json"])}
+       symbols/download " Geojson v2"]])
 
-              (when (= :cooling @*is-cooling)
-                {:transform "scaleY(-1)"}))
-      }
-     theme/icon]
+   [:div.dropdown__heading "Import"]
+   [:button.dropdown__item {:on-click merge-upload/do-upload}
+    symbols/upload " Excel spreadsheet"]
+   (when-not set-mode
+     [:button.dropdown__item {:on-click upload-geojson-2!}
+      symbols/upload " Geojson v2"])
 
-    :name (preload/get-value :name)
-    :unsaved? @(rf/subscribe [:server/needs-save])}])
+   (when-not set-mode
+     [:<>
+      [:div.dropdown__heading "Parameter sets"]
+      [:button.dropdown__item {:on-click parameter-sets/show-apply-dialog!}
+       "Apply a parameter set..."]
+      (when-not (preload/get-value :read-only)
+        [:button.dropdown__item {:on-click parameter-sets/show-save-dialog!}
+         "Save parameters as a set..."])
+      [:a.dropdown__item {:href "/parameters" :target "_blank"} "All parameter sets"]
+
+      [:div.dropdown__heading "Compare"]
+      [:button.dropdown__item {:on-click comparison-view/show-chooser!}
+       "Compare with another network..."]
+      (when @(rf/subscribe [:compare/comparing])
+        [:button.dropdown__item {:on-click #(rf/dispatch [:compare/stop])}
+         "Stop comparing"])])
+
+   (when-not (or set-mode (preload/get-value :read-only))
+     [:<>
+      [:div.dropdown__heading "Tools"]
+      [:button.dropdown__item
+       {:on-click #(main-nav/with-name (fn [name] (do-save name :tidy)))
+        :title "Save, and mark the parts of the network that cannot be reached"}
+       "Tidy"]
+      [:button.dropdown__item
+       {:on-click #(main-nav/with-name (fn [name] (do-save name :tree)))
+        :title "Save, and join up the buildings with a quick approximate tree, without optimising"}
+       "Tree"]])
+
+   [:div.dropdown__heading "Go to"]
+   (if set-mode
+     [:a.dropdown__item {:href "/parameters"} "Parameter sets"]
+     [:a.dropdown__item {:href "../../../"} "Project"])
+   [:a.dropdown__item {:href "/"} "THERMOS home page"]])
+
+(defn- help-menu []
+  [main-nav/dropdown {:label "Help"}
+   [:input.text-input
+    {:placeholder "Search help..."
+     :type :search
+     :style {:margin "0.25em 1em" :width "calc(100% - 2em)"}
+     :on-key-press
+     #(when (= "Enter" (.-key %))
+        (->> (target-value %)
+             (str "/help/search?q=")
+             (js/window.open)))}]
+   [:a.dropdown__item {:href "/help" :target "help"} "Help contents"]
+   [:a.dropdown__item {:href "/help/networks.html" :target "help"} "Network editor help"]
+   [:button.dropdown__item {:on-click keys/show-help} "Keyboard shortcuts"]])
+
+(defn navbar [*is-cooling]
+  (let [set-mode (some? (db/parameter-set))]
+    [main-nav/component
+     {:key :main-nav
+      :read-only (preload/get-value :read-only)
+      :parameter-set set-mode
+      :on-save #(do-save % nil)
+      :on-run  do-save
+
+      :home
+      [:a.main-nav__home
+       {:href (if set-mode "/parameters" "../../../")
+        :title (if set-mode "Back to parameter sets" "Back to project")
+        :class (when @(rf/subscribe [:server/running-or-queued]) "spin-around")
+        :style (when (= :cooling @*is-cooling)
+                 {:transform "scaleY(-1)"})}
+       theme/icon]
+
+      :menus [[file-menu set-mode] [help-menu]]
+
+      :name (preload/get-value :name)
+      :unsaved? @(rf/subscribe [:server/needs-save])}]))
 
 (defn- rough-duration
   "A duration in seconds, to the nearest minute or so"
@@ -254,6 +356,95 @@
         [:span "Should finish by " (clock-time finishes-in)]
         [:span "Time limit reached, finishing up"])]]))
 
+(defn- objective-at
+  "The objective of the best solution as it was `t` seconds into the run,
+  from `objectives`, [[seconds objective] ...] in time order"
+  [objectives t]
+  (second (last (take-while #(<= (first %) t) objectives))))
+
+(defn- objective-chart
+  "How the objective of the best solution so far has improved, as a step
+  chart going on to `elapsed` seconds, so the user can see whether it is
+  still getting better, and so whether to stop the run"
+  [objectives elapsed]
+  (r/with-let [*hover (r/atom nil)] ;; the time pointed at, in seconds
+    (let [width   600
+          height  100
+          pad     4
+          [t-last o-last] (peek objectives)
+          t-max   (max 1 elapsed t-last)
+          ys      (map second objectives)
+          y-min   (reduce min ys)
+          y-max   (reduce max ys)
+          ;; a flat line goes across the middle
+          span    (if (> y-max y-min) (- y-max y-min) (max 1 (js/Math.abs y-max)))
+          y-low   (if (> y-max y-min) y-min (- y-min (/ span 2)))
+          sx      #(* width (/ % t-max))
+          sy      #(- height pad (* (- height pad pad) (/ (- % y-low) span)))
+          [[t0 o0] & more] objectives
+          path    (str "M" (sx t0) " " (sy o0)
+                       (apply str (for [[t o] more] (str " H" (sx t) " V" (sy o))))
+                       " H" width)
+          hover   @*hover
+          hover-o (when hover (objective-at objectives hover))
+          label   {:font-size :0.75em :color theme/dark-grey}]
+      [:div {:style {:margin "0.5em 0"}}
+       [:div {:style {:display :flex :justify-content :space-between :font-size :0.9em}}
+        [:span "Objective of the best solution so far"]
+        (if hover-o
+          [:span (format/si-number hover-o) " after " (format/seconds hover)]
+          [:span (format/si-number o-last) ", found after " (format/seconds t-last)])]
+       [:div {:style {:display :flex :align-items :stretch :margin-top :0.25em}}
+        [:div {:style (merge label {:width :4em :padding-right :0.5em :text-align :right
+                                    :display :flex :flex-direction :column
+                                    :justify-content :space-between})}
+         [:span (format/si-number (if (> y-max y-min) y-max (+ y-low span)))]
+         [:span (format/si-number y-low)]]
+        [:svg {:view-box (str "0 0 " width " " height)
+               :preserve-aspect-ratio "none"
+               :role :img
+               :aria-label (str "Objective over time, now " (format/si-number o-last))
+               :style {:flex 1 :height :6em :display :block :cursor :crosshair}
+               :on-mouse-move (fn [e]
+                                (let [r (.getBoundingClientRect (.-currentTarget e))]
+                                  (reset! *hover (* t-max (/ (- (.-clientX e) (.-left r))
+                                                             (.-width r))))))
+               :on-mouse-leave #(reset! *hover nil)}
+         [:path {:d (str "M0 0 V" height " H" width)
+                 :fill :none :stroke theme/light-grey :stroke-width 1
+                 :vector-effect "non-scaling-stroke"}]
+         (when hover
+           [:path {:d (str "M" (sx hover) " 0 V" height)
+                   :stroke theme/dark-grey :stroke-width 1 :stroke-dasharray "3 3"
+                   :vector-effect "non-scaling-stroke"}])
+         [:path {:d path :fill :none
+                 :stroke theme/in-solution-orange :stroke-width 2
+                 :stroke-linejoin :round
+                 :vector-effect "non-scaling-stroke"}]]]
+       [:div {:style (merge label {:display :flex :justify-content :space-between
+                                   :margin-left :4.5em})}
+        [:span "0"]
+        [:span (rough-duration t-max)]]])))
+
+(defn- run-buttons
+  "What the user can do while the network is queued or running: stop it,
+  or leave it to run and edit a copy"
+  [run-state]
+  (let [stopping (#{:cancel :cancelling} run-state)]
+    [:div {:style {:display :flex :gap :1em :align-items :center :margin "0.5em 0"}}
+     (when-not stopping
+       [:button.button.button--danger
+        {:on-click #(rf/dispatch [:server/stop])
+         :title (if (= :running run-state)
+                  "Stop the optimiser now, and use the best solution it has found so far"
+                  "Take this off the queue without running it")}
+        (if (= :running run-state) "Stop" "Cancel")])
+     [:button.button
+      {:on-click #(rf/dispatch [:server/continue-editing])
+       :title "Leave this to finish by itself, and carry on editing a copy of it"}
+      "Continue editing"]
+     [:a {:href "../../../" :style {:margin-left :auto}} "Back to project"]]))
+
 (defn- run-estimate [position {:keys [starts-in finishes-in]}]
   [:div
    [:b "Number " position " in queue"]
@@ -265,23 +456,9 @@
       [:br]
       [:small "This assumes every job ahead uses its whole time limit, so it may well be sooner."]])])
 
-(defn- tab-switcher
-  "A button in the menu which shows the tab `key`. (A component of its own,
-  so that the buttons stay put when the page re-renders.)"
-  [key label]
-  (let [path [::view/view-state ::view/selected-tab]]
-    [:li [:button.button--link-style
-          {:on-click #(doc/set-value! path key)
-           :class (when (= (doc/value path :candidates) key) "selected")}
-          label]]))
-
 (defn main-page []
   (r/with-let [selected-tab-path [::view/view-state ::view/selected-tab]
-               *show-menu (r/atom false)
-               menu-timer (atom nil)
-               *is-cooling (rf/subscribe [:doc/mode])
-               has-solution? (rf/subscribe [:doc/has-solution])
-               has-supply-solution? (rf/subscribe [:doc/has-supply-solution])]
+               *is-cooling (rf/subscribe [:doc/mode])]
 
     (let [close-popover
           (fn [e]
@@ -311,155 +488,9 @@
              :on-click (fn [e] (close-popover e) (close-table-filter e))
              :on-context-menu close-popover
              :ref popover/set-focus-element!}
-       (when @*show-menu
-         [:div.main-menu.slide-left.shadow.right
-          {:style {:position :absolute
-                   :z-index 1000000
-                   :width :20em
-                   :left :-20em
-                   :flex-grow 1
-                   :height "100%"
-                   :overflow-y :auto
-                   :display :flex
-                   :flex-direction :column
-                   :background "rgba(255,255,255,0.95)"}
+       ^{:key :navbar} [navbar *is-cooling]
 
-           :on-mouse-enter
-           #(js/clearTimeout @menu-timer)
-           :on-mouse-leave
-           #(reset! menu-timer
-                    (js/setTimeout
-                     (fn [] (reset! *show-menu false))
-                     300))
-
-           }
-
-          [:div.menu-block
-           [:h1 (if set-mode "Network parameters" "Network problem")]
-           [:ul
-            (when-not set-mode [tab-switcher :candidates "Map view"])
-            [tab-switcher :parameters "Objective"]
-            
-            [tab-switcher :tariffs "Tariffs"]
-            [tab-switcher :pipe-costs "Pipe & connection costs"]
-            [tab-switcher :insulation "Insulation"]
-            [tab-switcher :alternatives "Individual systems"]
-            [tab-switcher :supply-types "Supply types"]
-            ]]
-
-          (when @has-solution?
-            [:div.menu-block
-             [:h1 "Network solution"]
-             [:ul
-              [tab-switcher :solution "Solution summary"]
-              [tab-switcher :run-log "Run log"]
-              ]])
-          
-          [:div.menu-block
-           [:h1 "Supply problem"]
-           [:ul
-            [tab-switcher :profiles "Profiles"]
-            [tab-switcher :supply-technologies "Technologies"]
-            [tab-switcher :supply-objective "Objective"]
-            ]]
-
-          (when @has-supply-solution?
-            [:div.menu-block
-             [:h1 "Supply solution"]
-             [:ul
-              [tab-switcher :supply-solution "Solution summary"]
-              ]])
-
-          [:div.menu-block
-           [:h1 "Help"]
-           [:input.text-input
-            {:placeholder "Search help..."
-             :type :search
-             :on-key-press
-             #(let [key (.-key %)]
-                (when (= key "Enter")
-                  (->> (target-value %)
-                       (str "/help/search?q=")
-                       (js/window.open))))}
-            ]
-
-
-           [:ul
-            [:li [:a {:href "/help" :target "help"} "Help contents"]]
-            [:li [:a {:href "/help/networks.html" :target "help"} "Network editor help"]]
-            [:li [:button.button--link-style {:on-click keys/show-help}
-                  "Keyboard shortcuts"]]]
-           ]
-
-          (when-not set-mode
-            [:div.menu-block
-             [:h1 "Parameter sets"]
-             [:ul
-              [:li [:button.button--link-style
-                    {:on-click parameter-sets/show-apply-dialog!}
-                    "Apply a parameter set..."]]
-              (when-not (preload/get-value :read-only)
-                [:li [:button.button--link-style
-                      {:on-click parameter-sets/show-save-dialog!}
-                      "Save parameters as a set..."]])
-              [:li [:a {:href "/parameters" :target "_blank"} "All parameter sets"]]]])
-
-          [:div.menu-block
-           [:h1 "Import / Export Data"]
-           [:ul
-            [:li [:button.button--link-style
-                  {:on-click #(rf/dispatch [::export "/convert/excel" ".xlsx"])}
-                  symbols/download " Excel Spreadsheet"]]
-
-            [:li [:button.button--link-style
-                  {:on-click merge-upload/do-upload}
-                  symbols/upload " Excel Spreadsheet"]]
-            (when-not set-mode
-             [:<>
-              [:li [:button.button--link-style
-                    {:on-click #(rf/dispatch [::export "/convert/json" ".json"])}
-                    symbols/download "Geojson"]]
-
-              [:li [:button.button--link-style
-                    {:on-click #(rf/dispatch [::export "/convert/json-2" ".json"])}
-                    symbols/download "Geojson v2"]]
-
-              [:li [:button.button--link-style
-                    {:on-click
-                     (fn [_]
-                       (let [f (js/document.createElement "input")]
-                         (set! (.-type f) "file")
-                         (.addEventListener
-                          f "change"
-                          (fn [e]
-                            (let [r (js/FileReader.)]
-                              (set!
-                               (.-onload r)
-                               (fn [e]
-                                 (->> e
-                                     (.-target)
-                                     (.-result)
-                                     (js/JSON.parse)
-                                     (js->clj)
-                                     (vector :doc/edit converter/update-from-geojson-2)
-                                     (rf/dispatch))))
-                              (.readAsText r (-> e (.-target) (.-files) (aget 0))))))
-                         (.dispatchEvent f (js/MouseEvent. "click"))))
-                     
-                     }
-                    symbols/upload " Geojson v2"]]])
-            ]]
-          
-          [:div.menu-block
-           [:h1 (if set-mode "Parameter sets" "Project")]
-           [:ul
-            (if set-mode
-              [:li [:a {:href "/parameters"} "Back to parameter sets"]]
-              [:li [:a {:href "../../../"} "Back to project"]])
-            [:li [:a {:href "/"} "THERMOS home page"]]
-            ]]])
-
-       ^{:key :navbar} [navbar *show-menu *is-cooling]
+       ^{:key :page-nav} [page-nav/component selected-tab]
 
        (cond
          @(rf/subscribe [:server/running-or-queued])
@@ -472,6 +503,7 @@
                         :background "rgba(0,0,0,0.75)"}}
           (let [{position :queue-position
                  timing :run-timing
+                 objectives :run-objectives
                  :keys [run-state run-message]} @(rf/subscribe [:server/run])]
             [:div.popover-menu
              {:style {:background :white
@@ -482,21 +514,32 @@
                       :flex-direction :column}}
 
              (case run-state
-               (:cancel :cancelling)  [:b "Cancelling"]
+               (:cancel :cancelling)
+               [:<>
+                [:b "Stopping"]
+                [:p "The optimiser is finishing up with the best solution it has found so far."]
+                (when (seq objectives)
+                  [objective-chart objectives (:elapsed timing 0)])
+                [run-log run-message]]
+
                :running
                [:<>
                 [:b "Model is running"]
                 [run-progress timing]
+                (when (seq objectives)
+                  [objective-chart objectives (:elapsed timing 0)])
                 [run-log run-message]]
 
                [run-estimate (:position timing position) timing])
              (when-not (#{:cancel :cancelling} run-state)
                [push-offer/component])
-             [:a {:href "../../../"} "Back to project"]])])
+             [run-buttons run-state]])])
 
        (if set-mode
          ^{:key :set-editor-bar} [parameter-sets/set-editor-bar]
          ^{:key :changed-banner} [parameter-sets/changed-banner])
+
+       ^{:key :comparison-banner} [comparison-view/banner]
 
        [:div {:style {:key :main-body
                       :height 1 :flex-grow 1
@@ -606,4 +649,5 @@
   ;; if we put the listener on the editor container, it doesn't
   ;; get the key events it should.
   ;; (the indirection lets hot reloads of editor-keys take effect)
-  (js/document.addEventListener "keypress" #(keys/handle-keypress %)))
+  (js/document.addEventListener "keypress" #(keys/handle-keypress %))
+  (js/document.addEventListener "keydown" #(keys/handle-keydown %)))

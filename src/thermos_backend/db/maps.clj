@@ -15,6 +15,7 @@
             [clojure.edn :as edn]
             [clojure.tools.logging :as log]
             [thermos-backend.maps.heat-density :as heat-density]
+            [thermos-backend.maps.icon :as icon]
             [clojure.data.json :as json]
             [thermos-util :refer [distinct-by] :as util]))
 
@@ -261,6 +262,7 @@
                    0
                    (catch Exception e (dec n))))))
 
+      (icon/store! map-id)
       (log/info tag "updated summary information")
       
       (-> (h/update :maps)
@@ -451,13 +453,9 @@
                      :name (:name bound)}})}))
 
 (defn get-icon
-  "Try and render an icon for the map"
+  "The map's icon, as a PNG, drawing it if need be"
   [map-id]
-  (-> (h/select :png)
-      (h/from :map-icons)
-      (h/where [:= :map-id map-id])
-      (db/fetch-one!)
-      (:png)))
+  (icon/get-or-render! map-id))
 
 (defn delete-map! [map-id]
   (-> (h/delete-from :maps)
@@ -503,4 +501,93 @@
           (doseq [row (jdbc/cursor->lazyseq cursor)]
             (callback row)))
         ))))
+
+(def ^:private feature-columns
+  "What `with-features` gets for buildings and paths"
+  {:buildings [:candidates.geoid :orig-id :user-fields
+               :connection-id
+               :demand-kwh-per-year
+               :demand-source
+               :demand-kwp
+               :peak-source
+               :cooling-kwh-per-year
+               :cooling-kwp
+               :connection-count
+               :height
+               :floor-area
+               :wall-area
+               :roof-area
+               :ground-area
+               :conn-group]
+   :paths     [:candidates.geoid :orig-id :user-fields
+               :start-id :end-id :length]})
+
+(defn- features-of-kind [query kind]
+  (case kind
+    :buildings (h/join query :buildings [:= :candidates.id :buildings.candidate-id])
+    :paths     (h/join query :paths [:= :candidates.id :paths.candidate-id])))
+
+(defn feature-dimensions
+  "The dimensions of the geometry of the `kind` (:buildings or :paths) of
+  candidates on map `map-id`: 0 for points, 1 lines and 2 polygons"
+  [map-id kind]
+  (-> (h/select [(sql/call :ST_Dimension :geometry) :dimension])
+      (h/modifiers :distinct)
+      (h/from :candidates)
+      (features-of-kind kind)
+      (h/where [:= :map-id map-id])
+      (db/fetch!)
+      (->> (into #{} (keep :dimension)))))
+
+(defn user-field-types
+  "The user fields of the `kind` (:buildings or :paths) of candidates on
+  map `map-id`, as a map from their name to :real if their values are
+  all numbers, :boolean if they're all booleans, or :text"
+  [map-id kind]
+  (->> (db/fetch!
+        [(format
+          "SELECT f.key AS field, array_agg(DISTINCT jsonb_typeof(f.value)) AS types
+           FROM candidates
+           JOIN %s ON candidates.id = %s.candidate_id,
+           jsonb_each(candidates.user_fields::jsonb) f
+           WHERE candidates.map_id = ?
+           GROUP BY f.key"
+          (name kind) (name kind))
+         map-id])
+       (into {}
+             (map (fn [{:keys [field types]}]
+                    (let [types (disj (set types) "null")]
+                      [field (cond (= #{"number"} types)  :real
+                                   (= #{"boolean"} types) :boolean
+                                   :else                  :text)]))))))
+
+(defn with-features
+  "Call `f` with a lazy seq of the `kind` (:buildings or :paths) of
+  candidates on map `map-id` whose geometry has dimension `dim` (see
+  `feature-dimensions`), as maps with keys like those of
+  `feature-columns`, and the :geometry as geojson. The seq is read
+  from the database as it's used, and only within `f`, so `f` mustn't
+  keep it for later, or hold onto its head."
+  [map-id kind dim f]
+  (binding [db/*json-key-fn* identity]
+    (db/with-connection [conn]
+      (jdbc/atomic conn
+        (with-open [cursor
+                    (-> (apply h/select
+                               ;; all the digits, so the geometry is exact
+                               [(sql/call :ST_AsGeoJson :geometry (sql/inline 15)) :geometry]
+                               ;; db reads json, but not jsonb, into a map
+                               (replace {:user-fields [(sql/call :cast :user-fields :json) :user-fields]}
+                                        (feature-columns kind)))
+                        (h/from :candidates)
+                        (features-of-kind kind)
+                        (h/where [:and
+                                  [:= :map-id map-id]
+                                  [:= (sql/call :ST_Dimension :geometry) dim]])
+                        (sql/format)
+                        ;; without a fetch size, the driver reads all the rows at once
+                        (as-> query (jdbc/fetch-lazy conn query {:fetch-size 1000})))]
+          (f (jdbc/cursor->lazyseq
+              cursor
+              {:identifiers #(-> % (string/lower-case) (.replace \_ \-))})))))))
 

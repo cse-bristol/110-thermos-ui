@@ -64,10 +64,12 @@
 
         equivalized-cost
         (fn [kwh pv]
-          (if (and (number? kwh) (number? pv))
-            (* 100
-               (/ pv (finance/pv npv-rate (repeat npv-term kwh))))
-            nil))
+          (let [pv-kwh (when (number? kwh)
+                         (finance/pv npv-rate (repeat npv-term kwh)))]
+            ;; with no demand there's no cost per kWh (in clj, dividing
+            ;; by an integer zero throws)
+            (when (and (number? pv) pv-kwh (not (zero? pv-kwh)))
+              (* 100 (/ pv pv-kwh)))))
 
         rows
         [{:name "Network"
