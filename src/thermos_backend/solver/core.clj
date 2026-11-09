@@ -13,7 +13,8 @@
             [clojure.tools.logging :as log]
             [thermos-specs.document :as document]
             [thermos-specs.solution :as solution]
-            [thermos-specs.supply :as supply]))
+            [thermos-specs.supply :as supply]
+            [thermos-specs.view :as view]))
 
 ;; TODO change the storage format to prevent inclusion of unknown tags?
 
@@ -73,6 +74,37 @@
                               :expected-runtime (expected-runtime document problem-type))]
     (projects/associate-job! network-id job-id)))
 
+(defn- show-solution
+  "Switch `solution` to the editor tab which best shows how a
+  `problem-type` run went: the run log if the network model crashed,
+  the summary if it found no solution, the supply solution after a
+  supply run on its own or a supply crash (that page shows its log),
+  and otherwise the map, unless already on a solution tab."
+  [solution problem-type]
+  (let [tab (get-in solution [::view/view-state ::view/selected-tab])
+        network-run (#{:network :both} problem-type)]
+    (cond
+      (and network-run (= :uncaught-error (::solution/state solution)))
+      (view/switch-to-tab solution :run-log)
+
+      (and network-run (not (solution/exists? solution)))
+      (view/switch-to-tab solution :solution)
+
+      (or (= :supply problem-type)
+          (= :uncaught-error
+             (get-in solution [::solution/supply-solution :state])))
+      (view/switch-to-tab solution :supply-solution)
+
+      ;; tree and tidy don't solve anything
+      (not network-run)
+      solution
+
+      (#{:solution :supply-solution} tab)
+      solution
+
+      :else
+      (view/switch-to-map solution))))
+
 (defn consume-problem [{network-id :id problem-type :solve}
                        progress]
   {:pre [(int? network-id) (#{:network :supply :both :tree :tidy} problem-type)]}
@@ -116,7 +148,8 @@
         (throw (InterruptedException. "Shutting down")))
       ;; a stop which came too late to make any difference
       (Thread/interrupted)
-      (projects/add-solution! network-id (pr-str solution)))
+      (projects/add-solution! network-id
+                              (pr-str (show-solution solution problem-type))))
 
     (catch InterruptedException ex
       (log/info "Solver interrupted (probably user cancel) for" network-id)
